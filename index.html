@@ -1,563 +1,92 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-
     <title>WebMinecraft</title>
-
     <style>
-
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: black;
-            font-family: Arial, sans-serif;
-        }
-
-
-        /* =========================
-           MAIN MENU
-           ========================= */
-
-        #mainMenu {
-
-            position: fixed;
-            inset: 0;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            background:
-                linear-gradient(
-                    rgba(0, 0, 0, 0.25),
-                    rgba(0, 0, 0, 0.6)
-                );
-
-            z-index: 50;
-        }
-
-
-        #menuPanel {
-
-            width: 430px;
-            padding: 40px;
-
-            text-align: center;
-
-            background:
-                rgba(20, 20, 20, 0.9);
-
-            border: 2px solid rgba(255, 255, 255, 0.25);
-            border-radius: 16px;
-
-            color: white;
-
-            box-shadow:
-                0 15px 50px
-                rgba(0, 0, 0, 0.6);
-        }
-
-
-        #menuTitle {
-
-            margin: 0;
-            font-size: 52px;
-            letter-spacing: 2px;
-
-            text-shadow:
-                3px 3px 0 #000;
-        }
-
-
-        #menuSubtitle {
-
-            margin: 8px 0 35px;
-
-            color: #bbb;
-            font-size: 15px;
-        }
-
-
-        .menuButton {
-
-            display: block;
-
-            width: 100%;
-            box-sizing: border-box;
-
-            margin: 12px 0;
-            padding: 14px;
-
-            border: 2px solid #555;
-            border-radius: 8px;
-
-            background: #333;
-            color: white;
-
-            font-size: 18px;
-            font-weight: bold;
-
-            cursor: pointer;
-        }
-
-
-        .menuButton:hover {
-
-            background: #4a4a4a;
-            border-color: #888;
-        }
-
-
-        #playButton {
-            background: #4b7f32;
-            border-color: #6aa447;
-        }
-
-
-        #playButton:hover {
-            background: #5d963e;
-        }
-
-
-        #menuVersion {
-
-            margin-top: 25px;
-
-            color: #777;
-            font-size: 12px;
-        }
-
-
-        /* =========================
-           CROSSHAIR
-           ========================= */
-
-        #crosshair {
-
-            position: fixed;
-
-            left: 50%;
-            top: 50%;
-
-            transform:
-                translate(-50%, -50%);
-
-            color: white;
-
-            font-size: 22px;
-            font-weight: bold;
-
-            pointer-events: none;
-
-            text-shadow:
-                1px 1px 2px black,
-                -1px -1px 2px black;
-        }
-
-
-        /* =========================
-           HOTBAR
-           ========================= */
-
-        #hotbar {
-
-            position: fixed;
-
-            bottom: 20px;
-            left: 50%;
-
-            transform:
-                translateX(-50%);
-
-            display: flex;
-
-            gap: 4px;
-
-            padding: 5px;
-
-            background:
-                rgba(0, 0, 0, 0.45);
-
-            border:
-                2px solid
-                rgba(255, 255, 255, 0.3);
-
-            pointer-events: none;
-        }
-
-
-        .slot {
-
-            width: 48px;
-            height: 48px;
-
-            border:
-                2px solid #777;
-
-            background:
-                rgba(30, 30, 30, 0.8);
-
-            display: flex;
-
-            align-items: center;
-            justify-content: center;
-
-            color: white;
-
-            font-size: 12px;
-
-            box-sizing: border-box;
-
-            text-align: center;
-        }
-
-
-        .slot.selected {
-
-            border:
-                3px solid white;
-
-            background:
-                rgba(100, 100, 100, 0.8);
-        }
-
-
-        /* =========================
-           SETTINGS BUTTON
-           ========================= */
-
-        #settingsButton {
-
-            position: fixed;
-
-            top: 20px;
-            right: 20px;
-
-            width: 48px;
-            height: 48px;
-
-            border: none;
-            border-radius: 10px;
-
-            background:
-                rgba(0, 0, 0, 0.65);
-
-            color: white;
-
-            font-size: 25px;
-
-            cursor: pointer;
-
-            z-index: 20;
-        }
-
-
-        #settingsButton:hover {
-
-            background:
-                rgba(40, 40, 40, 0.85);
-        }
-
-
-        /* =========================
-           SETTINGS MENU
-           ========================= */
-
-        #settingsMenu {
-
-            position: fixed;
-
-            inset: 0;
-
-            display: none;
-
-            align-items: center;
-            justify-content: center;
-
-            background:
-                rgba(0, 0, 0, 0.6);
-
-            z-index: 60;
-        }
-
-
-        #settingsPanel {
-
-            width: 380px;
-
-            padding: 25px;
-
-            background:
-                rgba(25, 25, 25, 0.97);
-
-            border:
-                2px solid #555;
-
-            border-radius: 14px;
-
-            color: white;
-
-            box-shadow:
-                0 10px 40px
-                rgba(0, 0, 0, 0.5);
-        }
-
-
-        #settingsPanel h1 {
-
-            margin-top: 0;
-            margin-bottom: 25px;
-
-            font-size: 25px;
-        }
-
-
-        .setting {
-
-            display: flex;
-
-            align-items: center;
-            justify-content: space-between;
-
-            margin-bottom: 18px;
-
-            padding-bottom: 14px;
-
-            border-bottom:
-                1px solid #444;
-        }
-
-
-        .setting label {
-
-            font-size: 16px;
-        }
-
-
-        select {
-
-            background: #333;
-
-            color: white;
-
-            border: 1px solid #666;
-
-            border-radius: 6px;
-
-            padding: 7px 10px;
-
-            font-size: 14px;
-        }
-
-
-        #closeSettings {
-
-            width: 100%;
-
-            margin-top: 8px;
-
-            padding: 11px;
-
-            border: none;
-
-            border-radius: 7px;
-
-            background: #555;
-
-            color: white;
-
-            font-size: 15px;
-
-            cursor: pointer;
-        }
-
-
-        #closeSettings:hover {
-
-            background: #666;
-        }
-
-
+        body { margin:0; overflow:hidden; background:black; font-family:Arial,sans-serif; }
+        #mainMenu { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.6)); z-index:50; }
+        #menuPanel { width:430px; padding:40px; text-align:center; background:rgba(20,20,20,.9); border:2px solid rgba(255,255,255,.25); border-radius:16px; color:white; box-shadow:0 15px 50px rgba(0,0,0,.6); }
+        #menuTitle { margin:0; font-size:52px; letter-spacing:2px; text-shadow:3px 3px 0 #000; }
+        #menuSubtitle { margin:8px 0 35px; color:#bbb; font-size:15px; }
+        .menuButton { display:block; width:100%; box-sizing:border-box; margin:12px 0; padding:14px; border:2px solid #555; border-radius:8px; background:#333; color:white; font-size:18px; font-weight:bold; cursor:pointer; }
+        .menuButton:hover { background:#4a4a4a; border-color:#888; }
+        #playButton { background:#4b7f32; border-color:#6aa447; }
+        #playButton:hover { background:#5d963e; }
+        #menuVersion { margin-top:25px; color:#777; font-size:12px; }
+        #crosshair { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:white; font-size:22px; font-weight:bold; pointer-events:none; text-shadow:1px 1px 2px black,-1px -1px 2px black; }
+        #hotbar { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:4px; padding:5px; background:rgba(0,0,0,.45); border:2px solid rgba(255,255,255,.3); pointer-events:none; }
+        .slot { width:48px; height:48px; border:2px solid #777; background:rgba(30,30,30,.8); display:flex; align-items:center; justify-content:center; color:white; font-size:12px; box-sizing:border-box; text-align:center; }
+        .slot.selected { border:3px solid white; background:rgba(100,100,100,.8); }
+        #settingsButton { position:fixed; top:20px; right:20px; width:48px; height:48px; border:none; border-radius:10px; background:rgba(0,0,0,.65); color:white; font-size:25px; cursor:pointer; z-index:20; }
+        #settingsButton:hover { background:rgba(40,40,40,.85); }
+        #settingsMenu { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.6); z-index:60; }
+        #settingsPanel { width:380px; padding:25px; background:rgba(25,25,25,.97); border:2px solid #555; border-radius:14px; color:white; box-shadow:0 10px 40px rgba(0,0,0,.5); }
+        #settingsPanel h1 { margin-top:0; margin-bottom:25px; font-size:25px; }
+        .setting { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid #444; }
+        .setting label { font-size:16px; }
+        select { background:#333; color:white; border:1px solid #666; border-radius:6px; padding:7px 10px; font-size:14px; }
+        #closeSettings { width:100%; margin-top:8px; padding:11px; border:none; border-radius:7px; background:#555; color:white; font-size:15px; cursor:pointer; }
+        #closeSettings:hover { background:#666; }
     </style>
-
 </head>
-
-
 <body>
-
-
-    <!-- MAIN MENU -->
-
     <div id="mainMenu">
-
         <div id="menuPanel">
-
             <h1 id="menuTitle">WebMinecraft</h1>
-
-            <div id="menuSubtitle">
-                A Minecraft-style world in your browser
-            </div>
-
-            <button id="playButton" class="menuButton">
-                Play
-            </button>
-
-            <button id="menuSettingsButton" class="menuButton">
-                Settings
-            </button>
-
-            <div id="menuVersion">
-                WebMinecraft
-            </div>
-
+            <div id="menuSubtitle">A Minecraft-style world in your browser</div>
+            <button id="playButton" class="menuButton">Play</button>
+            <button id="menuSettingsButton" class="menuButton">Settings</button>
+            <div id="menuVersion">WebMinecraft</div>
         </div>
-
     </div>
-
 
     <div id="crosshair">+</div>
 
-
     <div id="hotbar">
-
-        <div class="slot selected">
-            1<br>Grass
-        </div>
-
-        <div class="slot">
-            2<br>Dirt
-        </div>
-
-        <div class="slot">
-            3<br>Stone
-        </div>
-
-        <div class="slot">
-            4<br>Grass
-        </div>
-
-        <div class="slot">
-            5<br>Dirt
-        </div>
-
-        <div class="slot">
-            6<br>Stone
-        </div>
-
-        <div class="slot">
-            7<br>Grass
-        </div>
-
-        <div class="slot">
-            8<br>Dirt
-        </div>
-
-        <div class="slot">
-            9<br>Stone
-        </div>
-
+        <div class="slot selected">1<br>Grass</div>
+        <div class="slot">2<br>Dirt</div>
+        <div class="slot">3<br>Stone</div>
+        <div class="slot">4<br>Sand</div>
+        <div class="slot">5<br>Oak</div>
+        <div class="slot">6<br>Leaves</div>
+        <div class="slot">7<br>Grass</div>
+        <div class="slot">8<br>Dirt</div>
+        <div class="slot">9<br>Stone</div>
     </div>
 
-
-    <!-- SETTINGS BUTTON -->
-
-    <button id="settingsButton">
-        ⚙
-    </button>
-
-
-    <!-- SETTINGS MENU -->
+    <button id="settingsButton">⚙</button>
 
     <div id="settingsMenu">
-
         <div id="settingsPanel">
-
             <h1>Settings</h1>
 
-
             <div class="setting">
-
-                <label>
-                    Shadows
-                </label>
-
-                <input
-                    id="shadowsToggle"
-                    type="checkbox"
-                >
-
+                <label>Shadows</label>
+                <input id="shadowsToggle" type="checkbox">
             </div>
 
-
             <div class="setting">
-
-                <label>
-                    Shadow Quality
-                </label>
-
+                <label>Shadow Quality</label>
                 <select id="shadowQuality">
-
-                    <option value="512">
-                        Low
-                    </option>
-
-                    <option value="1024">
-                        Medium
-                    </option>
-
-                    <option value="2048">
-                        High
-                    </option>
-
+                    <option value="512">Low</option>
+                    <option value="1024">Medium</option>
+                    <option value="2048">High</option>
                 </select>
-
             </div>
-
 
             <div class="setting">
-
-                <label>
-                    Graphics Quality
-                </label>
-
+                <label>Graphics Quality</label>
                 <select id="pixelQuality">
-
-                    <option value="0.75">
-                        Low
-                    </option>
-
-                    <option value="1">
-                        Medium
-                    </option>
-
-                    <option value="1.5">
-                        High
-                    </option>
-
-                    <option value="2">
-                        Ultra
-                    </option>
-
+                    <option value="0.75">Low</option>
+                    <option value="1" selected>Medium</option>
+                    <option value="1.5">High</option>
                 </select>
-
             </div>
 
-
-            <button id="closeSettings">
-                Done
-            </button>
-
+            <button id="closeSettings">Done</button>
         </div>
-
     </div>
 
-
-    <script
-        type="module"
-        src="/src/main.js">
-    </script>
-
+    <script type="module" src="/src/main.js"></script>
 </body>
-
 </html>
