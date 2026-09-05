@@ -18,23 +18,26 @@ const renderer = new THREE.WebGLRenderer({
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(1);
-renderer.shadowMap.enabled = false;
-renderer.shadowMap.type = THREE.BasicShadowMap;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x506050, 2.5));
+const skyLight = new THREE.HemisphereLight(0xbfe8ff, 0x4a3f35, 1.35);
+scene.add(skyLight);
 
-const sun = new THREE.DirectionalLight(0xffffff, 2.2);
-sun.position.set(40, 80, 25);
-sun.castShadow = false;
-sun.shadow.mapSize.width = 512;
-sun.shadow.mapSize.height = 512;
-sun.shadow.camera.left = -70;
-sun.shadow.camera.right = 70;
-sun.shadow.camera.top = 70;
-sun.shadow.camera.bottom = -70;
+const sun = new THREE.DirectionalLight(0xfff3d1, 3.0);
+sun.position.set(45, 85, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 1024;
+sun.shadow.mapSize.height = 1024;
+sun.shadow.camera.left = -80;
+sun.shadow.camera.right = 80;
+sun.shadow.camera.top = 80;
+sun.shadow.camera.bottom = -80;
 sun.shadow.camera.near = 1;
 sun.shadow.camera.far = 220;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.02;
 scene.add(sun);
 
 createWorld(scene);
@@ -42,8 +45,8 @@ createWorld(scene);
 let gameStarted = false;
 
 const settings = {
-    shadows: false,
-    shadowQuality: 512,
+    shadows: true,
+    shadowQuality: 1024,
     pixelRatio: 1
 };
 
