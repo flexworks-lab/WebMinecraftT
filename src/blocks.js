@@ -10,22 +10,18 @@ function hash(x, y = 0) {
 function createTexture(baseColor, colors, density = 45, seed = 1) {
     const size = 16;
     const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = baseColor;
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = baseColor; ctx.fillRect(0, 0, size, size);
     for (let i = 0; i < density; i++) {
         const x = Math.floor(hash(i + seed, seed * 3.17) * size);
         const y = Math.floor(hash(i + seed * 7.1, seed * 5.3) * size);
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.fillRect(x, y, 1, 1);
+        ctx.fillStyle = colors[i % colors.length]; ctx.fillRect(x, y, 1, 1);
         if (i % 13 === 0) ctx.fillRect((x + 1) % size, y, 1, 1);
     }
     const texture = new THREE.CanvasTexture(canvas);
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter; texture.minFilter = THREE.NearestFilter;
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
 }
@@ -38,12 +34,15 @@ function loadTexture(path) {
     return texture;
 }
 
-const grassTopTexture = loadTexture("/textures/Grass_Block_(top_texture)_JE2.png");
-const grassSideTexture = loadTexture("/textures/grass_block_side.png");
-const dirtTexture = loadTexture("/textures/dirt.png");
-const oakSideTexture = loadTexture("/textures/oak_log.png");
-const oakTopTexture = loadTexture("/textures/oak_log_top.png");
-const stoneTexture = loadTexture("/textures/stone.png");
+// GitHub Pages / Vite compatible asset paths.
+const texturePath = (file) => new URL(`../public/textures/${file}`, import.meta.url).href;
+
+const grassTopTexture = loadTexture(texturePath("Grass_Block_(top_texture)_JE2.png"));
+const grassSideTexture = loadTexture(texturePath("grass_block_side.png"));
+const dirtTexture = loadTexture(texturePath("dirt.png"));
+const oakSideTexture = loadTexture(texturePath("oak_log.png"));
+const oakTopTexture = loadTexture(texturePath("oak_log_top.png"));
+const stoneTexture = loadTexture(texturePath("stone.png"));
 const cobblestoneTexture = createTexture("#666666", ["#555555", "#7b7b7b", "#4d4d4d", "#898989"], 75, 18);
 const gravelTexture = createTexture("#88847a", ["#6f6b62", "#9d988c", "#747066", "#aba69a"], 80, 19);
 const sandTexture = createTexture("#d8c07b", ["#c5aa64", "#e5d18f", "#b99f58", "#eddc9c"], 54, 14);
@@ -79,9 +78,7 @@ const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTop
 
 function createBlock(scene, x, y, z, material) {
     const block = new THREE.Mesh(blockGeometry, material);
-    block.position.set(x, y, z);
-    block.matrixAutoUpdate = true;
-    scene.add(block);
+    block.position.set(x, y, z); block.matrixAutoUpdate = true; scene.add(block);
     return block;
 }
 
