@@ -152,8 +152,6 @@ window.addEventListener("resize", () => {
 let lastTime = performance.now();
 let fpsTime = lastTime;
 let fpsFrames = 0;
-let lastChunkX = Infinity;
-let lastChunkZ = Infinity;
 const chunkSize = getChunkSize();
 
 function animate() {
@@ -165,15 +163,7 @@ function animate() {
 
     if (gameStarted) {
         updatePlayer(camera, scene, deltaTime);
-
-        const chunkX = Math.floor(camera.position.x / chunkSize);
-        const chunkZ = Math.floor(camera.position.z / chunkSize);
-
-        if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
-            updateChunkVisibility(camera.position);
-            lastChunkX = chunkX;
-            lastChunkZ = chunkZ;
-        }
+        updateChunkVisibility(camera.position, camera);
     }
 
     renderer.render(scene, camera);
