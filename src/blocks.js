@@ -49,6 +49,7 @@ const oakTopTexture = createTexture("#95613b", ["#714522", "#ad7549", "#7c4d2d",
 const oakPlankTexture = createTexture("#9b6a3b", ["#83562e", "#b67c45", "#744b28", "#c58d54"], 34, 24);
 const leavesTexture = createTexture("#3c8c2e", ["#2d7525", "#55a63a", "#347d28", "#6bb949", "#24661f"], 72, 17);
 const snowTexture = createTexture("#e8f1f4", ["#d6e2e7", "#ffffff", "#c3d3da", "#eef7fa"], 34, 25);
+const waterTexture = createTexture("#3b83b5", ["#2f709d", "#66add4", "#327da9", "#83c6e3"], 24, 26);
 
 const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture });
 const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture });
@@ -66,8 +67,13 @@ const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture });
 const leavesMaterial = new THREE.MeshLambertMaterial({ map: leavesTexture });
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
+const waterMaterial = new THREE.MeshLambertMaterial({
+    map: waterTexture,
+    transparent: true,
+    opacity: 0.62,
+    depthWrite: false
+});
 
-// BoxGeometry material order: right, left, top, bottom, front, back.
 const grassMaterial = [grassSideMaterial, grassSideMaterial, grassTopMaterial, dirtMaterial, grassSideMaterial, grassSideMaterial];
 const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTopMaterial, oakSideMaterial, oakSideMaterial];
 
@@ -95,5 +101,6 @@ export {
     oakPlankMaterial,
     leavesMaterial,
     snowMaterial,
+    waterMaterial,
     createBlock
 };
