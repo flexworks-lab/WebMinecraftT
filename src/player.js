@@ -7,7 +7,7 @@ let velocityZ = 0;
 let onGround = false;
 let jumpWasDown = false;
 
-const PLAYER_WIDTH = 1.0;
+const PLAYER_WIDTH = 0.98;
 const PLAYER_HEIGHT = 1.8;
 const HALF_WIDTH = PLAYER_WIDTH / 2;
 
