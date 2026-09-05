@@ -121,28 +121,55 @@ function setMenuUiVisible(visible) {
 
 function findRandomSpawn() {
     const types = getBlockTypes();
-    const baseX = Math.floor(panoramaCamera.position.x);
-    const baseZ = Math.floor(panoramaCamera.position.z);
     const candidates = [];
-    for (let i = 0; i < 90; i++) {
-        const x = baseX + Math.floor(Math.random() * 15) - 7;
-        const z = baseZ + Math.floor(Math.random() * 15) - 7;
-        for (let y = 45; y >= -8; y--) {
-            const block = getBlockAt(x, y, z);
-            if (block === types.AIR) continue;
-            if (block !== types.GRASS && block !== types.SAND && block !== types.SNOW) break;
-            if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) break;
-            let flat = true;
-            for (let ox = -1; ox <= 1 && flat; ox++) for (let oz = -1; oz <= 1; oz++) {
-                if (ox === 0 && oz === 0) continue;
-                if (getBlockAt(x + ox, y, z + oz) === types.AIR) { flat = false; break; }
+
+    // Search the already-generated starting area for real grass blocks only.
+    // This deliberately excludes sand, snow, dirt, stone and every water area.
+    for (let x = -24; x <= 24; x++) {
+        for (let z = -24; z <= 24; z++) {
+            for (let y = 55; y >= -24; y--) {
+                if (getBlockAt(x, y, z) !== types.GRASS) continue;
+                if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+
+                let flat = true;
+                for (let ox = -1; ox <= 1 && flat; ox++) {
+                    for (let oz = -1; oz <= 1; oz++) {
+                        if (ox === 0 && oz === 0) continue;
+                        const below = getBlockAt(x + ox, y, z + oz);
+                        if (below !== types.GRASS && below !== types.DIRT) {
+                            flat = false;
+                            break;
+                        }
+                    }
+                }
+                if (!flat) continue;
+
+                candidates.push({ x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 });
             }
-            if (flat) candidates.push({ x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 });
-            break;
         }
     }
-    if (candidates.length) return candidates[Math.floor(Math.random() * candidates.length)];
-    return { x: panoramaCamera.position.x, y: 30, z: panoramaCamera.position.z };
+
+    if (candidates.length) {
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    // Extremely defensive fallback: find any visible grass block rather than
+    // ever placing the player at an arbitrary position that could be water.
+    for (let x = -48; x <= 48; x++) {
+        for (let z = -48; z <= 48; z++) {
+            for (let y = 70; y >= -31; y--) {
+                if (getBlockAt(x, y, z) === types.GRASS &&
+                    getBlockAt(x, y + 1, z) === types.AIR &&
+                    getBlockAt(x, y + 2, z) === types.AIR) {
+                    return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
+                }
+            }
+        }
+    }
+
+    // The starting chunks contain land under normal world generation.
+    // Keep the player above the starting area rather than using a water fallback.
+    return { x: 0.5, y: 32, z: 0.5 };
 }
 function spawnPlayer() {
     const spawn = findRandomSpawn();
