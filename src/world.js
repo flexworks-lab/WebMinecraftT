@@ -226,21 +226,25 @@ function chooseStoneVariant(x, y, z, surfaceY) {
 }
 
 function getSurfaceBlock(biome, y, surfaceY, x, z) {
-    const beach = surfaceY <= SEA_LEVEL + 2;
+    const submerged = surfaceY < SEA_LEVEL;
+    const beach = !submerged && surfaceY <= SEA_LEVEL + 2;
 
     if (biome === "desert") {
+        if (submerged) return y === surfaceY ? BLOCK.STONE : chooseStoneVariant(x, y, z, surfaceY);
         if (y >= surfaceY - 4) return BLOCK.SAND;
         if (y >= surfaceY - 7) return BLOCK.SANDSTONE;
         return chooseStoneVariant(x, y, z, surfaceY);
     }
 
     if (biome === "badlands") {
+        if (submerged) return y === surfaceY ? BLOCK.STONE : chooseStoneVariant(x, y, z, surfaceY);
         if (y === surfaceY) return BLOCK.SAND;
         if (y >= surfaceY - 5) return BLOCK.SANDSTONE;
         return chooseStoneVariant(x, y, z, surfaceY);
     }
 
     if (biome === "snow" || biome === "tundra") {
+        if (submerged) return y === surfaceY ? BLOCK.STONE : chooseStoneVariant(x, y, z, surfaceY);
         if (y === surfaceY) return BLOCK.SNOW;
         if (y >= surfaceY - 4) return BLOCK.DIRT;
         return chooseStoneVariant(x, y, z, surfaceY);
