@@ -7,7 +7,7 @@ let velocityZ = 0;
 let onGround = false;
 let jumpWasDown = false;
 
-const PLAYER_WIDTH = 0.6;
+const PLAYER_WIDTH = 1.0;
 const PLAYER_HEIGHT = 1.8;
 const HALF_WIDTH = PLAYER_WIDTH / 2;
 
@@ -27,6 +27,7 @@ const MAX_FALL_SPEED = 40;
 
 const STEP_HEIGHT = 0.6;
 const SKIN = 0.001;
+const HORIZONTAL_SKIN = 0;
 const MAX_PHYSICS_STEP = 1 / 120;
 
 function blockExists(x, y, z) {
@@ -46,12 +47,12 @@ function getBox(camera) {
 
 function intersectsBlock(box, x, y, z) {
     return (
-        box.minX < x + 0.5 - SKIN &&
-        box.maxX > x - 0.5 + SKIN &&
+        box.minX < x + 0.5 - HORIZONTAL_SKIN &&
+        box.maxX > x - 0.5 + HORIZONTAL_SKIN &&
         box.minY < y + 0.5 - SKIN &&
         box.maxY > y - 0.5 + SKIN &&
-        box.minZ < z + 0.5 - SKIN &&
-        box.maxZ > z - 0.5 + SKIN
+        box.minZ < z + 0.5 - HORIZONTAL_SKIN &&
+        box.maxZ > z - 0.5 + HORIZONTAL_SKIN
     );
 }
 
@@ -79,10 +80,10 @@ function updateGround(camera) {
     const footY = box.minY;
     const blockY = Math.floor(footY - 0.5);
 
-    const minX = Math.floor(box.minX + SKIN);
-    const maxX = Math.floor(box.maxX - SKIN);
-    const minZ = Math.floor(box.minZ + SKIN);
-    const maxZ = Math.floor(box.maxZ - SKIN);
+    const minX = Math.floor(box.minX + HORIZONTAL_SKIN);
+    const maxX = Math.floor(box.maxX - HORIZONTAL_SKIN);
+    const minZ = Math.floor(box.minZ + HORIZONTAL_SKIN);
+    const maxZ = Math.floor(box.maxZ - HORIZONTAL_SKIN);
 
     let bestTop = -Infinity;
     for (let x = minX; x <= maxX; x++) {
@@ -149,7 +150,7 @@ function moveX(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const blockMinX = x - 0.5;
-            if (box.minX < blockMinX && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN && box.maxZ > z - 0.5 + SKIN && box.minZ < z + 0.5 - SKIN) nearest = Math.min(nearest, blockMinX - HALF_WIDTH - SKIN);
+            if (box.minX < blockMinX && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN && box.maxZ > z - 0.5 + HORIZONTAL_SKIN && box.minZ < z + 0.5 - HORIZONTAL_SKIN) nearest = Math.min(nearest, blockMinX - HALF_WIDTH - HORIZONTAL_SKIN);
         }
         if (nearest !== Infinity) { camera.position.x = nearest; resolved = true; }
     } else {
@@ -157,7 +158,7 @@ function moveX(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const blockMaxX = x + 0.5;
-            if (box.maxX > blockMaxX && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN && box.maxZ > z - 0.5 + SKIN && box.minZ < z + 0.5 - SKIN) nearest = Math.max(nearest, blockMaxX + HALF_WIDTH + SKIN);
+            if (box.maxX > blockMaxX && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN && box.maxZ > z - 0.5 + HORIZONTAL_SKIN && box.minZ < z + 0.5 - HORIZONTAL_SKIN) nearest = Math.max(nearest, blockMaxX + HALF_WIDTH + HORIZONTAL_SKIN);
         }
         if (nearest !== -Infinity) { camera.position.x = nearest; resolved = true; }
     }
@@ -181,7 +182,7 @@ function moveZ(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const blockMinZ = z - 0.5;
-            if (box.minZ < blockMinZ && box.maxX > x - 0.5 + SKIN && box.minX < x + 0.5 - SKIN && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN) nearest = Math.min(nearest, blockMinZ - HALF_WIDTH - SKIN);
+            if (box.minZ < blockMinZ && box.maxX > x - 0.5 + HORIZONTAL_SKIN && box.minX < x + 0.5 - HORIZONTAL_SKIN && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN) nearest = Math.min(nearest, blockMinZ - HALF_WIDTH - HORIZONTAL_SKIN);
         }
         if (nearest !== Infinity) { camera.position.z = nearest; resolved = true; }
     } else {
@@ -189,7 +190,7 @@ function moveZ(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const blockMaxZ = z + 0.5;
-            if (box.maxZ > blockMaxZ && box.maxX > x - 0.5 + SKIN && box.minX < x + 0.5 - SKIN && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN) nearest = Math.max(nearest, blockMaxZ + HALF_WIDTH + SKIN);
+            if (box.maxZ > blockMaxZ && box.maxX > x - 0.5 + HORIZONTAL_SKIN && box.minX < x + 0.5 - HORIZONTAL_SKIN && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN) nearest = Math.max(nearest, blockMaxZ + HALF_WIDTH + HORIZONTAL_SKIN);
         }
         if (nearest !== -Infinity) { camera.position.z = nearest; resolved = true; }
     }
@@ -209,7 +210,7 @@ function moveY(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const top = y + 0.5;
-            if (box.minY < top && box.maxY > y - 0.5 + SKIN && box.maxX > x - 0.5 + SKIN && box.minX < x + 0.5 - SKIN && box.maxZ > z - 0.5 + SKIN && box.minZ < z + 0.5 - SKIN) highestTop = Math.max(highestTop, top);
+            if (box.minY < top && box.maxY > y - 0.5 + SKIN && box.maxX > x - 0.5 + HORIZONTAL_SKIN && box.minX < x + 0.5 - HORIZONTAL_SKIN && box.maxZ > z - 0.5 + HORIZONTAL_SKIN && box.minZ < z + 0.5 - HORIZONTAL_SKIN) highestTop = Math.max(highestTop, top);
         }
         camera.position.y = highestTop !== -Infinity ? highestTop + PLAYER_HEIGHT : camera.position.y - amount;
         velocityY = 0;
@@ -221,7 +222,7 @@ function moveY(camera, amount) {
     for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
         if (!blockExists(x, y, z)) continue;
         const bottom = y - 0.5;
-        if (box.maxY > bottom && box.minY < y + 0.5 - SKIN && box.maxX > x - 0.5 + SKIN && box.minX < x + 0.5 - SKIN && box.maxZ > z - 0.5 + SKIN && box.minZ < z + 0.5 - SKIN) lowestBottom = Math.min(lowestBottom, bottom);
+        if (box.maxY > bottom && box.minY < y + 0.5 - SKIN && box.maxX > x - 0.5 + HORIZONTAL_SKIN && box.minX < x + 0.5 - HORIZONTAL_SKIN && box.maxZ > z - 0.5 + HORIZONTAL_SKIN && box.minZ < z + 0.5 - HORIZONTAL_SKIN) lowestBottom = Math.min(lowestBottom, bottom);
     }
     camera.position.y = lowestBottom !== Infinity ? lowestBottom - SKIN : camera.position.y - amount;
     velocityY = 0;
