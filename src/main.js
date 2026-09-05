@@ -39,6 +39,7 @@ sun.shadow.camera.far = 220;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
 scene.add(sun);
+scene.add(sun.target);
 
 createWorld(scene);
 
@@ -152,7 +153,26 @@ window.addEventListener("resize", () => {
 let lastTime = performance.now();
 let fpsTime = lastTime;
 let fpsFrames = 0;
+let lastSunX = camera.position.x;
+let lastSunZ = camera.position.z;
+const sunFollowDistance = 8;
 const chunkSize = getChunkSize();
+
+function updateSunPosition() {
+    const dx = camera.position.x - lastSunX;
+    const dz = camera.position.z - lastSunZ;
+    if (dx * dx + dz * dz < sunFollowDistance * sunFollowDistance) return;
+
+    lastSunX = camera.position.x;
+    lastSunZ = camera.position.z;
+
+    const targetX = camera.position.x;
+    const targetY = camera.position.y;
+    const targetZ = camera.position.z;
+
+    sun.target.position.set(targetX, targetY, targetZ);
+    sun.position.set(targetX + 45, targetY + 85, targetZ + 30);
+}
 
 function animate() {
     requestAnimationFrame(animate);
@@ -164,6 +184,7 @@ function animate() {
     if (gameStarted) {
         updatePlayer(camera, scene, deltaTime);
         updateChunkVisibility(camera.position, camera);
+        updateSunPosition();
     }
 
     renderer.render(scene, camera);
