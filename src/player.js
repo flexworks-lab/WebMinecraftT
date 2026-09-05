@@ -1,4 +1,4 @@
-import { keys, yaw, pitch } from "./controls.js";
+import { keys, yaw, pitch, touchInput } from "./controls.js";
 import { getBlockAt } from "./world.js";
 
 let velocityX = 0;
@@ -55,7 +55,6 @@ function intersectsBlock(box, x, y, z) {
 
 function collides(camera) {
     const box = getBox(camera);
-
     const minX = Math.floor(box.minX - 0.5);
     const maxX = Math.floor(box.maxX + 0.5);
     const minY = Math.floor(box.minY - 0.5);
@@ -66,13 +65,10 @@ function collides(camera) {
     for (let x = minX; x <= maxX; x++) {
         for (let y = minY; y <= maxY; y++) {
             for (let z = minZ; z <= maxZ; z++) {
-                if (blockExists(x, y, z) && intersectsBlock(box, x, y, z)) {
-                    return true;
-                }
+                if (blockExists(x, y, z) && intersectsBlock(box, x, y, z)) return true;
             }
         }
     }
-
     return false;
 }
 
@@ -87,17 +83,12 @@ function updateGround(camera) {
     const maxZ = Math.floor(box.maxZ - SKIN);
 
     let bestTop = -Infinity;
-
     for (let x = minX; x <= maxX; x++) {
         for (let z = minZ; z <= maxZ; z++) {
             for (let y = blockY - 1; y <= blockY + 1; y++) {
                 if (!blockExists(x, y, z)) continue;
-
                 const top = y + 0.5;
-
-                if (top <= footY + 0.08 && top >= footY - 0.08) {
-                    bestTop = Math.max(bestTop, top);
-                }
+                if (top <= footY + 0.08 && top >= footY - 0.08) bestTop = Math.max(bestTop, top);
             }
         }
     }
@@ -108,7 +99,6 @@ function updateGround(camera) {
         onGround = true;
         return;
     }
-
     onGround = false;
 }
 
@@ -125,268 +115,113 @@ function getNearbyBlockRange(box) {
 
 function tryStep(camera, axis, amount) {
     if (!onGround || velocityY > 0) return false;
-
     const oldX = camera.position.x;
     const oldY = camera.position.y;
     const oldZ = camera.position.z;
-
     camera.position.y += STEP_HEIGHT;
-
     if (collides(camera)) {
         camera.position.set(oldX, oldY, oldZ);
         return false;
     }
-
     camera.position[axis] += amount;
-
     if (collides(camera)) {
         camera.position.set(oldX, oldY, oldZ);
         return false;
     }
-
-    // The normal vertical physics step will settle us onto the new surface.
     return true;
 }
 
 function moveX(camera, amount) {
     if (amount === 0) return true;
-
     camera.position.x += amount;
-
     if (!collides(camera)) return true;
-
-    // Minecraft-style stepping over small obstacles.
     camera.position.x -= amount;
-
-    if (tryStep(camera, "x", amount)) {
-        return true;
-    }
-
+    if (tryStep(camera, "x", amount)) return true;
     camera.position.x += amount;
-
     const box = getBox(camera);
     const range = getNearbyBlockRange(box);
     let resolved = false;
 
     if (amount > 0) {
         let nearest = Infinity;
-
-        for (let x = range.minX; x <= range.maxX; x++) {
-            for (let y = range.minY; y <= range.maxY; y++) {
-                for (let z = range.minZ; z <= range.maxZ; z++) {
-                    if (!blockExists(x, y, z)) continue;
-
-                    const blockMinX = x - 0.5;
-
-                    if (
-                        box.minX < blockMinX &&
-                        box.maxY > y - 0.5 + SKIN &&
-                        box.minY < y + 0.5 - SKIN &&
-                        box.maxZ > z - 0.5 + SKIN &&
-                        box.minZ < z + 0.5 - SKIN
-                    ) {
-                        nearest = Math.min(nearest, blockMinX - HALF_WIDTH - SKIN);
-                    }
-                }
-            }
+        for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
+            if (!blockExists(x, y, z)) continue;
+            const blockMinX = x - 0.5;
+            if (box.minX < blockMinX && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN && box.maxZ > z - 0.5 + SKIN && box.minZ < z + 0.5 - SKIN) nearest = Math.min(nearest, blockMinX - HALF_WIDTH - SKIN);
         }
-
-        if (nearest !== Infinity) {
-            camera.position.x = nearest;
-            resolved = true;
-        }
+        if (nearest !== Infinity) { camera.position.x = nearest; resolved = true; }
     } else {
         let nearest = -Infinity;
-
-        for (let x = range.minX; x <= range.maxX; x++) {
-            for (let y = range.minY; y <= range.maxY; y++) {
-                for (let z = range.minZ; z <= range.maxZ; z++) {
-                    if (!blockExists(x, y, z)) continue;
-
-                    const blockMaxX = x + 0.5;
-
-                    if (
-                        box.maxX > blockMaxX &&
-                        box.maxY > y - 0.5 + SKIN &&
-                        box.minY < y + 0.5 - SKIN &&
-                        box.maxZ > z - 0.5 + SKIN &&
-                        box.minZ < z + 0.5 - SKIN
-                    ) {
-                        nearest = Math.max(nearest, blockMaxX + HALF_WIDTH + SKIN);
-                    }
-                }
-            }
+        for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
+            if (!blockExists(x, y, z)) continue;
+            const blockMaxX = x + 0.5;
+            if (box.maxX > blockMaxX && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN && box.maxZ > z - 0.5 + SKIN && box.minZ < z + 0.5 - SKIN) nearest = Math.max(nearest, blockMaxX + HALF_WIDTH + SKIN);
         }
-
-        if (nearest !== -Infinity) {
-            camera.position.x = nearest;
-            resolved = true;
-        }
+        if (nearest !== -Infinity) { camera.position.x = nearest; resolved = true; }
     }
-
-    if (!resolved || collides(camera)) {
-        camera.position.x -= amount;
-    }
-
+    if (!resolved || collides(camera)) camera.position.x -= amount;
     return false;
 }
 
 function moveZ(camera, amount) {
     if (amount === 0) return true;
-
     camera.position.z += amount;
-
     if (!collides(camera)) return true;
-
     camera.position.z -= amount;
-
-    if (tryStep(camera, "z", amount)) {
-        return true;
-    }
-
+    if (tryStep(camera, "z", amount)) return true;
     camera.position.z += amount;
-
     const box = getBox(camera);
     const range = getNearbyBlockRange(box);
     let resolved = false;
 
     if (amount > 0) {
         let nearest = Infinity;
-
-        for (let x = range.minX; x <= range.maxX; x++) {
-            for (let y = range.minY; y <= range.maxY; y++) {
-                for (let z = range.minZ; z <= range.maxZ; z++) {
-                    if (!blockExists(x, y, z)) continue;
-
-                    const blockMinZ = z - 0.5;
-
-                    if (
-                        box.minZ < blockMinZ &&
-                        box.maxX > x - 0.5 + SKIN &&
-                        box.minX < x + 0.5 - SKIN &&
-                        box.maxY > y - 0.5 + SKIN &&
-                        box.minY < y + 0.5 - SKIN
-                    ) {
-                        nearest = Math.min(nearest, blockMinZ - HALF_WIDTH - SKIN);
-                    }
-                }
-            }
+        for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
+            if (!blockExists(x, y, z)) continue;
+            const blockMinZ = z - 0.5;
+            if (box.minZ < blockMinZ && box.maxX > x - 0.5 + SKIN && box.minX < x + 0.5 - SKIN && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN) nearest = Math.min(nearest, blockMinZ - HALF_WIDTH - SKIN);
         }
-
-        if (nearest !== Infinity) {
-            camera.position.z = nearest;
-            resolved = true;
-        }
+        if (nearest !== Infinity) { camera.position.z = nearest; resolved = true; }
     } else {
         let nearest = -Infinity;
-
-        for (let x = range.minX; x <= range.maxX; x++) {
-            for (let y = range.minY; y <= range.maxY; y++) {
-                for (let z = range.minZ; z <= range.maxZ; z++) {
-                    if (!blockExists(x, y, z)) continue;
-
-                    const blockMaxZ = z + 0.5;
-
-                    if (
-                        box.maxZ > blockMaxZ &&
-                        box.maxX > x - 0.5 + SKIN &&
-                        box.minX < x + 0.5 - SKIN &&
-                        box.maxY > y - 0.5 + SKIN &&
-                        box.minY < y + 0.5 - SKIN
-                    ) {
-                        nearest = Math.max(nearest, blockMaxZ + HALF_WIDTH + SKIN);
-                    }
-                }
-            }
+        for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
+            if (!blockExists(x, y, z)) continue;
+            const blockMaxZ = z + 0.5;
+            if (box.maxZ > blockMaxZ && box.maxX > x - 0.5 + SKIN && box.minX < x + 0.5 - SKIN && box.maxY > y - 0.5 + SKIN && box.minY < y + 0.5 - SKIN) nearest = Math.max(nearest, blockMaxZ + HALF_WIDTH + SKIN);
         }
-
-        if (nearest !== -Infinity) {
-            camera.position.z = nearest;
-            resolved = true;
-        }
+        if (nearest !== -Infinity) { camera.position.z = nearest; resolved = true; }
     }
-
-    if (!resolved || collides(camera)) {
-        camera.position.z -= amount;
-    }
-
+    if (!resolved || collides(camera)) camera.position.z -= amount;
     return false;
 }
 
 function moveY(camera, amount) {
     if (amount === 0) return;
-
     camera.position.y += amount;
-
     if (!collides(camera)) return;
-
     const box = getBox(camera);
     const range = getNearbyBlockRange(box);
 
     if (amount < 0) {
         let highestTop = -Infinity;
-
-        for (let x = range.minX; x <= range.maxX; x++) {
-            for (let y = range.minY; y <= range.maxY; y++) {
-                for (let z = range.minZ; z <= range.maxZ; z++) {
-                    if (!blockExists(x, y, z)) continue;
-
-                    const top = y + 0.5;
-
-                    if (
-                        box.minY < top &&
-                        box.maxY > y - 0.5 + SKIN &&
-                        box.maxX > x - 0.5 + SKIN &&
-                        box.minX < x + 0.5 - SKIN &&
-                        box.maxZ > z - 0.5 + SKIN &&
-                        box.minZ < z + 0.5 - SKIN
-                    ) {
-                        highestTop = Math.max(highestTop, top);
-                    }
-                }
-            }
+        for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
+            if (!blockExists(x, y, z)) continue;
+            const top = y + 0.5;
+            if (box.minY < top && box.maxY > y - 0.5 + SKIN && box.maxX > x - 0.5 + SKIN && box.minX < x + 0.5 - SKIN && box.maxZ > z - 0.5 + SKIN && box.minZ < z + 0.5 - SKIN) highestTop = Math.max(highestTop, top);
         }
-
-        if (highestTop !== -Infinity) {
-            camera.position.y = highestTop + PLAYER_HEIGHT;
-        } else {
-            camera.position.y -= amount;
-        }
-
+        camera.position.y = highestTop !== -Infinity ? highestTop + PLAYER_HEIGHT : camera.position.y - amount;
         velocityY = 0;
         onGround = true;
         return;
     }
 
     let lowestBottom = Infinity;
-
-    for (let x = range.minX; x <= range.maxX; x++) {
-        for (let y = range.minY; y <= range.maxY; y++) {
-            for (let z = range.minZ; z <= range.maxZ; z++) {
-                if (!blockExists(x, y, z)) continue;
-
-                const bottom = y - 0.5;
-
-                if (
-                    box.maxY > bottom &&
-                    box.minY < y + 0.5 - SKIN &&
-                    box.maxX > x - 0.5 + SKIN &&
-                    box.minX < x + 0.5 - SKIN &&
-                    box.maxZ > z - 0.5 + SKIN &&
-                    box.minZ < z + 0.5 - SKIN
-                ) {
-                    lowestBottom = Math.min(lowestBottom, bottom);
-                }
-            }
-        }
+    for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
+        if (!blockExists(x, y, z)) continue;
+        const bottom = y - 0.5;
+        if (box.maxY > bottom && box.minY < y + 0.5 - SKIN && box.maxX > x - 0.5 + SKIN && box.minX < x + 0.5 - SKIN && box.maxZ > z - 0.5 + SKIN && box.minZ < z + 0.5 - SKIN) lowestBottom = Math.min(lowestBottom, bottom);
     }
-
-    if (lowestBottom !== Infinity) {
-        camera.position.y = lowestBottom - SKIN;
-    } else {
-        camera.position.y -= amount;
-    }
-
+    camera.position.y = lowestBottom !== Infinity ? lowestBottom - SKIN : camera.position.y - amount;
     velocityY = 0;
 }
 
@@ -404,106 +239,54 @@ function physicsStep(camera, dt) {
     const rightX = Math.cos(yaw);
     const rightZ = -Math.sin(yaw);
 
-    let inputX = 0;
-    let inputZ = 0;
-
-    if (keys["KeyW"]) {
-        inputX += forwardX;
-        inputZ += forwardZ;
-    }
-    if (keys["KeyS"]) {
-        inputX -= forwardX;
-        inputZ -= forwardZ;
-    }
-    if (keys["KeyA"]) {
-        inputX -= rightX;
-        inputZ -= rightZ;
-    }
-    if (keys["KeyD"]) {
-        inputX += rightX;
-        inputZ += rightZ;
-    }
+    let inputX = touchInput.moveX;
+    let inputZ = touchInput.moveZ;
+    if (keys["KeyW"]) { inputX += forwardX; inputZ += forwardZ; }
+    if (keys["KeyS"]) { inputX -= forwardX; inputZ -= forwardZ; }
+    if (keys["KeyA"]) { inputX -= rightX; inputZ -= rightZ; }
+    if (keys["KeyD"]) { inputX += rightX; inputZ += rightZ; }
 
     const inputLength = Math.hypot(inputX, inputZ);
+    if (inputLength > 1) { inputX /= inputLength; inputZ /= inputLength; }
 
-    if (inputLength > 0) {
-        inputX /= inputLength;
-        inputZ /= inputLength;
-    }
-
-    const sprinting =
-        (keys["ShiftLeft"] || keys["ShiftRight"]) &&
-        keys["KeyW"];
-
+    const sprinting = ((keys["ShiftLeft"] || keys["ShiftRight"]) || touchInput.sprint) && (keys["KeyW"] || Math.hypot(touchInput.moveX, touchInput.moveZ) > 0.65);
     const targetSpeed = sprinting ? SPRINT_SPEED : WALK_SPEED;
-
     const targetX = inputX * targetSpeed;
     const targetZ = inputZ * targetSpeed;
 
-    if (inputLength > 0) {
+    if (inputLength > 0.02) {
         const acceleration = onGround ? GROUND_ACCEL : AIR_ACCEL;
-
-        velocityX = approach(
-            velocityX,
-            targetX,
-            acceleration * dt
-        );
-
-        velocityZ = approach(
-            velocityZ,
-            targetZ,
-            acceleration * dt
-        );
+        velocityX = approach(velocityX, targetX, acceleration * dt);
+        velocityZ = approach(velocityZ, targetZ, acceleration * dt);
     } else {
         const friction = onGround ? GROUND_FRICTION : AIR_FRICTION;
-
-        velocityX = approach(
-            velocityX,
-            0,
-            friction * dt
-        );
-
-        velocityZ = approach(
-            velocityZ,
-            0,
-            friction * dt
-        );
+        velocityX = approach(velocityX, 0, friction * dt);
+        velocityZ = approach(velocityZ, 0, friction * dt);
     }
 
-    if (keys["Space"] && !jumpWasDown && onGround) {
+    const jumpDown = !!keys["Space"] || touchInput.jump;
+    if (jumpDown && !jumpWasDown && onGround) {
         velocityY = JUMP_SPEED;
         onGround = false;
     }
-
-    jumpWasDown = !!keys["Space"];
+    jumpWasDown = jumpDown;
 
     velocityY -= GRAVITY * dt;
     velocityY = Math.max(velocityY, -MAX_FALL_SPEED);
 
-    const movedX = moveX(camera, velocityX * dt);
-    if (!movedX) velocityX = 0;
-
-    const movedZ = moveZ(camera, velocityZ * dt);
-    if (!movedZ) velocityZ = 0;
-
+    if (!moveX(camera, velocityX * dt)) velocityX = 0;
+    if (!moveZ(camera, velocityZ * dt)) velocityZ = 0;
     moveY(camera, velocityY * dt);
-
     updateGround(camera);
 }
 
 export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
-    if (document.pointerLockElement !== document.body) {
-        return;
-    }
-
     deltaTime = Math.min(deltaTime, 0.05);
-
     camera.rotation.order = "YXZ";
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
 
     let remaining = deltaTime;
-
     while (remaining > 0) {
         const step = Math.min(remaining, MAX_PHYSICS_STEP);
         physicsStep(camera, step);
