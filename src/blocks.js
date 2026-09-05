@@ -43,7 +43,7 @@ function loadTexture(path) {
 
 const grassTopTexture = loadTexture("/textures/Grass_Block_(top_texture)_JE2.png");
 const grassSideTexture = loadTexture("/textures/grass_block_side.png");
-const dirtTexture = createTexture("#7a4d27", ["#633d20", "#8c5a30", "#6b431f", "#9a6335"], 58, 12);
+const dirtTexture = loadTexture("/textures/dirt.png");
 const stoneTexture = createTexture("#818181", ["#707070", "#969696", "#626262", "#a2a2a2"], 54, 13);
 const cobblestoneTexture = createTexture("#666666", ["#555555", "#7b7b7b", "#4d4d4d", "#898989"], 75, 18);
 const gravelTexture = createTexture("#88847a", ["#6f6b62", "#9d988c", "#747066", "#aba69a"], 80, 19);
