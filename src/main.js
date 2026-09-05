@@ -47,6 +47,10 @@ scene.add(depthLight);
 
 createWorld(scene);
 
+const mobileMode = new URLSearchParams(window.location.search).get("mobile") === "1" ||
+    new URLSearchParams(window.location.search).get("mode") === "mobile";
+if (mobileMode) document.body.classList.add("mobile-mode");
+
 let gameStarted = false;
 const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };
 let settings;
@@ -72,7 +76,6 @@ function getLightingProfile() {
 }
 
 function applySettings() {
-    const profile = getLightingProfile();
     renderer.shadowMap.enabled = settings.shadows;
     sun.castShadow = settings.shadows;
     sun.shadow.mapSize.width = settings.shadowQuality;
@@ -117,17 +120,53 @@ applySettings();
 const mainMenu = document.getElementById("mainMenu");
 const playButton = document.getElementById("playButton");
 const menuSettingsButton = document.getElementById("menuSettingsButton");
+const mobileModeButton = document.getElementById("mobileModeButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsMenu = document.getElementById("settingsMenu");
 const closeSettings = document.getElementById("closeSettings");
-function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock(); } }
-function closeSettingsMenu() { if (settingsMenu) { settingsMenu.style.display = "none"; if (gameStarted) requestPointerLock(); } }
-function requestPointerLock() { if (gameStarted && document.pointerLockElement !== document.body) document.body.requestPointerLock?.(); }
-if (playButton && mainMenu) playButton.addEventListener("click", () => { gameStarted = true; mainMenu.style.display = "none"; requestPointerLock(); });
+
+function openSettings() {
+    if (settingsMenu) {
+        settingsMenu.style.display = "flex";
+        document.exitPointerLock?.();
+    }
+}
+
+function closeSettingsMenu() {
+    if (settingsMenu) {
+        settingsMenu.style.display = "none";
+        if (gameStarted && !mobileMode) requestPointerLock();
+    }
+}
+
+function requestPointerLock() {
+    if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) {
+        document.body.requestPointerLock?.();
+    }
+}
+
+function setMobileMode(enabled) {
+    const url = new URL(window.location.href);
+    if (enabled) url.searchParams.set("mobile", "1");
+    else url.searchParams.delete("mobile");
+    url.searchParams.delete("mode");
+    window.location.href = url.toString();
+}
+
+if (playButton && mainMenu) {
+    playButton.addEventListener("click", () => {
+        gameStarted = true;
+        mainMenu.style.display = "none";
+        requestPointerLock();
+    });
+}
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
-if (settingsButton) settingsButton.addEventListener("click", openSettings);
-if (closeSettings) closeSettings.addEventListener("click", closeSettingsMenu);
+if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
+if (settingsButton) settingsButton.addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); openSettings(); });
+if (closeSettings) closeSettings.addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
 document.addEventListener("keydown", event => { if (event.code === "Escape" && gameStarted) setTimeout(openSettings, 0); });
+
+if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
 
 const shadowsToggle = document.getElementById("shadowsToggle");
 const shadowQuality = document.getElementById("shadowQuality");
