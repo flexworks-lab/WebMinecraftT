@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>WebMinecraft</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: black;
+            font-family: Arial, sans-serif;
+        }
+
+
+        /* =========================
+           CROSSHAIR
+           ========================= */
+
+        #crosshair {
+
+            position: fixed;
+
+            left: 50%;
+            top: 50%;
+
+            transform:
+                translate(-50%, -50%);
+
+            color: white;
+
+            font-size: 22px;
+            font-weight: bold;
+
+            pointer-events: none;
+
+            text-shadow:
+                1px 1px 2px black,
+                -1px -1px 2px black;
+        }
+
+
+        /* =========================
+           HOTBAR
+           ========================= */
+
+        #hotbar {
+
+            position: fixed;
+
+            bottom: 20px;
+            left: 50%;
+
+            transform:
+                translateX(-50%);
+
+            display: flex;
+
+            gap: 4px;
+
+            padding: 5px;
+
+            background:
+                rgba(0, 0, 0, 0.45);
+
+            border:
+                2px solid
+                rgba(255, 255, 255, 0.3);
+
+            pointer-events: none;
+        }
+
+
+        .slot {
+
+            width: 48px;
+            height: 48px;
+
+            border:
+                2px solid #777;
+
+            background:
+                rgba(30, 30, 30, 0.8);
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            color: white;
+
+            font-size: 12px;
+
+            box-sizing: border-box;
+
+            text-align: center;
+        }
+
+
+        .slot.selected {
+
+            border:
+                3px solid white;
+
+            background:
+                rgba(100, 100, 100, 0.8);
+        }
+
+
+        /* =========================
+           SETTINGS BUTTON
+           ========================= */
+
+        #settingsButton {
+
+            position: fixed;
+
+            top: 20px;
+            right: 20px;
+
+            width: 48px;
+            height: 48px;
+
+            border: none;
+            border-radius: 10px;
+
+            background:
+                rgba(0, 0, 0, 0.65);
+
+            color: white;
+
+            font-size: 25px;
+
+            cursor: pointer;
+
+            z-index: 20;
+        }
+
+
+        #settingsButton:hover {
+
+            background:
+                rgba(40, 40, 40, 0.85);
+        }
+
+
+        /* =========================
+           SETTINGS MENU
+           ========================= */
+
+        #settingsMenu {
+
+            position: fixed;
+
+            inset: 0;
+
+            display: none;
+
+            align-items: center;
+            justify-content: center;
+
+            background:
+                rgba(0, 0, 0, 0.6);
+
+            z-index: 10;
+        }
+
+
+        #settingsPanel {
+
+            width: 380px;
+
+            padding: 25px;
+
+            background:
+                rgba(25, 25, 25, 0.97);
+
+            border:
+                2px solid #555;
+
+            border-radius: 14px;
+
+            color: white;
+
+            box-shadow:
+                0 10px 40px
+                rgba(0, 0, 0, 0.5);
+        }
+
+
+        #settingsPanel h1 {
+
+            margin-top: 0;
+            margin-bottom: 25px;
+
+            font-size: 25px;
+        }
+
+
+        .setting {
+
+            display: flex;
+
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 18px;
+
+            padding-bottom: 14px;
+
+            border-bottom:
+                1px solid #444;
+        }
+
+
+        .setting label {
+
+            font-size: 16px;
+        }
+
+
+        select {
+
+            background: #333;
+
+            color: white;
+
+            border: 1px solid #666;
+
+            border-radius: 6px;
+
+            padding: 7px 10px;
+
+            font-size: 14px;
+        }
+
+
+        #closeSettings {
+
+            width: 100%;
+
+            margin-top: 8px;
+
+            padding: 11px;
+
+            border: none;
+
+            border-radius: 7px;
+
+            background: #555;
+
+            color: white;
+
+            font-size: 15px;
+
+            cursor: pointer;
+        }
+
+
+        #closeSettings:hover {
+
+            background: #666;
+        }
+
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <div id="crosshair">+</div>
+
+
+    <div id="hotbar">
+
+        <div class="slot selected">
+            1<br>Grass
+        </div>
+
+        <div class="slot">
+            2<br>Dirt
+        </div>
+
+        <div class="slot">
+            3<br>Stone
+        </div>
+
+        <div class="slot">
+            4<br>Grass
+        </div>
+
+        <div class="slot">
+            5<br>Dirt
+        </div>
+
+        <div class="slot">
+            6<br>Stone
+        </div>
+
+        <div class="slot">
+            7<br>Grass
+        </div>
+
+        <div class="slot">
+            8<br>Dirt
+        </div>
+
+        <div class="slot">
+            9<br>Stone
+        </div>
+
+    </div>
+
+
+    <!-- SETTINGS BUTTON -->
+
+    <button id="settingsButton">
+        ⚙
+    </button>
+
+
+    <!-- SETTINGS MENU -->
+
+    <div id="settingsMenu">
+
+        <div id="settingsPanel">
+
+            <h1>Settings</h1>
+
+
+            <div class="setting">
+
+                <label>
+                    Shadows
+                </label>
+
+                <input
+                    id="shadowsToggle"
+                    type="checkbox"
+                    checked
+                >
+
+            </div>
+
+
+            <div class="setting">
+
+                <label>
+                    Shadow Quality
+                </label>
+
+                <select id="shadowQuality">
+
+                    <option value="512">
+                        Low
+                    </option>
+
+                    <option value="1024">
+                        Medium
+                    </option>
+
+                    <option value="2048" selected>
+                        High
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="setting">
+
+                <label>
+                    Graphics Quality
+                </label>
+
+                <select id="pixelQuality">
+
+                    <option value="0.75">
+                        Low
+                    </option>
+
+                    <option value="1">
+                        Medium
+                    </option>
+
+                    <option value="1.5">
+                        High
+                    </option>
+
+                    <option value="2" selected>
+                        Ultra
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <button id="closeSettings">
+                Done
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <script
+        type="module"
+        src="/src/main.js">
+    </script>
+
+</body>
+
+</html>
