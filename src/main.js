@@ -190,6 +190,26 @@ document.body.appendChild(performanceHud);
 window.addEventListener("resize", () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 let lastTime = performance.now(), fpsTime = lastTime, fpsFrames = 0, lastSunX = camera.position.x, lastSunZ = camera.position.z;
 const sunFollowDistance = 8;
+
+const menuCamera = {
+    center: new THREE.Vector3(0, 7, 0),
+    radius: 22,
+    height: 10,
+    angle: 0.35,
+    speed: 0.035
+};
+
+function updateMenuCamera(deltaTime) {
+    if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
+    menuCamera.angle += menuCamera.speed * deltaTime;
+    camera.position.x = menuCamera.center.x + Math.sin(menuCamera.angle) * menuCamera.radius;
+    camera.position.z = menuCamera.center.z + Math.cos(menuCamera.angle) * menuCamera.radius;
+    camera.position.y = menuCamera.center.y + Math.sin(menuCamera.angle * 0.55) * menuCamera.height;
+    camera.lookAt(menuCamera.center.x, menuCamera.center.y + 1.5, menuCamera.center.z);
+    updateChunkVisibility(camera.position, camera);
+    updateDepthLighting();
+}
+
 function updateSunPosition() {
     const dx = camera.position.x - lastSunX, dz = camera.position.z - lastSunZ;
     if (dx * dx + dz * dz < sunFollowDistance * sunFollowDistance) return;
@@ -204,6 +224,7 @@ function animate() {
     const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
     lastTime = currentTime;
     if (gameStarted) { updatePlayer(camera, scene, deltaTime); updateChunkVisibility(camera.position, camera); updateSunPosition(); updateDepthLighting(); }
+    else updateMenuCamera(deltaTime);
     renderer.render(scene, camera);
     fpsFrames++;
     if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
