@@ -2,6 +2,7 @@ export const keys = {};
 
 export let yaw = 0;
 export let pitch = 0;
+export let isFlying = false;
 
 export function resetView(newYaw = 0, newPitch = 0) {
     yaw = newYaw;
@@ -75,13 +76,19 @@ function createTouchControls() {
     const placeButton = makeButton("touchPlace", "Place", "actionButton placeButton");
     const jumpButton = makeButton("touchJump", "Jump", "actionButton jumpButton");
     const sprintButton = makeButton("touchSprint", "Run", "actionButton sprintButton");
-    actions.append(mineButton, punchButton, placeButton, jumpButton, sprintButton);
-    document.body.appendChild(root);
-
+    const flyButton = makeButton("touchFly", "Fly", "actionButton flyButton");
+    actions.append(mineButton, punchButton, placeButton, jumpButton, sprintButton, flyButton);
     addActionButton(mineButton, "breakPressed");
     addActionButton(punchButton, "punchPressed");
     addActionButton(placeButton, "placePressed");
     addActionButton(sprintButton, "sprint");
+    flyButton.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        isFlying = !isFlying;
+        flyButton.classList.toggle("pressed", isFlying);
+    });
+    document.body.appendChild(root);
 
     jumpButton.addEventListener("pointerdown", (event) => {
         event.preventDefault();
@@ -190,6 +197,9 @@ function updateJoystick(clientX, clientY, stick, radius) {
 
 export function setupControls() {
     window.addEventListener("keydown", (event) => {
+        if (event.code === "KeyF" && !event.repeat) {
+            isFlying = !isFlying;
+        }
         keys[event.code] = true;
         if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
     });
