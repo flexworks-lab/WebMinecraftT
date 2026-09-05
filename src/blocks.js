@@ -34,9 +34,8 @@ function loadTexture(path) {
     return texture;
 }
 
-// GitHub Pages currently serves this project directly from the repository.
-// Textures are stored in /public/textures, so include that folder in the URL.
-const texturePath = (file) => new URL(`../public/textures/${encodeURIComponent(file)}`, import.meta.url).href;
+// Vite copies /public to the root of the build, so BASE_URL is the correct path prefix.
+const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURIComponent(file)}`;
 
 const grassTopTexture = loadTexture(texturePath("Grass_Block_(top_texture)_JE2.png"));
 const grassSideTexture = loadTexture(texturePath("grass_block_side.png"));
