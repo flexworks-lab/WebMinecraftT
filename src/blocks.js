@@ -12,12 +12,10 @@ function createTexture(baseColor, colors, density = 45, seed = 1) {
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
-
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, size, size);
-
     for (let i = 0; i < density; i++) {
         const x = Math.floor(hash(i + seed, seed * 3.17) * size);
         const y = Math.floor(hash(i + seed * 7.1, seed * 5.3) * size);
@@ -25,7 +23,6 @@ function createTexture(baseColor, colors, density = 45, seed = 1) {
         ctx.fillRect(x, y, 1, 1);
         if (i % 13 === 0) ctx.fillRect((x + 1) % size, y, 1, 1);
     }
-
     const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
@@ -46,7 +43,7 @@ const grassSideTexture = loadTexture("/textures/grass_block_side.png");
 const dirtTexture = loadTexture("/textures/dirt.png");
 const oakSideTexture = loadTexture("/textures/oak_log.png");
 const oakTopTexture = loadTexture("/textures/oak_log_top.png");
-const stoneTexture = createTexture("#818181", ["#707070", "#969696", "#626262", "#a2a2a2"], 54, 13);
+const stoneTexture = loadTexture("/textures/stone.png");
 const cobblestoneTexture = createTexture("#666666", ["#555555", "#7b7b7b", "#4d4d4d", "#898989"], 75, 18);
 const gravelTexture = createTexture("#88847a", ["#6f6b62", "#9d988c", "#747066", "#aba69a"], 80, 19);
 const sandTexture = createTexture("#d8c07b", ["#c5aa64", "#e5d18f", "#b99f58", "#eddc9c"], 54, 14);
@@ -75,12 +72,7 @@ const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture });
 const leavesMaterial = new THREE.MeshLambertMaterial({ map: leavesTexture });
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
-const waterMaterial = new THREE.MeshLambertMaterial({
-    map: waterTexture,
-    transparent: true,
-    opacity: 0.62,
-    depthWrite: false
-});
+const waterMaterial = new THREE.MeshLambertMaterial({ map: waterTexture, transparent: true, opacity: 0.62, depthWrite: false });
 
 const grassMaterial = [grassSideMaterial, grassSideMaterial, grassTopMaterial, dirtMaterial, grassSideMaterial, grassSideMaterial];
 const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTopMaterial, oakSideMaterial, oakSideMaterial];
@@ -94,21 +86,8 @@ function createBlock(scene, x, y, z, material) {
 }
 
 export {
-    blockGeometry,
-    grassMaterial,
-    dirtMaterial,
-    stoneMaterial,
-    cobblestoneMaterial,
-    gravelMaterial,
-    sandMaterial,
-    sandstoneMaterial,
-    bedrockMaterial,
-    coalMaterial,
-    ironMaterial,
-    oakLogMaterial,
-    oakPlankMaterial,
-    leavesMaterial,
-    snowMaterial,
-    waterMaterial,
-    createBlock
+    blockGeometry, grassMaterial, dirtMaterial, stoneMaterial, cobblestoneMaterial,
+    gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial, coalMaterial,
+    ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,
+    waterMaterial, createBlock
 };
