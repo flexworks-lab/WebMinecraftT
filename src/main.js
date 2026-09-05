@@ -65,7 +65,6 @@ document.body.appendChild(
 // LIGHTING
 // =========================
 
-// Sky / ambient light
 const ambientLight =
     new THREE.HemisphereLight(
         0xffffff,
@@ -76,7 +75,6 @@ const ambientLight =
 scene.add(ambientLight);
 
 
-// Sun
 const sun =
     new THREE.DirectionalLight(
         0xffffff,
@@ -113,12 +111,18 @@ createWorld(scene);
 
 
 // =========================
+// GAME STATE
+// =========================
+
+let gameStarted = false;
+
+
+// =========================
 // GRAPHICS SETTINGS
 // =========================
 
 const settings = {
 
-    // LOW by default
     shadows: false,
 
     shadowQuality: 512,
@@ -133,29 +137,22 @@ const settings = {
 
 function applySettings() {
 
-    // Shadows
     renderer.shadowMap.enabled =
         settings.shadows;
 
     sun.castShadow =
         settings.shadows;
 
-
-    // Shadow quality
     sun.shadow.mapSize.width =
         settings.shadowQuality;
 
     sun.shadow.mapSize.height =
         settings.shadowQuality;
 
-
-    // Graphics quality
     renderer.setPixelRatio(
         settings.pixelRatio
     );
 
-
-    // Update blocks
     for (const object of scene.children) {
 
         if (!object.isMesh) {
@@ -171,13 +168,27 @@ function applySettings() {
 }
 
 
-// Apply LOW settings immediately
 applySettings();
 
 
 // =========================
-// SETTINGS UI
+// MENU
 // =========================
+
+const mainMenu =
+    document.getElementById(
+        "mainMenu"
+    );
+
+const playButton =
+    document.getElementById(
+        "playButton"
+    );
+
+const menuSettingsButton =
+    document.getElementById(
+        "menuSettingsButton"
+    );
 
 const settingsButton =
     document.getElementById(
@@ -194,34 +205,49 @@ const closeSettings =
         "closeSettings"
     );
 
-const shadowsToggle =
-    document.getElementById(
-        "shadowsToggle"
-    );
 
-const shadowQuality =
-    document.getElementById(
-        "shadowQuality"
-    );
+function openSettings() {
 
-const pixelQuality =
-    document.getElementById(
-        "pixelQuality"
-    );
+    if (!settingsMenu) return;
+
+    settingsMenu.style.display =
+        "flex";
+
+    document.exitPointerLock();
+}
 
 
-// Make sure the settings UI exists
-if (settingsButton && settingsMenu) {
+if (playButton && mainMenu) {
 
-    settingsButton.addEventListener(
+    playButton.addEventListener(
         "click",
         () => {
 
-            settingsMenu.style.display =
-                "flex";
+            gameStarted = true;
 
-            document.exitPointerLock();
+            mainMenu.style.display =
+                "none";
+
+            document.body.requestPointerLock();
         }
+    );
+}
+
+
+if (menuSettingsButton) {
+
+    menuSettingsButton.addEventListener(
+        "click",
+        openSettings
+    );
+}
+
+
+if (settingsButton) {
+
+    settingsButton.addEventListener(
+        "click",
+        openSettings
     );
 }
 
@@ -237,6 +263,26 @@ if (closeSettings && settingsMenu) {
         }
     );
 }
+
+
+// =========================
+// SETTINGS CONTROLS
+// =========================
+
+const shadowsToggle =
+    document.getElementById(
+        "shadowsToggle"
+    );
+
+const shadowQuality =
+    document.getElementById(
+        "shadowQuality"
+    );
+
+const pixelQuality =
+    document.getElementById(
+        "pixelQuality"
+    );
 
 
 if (shadowsToggle) {
@@ -267,9 +313,7 @@ if (shadowQuality) {
         () => {
 
             settings.shadowQuality =
-                Number(
-                    shadowQuality.value
-                );
+                Number(shadowQuality.value);
 
             applySettings();
         }
@@ -287,9 +331,7 @@ if (pixelQuality) {
         () => {
 
             settings.pixelRatio =
-                Number(
-                    pixelQuality.value
-                );
+                Number(pixelQuality.value);
 
             applySettings();
         }
@@ -354,34 +396,30 @@ function animate() {
         animate
     );
 
-
     const currentTime =
         performance.now();
-
 
     let deltaTime =
         (currentTime - lastTime) /
         1000;
 
-
     lastTime =
         currentTime;
 
-
-    // Prevent huge physics jumps
     deltaTime =
         Math.min(
             deltaTime,
             0.05
         );
 
+    if (gameStarted) {
 
-    updatePlayer(
-        camera,
-        scene,
-        deltaTime
-    );
-
+        updatePlayer(
+            camera,
+            scene,
+            deltaTime
+        );
+    }
 
     renderer.render(
         scene,
