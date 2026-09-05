@@ -1,49 +1,30 @@
 import * as THREE from "three";
-import { createWorld } from "./world.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats } from "./world.js";
 
-import {
-    blockGeometry,
-    grassMaterial,
-    dirtMaterial,
-    stoneMaterial,
-    sandMaterial,
-    oakLogMaterial,
-    leavesMaterial
-} from "./blocks.js";
-
+import { grassMaterial, dirtMaterial, stoneMaterial, sandMaterial, oakLogMaterial, leavesMaterial } from "./blocks.js";
 import { setupControls } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 45, 150);
+scene.fog = new THREE.Fog(0x87ceeb, 40, 120);
 
-const camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000
-);
-
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 180);
 camera.position.set(0, 7, 5);
 
 const renderer = new THREE.WebGLRenderer({
-    antialias: true
+    antialias: false,
+    powerPreference: "high-performance"
 });
 
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(0.75);
+renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = false;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.BasicShadowMap;
 document.body.appendChild(renderer.domElement);
 
-const ambientLight = new THREE.HemisphereLight(
-    0xffffff,
-    0x506050,
-    2.5
-);
-scene.add(ambientLight);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x506050, 2.5));
 
 const sun = new THREE.DirectionalLight(0xffffff, 2.2);
 sun.position.set(40, 80, 25);
@@ -61,12 +42,11 @@ scene.add(sun);
 createWorld(scene);
 
 let gameStarted = false;
-let settingsWasOpenedByEscape = false;
 
 const settings = {
     shadows: false,
     shadowQuality: 512,
-    pixelRatio: 0.75
+    pixelRatio: 1
 };
 
 function applySettings() {
@@ -74,7 +54,7 @@ function applySettings() {
     sun.castShadow = settings.shadows;
     sun.shadow.mapSize.width = settings.shadowQuality;
     sun.shadow.mapSize.height = settings.shadowQuality;
-    renderer.setPixelRatio(settings.pixelRatio);
+    renderer.setPixelRatio(Math.min(settings.pixelRatio, 1.5));
 
     for (const object of scene.children) {
         if (!object.isMesh) continue;
@@ -92,27 +72,21 @@ const settingsButton = document.getElementById("settingsButton");
 const settingsMenu = document.getElementById("settingsMenu");
 const closeSettings = document.getElementById("closeSettings");
 
-function openSettings(fromEscape = false) {
+function openSettings() {
     if (!settingsMenu) return;
-
-    settingsWasOpenedByEscape = fromEscape;
     settingsMenu.style.display = "flex";
     document.exitPointerLock();
 }
 
 function closeSettingsMenu() {
     if (!settingsMenu) return;
-
     settingsMenu.style.display = "none";
-
-    if (gameStarted && settingsWasOpenedByEscape) {
-        requestPointerLock();
-    }
+    if (gameStarted) requestPointerLock();
 }
 
 function requestPointerLock() {
-    if (gameStarted) {
-        renderer.domElement.requestPointerLock();
+    if (gameStarted && document.pointerLockElement !== document.body) {
+        document.body.requestPointerLock();
     }
 }
 
@@ -124,25 +98,13 @@ if (playButton && mainMenu) {
     });
 }
 
-if (menuSettingsButton) {
-    menuSettingsButton.addEventListener("click", () => openSettings(false));
-}
+if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
+if (settingsButton) settingsButton.addEventListener("click", openSettings);
+if (closeSettings) closeSettings.addEventListener("click", closeSettingsMenu);
 
-if (settingsButton) {
-    settingsButton.addEventListener("click", () => openSettings(false));
-}
-
-if (closeSettings) {
-    closeSettings.addEventListener("click", closeSettingsMenu);
-}
-
-// ESC opens the settings menu while playing.
 document.addEventListener("keydown", (event) => {
     if (event.code !== "Escape" || !gameStarted) return;
-
-    // Pointer lock exits automatically on Escape. Delay the menu by one frame
-    // so the browser has finished releasing the pointer first.
-    setTimeout(() => openSettings(true), 0);
+    setTimeout(openSettings, 0);
 });
 
 const shadowsToggle = document.getElementById("shadowsToggle");
@@ -174,18 +136,13 @@ if (pixelQuality) {
 }
 
 setupControls();
+setupInteraction(scene, camera);
 
-setupInteraction(
-    scene,
-    camera,
-    blockGeometry,
-    grassMaterial,
-    dirtMaterial,
-    stoneMaterial,
-    sandMaterial,
-    oakLogMaterial,
-    leavesMaterial
-);
+const performanceHud = document.createElement("div");
+performanceHud.id = "performanceHud";
+performanceHud.style.cssText = "position:fixed;top:12px;left:12px;padding:6px 8px;background:rgba(0,0,0,.45);color:white;font:12px monospace;line-height:1.4;pointer-events:none;z-index:15;border-radius:5px;";
+performanceHud.textContent = "FPS: -- | Chunks: -- | Calls: --";
+document.body.appendChild(performanceHud);
 
 window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -194,6 +151,10 @@ window.addEventListener("resize", () => {
 });
 
 let lastTime = performance.now();
+let fpsTime = lastTime;
+let fpsFrames = 0;
+let lastChunkX = Infinity;
+let lastChunkZ = Infinity;
 
 function animate() {
     requestAnimationFrame(animate);
@@ -204,9 +165,27 @@ function animate() {
 
     if (gameStarted) {
         updatePlayer(camera, scene, deltaTime);
+
+        const chunkX = Math.floor(camera.position.x / 16);
+        const chunkZ = Math.floor(camera.position.z / 16);
+
+        if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
+            updateChunkVisibility(camera.position);
+            lastChunkX = chunkX;
+            lastChunkZ = chunkZ;
+        }
     }
 
     renderer.render(scene, camera);
+
+    fpsFrames++;
+    if (currentTime - fpsTime >= 500) {
+        const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime));
+        const stats = getPerformanceStats();
+        performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks}/${stats.chunks} | Calls: ${renderer.info.render.calls}`;
+        fpsFrames = 0;
+        fpsTime = currentTime;
+    }
 }
 
 animate();
