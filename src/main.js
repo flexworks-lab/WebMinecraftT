@@ -1,7 +1,5 @@
 import * as THREE from "three";
-import { createWorld, updateChunkVisibility, getPerformanceStats } from "./world.js";
-
-import { grassMaterial, dirtMaterial, stoneMaterial, sandMaterial, oakLogMaterial, leavesMaterial } from "./blocks.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats, getChunkSize } from "./world.js";
 import { setupControls } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
@@ -85,9 +83,7 @@ function closeSettingsMenu() {
 }
 
 function requestPointerLock() {
-    if (gameStarted && document.pointerLockElement !== document.body) {
-        document.body.requestPointerLock();
-    }
+    if (gameStarted && document.pointerLockElement !== document.body) document.body.requestPointerLock();
 }
 
 if (playButton && mainMenu) {
@@ -155,6 +151,7 @@ let fpsTime = lastTime;
 let fpsFrames = 0;
 let lastChunkX = Infinity;
 let lastChunkZ = Infinity;
+const chunkSize = getChunkSize();
 
 function animate() {
     requestAnimationFrame(animate);
@@ -166,8 +163,8 @@ function animate() {
     if (gameStarted) {
         updatePlayer(camera, scene, deltaTime);
 
-        const chunkX = Math.floor(camera.position.x / 16);
-        const chunkZ = Math.floor(camera.position.z / 16);
+        const chunkX = Math.floor(camera.position.x / chunkSize);
+        const chunkZ = Math.floor(camera.position.z / chunkSize);
 
         if (chunkX !== lastChunkX || chunkZ !== lastChunkZ) {
             updateChunkVisibility(camera.position);
@@ -182,7 +179,7 @@ function animate() {
     if (currentTime - fpsTime >= 500) {
         const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime));
         const stats = getPerformanceStats();
-        performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks}/${stats.chunks} | Calls: ${renderer.info.render.calls}`;
+        performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`;
         fpsFrames = 0;
         fpsTime = currentTime;
     }
