@@ -168,11 +168,11 @@ function getBiome(x, z) {
     const { temperature, humidity } = getClimate(x, z);
     const weirdness = octave2D(x + 300, z + 700, 2, 220, 0.55, 47);
     if (temperature < 0.26) return humidity > 0.45 ? "snow" : "tundra";
-    if (temperature > 0.76 && humidity < 0.34) return weirdness > 0.62 ? "badlands" : "desert";
-    if (humidity > 0.70) return "forest";
-    if (humidity < 0.25) return "plains";
-    if (weirdness > 0.74 && temperature > 0.52) return "desert";
-    return humidity > 0.48 ? "forest" : "plains";
+    if (temperature > 0.80 && humidity < 0.30) return weirdness > 0.68 ? "badlands" : "desert";
+    if (humidity > 0.76) return "forest";
+    if (humidity < 0.18) return "plains";
+    if (weirdness > 0.80 && temperature > 0.55) return "desert";
+    return humidity > 0.58 ? "forest" : "plains";
 }
 
 function getTerrainProfile(x, z) {
@@ -181,13 +181,15 @@ function getTerrainProfile(x, z) {
     const peaks = octave2D(x - 600, z + 1100, 4, 120, 0.50, 89);
     const detail = octave2D(x + 2400, z - 1700, 3, 28, 0.50, 97);
 
-    let baseHeight = 9 + (continentalness - 0.5) * 30;
-    baseHeight += (0.5 - erosion) * 15;
-    const mountainMask = Math.max(0, (peaks - 0.56) / 0.44);
-    baseHeight += mountainMask * mountainMask * 34;
-    baseHeight += (detail - 0.5) * 6;
-    const oceanMask = Math.max(0, 0.39 - continentalness) / 0.39;
-    baseHeight -= oceanMask * 12;
+    let baseHeight = 13 + (continentalness - 0.5) * 24;
+    baseHeight += (0.5 - erosion) * 12;
+    const mountainMask = Math.max(0, (peaks - 0.57) / 0.43);
+    baseHeight += mountainMask * mountainMask * 32;
+    baseHeight += (detail - 0.5) * 5;
+
+    // Make oceans smaller and shallower while keeping some natural coastlines.
+    const oceanMask = Math.max(0, 0.31 - continentalness) / 0.31;
+    baseHeight -= oceanMask * 8;
 
     return {
         height: Math.floor(THREE.MathUtils.clamp(baseHeight, MIN_Y + 4, WORLD_TOP - 8)),
@@ -285,10 +287,10 @@ export function getBlockAt(x, y, z) { return getBlockType(x, y, z); }
 function treeChance(x, z) {
     const { temperature, humidity } = getClimate(x, z);
     if (temperature < 0.28 || humidity < 0.30) return 0;
-    const forest = THREE.MathUtils.clamp((humidity - 0.36) / 0.38, 0, 1);
+    const forest = THREE.MathUtils.clamp((humidity - 0.38) / 0.38, 0, 1);
     const base = hash2D(x, z, 1201);
     const jitter = hash2D(x + 137, z - 411, 1207);
-    const density = humidity > 0.60 ? 0.090 + forest * 0.095 : 0.016 + forest * 0.025;
+    const density = humidity > 0.62 ? 0.085 + forest * 0.09 : 0.014 + forest * 0.022;
     return (base * 0.78 + jitter * 0.22) < density ? 1 : 0;
 }
 
