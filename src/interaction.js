@@ -1,34 +1,20 @@
 import * as THREE from "three";
-
-import {
-    getBlockAt,
-    setBlockAt,
-    getBlockTypes
-} from "./world.js";
+import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 
 const raycaster = new THREE.Raycaster();
 let selectedSlot = 0;
 
 export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
-    const materials = [
-        BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE, BLOCK.SAND, BLOCK.OAK,
-        BLOCK.LEAVES, BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE
-    ];
+    const materials = [BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE, BLOCK.SAND, BLOCK.OAK, BLOCK.LEAVES, BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE];
 
     document.addEventListener("keydown", (event) => {
         const number = Number(event.key);
         if (number >= 1 && number <= 9) {
             selectedSlot = number - 1;
-            updateHotbar();
+            document.querySelectorAll(".slot").forEach((slot, index) => slot.classList.toggle("selected", index === selectedSlot));
         }
     });
-
-    function updateHotbar() {
-        document.querySelectorAll(".slot").forEach((slot, index) => {
-            slot.classList.toggle("selected", index === selectedSlot);
-        });
-    }
 
     document.addEventListener("mousedown", (event) => {
         if (document.pointerLockElement !== document.body) return;
@@ -64,13 +50,10 @@ export function setupInteraction(scene, camera) {
 function playerOverlapsBlock(position, camera) {
     const halfWidth = 0.3;
     const playerHeight = 1.8;
-
-    return (
-        camera.position.x - halfWidth < position.x + 0.5 &&
+    return camera.position.x - halfWidth < position.x + 0.5 &&
         camera.position.x + halfWidth > position.x - 0.5 &&
         camera.position.y - playerHeight < position.y + 0.5 &&
         camera.position.y > position.y - 0.5 &&
         camera.position.z - halfWidth < position.z + 0.5 &&
-        camera.position.z + halfWidth > position.z - 0.5
-    );
+        camera.position.z + halfWidth > position.z - 0.5;
 }
