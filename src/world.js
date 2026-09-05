@@ -21,7 +21,17 @@ const BLOCK = {
     OAK_PLANKS: 13, SNOW: 14
 };
 
-const WORLD_SEED = 48151623;
+function makeWorldSeed() {
+    try {
+        const values = new Uint32Array(2);
+        crypto.getRandomValues(values);
+        return (values[0] * 4096 + (values[1] >>> 20)) >>> 0;
+    } catch {
+        return Math.floor(Math.random() * 4294967296) >>> 0;
+    }
+}
+
+export const WORLD_SEED = makeWorldSeed();
 const chunks = new Map();
 const chunkMeshes = new Map();
 const generationQueue = [];
@@ -37,12 +47,15 @@ const chunkMaterials = [
     coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial
 ];
 
-const waterMaterial = new THREE.MeshLambertMaterial({
-    color: 0x4fa7e8,
+const waterMaterial = new THREE.MeshPhongMaterial({
+    color: 0x4fabe8,
     transparent: true,
-    opacity: 0.42,
+    opacity: 0.52,
     depthWrite: false,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    shininess: 90,
+    specular: 0xbfeeff,
+    flatShading: false
 });
 
 const FACES = [
@@ -187,7 +200,7 @@ function getTerrainProfile(x, z) {
     baseHeight += mountainMask * mountainMask * 32;
     baseHeight += (detail - 0.5) * 5;
 
-    // Make oceans smaller and shallower while keeping some natural coastlines.
+    // Smaller, shallower oceans and more buildable land.
     const oceanMask = Math.max(0, 0.31 - continentalness) / 0.31;
     baseHeight -= oceanMask * 8;
 
@@ -231,22 +244,26 @@ function getSurfaceBlock(biome, y, surfaceY, x, z) {
     const submerged = surfaceY < SEA_LEVEL;
     const beach = !submerged && surfaceY <= SEA_LEVEL + 2;
 
+    // Underwater terrain is ONLY stone + dirt, never grass/sand/snow.
+    if (submerged) {
+        if (y === surfaceY) return BLOCK.STONE;
+        if (y >= surfaceY - 3) return BLOCK.DIRT;
+        return chooseStoneVariant(x, y, z, surfaceY);
+    }
+
     if (biome === "desert") {
-        if (submerged) return y === surfaceY ? BLOCK.STONE : chooseStoneVariant(x, y, z, surfaceY);
         if (y >= surfaceY - 4) return BLOCK.SAND;
         if (y >= surfaceY - 7) return BLOCK.SANDSTONE;
         return chooseStoneVariant(x, y, z, surfaceY);
     }
 
     if (biome === "badlands") {
-        if (submerged) return y === surfaceY ? BLOCK.STONE : chooseStoneVariant(x, y, z, surfaceY);
         if (y === surfaceY) return BLOCK.SAND;
         if (y >= surfaceY - 5) return BLOCK.SANDSTONE;
         return chooseStoneVariant(x, y, z, surfaceY);
     }
 
     if (biome === "snow" || biome === "tundra") {
-        if (submerged) return y === surfaceY ? BLOCK.STONE : chooseStoneVariant(x, y, z, surfaceY);
         if (y === surfaceY) return BLOCK.SNOW;
         if (y >= surfaceY - 4) return BLOCK.DIRT;
         return chooseStoneVariant(x, y, z, surfaceY);
@@ -287,33 +304,35 @@ export function getBlockAt(x, y, z) { return getBlockType(x, y, z); }
 function treeChance(x, z) {
     const { temperature, humidity } = getClimate(x, z);
     if (temperature < 0.28 || humidity < 0.30) return 0;
-    const forest = THREE.MathUtils.clamp((humidity - 0.38) / 0.38, 0, 1);
+    const forest = THREE.MathUtils.clamp((humidity - 0.34) / 0.34, 0, 1);
     const base = hash2D(x, z, 1201);
     const jitter = hash2D(x + 137, z - 411, 1207);
-    const density = humidity > 0.62 ? 0.085 + forest * 0.09 : 0.014 + forest * 0.022;
+    const density = humidity > 0.60 ? 0.13 + forest * 0.12 : 0.026 + forest * 0.032;
     return (base * 0.78 + jitter * 0.22) < density ? 1 : 0;
 }
 
 function addTree(x, y, z) {
     const heightRoll = hash2D(x, z, 1301);
-    const trunkHeight = 4 + Math.floor(heightRoll * 3);
+    const sizeRoll = hash2D(x, z, 1303);
     const shapeRoll = hash2D(x, z, 1307);
+    const trunkHeight = 4 + Math.floor(heightRoll * 4);
+    const canopyRadius = sizeRoll > 0.78 ? 3 : sizeRoll > 0.38 ? 2 : 1;
+    const canopyLayers = shapeRoll > 0.68 ? 4 : shapeRoll > 0.32 ? 3 : 2;
 
     for (let i = 0; i < trunkHeight; i++) setBlockData(x, y + i, z, BLOCK.OAK);
 
     const top = y + trunkHeight - 1;
-    const canopyBase = top - 1;
-    const canopyLayers = shapeRoll > 0.72 ? 4 : 3;
 
     for (let layer = 0; layer < canopyLayers; layer++) {
-        const layerY = canopyBase - layer;
-        const radius = layer === canopyLayers - 1 ? 1 : 2;
-        for (let dx = -radius; dx <= radius; dx++) {
-            for (let dz = -radius; dz <= radius; dz++) {
-                const edgeNoise = hash2D(x + dx * 19 + layer * 7, z + dz * 23 - layer * 13, 1313);
-                const distance = Math.abs(dx) + Math.abs(dz);
-                if (distance > radius + 1) continue;
-                if (distance === radius + 1 && edgeNoise < 0.62) continue;
+        const layerY = top - layer;
+        const layerRadius = layer === canopyLayers - 1 ? Math.max(1, canopyRadius - 1) : canopyRadius;
+
+        for (let dx = -layerRadius; dx <= layerRadius; dx++) {
+            for (let dz = -layerRadius; dz <= layerRadius; dz++) {
+                const distance = Math.sqrt(dx * dx + dz * dz);
+                const edgeNoise = hash2D(x + dx * 31 + layer * 17, z + dz * 37 - layer * 11, 1313);
+                const edgeLimit = layerRadius + 0.35 + edgeNoise * 0.35;
+                if (distance > edgeLimit) continue;
                 if (layer === 0 && dx === 0 && dz === 0) continue;
                 setBlockData(x + dx, layerY, z + dz, BLOCK.LEAVES);
             }
@@ -321,7 +340,14 @@ function addTree(x, y, z) {
     }
 
     setBlockData(x, top + 1, z, BLOCK.LEAVES);
-    if (shapeRoll > 0.78) setBlockData(x, top + 2, z, BLOCK.LEAVES);
+    if (shapeRoll > 0.56) {
+        setBlockData(x - 1, top, z, BLOCK.LEAVES);
+        setBlockData(x + 1, top, z, BLOCK.LEAVES);
+    }
+    if (canopyRadius >= 3 && sizeRoll > 0.86) {
+        setBlockData(x, top - 1, z - 2, BLOCK.LEAVES);
+        setBlockData(x, top - 1, z + 2, BLOCK.LEAVES);
+    }
 }
 
 function generateTerrain(chunk) {
@@ -511,12 +537,13 @@ function makeWaterGeometry(chunk) {
             if (surfaceY >= SEA_LEVEL) continue;
 
             const y = SEA_LEVEL + 0.42;
+            const wave = Math.sin((x + z) * 0.22) * 0.035;
             const base = vertices;
             positions.push(
-                x - 0.5, y, z - 0.5,
-                x - 0.5, y, z + 0.5,
-                x + 0.5, y, z + 0.5,
-                x + 0.5, y, z - 0.5
+                x - 0.5, y + wave, z - 0.5,
+                x - 0.5, y + wave * 0.5, z + 0.5,
+                x + 0.5, y - wave * 0.45, z + 0.5,
+                x + 0.5, y - wave, z - 0.5
             );
             normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
             uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
@@ -569,6 +596,7 @@ function rebuildChunkMesh(chunk) {
     if (waterGeometry) {
         const waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
         waterMesh.userData.isChunk = true;
+        waterMesh.userData.isWater = true;
         waterMesh.castShadow = false;
         waterMesh.receiveShadow = false;
         worldScene.add(waterMesh);
