@@ -2,14 +2,12 @@ import * as THREE from "three";
 
 import {
     registerWorldBlock,
-    removeWorldBlock
+    removeWorldBlock,
+    getBlockAt
 } from "./world.js";
 
-const raycaster =
-    new THREE.Raycaster();
-
+const raycaster = new THREE.Raycaster();
 let selectedSlot = 0;
-
 
 export function setupInteraction(
     scene,
@@ -17,291 +15,94 @@ export function setupInteraction(
     blockGeometry,
     grassMaterial,
     dirtMaterial,
-    stoneMaterial
+    stoneMaterial,
+    sandMaterial,
+    oakLogMaterial,
+    leavesMaterial
 ) {
-
     const materials = [
-
         grassMaterial,
         dirtMaterial,
         stoneMaterial,
-
-        grassMaterial,
-        dirtMaterial,
-        stoneMaterial,
-
+        sandMaterial,
+        oakLogMaterial,
+        leavesMaterial,
         grassMaterial,
         dirtMaterial,
         stoneMaterial
-
     ];
 
+    document.addEventListener("keydown", (event) => {
+        const number = Number(event.key);
 
-    // =========================
-    // HOTBAR
-    // =========================
-
-    document.addEventListener(
-        "keydown",
-        (event) => {
-
-            const number =
-                Number(event.key);
-
-            if (
-                number >= 1 &&
-                number <= 9
-            ) {
-
-                selectedSlot =
-                    number - 1;
-
-                updateHotbar();
-            }
+        if (number >= 1 && number <= 9) {
+            selectedSlot = number - 1;
+            updateHotbar();
         }
-    );
-
+    });
 
     function updateHotbar() {
+        document.querySelectorAll(".slot").forEach((slot, index) => {
+            slot.classList.toggle("selected", index === selectedSlot);
+        });
+    }
 
-        const slots =
-            document.querySelectorAll(
-                ".slot"
-            );
+    document.addEventListener("mousedown", (event) => {
+        if (document.pointerLockElement !== document.body) return;
 
-        slots.forEach(
-            (slot, index) => {
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-                slot.classList.toggle(
-                    "selected",
-                    index ===
-                    selectedSlot
-                );
-            }
+        const hits = raycaster.intersectObjects(scene.children, false);
+        if (hits.length === 0) return;
+
+        const hit = hits[0];
+        const block = hit.object;
+
+        if (block.geometry !== blockGeometry || block.userData.isWater) return;
+
+        if (event.button === 0) {
+            removeWorldBlock(block);
+            scene.remove(block);
+            return;
+        }
+
+        if (event.button !== 2 || !hit.face) return;
+
+        const position = block.position.clone().add(hit.face.normal);
+        position.x = Math.round(position.x);
+        position.y = Math.round(position.y);
+        position.z = Math.round(position.z);
+
+        if (getBlockAt(position.x, position.y, position.z)) return;
+
+        if (playerOverlapsBlock(position, camera)) return;
+
+        const newBlock = new THREE.Mesh(
+            blockGeometry,
+            materials[selectedSlot]
         );
-    }
 
+        newBlock.position.copy(position);
+        newBlock.userData.isBlock = true;
+        scene.add(newBlock);
+        registerWorldBlock(newBlock);
+    });
 
-    // =========================
-    // MOUSE
-    // =========================
+    document.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+    });
+}
 
-    document.addEventListener(
-        "mousedown",
-        (event) => {
+function playerOverlapsBlock(position, camera) {
+    const halfWidth = 0.3;
+    const playerHeight = 1.8;
 
-            raycaster.setFromCamera(
-                new THREE.Vector2(0, 0),
-                camera
-            );
-
-
-            const hits =
-                raycaster.intersectObjects(
-                    scene.children
-                );
-
-
-            if (
-                hits.length === 0
-            ) {
-                return;
-            }
-
-
-            const hit =
-                hits[0];
-
-            const block =
-                hit.object;
-
-
-            if (
-                block.geometry !==
-                blockGeometry
-            ) {
-                return;
-            }
-
-
-            // =========================
-            // BREAK
-            // =========================
-
-            if (
-                event.button === 0
-            ) {
-
-                removeWorldBlock(
-                    block
-                );
-
-                scene.remove(
-                    block
-                );
-            }
-
-
-            // =========================
-            // PLACE
-            // =========================
-
-            if (
-                event.button === 2
-            ) {
-
-                const position =
-                    block.position.clone();
-
-
-                position.add(
-                    hit.face.normal
-                );
-
-
-                position.x =
-                    Math.round(
-                        position.x
-                    );
-
-                position.y =
-                    Math.round(
-                        position.y
-                    );
-
-                position.z =
-                    Math.round(
-                        position.z
-                    );
-
-
-                // Don't place inside player
-                const dx =
-                    Math.abs(
-                        position.x -
-                        camera.position.x
-                    );
-
-                const dy =
-                    Math.abs(
-                        position.y -
-                        (
-                            camera.position.y -
-                            0.9
-                        )
-                    );
-
-                const dz =
-                    Math.abs(
-                        position.z -
-                        camera.position.z
-                    );
-
-
-                if (
-                    dx < 1 &&
-                    dy < 1.8 &&
-                    dz < 1
-                ) {
-                    return;
-                }
-
-
-                // Don't create duplicate blocks
-                if (
-                    getBlockAtPosition(
-                        position.x,
-                        position.y,
-                        position.z
-                    )
-                ) {
-                    return;
-                }
-
-
-                const newBlock =
-                    new THREE.Mesh(
-                        blockGeometry,
-                        materials[
-                            selectedSlot
-                        ]
-                    );
-
-
-                newBlock.position.copy(
-                    position
-                );
-
-
-                newBlock.userData.isBlock =
-                    true;
-
-
-                scene.add(
-                    newBlock
-                );
-
-
-                registerWorldBlock(
-                    newBlock
-                );
-            }
-        }
+    return (
+        camera.position.x - halfWidth < position.x + 0.5 &&
+        camera.position.x + halfWidth > position.x - 0.5 &&
+        camera.position.y - playerHeight < position.y + 0.5 &&
+        camera.position.y > position.y - 0.5 &&
+        camera.position.z - halfWidth < position.z + 0.5 &&
+        camera.position.z + halfWidth > position.z - 0.5
     );
-
-
-    // =========================
-    // PREVENT RIGHT CLICK MENU
-    // =========================
-
-    document.addEventListener(
-        "contextmenu",
-        (event) => {
-            event.preventDefault();
-        }
-    );
-
-
-    function getBlockAtPosition(
-        x,
-        y,
-        z
-    ) {
-
-        // Check scene objects only
-        // for placement duplicate protection.
-        for (
-            const object of scene.children
-        ) {
-
-            if (
-                !object.isMesh ||
-                object.geometry !==
-                    blockGeometry
-            ) {
-                continue;
-            }
-
-
-            if (
-                Math.round(
-                    object.position.x
-                ) === x &&
-
-                Math.round(
-                    object.position.y
-                ) === y &&
-
-                Math.round(
-                    object.position.z
-                ) === z
-            ) {
-
-                return object;
-            }
-        }
-
-
-        return null;
-    }
 }
