@@ -191,21 +191,38 @@ window.addEventListener("resize", () => { camera.aspect = window.innerWidth / wi
 let lastTime = performance.now(), fpsTime = lastTime, fpsFrames = 0, lastSunX = camera.position.x, lastSunZ = camera.position.z;
 const sunFollowDistance = 8;
 
-const menuCamera = {
-    center: new THREE.Vector3(0, 7, 0),
-    radius: 22,
-    height: 10,
-    angle: 0.35,
+// Minecraft-style panorama: choose a new random world location each page load,
+// then keep the camera completely fixed there and rotate only its view direction.
+const panoramaAngle = Math.random() * Math.PI * 2;
+const panoramaDistance = 48 + Math.random() * 112;
+const panoramaCenter = new THREE.Vector3(
+    Math.round(Math.cos(panoramaAngle) * panoramaDistance / 16) * 16,
+    10,
+    Math.round(Math.sin(panoramaAngle) * panoramaDistance / 16) * 16
+);
+const panoramaCamera = {
+    position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z),
+    targetY: 9,
+    angle: Math.random() * Math.PI * 2,
     speed: 0.035
 };
 
 function updateMenuCamera(deltaTime) {
     if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
-    menuCamera.angle += menuCamera.speed * deltaTime;
-    camera.position.x = menuCamera.center.x + Math.sin(menuCamera.angle) * menuCamera.radius;
-    camera.position.z = menuCamera.center.z + Math.cos(menuCamera.angle) * menuCamera.radius;
-    camera.position.y = menuCamera.center.y + Math.sin(menuCamera.angle * 0.55) * menuCamera.height;
-    camera.lookAt(menuCamera.center.x, menuCamera.center.y + 1.5, menuCamera.center.z);
+
+    // Position never changes. Only the horizontal viewing angle rotates.
+    panoramaCamera.angle += panoramaCamera.speed * deltaTime;
+    camera.position.copy(panoramaCamera.position);
+
+    const lookDistance = 40;
+    const lookTarget = new THREE.Vector3(
+        panoramaCamera.position.x + Math.sin(panoramaCamera.angle) * lookDistance,
+        panoramaCamera.targetY,
+        panoramaCamera.position.z + Math.cos(panoramaCamera.angle) * lookDistance
+    );
+
+    // Fixed Y for both camera and target = no rolling or vertical tilt.
+    camera.lookAt(lookTarget);
     updateChunkVisibility(camera.position, camera);
     updateDepthLighting();
 }
