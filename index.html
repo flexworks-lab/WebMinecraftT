@@ -24,16 +24,28 @@
             display:flex;
             align-items:center;
             justify-content:center;
-            background:rgba(0,0,0,.22);
+            background:rgba(0,0,0,.16);
             z-index:80;
             pointer-events:auto;
+            isolation:isolate;
         }
         #mainMenu::before {
             content:"";
             position:absolute;
             inset:0;
-            background:linear-gradient(to bottom, rgba(0,0,0,.04), rgba(0,0,0,.32));
+            background:linear-gradient(to bottom, rgba(0,0,0,.04), rgba(0,0,0,.34));
             pointer-events:none;
+            z-index:-1;
+        }
+        #mainMenu::after {
+            content:"";
+            position:absolute;
+            inset:-8px;
+            background:rgba(20,24,30,.05);
+            backdrop-filter:blur(2.5px);
+            -webkit-backdrop-filter:blur(2.5px);
+            pointer-events:none;
+            z-index:-2;
         }
         #menuPanel {
             position:relative;
@@ -42,6 +54,7 @@
             margin-top:-12px;
             text-align:center;
             color:white;
+            z-index:2;
         }
         #menuTitle {
             margin:0;
@@ -111,15 +124,9 @@
             transform:translateY(2px);
             box-shadow:inset 2px 2px 0 rgba(0,0,0,.35);
         }
-        #playButton {
-            background:#6a6a6a;
-        }
-        #menuSettingsButton {
-            margin-top:8px;
-        }
-        #mobileModeButton {
-            margin-top:8px;
-        }
+        #playButton { background:#6a6a6a; }
+        #menuSettingsButton { margin-top:8px; }
+        #mobileModeButton { margin-top:8px; }
         #menuFooter {
             position:fixed;
             left:8px;
@@ -130,6 +137,7 @@
             font-size:10px;
             line-height:1.4;
             text-shadow:2px 2px 0 #222;
+            z-index:2;
         }
         #menuCopyright {
             position:fixed;
@@ -139,6 +147,7 @@
             font-family:Arial,sans-serif;
             font-size:10px;
             text-shadow:1px 1px 0 #222;
+            z-index:2;
         }
 
         #crosshair {
