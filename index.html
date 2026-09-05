@@ -12,71 +12,131 @@
         }
 
         :root { color-scheme: dark; }
-        * { box-sizing:border-box; }
+        * { box-sizing: border-box; }
         html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#000; }
         body { font-family:Arial,sans-serif; }
         button, select, input { font:inherit; }
 
+        /* Minecraft Java-style title screen */
         #mainMenu {
             position:fixed;
             inset:0;
             display:flex;
             align-items:center;
             justify-content:center;
-            background:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.48));
+            background:rgba(0,0,0,.22);
             z-index:80;
             pointer-events:auto;
         }
+        #mainMenu::before {
+            content:"";
+            position:absolute;
+            inset:0;
+            background:linear-gradient(to bottom, rgba(0,0,0,.04), rgba(0,0,0,.32));
+            pointer-events:none;
+        }
         #menuPanel {
-            width:min(440px, calc(100vw - 36px));
-            padding:24px 34px 28px;
+            position:relative;
+            width:360px;
+            max-width:90vw;
+            margin-top:-12px;
             text-align:center;
             color:white;
-            background:rgba(0,0,0,.20);
         }
         #menuTitle {
-            margin:0 0 10px;
+            margin:0;
             font-family:"MinecraftFont", monospace;
-            font-size:clamp(48px, 8vw, 72px);
-            line-height:1;
-            letter-spacing:1px;
+            font-size:clamp(52px, 7vw, 70px);
+            line-height:.9;
+            letter-spacing:-2px;
             color:#fff;
-            text-shadow:5px 5px 0 #202020, 8px 8px 12px rgba(0,0,0,.55);
+            -webkit-text-stroke:2px #171717;
+            text-shadow:
+                3px 3px 0 #111,
+                6px 6px 0 #080808,
+                9px 9px 10px rgba(0,0,0,.7);
+            transform:scaleX(1.04);
         }
-        #menuSubtitle {
-            margin:0 0 24px;
-            color:#ececec;
+        #menuSplash {
+            display:inline-block;
+            margin:7px 0 22px 125px;
+            color:#fff51c;
             font-family:"MinecraftFont", monospace;
-            font-size:13px;
-            text-shadow:2px 2px 0 #202020;
+            font-size:18px;
+            line-height:1;
+            white-space:nowrap;
+            text-shadow:2px 2px 0 #463e00, 3px 3px 0 #000;
+            transform:rotate(-10deg);
+        }
+        #menuButtons {
+            width:200px;
+            margin:0 auto;
         }
         .menuButton {
             display:block;
-            width:100%;
-            min-height:52px;
-            margin:10px 0;
-            padding:12px 16px;
+            width:200px;
+            height:38px;
+            margin:8px 0;
+            padding:5px 8px 8px;
             border:2px solid #111;
-            border-top-color:#8b8b8b;
-            border-left-color:#8b8b8b;
-            border-radius:2px;
-            background:linear-gradient(#646464,#4b4b4b);
+            border-top-color:#aaa;
+            border-left-color:#aaa;
+            border-radius:0;
+            background:#686868;
             color:#fff;
             font-family:"MinecraftFont", monospace;
-            font-size:17px;
+            font-size:15px;
             line-height:1;
-            text-shadow:2px 2px 0 #292929;
+            letter-spacing:.2px;
+            text-shadow:2px 2px 0 #333;
             cursor:pointer;
-            box-shadow:0 3px 0 #181818, inset 0 1px 0 rgba(255,255,255,.16);
+            box-shadow:
+                inset 2px 2px 0 rgba(255,255,255,.16),
+                inset -2px -3px 0 rgba(0,0,0,.28),
+                0 2px 0 rgba(0,0,0,.75);
+            image-rendering:pixelated;
         }
-        .menuButton:hover { background:linear-gradient(#777,#5a5a5a); }
-        .menuButton:active { transform:translateY(2px); box-shadow:0 1px 0 #181818, inset 0 1px 0 rgba(255,255,255,.10); }
-        #playButton { background:linear-gradient(#79a84b,#5f8c37); }
-        #playButton:hover { background:linear-gradient(#8bbc59,#6b9e3e); }
-        #menuVersion {
-            margin-top:20px;
-            color:#ddd;
+        .menuButton:hover,
+        .menuButton:focus-visible {
+            background:#7c7c7c;
+            outline:2px solid rgba(255,255,255,.85);
+            outline-offset:1px;
+        }
+        .menuButton:active {
+            background:#4f4f4f;
+            border-top-color:#111;
+            border-left-color:#111;
+            border-right-color:#aaa;
+            border-bottom-color:#aaa;
+            transform:translateY(2px);
+            box-shadow:inset 2px 2px 0 rgba(0,0,0,.35);
+        }
+        #playButton {
+            background:#6a6a6a;
+        }
+        #menuSettingsButton {
+            margin-top:8px;
+        }
+        #mobileModeButton {
+            margin-top:8px;
+        }
+        #menuFooter {
+            position:fixed;
+            left:8px;
+            bottom:6px;
+            text-align:left;
+            color:#fff;
             font-family:"MinecraftFont", monospace;
+            font-size:10px;
+            line-height:1.4;
+            text-shadow:2px 2px 0 #222;
+        }
+        #menuCopyright {
+            position:fixed;
+            right:8px;
+            bottom:6px;
+            color:#fff;
+            font-family:Arial,sans-serif;
             font-size:10px;
             text-shadow:1px 1px 0 #222;
         }
@@ -199,8 +259,11 @@
 
         @media (max-width:900px) {
             #settingsButton { top:max(12px, env(safe-area-inset-top)); right:12px; }
-            #menuPanel { padding:18px 24px 24px; }
-            #menuSubtitle { font-size:11px; }
+            #menuPanel { margin-top:-5px; }
+            #menuTitle { font-size:clamp(43px, 12vw, 58px); }
+            #menuSplash { margin-left:95px; font-size:15px; }
+            #menuButtons, .menuButton { width:min(90vw, 300px); }
+            .menuButton { height:44px; font-size:16px; margin:9px auto; }
         }
 
         body.mobile-mode #hotbar {
@@ -224,14 +287,20 @@
 <body>
     <div id="mainMenu">
         <div id="menuPanel">
-            <h1 id="menuTitle">WebMinecraft</h1>
-            <div id="menuSubtitle">A Minecraft-style world in your browser</div>
-            <button id="playButton" class="menuButton">Play</button>
-            <button id="menuSettingsButton" class="menuButton">Settings</button>
-            <button id="mobileModeButton" class="menuButton">Mobile Mode</button>
-            <div id="menuVersion">WebMinecraft</div>
+            <h1 id="menuTitle">MINECRAFT</h1>
+            <div id="menuSplash">A blocky good time!</div>
+            <div id="menuButtons">
+                <button id="playButton" class="menuButton">Singleplayer</button>
+                <button id="multiplayerButton" class="menuButton">Multiplayer</button>
+                <button id="realmsButton" class="menuButton">Minecraft Realms</button>
+                <button id="menuSettingsButton" class="menuButton">Options...</button>
+                <button id="mobileModeButton" class="menuButton">Mobile Mode</button>
+            </div>
         </div>
     </div>
+
+    <div id="menuFooter">WebMinecraftT<br>v1.0</div>
+    <div id="menuCopyright">WebMinecraftT</div>
 
     <div id="crosshair">+</div>
     <div id="hotbar">
