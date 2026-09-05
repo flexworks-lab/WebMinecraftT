@@ -1,4 +1,4 @@
-import { keys, yaw, pitch, touchInput } from "./controls.js";
+import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getBlockAt } from "./world.js";
 
 let velocityX = 0;
@@ -13,6 +13,8 @@ const HALF_WIDTH = PLAYER_WIDTH / 2;
 
 const WALK_SPEED = 4.3;
 const SPRINT_SPEED = 5.6;
+const FLY_SPEED = 10;
+const FLY_SPRINT_SPEED = 18;
 
 const GROUND_ACCEL = 32;
 const AIR_ACCEL = 8;
@@ -232,31 +234,54 @@ function approach(current, target, amount) {
 }
 
 function physicsStep(camera, dt) {
-    updateGround(camera);
+    if (isFlying) {
+        const forwardX = -Math.sin(yaw);
+        const forwardZ = -Math.cos(yaw);
+        const rightX = Math.cos(yaw);
+        const rightZ = -Math.sin(yaw);
+        let inputX = touchInput.moveX * rightX + touchInput.moveZ * forwardX;
+        let inputZ = touchInput.moveX * rightZ + touchInput.moveZ * forwardZ;
+        if (keys["KeyW"]) { inputX += forwardX; inputZ += forwardZ; }
+        if (keys["KeyS"]) { inputX -= forwardX; inputZ -= forwardZ; }
+        if (keys["KeyA"]) { inputX -= rightX; inputZ -= rightZ; }
+        if (keys["KeyD"]) { inputX += rightX; inputZ += rightZ; }
+        const inputLength = Math.hypot(inputX, inputZ);
+        if (inputLength > 1) { inputX /= inputLength; inputZ /= inputLength; }
+        const fast = keys["ShiftLeft"] || keys["ShiftRight"] || touchInput.sprint;
+        const speed = fast ? FLY_SPRINT_SPEED : FLY_SPEED;
+        const targetX = inputX * speed;
+        const targetZ = inputZ * speed;
+        velocityX = approach(velocityX, targetX, 45 * dt);
+        velocityZ = approach(velocityZ, targetZ, 45 * dt);
+        let verticalInput = 0;
+        if (keys["Space"] || touchInput.jump) verticalInput += 1;
+        if (keys["ControlLeft"] || keys["ControlRight"]) verticalInput -= 1;
+        velocityY = approach(velocityY, verticalInput * speed, 45 * dt);
+        camera.position.x += velocityX * dt;
+        camera.position.y += velocityY * dt;
+        camera.position.z += velocityZ * dt;
+        onGround = false;
+        jumpWasDown = !!keys["Space"] || touchInput.jump;
+        return;
+    }
 
+    updateGround(camera);
     const forwardX = -Math.sin(yaw);
     const forwardZ = -Math.cos(yaw);
     const rightX = Math.cos(yaw);
     const rightZ = -Math.sin(yaw);
-
-    // iPad joystick is relative to the direction the player is facing.
-    // Up = forward, down = backward, left/right = strafe.
     let inputX = touchInput.moveX * rightX + touchInput.moveZ * forwardX;
     let inputZ = touchInput.moveX * rightZ + touchInput.moveZ * forwardZ;
-
     if (keys["KeyW"]) { inputX += forwardX; inputZ += forwardZ; }
     if (keys["KeyS"]) { inputX -= forwardX; inputZ -= forwardZ; }
     if (keys["KeyA"]) { inputX -= rightX; inputZ -= rightZ; }
     if (keys["KeyD"]) { inputX += rightX; inputZ += rightZ; }
-
     const inputLength = Math.hypot(inputX, inputZ);
     if (inputLength > 1) { inputX /= inputLength; inputZ /= inputLength; }
-
     const sprinting = ((keys["ShiftLeft"] || keys["ShiftRight"]) || touchInput.sprint) && (keys["KeyW"] || Math.hypot(touchInput.moveX, touchInput.moveZ) > 0.65);
     const targetSpeed = sprinting ? SPRINT_SPEED : WALK_SPEED;
     const targetX = inputX * targetSpeed;
     const targetZ = inputZ * targetSpeed;
-
     if (inputLength > 0.02) {
         const acceleration = onGround ? GROUND_ACCEL : AIR_ACCEL;
         velocityX = approach(velocityX, targetX, acceleration * dt);
@@ -266,17 +291,14 @@ function physicsStep(camera, dt) {
         velocityX = approach(velocityX, 0, friction * dt);
         velocityZ = approach(velocityZ, 0, friction * dt);
     }
-
     const jumpDown = !!keys["Space"] || touchInput.jump;
     if (jumpDown && !jumpWasDown && onGround) {
         velocityY = JUMP_SPEED;
         onGround = false;
     }
     jumpWasDown = jumpDown;
-
     velocityY -= GRAVITY * dt;
     velocityY = Math.max(velocityY, -MAX_FALL_SPEED);
-
     if (!moveX(camera, velocityX * dt)) velocityX = 0;
     if (!moveZ(camera, velocityZ * dt)) velocityZ = 0;
     moveY(camera, velocityY * dt);
@@ -288,14 +310,12 @@ export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     camera.rotation.order = "YXZ";
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
-
     let remaining = deltaTime;
     while (remaining > 0) {
         const step = Math.min(remaining, MAX_PHYSICS_STEP);
         physicsStep(camera, step);
         remaining -= step;
     }
-
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
 }
