@@ -239,8 +239,11 @@ function physicsStep(camera, dt) {
     const rightX = Math.cos(yaw);
     const rightZ = -Math.sin(yaw);
 
-    let inputX = touchInput.moveX;
-    let inputZ = touchInput.moveZ;
+    // iPad joystick is relative to the direction the player is facing.
+    // Up = forward, down = backward, left/right = strafe.
+    let inputX = touchInput.moveX * rightX + touchInput.moveZ * forwardX;
+    let inputZ = touchInput.moveX * rightZ + touchInput.moveZ * forwardZ;
+
     if (keys["KeyW"]) { inputX += forwardX; inputZ += forwardZ; }
     if (keys["KeyS"]) { inputX -= forwardX; inputZ -= forwardZ; }
     if (keys["KeyA"]) { inputX -= rightX; inputZ -= rightZ; }
