@@ -44,6 +44,8 @@ function loadTexture(path) {
 const grassTopTexture = loadTexture("/textures/Grass_Block_(top_texture)_JE2.png");
 const grassSideTexture = loadTexture("/textures/grass_block_side.png");
 const dirtTexture = loadTexture("/textures/dirt.png");
+const oakSideTexture = loadTexture("/textures/oak_log.png");
+const oakTopTexture = loadTexture("/textures/oak_log_top.png");
 const stoneTexture = createTexture("#818181", ["#707070", "#969696", "#626262", "#a2a2a2"], 54, 13);
 const cobblestoneTexture = createTexture("#666666", ["#555555", "#7b7b7b", "#4d4d4d", "#898989"], 75, 18);
 const gravelTexture = createTexture("#88847a", ["#6f6b62", "#9d988c", "#747066", "#aba69a"], 80, 19);
@@ -52,8 +54,6 @@ const sandstoneTexture = createTexture("#c7ae72", ["#b4985a", "#ddc790", "#ad8f5
 const bedrockTexture = createTexture("#303030", ["#242424", "#494949", "#1d1d1d", "#555555"], 80, 21);
 const coalTexture = createTexture("#535353", ["#151515", "#252525", "#707070", "#0c0c0c"], 72, 22);
 const ironTexture = createTexture("#88827b", ["#c0bbb3", "#6c6762", "#a7a098", "#5d5955"], 68, 23);
-const oakSideTexture = createTexture("#704625", ["#5a381c", "#845632", "#613d20", "#956039"], 40, 15);
-const oakTopTexture = createTexture("#95613b", ["#714522", "#ad7549", "#7c4d2d", "#bb8354"], 32, 16);
 const oakPlankTexture = createTexture("#9b6a3b", ["#83562e", "#b67c45", "#744b28", "#c58d54"], 34, 24);
 const leavesTexture = createTexture("#3c8c2e", ["#2d7525", "#55a63a", "#347d28", "#6bb949", "#24661f"], 72, 17);
 const snowTexture = createTexture("#e8f1f4", ["#d6e2e7", "#ffffff", "#c3d3da", "#eef7fa"], 34, 25);
