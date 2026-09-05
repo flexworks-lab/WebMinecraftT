@@ -1,40 +1,217 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>WebMinecraft</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
-        body { margin:0; overflow:hidden; background:black; font-family:Arial,sans-serif; }
-        #mainMenu { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.6)); z-index:50; }
-        #menuPanel { width:430px; padding:40px; text-align:center; background:rgba(20,20,20,.9); border:2px solid rgba(255,255,255,.25); border-radius:16px; color:white; box-shadow:0 15px 50px rgba(0,0,0,.6); }
-        #menuTitle { margin:0; font-size:52px; letter-spacing:2px; text-shadow:3px 3px 0 #000; }
-        #menuSubtitle { margin:8px 0 35px; color:#bbb; font-size:15px; }
-        .menuButton { display:block; width:100%; box-sizing:border-box; margin:12px 0; padding:14px; border:2px solid #555; border-radius:8px; background:#333; color:white; font-size:18px; font-weight:bold; cursor:pointer; }
-        .menuButton:hover { background:#4a4a4a; border-color:#888; }
-        #playButton { background:#4b7f32; border-color:#6aa447; }
-        #playButton:hover { background:#5d963e; }
-        #menuVersion { margin-top:25px; color:#777; font-size:12px; }
-        #crosshair { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:white; font-size:22px; font-weight:bold; pointer-events:none; text-shadow:1px 1px 2px black,-1px -1px 2px black; }
-        #hotbar { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:4px; padding:5px; background:rgba(0,0,0,.45); border:2px solid rgba(255,255,255,.3); pointer-events:none; }
-        .slot { width:48px; height:48px; border:2px solid #777; background:rgba(30,30,30,.8); display:flex; align-items:center; justify-content:center; color:white; font-size:12px; box-sizing:border-box; text-align:center; }
-        .slot.selected { border:3px solid white; background:rgba(100,100,100,.8); }
-        #settingsButton { position:fixed; top:20px; right:20px; width:48px; height:48px; border:none; border-radius:10px; background:rgba(0,0,0,.65); color:white; font-size:25px; cursor:pointer; z-index:20; }
-        #settingsButton:hover { background:rgba(40,40,40,.85); }
-        #settingsMenu { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.6); z-index:60; }
-        #settingsPanel { width:420px; max-height:85vh; overflow:auto; padding:25px; background:rgba(25,25,25,.97); border:2px solid #555; border-radius:14px; color:white; box-shadow:0 10px 40px rgba(0,0,0,.5); }
-        #settingsPanel h1 { margin-top:0; margin-bottom:25px; font-size:25px; }
-        .setting { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid #444; }
-        .setting label { font-size:16px; }
-        .setting small { display:block; margin-top:3px; color:#888; font-size:11px; }
-        select { background:#333; color:white; border:1px solid #666; border-radius:6px; padding:7px 10px; font-size:14px; }
-        input[type="range"] { width:150px; accent-color:#8dbb6e; }
-        #closeSettings { width:100%; margin-top:8px; padding:11px; border:none; border-radius:7px; background:#555; color:white; font-size:15px; cursor:pointer; }
-        #closeSettings:hover { background:#666; }
-        @media (pointer:coarse), (max-width:900px) {
-            #hotbar { pointer-events:auto; bottom:154px; max-width:calc(100vw - 20px); overflow-x:auto; scrollbar-width:none; }
-            #hotbar::-webkit-scrollbar { display:none; }
-            .slot { flex:0 0 48px; }
+        @font-face {
+            font-family: "MinecraftFont";
+            src: url("./Minecraft.ttf") format("truetype");
+            font-display: swap;
         }
+
+        :root { color-scheme: dark; }
+        * { box-sizing:border-box; }
+        html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#000; }
+        body { font-family:Arial,sans-serif; }
+        button, select, input { font:inherit; }
+
+        #mainMenu {
+            position:fixed;
+            inset:0;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.48));
+            z-index:80;
+            pointer-events:auto;
+        }
+        #menuPanel {
+            width:min(440px, calc(100vw - 36px));
+            padding:24px 34px 28px;
+            text-align:center;
+            color:white;
+            background:rgba(0,0,0,.20);
+        }
+        #menuTitle {
+            margin:0 0 10px;
+            font-family:"MinecraftFont", monospace;
+            font-size:clamp(48px, 8vw, 72px);
+            line-height:1;
+            letter-spacing:1px;
+            color:#fff;
+            text-shadow:5px 5px 0 #202020, 8px 8px 12px rgba(0,0,0,.55);
+        }
+        #menuSubtitle {
+            margin:0 0 24px;
+            color:#ececec;
+            font-family:"MinecraftFont", monospace;
+            font-size:13px;
+            text-shadow:2px 2px 0 #202020;
+        }
+        .menuButton {
+            display:block;
+            width:100%;
+            min-height:52px;
+            margin:10px 0;
+            padding:12px 16px;
+            border:2px solid #111;
+            border-top-color:#8b8b8b;
+            border-left-color:#8b8b8b;
+            border-radius:2px;
+            background:linear-gradient(#646464,#4b4b4b);
+            color:#fff;
+            font-family:"MinecraftFont", monospace;
+            font-size:17px;
+            line-height:1;
+            text-shadow:2px 2px 0 #292929;
+            cursor:pointer;
+            box-shadow:0 3px 0 #181818, inset 0 1px 0 rgba(255,255,255,.16);
+        }
+        .menuButton:hover { background:linear-gradient(#777,#5a5a5a); }
+        .menuButton:active { transform:translateY(2px); box-shadow:0 1px 0 #181818, inset 0 1px 0 rgba(255,255,255,.10); }
+        #playButton { background:linear-gradient(#79a84b,#5f8c37); }
+        #playButton:hover { background:linear-gradient(#8bbc59,#6b9e3e); }
+        #menuVersion {
+            margin-top:20px;
+            color:#ddd;
+            font-family:"MinecraftFont", monospace;
+            font-size:10px;
+            text-shadow:1px 1px 0 #222;
+        }
+
+        #crosshair {
+            position:fixed;
+            left:50%;
+            top:50%;
+            transform:translate(-50%,-50%);
+            color:white;
+            font-size:22px;
+            font-weight:bold;
+            pointer-events:none;
+            text-shadow:1px 1px 2px black,-1px -1px 2px black;
+            z-index:10;
+        }
+        #hotbar {
+            position:fixed;
+            bottom:20px;
+            left:50%;
+            transform:translateX(-50%);
+            display:flex;
+            gap:4px;
+            padding:5px;
+            background:rgba(0,0,0,.55);
+            border:2px solid rgba(255,255,255,.28);
+            pointer-events:none;
+            z-index:12;
+        }
+        .slot {
+            width:48px;
+            height:48px;
+            flex:0 0 48px;
+            border:2px solid #777;
+            background:rgba(30,30,30,.82);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:white;
+            font-size:11px;
+            box-sizing:border-box;
+            text-align:center;
+        }
+        .slot.selected { border:3px solid white; background:rgba(105,105,105,.86); }
+
+        #settingsButton {
+            position:fixed;
+            top:20px;
+            right:20px;
+            width:48px;
+            height:48px;
+            border:2px solid #111;
+            border-top-color:#888;
+            border-left-color:#888;
+            border-radius:3px;
+            background:#4c4c4c;
+            color:white;
+            font-size:24px;
+            cursor:pointer;
+            z-index:90;
+            box-shadow:0 3px 0 #171717;
+        }
+        #settingsButton:hover { background:#5e5e5e; }
+
+        #settingsMenu {
+            position:fixed;
+            inset:0;
+            display:none;
+            align-items:center;
+            justify-content:center;
+            padding:18px;
+            background:rgba(0,0,0,.68);
+            z-index:100;
+            pointer-events:auto;
+        }
+        #settingsPanel {
+            width:min(450px, calc(100vw - 30px));
+            max-height:88vh;
+            overflow:auto;
+            padding:24px;
+            background:#252525;
+            border:2px solid #111;
+            border-top-color:#777;
+            border-left-color:#777;
+            color:white;
+            box-shadow:0 10px 40px rgba(0,0,0,.6);
+        }
+        #settingsPanel h1 {
+            margin:0 0 24px;
+            font-family:"MinecraftFont", monospace;
+            font-size:25px;
+            text-shadow:2px 2px 0 #000;
+        }
+        .setting {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:18px;
+            margin-bottom:17px;
+            padding-bottom:14px;
+            border-bottom:1px solid #444;
+        }
+        .setting label { font-size:16px; }
+        .setting small { display:block; margin-top:3px; color:#999; font-size:11px; }
+        select { min-width:125px; background:#333; color:white; border:1px solid #666; padding:7px 10px; border-radius:2px; }
+        input[type="range"] { width:150px; accent-color:#84ad5e; }
+        #closeSettings {
+            width:100%;
+            margin-top:6px;
+            padding:12px;
+            border:2px solid #111;
+            border-top-color:#777;
+            border-left-color:#777;
+            background:#555;
+            color:white;
+            font-family:"MinecraftFont", monospace;
+            cursor:pointer;
+        }
+        #closeSettings:hover { background:#666; }
+
+        @media (max-width:900px) {
+            #settingsButton { top:max(12px, env(safe-area-inset-top)); right:12px; }
+            #menuPanel { padding:18px 24px 24px; }
+            #menuSubtitle { font-size:11px; }
+        }
+
+        body.mobile-mode #hotbar {
+            pointer-events:auto;
+            bottom:154px;
+            max-width:calc(100vw - 20px);
+            overflow-x:auto;
+            scrollbar-width:none;
+        }
+        body.mobile-mode #hotbar::-webkit-scrollbar { display:none; }
+        body.mobile-mode .slot { flex:0 0 48px; }
     </style>
     <script type="importmap">
     {
@@ -51,14 +228,26 @@
             <div id="menuSubtitle">A Minecraft-style world in your browser</div>
             <button id="playButton" class="menuButton">Play</button>
             <button id="menuSettingsButton" class="menuButton">Settings</button>
+            <button id="mobileModeButton" class="menuButton">Mobile Mode</button>
             <div id="menuVersion">WebMinecraft</div>
         </div>
     </div>
+
     <div id="crosshair">+</div>
     <div id="hotbar">
-        <div class="slot selected">1<br>Grass</div><div class="slot">2<br>Dirt</div><div class="slot">3<br>Stone</div><div class="slot">4<br>Sand</div><div class="slot">5<br>Oak</div><div class="slot">6<br>Leaves</div><div class="slot">7<br>Grass</div><div class="slot">8<br>Dirt</div><div class="slot">9<br>Stone</div>
+        <div class="slot selected">1<br>Grass</div>
+        <div class="slot">2<br>Dirt</div>
+        <div class="slot">3<br>Stone</div>
+        <div class="slot">4<br>Sand</div>
+        <div class="slot">5<br>Oak</div>
+        <div class="slot">6<br>Leaves</div>
+        <div class="slot">7<br>Grass</div>
+        <div class="slot">8<br>Dirt</div>
+        <div class="slot">9<br>Stone</div>
     </div>
-    <button id="settingsButton">⚙</button>
+
+    <button id="settingsButton" aria-label="Settings">⚙</button>
+
     <div id="settingsMenu">
         <div id="settingsPanel">
             <h1>Settings</h1>
@@ -70,6 +259,7 @@
             <button id="closeSettings">Done</button>
         </div>
     </div>
+
     <script type="module" src="./src/main.js"></script>
 </body>
 </html>
