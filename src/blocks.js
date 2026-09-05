@@ -33,8 +33,16 @@ function createTexture(baseColor, colors, density = 45, seed = 1) {
     return texture;
 }
 
-const grassTopTexture = createTexture("#63b238", ["#4e962d", "#76c747", "#3f8627", "#8ad153"], 64, 10);
-const grassSideTexture = createTexture("#7a512b", ["#5f3e21", "#8d5c30", "#704621", "#9b6737"], 52, 11);
+function loadTexture(path) {
+    const texture = new THREE.TextureLoader().load(path);
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+}
+
+const grassTopTexture = loadTexture("/textures/grass_block_top.png");
+const grassSideTexture = loadTexture("/textures/grass_block_side.png");
 const dirtTexture = createTexture("#7a4d27", ["#633d20", "#8c5a30", "#6b431f", "#9a6335"], 58, 12);
 const stoneTexture = createTexture("#818181", ["#707070", "#969696", "#626262", "#a2a2a2"], 54, 13);
 const cobblestoneTexture = createTexture("#666666", ["#555555", "#7b7b7b", "#4d4d4d", "#898989"], 75, 18);
