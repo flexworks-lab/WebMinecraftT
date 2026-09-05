@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>WebMinecraft</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
         body { margin:0; overflow:hidden; background:black; font-family:Arial,sans-serif; }
         #mainMenu { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.6)); z-index:50; }
@@ -30,6 +31,13 @@
         #closeSettings { width:100%; margin-top:8px; padding:11px; border:none; border-radius:7px; background:#555; color:white; font-size:15px; cursor:pointer; }
         #closeSettings:hover { background:#666; }
     </style>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.185.1/build/three.module.js"
+        }
+    }
+    </script>
 </head>
 <body>
     <div id="mainMenu">
@@ -41,69 +49,22 @@
             <div id="menuVersion">WebMinecraft</div>
         </div>
     </div>
-
     <div id="crosshair">+</div>
-
     <div id="hotbar">
-        <div class="slot selected">1<br>Grass</div>
-        <div class="slot">2<br>Dirt</div>
-        <div class="slot">3<br>Stone</div>
-        <div class="slot">4<br>Sand</div>
-        <div class="slot">5<br>Oak</div>
-        <div class="slot">6<br>Leaves</div>
-        <div class="slot">7<br>Grass</div>
-        <div class="slot">8<br>Dirt</div>
-        <div class="slot">9<br>Stone</div>
+        <div class="slot selected">1<br>Grass</div><div class="slot">2<br>Dirt</div><div class="slot">3<br>Stone</div><div class="slot">4<br>Sand</div><div class="slot">5<br>Oak</div><div class="slot">6<br>Leaves</div><div class="slot">7<br>Grass</div><div class="slot">8<br>Dirt</div><div class="slot">9<br>Stone</div>
     </div>
-
     <button id="settingsButton">⚙</button>
-
     <div id="settingsMenu">
         <div id="settingsPanel">
             <h1>Settings</h1>
-
-            <div class="setting">
-                <div><label>Shadows</label><small>Dynamic sun shadows</small></div>
-                <input id="shadowsToggle" type="checkbox">
-            </div>
-
-            <div class="setting">
-                <div><label>Shadow Quality</label><small>Higher = sharper shadows</small></div>
-                <select id="shadowQuality">
-                    <option value="512">Low</option>
-                    <option value="1024">Medium</option>
-                    <option value="2048">High</option>
-                    <option value="4096">Ultra</option>
-                </select>
-            </div>
-
-            <div class="setting">
-                <div><label>Lighting Quality</label><small>Controls ambient light and shadow softness</small></div>
-                <select id="lightingQuality">
-                    <option value="performance">Performance</option>
-                    <option value="balanced">Balanced</option>
-                    <option value="high">High</option>
-                </select>
-            </div>
-
-            <div class="setting">
-                <div><label>Brightness</label><small>Overall scene exposure</small></div>
-                <input id="brightnessControl" type="range" min="0.65" max="1.35" step="0.05" value="1">
-            </div>
-
-            <div class="setting">
-                <div><label>Graphics Quality</label><small>Render resolution scale</small></div>
-                <select id="pixelQuality">
-                    <option value="0.75">Low</option>
-                    <option value="1" selected>Medium</option>
-                    <option value="1.5">High</option>
-                </select>
-            </div>
-
+            <div class="setting"><div><label>Shadows</label><small>Dynamic sun shadows</small></div><input id="shadowsToggle" type="checkbox"></div>
+            <div class="setting"><div><label>Shadow Quality</label><small>Higher = sharper shadows</small></div><select id="shadowQuality"><option value="512">Low</option><option value="1024">Medium</option><option value="2048">High</option><option value="4096">Ultra</option></select></div>
+            <div class="setting"><div><label>Lighting Quality</label><small>Controls ambient light and shadow softness</small></div><select id="lightingQuality"><option value="performance">Performance</option><option value="balanced">Balanced</option><option value="high">High</option></select></div>
+            <div class="setting"><div><label>Brightness</label><small>Overall scene exposure</small></div><input id="brightnessControl" type="range" min="0.65" max="1.35" step="0.05" value="1"></div>
+            <div class="setting"><div><label>Graphics Quality</label><small>Render resolution scale</small></div><select id="pixelQuality"><option value="0.75">Low</option><option value="1" selected>Medium</option><option value="1.5">High</option></select></div>
             <button id="closeSettings">Done</button>
         </div>
     </div>
-
     <script type="module" src="./src/main.js"></script>
 </body>
 </html>
