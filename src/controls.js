@@ -9,6 +9,7 @@ export const touchInput = {
     jump: false,
     sprint: false,
     breakPressed: false,
+    punchPressed: false,
     placePressed: false,
     lookActive: false
 };
@@ -42,19 +43,13 @@ function addActionButton(button, property) {
         touchInput[property] = true;
         button.classList.add("pressed");
     });
-    const release = (event) => {
-        if (event?.pointerId !== undefined && button.hasPointerCapture?.(event.pointerId)) {
-            button.releasePointerCapture?.(event.pointerId);
-        }
+    const release = () => {
         touchInput[property] = false;
         button.classList.remove("pressed");
     };
     button.addEventListener("pointerup", release);
     button.addEventListener("pointercancel", release);
-    button.addEventListener("lostpointercapture", () => {
-        touchInput[property] = false;
-        button.classList.remove("pressed");
-    });
+    button.addEventListener("lostpointercapture", release);
 }
 
 function createTouchControls() {
@@ -71,11 +66,17 @@ function createTouchControls() {
 
     const actions = root.querySelector("#touchActions");
     const mineButton = makeButton("touchBreak", "Mine", "actionButton mineButton");
-    const punchButton = makeButton("touchPlace", "Punch", "actionButton punchButton");
+    const punchButton = makeButton("touchPunch", "Punch", "actionButton punchButton");
+    const placeButton = makeButton("touchPlace", "Place", "actionButton placeButton");
     const jumpButton = makeButton("touchJump", "Jump", "actionButton jumpButton");
     const sprintButton = makeButton("touchSprint", "Run", "actionButton sprintButton");
-    actions.append(mineButton, punchButton, jumpButton, sprintButton);
+    actions.append(mineButton, punchButton, placeButton, jumpButton, sprintButton);
     document.body.appendChild(root);
+
+    addActionButton(mineButton, "breakPressed");
+    addActionButton(punchButton, "punchPressed");
+    addActionButton(placeButton, "placePressed");
+    addActionButton(sprintButton, "sprint");
 
     jumpButton.addEventListener("pointerdown", (event) => {
         event.preventDefault();
@@ -91,10 +92,6 @@ function createTouchControls() {
     jumpButton.addEventListener("pointerup", releaseJump);
     jumpButton.addEventListener("pointercancel", releaseJump);
     jumpButton.addEventListener("lostpointercapture", releaseJump);
-
-    addActionButton(sprintButton, "sprint");
-    addActionButton(mineButton, "breakPressed");
-    addActionButton(punchButton, "placePressed");
 
     const joystick = root.querySelector("#touchJoystick");
     const stick = root.querySelector("#touchStick");
@@ -161,14 +158,13 @@ function createTouchControls() {
         #touchControls { display:none; position:fixed; inset:0; z-index:40; pointer-events:none; user-select:none; -webkit-user-select:none; touch-action:none; }
         #touchJoystick { position:absolute; left:28px; bottom:28px; width:132px; height:132px; border-radius:50%; background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.35); pointer-events:auto; touch-action:none; z-index:2; }
         #touchStick { position:absolute; left:50%; top:50%; width:58px; height:58px; margin:-29px; border-radius:50%; background:rgba(255,255,255,.45); border:2px solid rgba(255,255,255,.7); box-sizing:border-box; pointer-events:none; }
-        #touchActions { position:absolute; right:24px; bottom:24px; display:grid; grid-template-columns:repeat(2,76px); grid-auto-rows:76px; gap:10px; pointer-events:auto; z-index:3; }
-        .touchControl { width:76px; height:76px; border-radius:50%; border:2px solid rgba(255,255,255,.5); background:rgba(25,25,25,.62); color:white; font:bold 15px Arial,sans-serif; -webkit-tap-highlight-color:transparent; touch-action:none; box-shadow:0 3px 10px rgba(0,0,0,.28); }
+        #touchActions { position:absolute; right:24px; bottom:24px; display:grid; grid-template-columns:repeat(2,76px); grid-auto-rows:76px; gap:10px; pointer-events:auto; z-index:5; }
+        .touchControl { width:76px; height:76px; border-radius:50%; border:2px solid rgba(255,255,255,.5); background:rgba(25,25,25,.62); color:white; font:bold 14px Arial,sans-serif; -webkit-tap-highlight-color:transparent; touch-action:none; box-shadow:0 3px 10px rgba(0,0,0,.28); }
         .touchControl.pressed { background:rgba(100,100,100,.78); transform:scale(.95); }
-        .jumpButton { font-size:14px; }
-        .sprintButton { font-size:14px; }
         #touchLookArea { position:absolute; left:38%; right:0; top:0; bottom:0; pointer-events:auto; touch-action:none; z-index:1; }
-        #touchHint { position:absolute; top:12px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.55); font:12px Arial,sans-serif; pointer-events:none; z-index:4; }
+        #touchHint { position:absolute; top:12px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.55); font:12px Arial,sans-serif; pointer-events:none; z-index:6; }
         body.mobile-mode #touchControls { display:block; }
+        body.mobile-mode #settingsButton { z-index:70; }
         @media (orientation:portrait) { #touchJoystick { left:18px; bottom:18px; } #touchActions { right:16px; bottom:18px; } }
     `;
     document.head.appendChild(style);
