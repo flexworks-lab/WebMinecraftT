@@ -307,7 +307,7 @@ function treeChance(x, z) {
     const forest = THREE.MathUtils.clamp((humidity - 0.34) / 0.34, 0, 1);
     const base = hash2D(x, z, 1201);
     const jitter = hash2D(x + 137, z - 411, 1207);
-    const density = humidity > 0.60 ? 0.13 + forest * 0.12 : 0.026 + forest * 0.032;
+    const density = humidity > 0.60 ? 0.18 + forest * 0.14 : 0.045 + forest * 0.045;
     return (base * 0.78 + jitter * 0.22) < density ? 1 : 0;
 }
 
@@ -392,8 +392,8 @@ function generateTrees(chunk) {
     const startX = chunk.x * CHUNK_SIZE;
     const startZ = chunk.z * CHUNK_SIZE;
 
-    for (let lx = 3; lx < CHUNK_SIZE - 3; lx++) {
-        for (let lz = 3; lz < CHUNK_SIZE - 3; lz++) {
+    for (let lx = 2; lx < CHUNK_SIZE - 2; lx++) {
+        for (let lz = 2; lz < CHUNK_SIZE - 2; lz++) {
             const x = startX + lx;
             const z = startZ + lz;
             const biome = getBiome(x, z);
@@ -404,8 +404,8 @@ function generateTrees(chunk) {
             if (!treeChance(x, z)) continue;
 
             let crowded = false;
-            for (let dx = -2; dx <= 2 && !crowded; dx++) {
-                for (let dz = -2; dz <= 2; dz++) {
+            for (let dx = -1; dx <= 1 && !crowded; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
                     if (dx === 0 && dz === 0) continue;
                     if (treeChance(x + dx, z + dz) && hash2D(x + dx, z + dz, 1417) > 0.48) {
                         crowded = true;
