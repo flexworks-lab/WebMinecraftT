@@ -1,40 +1,23 @@
 import * as THREE from "three";
 
 import {
-    registerWorldBlock,
-    removeWorldBlock,
-    getBlockAt
+    getBlockAt,
+    setBlockAt,
+    getBlockTypes
 } from "./world.js";
 
 const raycaster = new THREE.Raycaster();
 let selectedSlot = 0;
 
-export function setupInteraction(
-    scene,
-    camera,
-    blockGeometry,
-    grassMaterial,
-    dirtMaterial,
-    stoneMaterial,
-    sandMaterial,
-    oakLogMaterial,
-    leavesMaterial
-) {
+export function setupInteraction(scene, camera) {
+    const BLOCK = getBlockTypes();
     const materials = [
-        grassMaterial,
-        dirtMaterial,
-        stoneMaterial,
-        sandMaterial,
-        oakLogMaterial,
-        leavesMaterial,
-        grassMaterial,
-        dirtMaterial,
-        stoneMaterial
+        BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE, BLOCK.SAND, BLOCK.OAK,
+        BLOCK.LEAVES, BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE
     ];
 
     document.addEventListener("keydown", (event) => {
         const number = Number(event.key);
-
         if (number >= 1 && number <= 9) {
             selectedSlot = number - 1;
             updateHotbar();
@@ -49,48 +32,33 @@ export function setupInteraction(
 
     document.addEventListener("mousedown", (event) => {
         if (document.pointerLockElement !== document.body) return;
+        if (event.button !== 0 && event.button !== 2) return;
 
         raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-
         const hits = raycaster.intersectObjects(scene.children, false);
-        if (hits.length === 0) return;
-
-        const hit = hits[0];
-        const block = hit.object;
-
-        if (block.geometry !== blockGeometry || block.userData.isWater) return;
+        const hit = hits.find((entry) => entry.object.userData?.isChunk);
+        if (!hit || !hit.face) return;
 
         if (event.button === 0) {
-            removeWorldBlock(block);
-            scene.remove(block);
+            const point = hit.point.clone().sub(hit.face.normal.clone().multiplyScalar(0.01));
+            const x = Math.floor(point.x + 0.5);
+            const y = Math.floor(point.y + 0.5);
+            const z = Math.floor(point.z + 0.5);
+            if (getBlockAt(x, y, z)) setBlockAt(x, y, z, BLOCK.AIR);
             return;
         }
 
-        if (event.button !== 2 || !hit.face) return;
+        const point = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.51));
+        const x = Math.floor(point.x + 0.5);
+        const y = Math.floor(point.y + 0.5);
+        const z = Math.floor(point.z + 0.5);
 
-        const position = block.position.clone().add(hit.face.normal);
-        position.x = Math.round(position.x);
-        position.y = Math.round(position.y);
-        position.z = Math.round(position.z);
-
-        if (getBlockAt(position.x, position.y, position.z)) return;
-
-        if (playerOverlapsBlock(position, camera)) return;
-
-        const newBlock = new THREE.Mesh(
-            blockGeometry,
-            materials[selectedSlot]
-        );
-
-        newBlock.position.copy(position);
-        newBlock.userData.isBlock = true;
-        scene.add(newBlock);
-        registerWorldBlock(newBlock);
+        if (getBlockAt(x, y, z)) return;
+        if (playerOverlapsBlock({ x, y, z }, camera)) return;
+        setBlockAt(x, y, z, materials[selectedSlot]);
     });
 
-    document.addEventListener("contextmenu", (event) => {
-        event.preventDefault();
-    });
+    document.addEventListener("contextmenu", (event) => event.preventDefault());
 }
 
 function playerOverlapsBlock(position, camera) {
