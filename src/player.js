@@ -1,9 +1,6 @@
 import { keys, yaw, pitch } from "./controls.js";
 import { getBlockAt } from "./world.js";
 
-// Minecraft-style player physics.
-// The camera is the player's eye position.
-
 let velocityX = 0;
 let velocityY = 0;
 let velocityZ = 0;
@@ -30,11 +27,9 @@ const STEP_HEIGHT = 0.6;
 const SKIN = 0.001;
 const MAX_PHYSICS_STEP = 1 / 120;
 
-
 function blockExists(x, y, z) {
     return !!getBlockAt(x, y, z);
 }
-
 
 function getBox(camera) {
     return {
@@ -47,7 +42,6 @@ function getBox(camera) {
     };
 }
 
-
 function intersectsBlock(box, x, y, z) {
     return (
         box.minX < x + 0.5 - SKIN &&
@@ -58,7 +52,6 @@ function intersectsBlock(box, x, y, z) {
         box.maxZ > z - 0.5 + SKIN
     );
 }
-
 
 function collides(camera) {
     const box = getBox(camera);
@@ -83,7 +76,6 @@ function collides(camera) {
     return false;
 }
 
-
 function updateGround(camera) {
     const box = getBox(camera);
     const footY = box.minY;
@@ -103,10 +95,7 @@ function updateGround(camera) {
 
                 const top = y + 0.5;
 
-                if (
-                    top <= footY + 0.08 &&
-                    top >= footY - 0.08
-                ) {
+                if (top <= footY + 0.08 && top >= footY - 0.08) {
                     bestTop = Math.max(bestTop, top);
                 }
             }
@@ -123,7 +112,6 @@ function updateGround(camera) {
     onGround = false;
 }
 
-
 function getNearbyBlockRange(box) {
     return {
         minX: Math.floor(box.minX - 0.5),
@@ -135,6 +123,30 @@ function getNearbyBlockRange(box) {
     };
 }
 
+function tryStep(camera, axis, amount) {
+    if (!onGround || velocityY > 0) return false;
+
+    const oldX = camera.position.x;
+    const oldY = camera.position.y;
+    const oldZ = camera.position.z;
+
+    camera.position.y += STEP_HEIGHT;
+
+    if (collides(camera)) {
+        camera.position.set(oldX, oldY, oldZ);
+        return false;
+    }
+
+    camera.position[axis] += amount;
+
+    if (collides(camera)) {
+        camera.position.set(oldX, oldY, oldZ);
+        return false;
+    }
+
+    // The normal vertical physics step will settle us onto the new surface.
+    return true;
+}
 
 function moveX(camera, amount) {
     if (amount === 0) return true;
@@ -143,9 +155,17 @@ function moveX(camera, amount) {
 
     if (!collides(camera)) return true;
 
+    // Minecraft-style stepping over small obstacles.
+    camera.position.x -= amount;
+
+    if (tryStep(camera, "x", amount)) {
+        return true;
+    }
+
+    camera.position.x += amount;
+
     const box = getBox(camera);
     const range = getNearbyBlockRange(box);
-
     let resolved = false;
 
     if (amount > 0) {
@@ -211,7 +231,6 @@ function moveX(camera, amount) {
     return false;
 }
 
-
 function moveZ(camera, amount) {
     if (amount === 0) return true;
 
@@ -219,9 +238,16 @@ function moveZ(camera, amount) {
 
     if (!collides(camera)) return true;
 
+    camera.position.z -= amount;
+
+    if (tryStep(camera, "z", amount)) {
+        return true;
+    }
+
+    camera.position.z += amount;
+
     const box = getBox(camera);
     const range = getNearbyBlockRange(box);
-
     let resolved = false;
 
     if (amount > 0) {
@@ -287,15 +313,12 @@ function moveZ(camera, amount) {
     return false;
 }
 
-
 function moveY(camera, amount) {
     if (amount === 0) return;
 
     camera.position.y += amount;
 
-    if (!collides(camera)) {
-        return;
-    }
+    if (!collides(camera)) return;
 
     const box = getBox(camera);
     const range = getNearbyBlockRange(box);
@@ -367,13 +390,11 @@ function moveY(camera, amount) {
     velocityY = 0;
 }
 
-
 function approach(current, target, amount) {
     if (current < target) return Math.min(current + amount, target);
     if (current > target) return Math.max(current - amount, target);
     return target;
 }
-
 
 function physicsStep(camera, dt) {
     updateGround(camera);
@@ -414,17 +435,13 @@ function physicsStep(camera, dt) {
         (keys["ShiftLeft"] || keys["ShiftRight"]) &&
         keys["KeyW"];
 
-    const targetSpeed = sprinting
-        ? SPRINT_SPEED
-        : WALK_SPEED;
+    const targetSpeed = sprinting ? SPRINT_SPEED : WALK_SPEED;
 
     const targetX = inputX * targetSpeed;
     const targetZ = inputZ * targetSpeed;
 
     if (inputLength > 0) {
-        const acceleration = onGround
-            ? GROUND_ACCEL
-            : AIR_ACCEL;
+        const acceleration = onGround ? GROUND_ACCEL : AIR_ACCEL;
 
         velocityX = approach(
             velocityX,
@@ -438,9 +455,7 @@ function physicsStep(camera, dt) {
             acceleration * dt
         );
     } else {
-        const friction = onGround
-            ? GROUND_FRICTION
-            : AIR_FRICTION;
+        const friction = onGround ? GROUND_FRICTION : AIR_FRICTION;
 
         velocityX = approach(
             velocityX,
@@ -455,7 +470,6 @@ function physicsStep(camera, dt) {
         );
     }
 
-    // Jump only on the press, not while Space is held.
     if (keys["Space"] && !jumpWasDown && onGround) {
         velocityY = JUMP_SPEED;
         onGround = false;
@@ -466,7 +480,6 @@ function physicsStep(camera, dt) {
     velocityY -= GRAVITY * dt;
     velocityY = Math.max(velocityY, -MAX_FALL_SPEED);
 
-    // X/Z are resolved separately so walls can be slid along.
     const movedX = moveX(camera, velocityX * dt);
     if (!movedX) velocityX = 0;
 
@@ -478,9 +491,7 @@ function physicsStep(camera, dt) {
     updateGround(camera);
 }
 
-
 export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
-    // The menu owns the initial state; don't move until the player clicks Play.
     if (document.pointerLockElement !== document.body) {
         return;
     }
@@ -491,7 +502,6 @@ export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
 
-    // Run physics in small fixed-size steps so frame rate does not change movement.
     let remaining = deltaTime;
 
     while (remaining > 0) {
