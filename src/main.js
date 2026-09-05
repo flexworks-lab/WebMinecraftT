@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { createWorld, updateChunkVisibility, getPerformanceStats } from "./world.js";
-import { setupControls } from "./controls.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes } from "./world.js";
+import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
 
@@ -153,8 +153,54 @@ function setMobileMode(enabled) {
     window.location.href = url.toString();
 }
 
+// Pick a safe spot from the generated menu chunk so the player never spawns
+// inside a block. The world is procedural, so each page load can land somewhere different.
+function findRandomSpawn() {
+    const types = getBlockTypes();
+    const baseX = Math.floor(panoramaCamera.position.x);
+    const baseZ = Math.floor(panoramaCamera.position.z);
+    const candidates = [];
+
+    for (let i = 0; i < 90; i++) {
+        const x = baseX + Math.floor(Math.random() * 15) - 7;
+        const z = baseZ + Math.floor(Math.random() * 15) - 7;
+        for (let y = 45; y >= -8; y--) {
+            const block = getBlockAt(x, y, z);
+            if (block === types.AIR) continue;
+            if (block !== types.GRASS && block !== types.SAND && block !== types.SNOW) break;
+            if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) break;
+
+            let flat = true;
+            for (let ox = -1; ox <= 1 && flat; ox++) {
+                for (let oz = -1; oz <= 1; oz++) {
+                    if (ox === 0 && oz === 0) continue;
+                    const neighbor = getBlockAt(x + ox, y, z + oz);
+                    if (neighbor === types.AIR) { flat = false; break; }
+                }
+            }
+            if (flat) candidates.push({ x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 });
+            break;
+        }
+    }
+
+    if (candidates.length) return candidates[Math.floor(Math.random() * candidates.length)];
+    return { x: panoramaCamera.position.x, y: 30, z: panoramaCamera.position.z };
+}
+
+function spawnPlayer() {
+    const spawn = findRandomSpawn();
+    camera.position.set(spawn.x, spawn.y, spawn.z);
+
+    // Always start looking straight ahead with no pitch/roll tilt.
+    const spawnYaw = Math.random() * Math.PI * 2;
+    resetView(spawnYaw, 0);
+    camera.rotation.order = "YXZ";
+    camera.rotation.set(0, spawnYaw, 0);
+}
+
 if (playButton && mainMenu) {
     playButton.addEventListener("click", () => {
+        spawnPlayer();
         gameStarted = true;
         mainMenu.style.display = "none";
         requestPointerLock();
@@ -202,7 +248,7 @@ const panoramaCenter = new THREE.Vector3(
 );
 const panoramaCamera = {
     position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z),
-    targetY: 9,
+    targetY: 16,
     angle: Math.random() * Math.PI * 2,
     speed: 0.035
 };
@@ -210,7 +256,6 @@ const panoramaCamera = {
 function updateMenuCamera(deltaTime) {
     if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
 
-    // Position never changes. Only the horizontal viewing angle rotates.
     panoramaCamera.angle += panoramaCamera.speed * deltaTime;
     camera.position.copy(panoramaCamera.position);
 
@@ -221,7 +266,6 @@ function updateMenuCamera(deltaTime) {
         panoramaCamera.position.z + Math.cos(panoramaCamera.angle) * lookDistance
     );
 
-    // Fixed Y for both camera and target = no rolling or vertical tilt.
     camera.lookAt(lookTarget);
     updateChunkVisibility(camera.position, camera);
     updateDepthLighting();
