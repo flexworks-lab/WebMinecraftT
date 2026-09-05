@@ -12,6 +12,8 @@ scene.fog = new THREE.Fog(skyColor.clone(), 40, 120);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 180);
 camera.position.set(0, 7, 5);
+camera.up.set(0, 1, 0);
+camera.rotation.order = "YXZ";
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -62,11 +64,7 @@ try {
 }
 
 function saveSettings() {
-    try {
-        localStorage.setItem("webminecraft-settings", JSON.stringify(settings));
-    } catch {
-        // Settings persistence is optional.
-    }
+    try { localStorage.setItem("webminecraft-settings", JSON.stringify(settings)); } catch {}
 }
 
 function getLightingProfile() {
@@ -81,6 +79,7 @@ function applySettings() {
     sun.shadow.mapSize.width = settings.shadowQuality;
     sun.shadow.mapSize.height = settings.shadowQuality;
     renderer.setPixelRatio(Math.min(settings.pixelRatio, 1.5));
+    renderer.toneMapping.type = THREE.ACESFilmicToneMapping;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMappingExposure = 0.9 + settings.brightness * 0.35;
     for (const object of scene.children) {
@@ -126,10 +125,7 @@ const settingsMenu = document.getElementById("settingsMenu");
 const closeSettings = document.getElementById("closeSettings");
 
 function openSettings() {
-    if (settingsMenu) {
-        settingsMenu.style.display = "flex";
-        document.exitPointerLock?.();
-    }
+    if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); }
 }
 
 function closeSettingsMenu() {
@@ -140,9 +136,7 @@ function closeSettingsMenu() {
 }
 
 function requestPointerLock() {
-    if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) {
-        document.body.requestPointerLock?.();
-    }
+    if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) document.body.requestPointerLock?.();
 }
 
 function setMobileMode(enabled) {
@@ -153,8 +147,6 @@ function setMobileMode(enabled) {
     window.location.href = url.toString();
 }
 
-// Pick a safe spot from the generated menu chunk so the player never spawns
-// inside a block. The world is procedural, so each page load can land somewhere different.
 function findRandomSpawn() {
     const types = getBlockTypes();
     const baseX = Math.floor(panoramaCamera.position.x);
@@ -169,33 +161,30 @@ function findRandomSpawn() {
             if (block === types.AIR) continue;
             if (block !== types.GRASS && block !== types.SAND && block !== types.SNOW) break;
             if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) break;
-
             let flat = true;
             for (let ox = -1; ox <= 1 && flat; ox++) {
                 for (let oz = -1; oz <= 1; oz++) {
                     if (ox === 0 && oz === 0) continue;
-                    const neighbor = getBlockAt(x + ox, y, z + oz);
-                    if (neighbor === types.AIR) { flat = false; break; }
+                    if (getBlockAt(x + ox, y, z + oz) === types.AIR) { flat = false; break; }
                 }
             }
             if (flat) candidates.push({ x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 });
             break;
         }
     }
-
     if (candidates.length) return candidates[Math.floor(Math.random() * candidates.length)];
     return { x: panoramaCamera.position.x, y: 30, z: panoramaCamera.position.z };
 }
 
 function spawnPlayer() {
     const spawn = findRandomSpawn();
+    camera.up.set(0, 1, 0);
     camera.position.set(spawn.x, spawn.y, spawn.z);
-
-    // Always start looking straight ahead with no pitch/roll tilt.
     const spawnYaw = Math.random() * Math.PI * 2;
     resetView(spawnYaw, 0);
     camera.rotation.order = "YXZ";
     camera.rotation.set(0, spawnYaw, 0);
+    camera.updateMatrixWorld(true);
 }
 
 if (playButton && mainMenu) {
@@ -208,10 +197,9 @@ if (playButton && mainMenu) {
 }
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
-if (settingsButton) settingsButton.addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); openSettings(); });
-if (closeSettings) closeSettings.addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
+if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
+if (closeSettings) closeSettings.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
 document.addEventListener("keydown", event => { if (event.code === "Escape" && gameStarted) setTimeout(openSettings, 0); });
-
 if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
 
 const shadowsToggle = document.getElementById("shadowsToggle");
@@ -219,7 +207,6 @@ const shadowQuality = document.getElementById("shadowQuality");
 const pixelQuality = document.getElementById("pixelQuality");
 const lightingQuality = document.getElementById("lightingQuality");
 const brightnessControl = document.getElementById("brightnessControl");
-
 if (shadowsToggle) { shadowsToggle.checked = settings.shadows; shadowsToggle.addEventListener("change", () => { settings.shadows = shadowsToggle.checked; saveSettings(); applySettings(); }); }
 if (shadowQuality) { shadowQuality.value = String(settings.shadowQuality); shadowQuality.addEventListener("change", () => { settings.shadowQuality = Number(shadowQuality.value); saveSettings(); applySettings(); }); }
 if (pixelQuality) { pixelQuality.value = String(settings.pixelRatio); pixelQuality.addEventListener("change", () => { settings.pixelRatio = Number(pixelQuality.value); saveSettings(); applySettings(); }); }
@@ -237,8 +224,6 @@ window.addEventListener("resize", () => { camera.aspect = window.innerWidth / wi
 let lastTime = performance.now(), fpsTime = lastTime, fpsFrames = 0, lastSunX = camera.position.x, lastSunZ = camera.position.z;
 const sunFollowDistance = 8;
 
-// Minecraft-style panorama: choose a new random world location each page load,
-// then keep the camera completely fixed there and rotate only its view direction.
 const panoramaAngle = Math.random() * Math.PI * 2;
 const panoramaDistance = 48 + Math.random() * 112;
 const panoramaCenter = new THREE.Vector3(
@@ -255,17 +240,15 @@ const panoramaCamera = {
 
 function updateMenuCamera(deltaTime) {
     if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
-
     panoramaCamera.angle += panoramaCamera.speed * deltaTime;
     camera.position.copy(panoramaCamera.position);
-
     const lookDistance = 40;
     const lookTarget = new THREE.Vector3(
         panoramaCamera.position.x + Math.sin(panoramaCamera.angle) * lookDistance,
         panoramaCamera.targetY,
         panoramaCamera.position.z + Math.cos(panoramaCamera.angle) * lookDistance
     );
-
+    camera.up.set(0, 1, 0);
     camera.lookAt(lookTarget);
     updateChunkVisibility(camera.position, camera);
     updateDepthLighting();
@@ -279,6 +262,7 @@ function updateSunPosition() {
     sun.position.set(camera.position.x + 45, camera.position.y + 85, camera.position.z + 30);
     sun.target.updateMatrixWorld();
 }
+
 function animate() {
     requestAnimationFrame(animate);
     const currentTime = performance.now();
@@ -288,6 +272,11 @@ function animate() {
     else updateMenuCamera(deltaTime);
     renderer.render(scene, camera);
     fpsFrames++;
-    if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
+    if (currentTime - fpsTime >= 500) {
+        const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime));
+        const stats = getPerformanceStats();
+        performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`;
+        fpsFrames = 0; fpsTime = currentTime;
+    }
 }
 animate();
