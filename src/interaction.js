@@ -21,12 +21,28 @@ export function setupInteraction(scene, camera) {
         BLOCK.LEAVES
     ];
 
+    const updateHotbar = () => {
+        document.querySelectorAll(".slot").forEach((slot, index) => {
+            slot.classList.toggle("selected", index === selectedSlot);
+        });
+    };
+
     document.addEventListener("keydown", (event) => {
         const number = Number(event.key);
         if (number >= 1 && number <= 9) {
             selectedSlot = number - 1;
-            document.querySelectorAll(".slot").forEach((slot, index) => slot.classList.toggle("selected", index === selectedSlot));
+            updateHotbar();
         }
+    });
+
+    document.querySelectorAll(".slot").forEach((slot, index) => {
+        const select = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            selectedSlot = index;
+            updateHotbar();
+        };
+        slot.addEventListener("pointerdown", select);
     });
 
     document.addEventListener("mousedown", (event) => {
