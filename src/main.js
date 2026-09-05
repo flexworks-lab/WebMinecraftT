@@ -105,10 +105,19 @@ const mobileModeButton = document.getElementById("mobileModeButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsMenu = document.getElementById("settingsMenu");
 const closeSettings = document.getElementById("closeSettings");
+const crosshair = document.getElementById("crosshair");
+const hotbar = document.getElementById("hotbar");
 function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); } }
 function closeSettingsMenu() { if (settingsMenu) { settingsMenu.style.display = "none"; if (gameStarted && !mobileMode) requestPointerLock(); } }
 function requestPointerLock() { if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) document.body.requestPointerLock?.(); }
 function setMobileMode(enabled) { const url = new URL(window.location.href); if (enabled) url.searchParams.set("mobile", "1"); else url.searchParams.delete("mobile"); url.searchParams.delete("mode"); window.location.href = url.toString(); }
+function setMenuUiVisible(visible) {
+    const display = visible ? "" : "none";
+    if (crosshair) crosshair.style.display = display;
+    if (hotbar) hotbar.style.display = display;
+    if (settingsButton) settingsButton.style.display = display;
+    if (performanceHud) performanceHud.style.display = display;
+}
 
 function findRandomSpawn() {
     const types = getBlockTypes();
@@ -145,7 +154,7 @@ function spawnPlayer() {
     camera.rotation.set(0, spawnYaw, 0);
     camera.updateMatrixWorld(true);
 }
-if (playButton && mainMenu) playButton.addEventListener("click", () => { spawnPlayer(); gameStarted = true; mainMenu.style.display = "none"; requestPointerLock(); });
+if (playButton && mainMenu) playButton.addEventListener("click", () => { spawnPlayer(); gameStarted = true; mainMenu.style.display = "none"; setMenuUiVisible(false); requestPointerLock(); });
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
 if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
@@ -171,19 +180,48 @@ performanceHud.id = "performanceHud";
 performanceHud.style.cssText = "position:fixed;top:12px;left:12px;padding:6px 8px;background:rgba(0,0,0,.45);color:white;font:12px monospace;line-height:1.4;pointer-events:none;z-index:15;border-radius:5px;";
 performanceHud.textContent = "FPS: -- | Chunks: -- | Calls: --";
 document.body.appendChild(performanceHud);
+setMenuUiVisible(true);
 window.addEventListener("resize", () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+const menuLook = { x: 0, y: 0, targetX: 0, targetY: 0 };
+window.addEventListener("pointermove", event => {
+    if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
+    menuLook.targetX = THREE.MathUtils.clamp((event.clientX / Math.max(window.innerWidth, 1) - 0.5) * 2, -1, 1);
+    menuLook.targetY = THREE.MathUtils.clamp((event.clientY / Math.max(window.innerHeight, 1) - 0.5) * 2, -1, 1);
+});
+window.addEventListener("pointerleave", () => { menuLook.targetX = 0; menuLook.targetY = 0; });
+
 let lastTime = performance.now(), fpsTime = lastTime, fpsFrames = 0, lastSunX = camera.position.x, lastSunZ = camera.position.z;
 const sunFollowDistance = 8;
 const panoramaAngle = Math.random() * Math.PI * 2;
 const panoramaDistance = 48 + Math.random() * 112;
 const panoramaCenter = new THREE.Vector3(Math.round(Math.cos(panoramaAngle) * panoramaDistance / 16) * 16, 10, Math.round(Math.sin(panoramaAngle) * panoramaDistance / 16) * 16);
-const panoramaCamera = { position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z), targetY: 16, angle: Math.random() * Math.PI * 2, speed: 0.035 };
+const panoramaCamera = {
+    position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z),
+    targetY: 16,
+    angle: Math.random() * Math.PI * 2,
+    speed: 0.035,
+    swayX: 0,
+    swayY: 0
+};
 function updateMenuCamera(deltaTime) {
     if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
     panoramaCamera.angle += panoramaCamera.speed * deltaTime;
+    menuLook.x = THREE.MathUtils.lerp(menuLook.x, menuLook.targetX, Math.min(deltaTime * 2.5, 1));
+    menuLook.y = THREE.MathUtils.lerp(menuLook.y, menuLook.targetY, Math.min(deltaTime * 2.5, 1));
+    panoramaCamera.swayX = THREE.MathUtils.lerp(panoramaCamera.swayX, menuLook.x, Math.min(deltaTime * 1.8, 1));
+    panoramaCamera.swayY = THREE.MathUtils.lerp(panoramaCamera.swayY, menuLook.y, Math.min(deltaTime * 1.8, 1));
+
     camera.position.copy(panoramaCamera.position);
     const lookDistance = 40;
-    const lookTarget = new THREE.Vector3(panoramaCamera.position.x + Math.sin(panoramaCamera.angle) * lookDistance, panoramaCamera.targetY, panoramaCamera.position.z + Math.cos(panoramaCamera.angle) * lookDistance);
+    const mouseYaw = panoramaCamera.swayX * 0.12;
+    const mousePitch = panoramaCamera.swayY * 0.055;
+    const lookAngle = panoramaCamera.angle + mouseYaw;
+    const lookTarget = new THREE.Vector3(
+        panoramaCamera.position.x + Math.sin(lookAngle) * lookDistance,
+        panoramaCamera.targetY - mousePitch * lookDistance,
+        panoramaCamera.position.z + Math.cos(lookAngle) * lookDistance
+    );
     camera.up.set(0, 1, 0);
     camera.lookAt(lookTarget);
     updateChunkVisibility(camera.position, camera);
