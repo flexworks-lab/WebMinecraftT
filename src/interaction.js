@@ -5,6 +5,7 @@ import { touchInput } from "./controls.js";
 const raycaster = new THREE.Raycaster();
 let selectedSlot = 0;
 let lastBreak = false;
+let lastPunch = false;
 let lastPlace = false;
 
 export function setupInteraction(scene, camera) {
@@ -46,6 +47,7 @@ export function setupInteraction(scene, camera) {
     });
 
     document.addEventListener("mousedown", (event) => {
+        if (document.body.classList.contains("mobile-mode")) return;
         if (document.pointerLockElement !== document.body) return;
         if (event.button !== 0 && event.button !== 2) return;
         performAction(scene, camera, BLOCK, materials, event.button === 0 ? "break" : "place");
@@ -53,17 +55,15 @@ export function setupInteraction(scene, camera) {
 
     document.addEventListener("contextmenu", (event) => event.preventDefault());
 
-    window.addEventListener("touchInteraction", (event) => {
-        const action = event.detail;
-        if (action === "break" || action === "place") {
-            performAction(scene, camera, BLOCK, materials, action);
-        }
-    });
-
     function pollTouchActions() {
-        if (touchInput.breakPressed && !lastBreak) performAction(scene, camera, BLOCK, materials, "break");
-        if (touchInput.placePressed && !lastPlace) performAction(scene, camera, BLOCK, materials, "place");
+        const mobile = document.body.classList.contains("mobile-mode");
+        if (mobile) {
+            if (touchInput.breakPressed && !lastBreak) performAction(scene, camera, BLOCK, materials, "break");
+            if (touchInput.punchPressed && !lastPunch) performAction(scene, camera, BLOCK, materials, "break");
+            if (touchInput.placePressed && !lastPlace) performAction(scene, camera, BLOCK, materials, "place");
+        }
         lastBreak = touchInput.breakPressed;
+        lastPunch = touchInput.punchPressed;
         lastPlace = touchInput.placePressed;
         requestAnimationFrame(pollTouchActions);
     }
