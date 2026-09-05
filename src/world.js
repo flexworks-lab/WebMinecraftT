@@ -200,9 +200,9 @@ function getTerrainProfile(x, z) {
     baseHeight += mountainMask * mountainMask * 32;
     baseHeight += (detail - 0.5) * 5;
 
-    // Smaller, shallower oceans and more buildable land.
-    const oceanMask = Math.max(0, 0.31 - continentalness) / 0.31;
-    baseHeight -= oceanMask * 8;
+    // Much smaller and rarer oceans.
+    const oceanMask = Math.max(0, 0.22 - continentalness) / 0.22;
+    baseHeight -= oceanMask * 6;
 
     return {
         height: Math.floor(THREE.MathUtils.clamp(baseHeight, MIN_Y + 4, WORLD_TOP - 8)),
