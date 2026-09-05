@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createWorld, updateChunkVisibility, getPerformanceStats, getChunkSize } from "./world.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats } from "./world.js";
 import { setupControls } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
@@ -48,7 +48,22 @@ scene.add(depthLight);
 createWorld(scene);
 
 let gameStarted = false;
-const settings = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };
+const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };
+let settings;
+try {
+    const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null");
+    settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) };
+} catch {
+    settings = { ...defaults };
+}
+
+function saveSettings() {
+    try {
+        localStorage.setItem("webminecraft-settings", JSON.stringify(settings));
+    } catch {
+        // Settings persistence is optional.
+    }
+}
 
 function getLightingProfile() {
     if (settings.lightingQuality === "performance") return { sun: 2.7, sky: 1.1, ambientFloor: 0.12, undergroundSun: 0.05 };
@@ -107,7 +122,7 @@ const settingsMenu = document.getElementById("settingsMenu");
 const closeSettings = document.getElementById("closeSettings");
 function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock(); } }
 function closeSettingsMenu() { if (settingsMenu) { settingsMenu.style.display = "none"; if (gameStarted) requestPointerLock(); } }
-function requestPointerLock() { if (gameStarted && document.pointerLockElement !== document.body) document.body.requestPointerLock(); }
+function requestPointerLock() { if (gameStarted && document.pointerLockElement !== document.body) document.body.requestPointerLock?.(); }
 if (playButton && mainMenu) playButton.addEventListener("click", () => { gameStarted = true; mainMenu.style.display = "none"; requestPointerLock(); });
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (settingsButton) settingsButton.addEventListener("click", openSettings);
@@ -119,11 +134,12 @@ const shadowQuality = document.getElementById("shadowQuality");
 const pixelQuality = document.getElementById("pixelQuality");
 const lightingQuality = document.getElementById("lightingQuality");
 const brightnessControl = document.getElementById("brightnessControl");
-if (shadowsToggle) { shadowsToggle.checked = settings.shadows; shadowsToggle.addEventListener("change", () => { settings.shadows = shadowsToggle.checked; applySettings(); }); }
-if (shadowQuality) { shadowQuality.value = settings.shadowQuality; shadowQuality.addEventListener("change", () => { settings.shadowQuality = Number(shadowQuality.value); applySettings(); }); }
-if (pixelQuality) { pixelQuality.value = settings.pixelRatio; pixelQuality.addEventListener("change", () => { settings.pixelRatio = Number(pixelQuality.value); applySettings(); }); }
-if (lightingQuality) { lightingQuality.value = settings.lightingQuality; lightingQuality.addEventListener("change", () => { settings.lightingQuality = lightingQuality.value; applySettings(); }); }
-if (brightnessControl) { brightnessControl.value = settings.brightness; brightnessControl.addEventListener("input", () => { settings.brightness = Number(brightnessControl.value); applySettings(); }); }
+
+if (shadowsToggle) { shadowsToggle.checked = settings.shadows; shadowsToggle.addEventListener("change", () => { settings.shadows = shadowsToggle.checked; saveSettings(); applySettings(); }); }
+if (shadowQuality) { shadowQuality.value = String(settings.shadowQuality); shadowQuality.addEventListener("change", () => { settings.shadowQuality = Number(shadowQuality.value); saveSettings(); applySettings(); }); }
+if (pixelQuality) { pixelQuality.value = String(settings.pixelRatio); pixelQuality.addEventListener("change", () => { settings.pixelRatio = Number(pixelQuality.value); saveSettings(); applySettings(); }); }
+if (lightingQuality) { lightingQuality.value = settings.lightingQuality; lightingQuality.addEventListener("change", () => { settings.lightingQuality = lightingQuality.value; saveSettings(); applySettings(); }); }
+if (brightnessControl) { brightnessControl.value = String(settings.brightness); brightnessControl.addEventListener("input", () => { settings.brightness = Number(brightnessControl.value); saveSettings(); applySettings(); }); }
 
 setupControls();
 setupInteraction(scene, camera);
