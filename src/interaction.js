@@ -6,7 +6,17 @@ let selectedSlot = 0;
 
 export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
-    const materials = [BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE, BLOCK.SAND, BLOCK.OAK, BLOCK.LEAVES, BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE];
+    const materials = [
+        BLOCK.GRASS,
+        BLOCK.DIRT,
+        BLOCK.STONE,
+        BLOCK.COBBLESTONE,
+        BLOCK.GRAVEL,
+        BLOCK.SAND,
+        BLOCK.SANDSTONE,
+        BLOCK.OAK,
+        BLOCK.LEAVES
+    ];
 
     document.addEventListener("keydown", (event) => {
         const number = Number(event.key);
