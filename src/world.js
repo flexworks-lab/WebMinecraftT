@@ -27,10 +27,10 @@ let lastPlayerChunkX = Infinity;
 let lastPlayerChunkZ = Infinity;
 
 const chunkMaterials = [
-    grassMaterial[0], grassMaterial[2], grassMaterial[3], stoneMaterial,
-    sandMaterial, oakLogMaterial[0], leavesMaterial, cobblestoneMaterial,
-    gravelMaterial, sandstoneMaterial, bedrockMaterial, coalMaterial,
-    ironMaterial, oakPlankMaterial, snowMaterial
+    grassMaterial[0], grassMaterial[2], dirtMaterial, stoneMaterial,
+    sandMaterial, oakLogMaterial[0], oakLogMaterial[2], leavesMaterial,
+    cobblestoneMaterial, gravelMaterial, sandstoneMaterial, bedrockMaterial,
+    coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial
 ];
 
 const waterMaterial = new THREE.MeshLambertMaterial({
@@ -158,10 +158,10 @@ function materialIndexFor(type,faceIndex){
     switch(type){
         case BLOCK.GRASS:return faceIndex===2?1:faceIndex===3?2:0;
         case BLOCK.DIRT:return 2; case BLOCK.STONE:return 3; case BLOCK.SAND:return 4;
-        case BLOCK.OAK:return faceIndex===2||faceIndex===3?6:5; case BLOCK.LEAVES:return 6;
-        case BLOCK.COBBLESTONE:return 7; case BLOCK.GRAVEL:return 8; case BLOCK.SANDSTONE:return 9;
-        case BLOCK.BEDROCK:return 10; case BLOCK.COAL_ORE:return 11; case BLOCK.IRON_ORE:return 12;
-        case BLOCK.OAK_PLANKS:return 13; case BLOCK.SNOW:return 14; default:return 0;
+        case BLOCK.OAK:return faceIndex===2||faceIndex===3?6:5; case BLOCK.LEAVES:return 7;
+        case BLOCK.COBBLESTONE:return 8; case BLOCK.GRAVEL:return 9; case BLOCK.SANDSTONE:return 10;
+        case BLOCK.BEDROCK:return 11; case BLOCK.COAL_ORE:return 12; case BLOCK.IRON_ORE:return 13;
+        case BLOCK.OAK_PLANKS:return 14; case BLOCK.SNOW:return 15; default:return 0;
     }
 }
 function makeGeometryForChunk(chunk){
