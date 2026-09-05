@@ -3,6 +3,11 @@ export const keys = {};
 export let yaw = 0;
 export let pitch = 0;
 
+export function resetView(newYaw = 0, newPitch = 0) {
+    yaw = newYaw;
+    pitch = newPitch;
+}
+
 export const touchInput = {
     moveX: 0,
     moveZ: 0,
@@ -178,32 +183,25 @@ function updateJoystick(clientX, clientY, stick, radius) {
         dx = (dx / length) * radius;
         dy = (dy / length) * radius;
     }
+    stick.style.transform = `translate(${dx}px, ${dy}px)`;
     touchInput.moveX = dx / radius;
-    touchInput.moveZ = -dy / radius;
-    stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    touchInput.moveZ = dy / radius;
 }
 
 export function setupControls() {
-    document.addEventListener("keydown", (event) => { keys[event.code] = true; });
-    document.addEventListener("keyup", (event) => { keys[event.code] = false; });
-
-    document.addEventListener("click", (event) => {
-        if (event.target.closest("#mainMenu, #settingsMenu, #settingsButton, #touchControls, #hotbar")) return;
-        if (document.body.classList.contains("mobile-mode")) return;
-        if (document.pointerLockElement !== document.body) document.body.requestPointerLock?.();
+    window.addEventListener("keydown", (event) => {
+        keys[event.code] = true;
+        if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
     });
+    window.addEventListener("keyup", (event) => { keys[event.code] = false; });
 
-    document.addEventListener("mousemove", (event) => {
+    window.addEventListener("mousemove", (event) => {
         if (document.pointerLockElement !== document.body || document.body.classList.contains("mobile-mode")) return;
-        yaw -= event.movementX * 0.0022;
-        pitch -= event.movementY * 0.0022;
+        yaw -= event.movementX * 0.0025;
+        pitch -= event.movementY * 0.0025;
         const limit = Math.PI / 2 - 0.01;
         pitch = clamp(pitch, -limit, limit);
     });
 
     createTouchControls();
-}
-
-export function isTouchDevice() {
-    return window.matchMedia?.("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
 }
