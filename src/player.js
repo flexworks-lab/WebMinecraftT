@@ -320,3 +320,4 @@ export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
 }
+
