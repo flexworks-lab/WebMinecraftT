@@ -90,8 +90,19 @@ function updateGround(camera) {
         for (let z = minZ; z <= maxZ; z++) {
             for (let y = blockY - 1; y <= blockY + 1; y++) {
                 if (!blockExists(x, y, z)) continue;
+
+                const horizontalOverlap =
+                    box.maxX > x - 0.5 + HORIZONTAL_SKIN &&
+                    box.minX < x + 0.5 - HORIZONTAL_SKIN &&
+                    box.maxZ > z - 0.5 + HORIZONTAL_SKIN &&
+                    box.minZ < z + 0.5 - HORIZONTAL_SKIN;
+
+                if (!horizontalOverlap) continue;
+
                 const top = y + 0.5;
-                if (top <= footY + 0.08 && top >= footY - 0.08) bestTop = Math.max(bestTop, top);
+                if (top <= footY + 0.08 && top >= footY - 0.08) {
+                    bestTop = Math.max(bestTop, top);
+                }
             }
         }
     }

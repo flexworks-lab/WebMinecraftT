@@ -121,56 +121,48 @@ function setMenuUiVisible(visible) {
 
 function findRandomSpawn() {
     const types = getBlockTypes();
-    const candidates = [];
 
-    // Search the already-generated starting area for real grass blocks only.
-    // This deliberately excludes sand, snow, dirt, stone and every water area.
-    for (let x = -24; x <= 24; x++) {
-        for (let z = -24; z <= 24; z++) {
-            for (let y = 55; y >= -24; y--) {
-                if (getBlockAt(x, y, z) !== types.GRASS) continue;
-                if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+    // Try random points first so the play button never has to scan the whole world.
+    for (let attempt = 0; attempt < 700; attempt++) {
+        const x = Math.floor(Math.random() * 97) - 48;
+        const z = Math.floor(Math.random() * 97) - 48;
 
-                let flat = true;
-                for (let ox = -1; ox <= 1 && flat; ox++) {
-                    for (let oz = -1; oz <= 1; oz++) {
-                        if (ox === 0 && oz === 0) continue;
-                        const below = getBlockAt(x + ox, y, z + oz);
-                        if (below !== types.GRASS && below !== types.DIRT) {
-                            flat = false;
-                            break;
-                        }
+        for (let y = 70; y >= -31; y--) {
+            if (getBlockAt(x, y, z) !== types.GRASS) continue;
+            if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+
+            let safeLand = true;
+            for (let ox = -1; ox <= 1 && safeLand; ox++) {
+                for (let oz = -1; oz <= 1; oz++) {
+                    if (ox === 0 && oz === 0) continue;
+                    const below = getBlockAt(x + ox, y, z + oz);
+                    if (below !== types.GRASS && below !== types.DIRT) {
+                        safeLand = false;
+                        break;
                     }
                 }
-                if (!flat) continue;
+            }
 
-                candidates.push({ x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 });
+            if (safeLand) return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
+            break;
+        }
+    }
+
+    // Small deterministic fallback search.
+    for (let x = -16; x <= 16; x++) {
+        for (let z = -16; z <= 16; z++) {
+            for (let y = 60; y >= -31; y--) {
+                if (getBlockAt(x, y, z) !== types.GRASS) continue;
+                if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+                return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
             }
         }
     }
 
-    if (candidates.length) {
-        return candidates[Math.floor(Math.random() * candidates.length)];
-    }
-
-    // Extremely defensive fallback: find any visible grass block rather than
-    // ever placing the player at an arbitrary position that could be water.
-    for (let x = -48; x <= 48; x++) {
-        for (let z = -48; z <= 48; z++) {
-            for (let y = 70; y >= -31; y--) {
-                if (getBlockAt(x, y, z) === types.GRASS &&
-                    getBlockAt(x, y + 1, z) === types.AIR &&
-                    getBlockAt(x, y + 2, z) === types.AIR) {
-                    return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
-                }
-            }
-        }
-    }
-
-    // The starting chunks contain land under normal world generation.
-    // Keep the player above the starting area rather than using a water fallback.
-    return { x: 0.5, y: 32, z: 0.5 };
+    // Last resort: start above the world and let gravity find the terrain.
+    return { x: 0.5, y: 80, z: 0.5 };
 }
+
 function spawnPlayer() {
     const spawn = findRandomSpawn();
     camera.up.set(0, 1, 0);
@@ -180,8 +172,21 @@ function spawnPlayer() {
     camera.rotation.order = "YXZ";
     camera.rotation.set(0, spawnYaw, 0);
     camera.updateMatrixWorld(true);
+    return true;
 }
-if (playButton && mainMenu) playButton.addEventListener("click", () => { spawnPlayer(); gameStarted = true; mainMenu.style.display = "none"; setMenuUiVisible(false); requestPointerLock(); });
+
+if (playButton && mainMenu) {
+    playButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (gameStarted) return;
+        spawnPlayer();
+        gameStarted = true;
+        mainMenu.style.display = "none";
+        setMenuUiVisible(false);
+        requestPointerLock();
+    });
+}
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
 if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
