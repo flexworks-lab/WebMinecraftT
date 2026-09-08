@@ -70,16 +70,18 @@ const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture });
 const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture });
 
-// Leaves use alpha testing instead of blending. Transparent pixels are discarded,
-// while solid leaf pixels still depth-test normally so blocks are not drawn through
-// the actual leaf texture. depthWrite stays off so one leaf layer cannot hide another.
+// Leaves blend with the scene instead of acting like solid cutout cards.
+// This lets foliage layers stack and naturally become darker where many leaves overlap,
+// while transparent pixels still reveal whatever is behind the leaves.
 const leavesMaterial = new THREE.MeshLambertMaterial({
     map: leavesTexture,
     transparent: true,
-    alphaTest: 0.5,
+    opacity: 0.72,
+    alphaTest: 0.02,
     depthWrite: false,
     depthTest: true,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    forceSinglePass: true
 });
 
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
