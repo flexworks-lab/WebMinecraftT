@@ -123,26 +123,27 @@ function findRandomSpawn() {
     const types = getBlockTypes();
     const candidates = [];
 
-    // Search the already-generated starting area for real grass blocks only.
-    // This deliberately excludes sand, snow, dirt, stone and every water area.
-    for (let x = -24; x <= 24; x++) {
-        for (let z = -24; z <= 24; z++) {
-            for (let y = 55; y >= -24; y--) {
+    // Spawn only on grass with two clear blocks above it.
+    // The world generator uses stone/dirt under water instead of grass,
+    // so a grass top surface is always dry land.
+    for (let x = -48; x <= 48; x++) {
+        for (let z = -48; z <= 48; z++) {
+            for (let y = 70; y >= -31; y--) {
                 if (getBlockAt(x, y, z) !== types.GRASS) continue;
                 if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
 
-                let flat = true;
-                for (let ox = -1; ox <= 1 && flat; ox++) {
+                let safeLand = true;
+                for (let ox = -1; ox <= 1 && safeLand; ox++) {
                     for (let oz = -1; oz <= 1; oz++) {
                         if (ox === 0 && oz === 0) continue;
                         const below = getBlockAt(x + ox, y, z + oz);
                         if (below !== types.GRASS && below !== types.DIRT) {
-                            flat = false;
+                            safeLand = false;
                             break;
                         }
                     }
                 }
-                if (!flat) continue;
+                if (!safeLand) continue;
 
                 candidates.push({ x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 });
             }
@@ -153,26 +154,24 @@ function findRandomSpawn() {
         return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    // Extremely defensive fallback: find any visible grass block rather than
-    // ever placing the player at an arbitrary position that could be water.
-    for (let x = -48; x <= 48; x++) {
-        for (let z = -48; z <= 48; z++) {
-            for (let y = 70; y >= -31; y--) {
-                if (getBlockAt(x, y, z) === types.GRASS &&
-                    getBlockAt(x, y + 1, z) === types.AIR &&
-                    getBlockAt(x, y + 2, z) === types.AIR) {
-                    return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
-                }
+    // Search a larger radius for a safe grass spawn before giving up.
+    for (let x = -128; x <= 128; x++) {
+        for (let z = -128; z <= 128; z++) {
+            for (let y = 90; y >= -31; y--) {
+                if (getBlockAt(x, y, z) !== types.GRASS) continue;
+                if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+                return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
             }
         }
     }
 
-    // The starting chunks contain land under normal world generation.
-    // Keep the player above the starting area rather than using a water fallback.
-    return { x: 0.5, y: 32, z: 0.5 };
+    // If no generated land exists yet, wait for the normal world generation
+    // instead of intentionally placing the player in a possible water location.
+    return null;
 }
 function spawnPlayer() {
     const spawn = findRandomSpawn();
+    if (!spawn) return false;
     camera.up.set(0, 1, 0);
     camera.position.set(spawn.x, spawn.y, spawn.z);
     const spawnYaw = Math.random() * Math.PI * 2;
@@ -180,8 +179,9 @@ function spawnPlayer() {
     camera.rotation.order = "YXZ";
     camera.rotation.set(0, spawnYaw, 0);
     camera.updateMatrixWorld(true);
+    return true;
 }
-if (playButton && mainMenu) playButton.addEventListener("click", () => { spawnPlayer(); gameStarted = true; mainMenu.style.display = "none"; setMenuUiVisible(false); requestPointerLock(); });
+if (playButton && mainMenu) playButton.addEventListener("click", () => { if (!spawnPlayer()) return; gameStarted = true; mainMenu.style.display = "none"; setMenuUiVisible(false); requestPointerLock(); });
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
 if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
