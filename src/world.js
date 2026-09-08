@@ -241,15 +241,39 @@ function chooseStoneVariant(x, y, z, surfaceY) {
     return BLOCK.STONE;
 }
 
+function getUnderwaterBlock(x, y, surfaceY) {
+    const depth = surfaceY - y;
+    const surfaceRoll = hash2D(x + 17, zSeed(surfaceY), 1701);
+    const blockRoll = hash3D(x, y, surfaceY, 1707);
+
+    // Underwater terrain is always a mix of dirt, sand and stone.
+    // Dirt is intentionally the most common material.
+    if (depth <= 0) {
+        if (surfaceRoll < 0.62) return BLOCK.DIRT;
+        if (surfaceRoll < 0.88) return BLOCK.SAND;
+        return BLOCK.STONE;
+    }
+
+    if (depth <= 4) {
+        if (blockRoll < 0.58) return BLOCK.DIRT;
+        if (blockRoll < 0.84) return BLOCK.SAND;
+        return BLOCK.STONE;
+    }
+
+    // Deeper ocean floors still contain dirt and sand, but become more stone-heavy.
+    if (blockRoll < 0.42) return BLOCK.DIRT;
+    if (blockRoll < 0.66) return BLOCK.SAND;
+    return chooseStoneVariant(x, y, surfaceY, surfaceY);
+}
+
+function zSeed(value) { return Math.floor(value * 17.0); }
+
 function getSurfaceBlock(biome, y, surfaceY, x, z) {
     const submerged = surfaceY < SEA_LEVEL;
     const beach = !submerged && surfaceY <= SEA_LEVEL + 2;
 
-    // Underwater terrain is ONLY stone + dirt, never grass/sand/snow.
     if (submerged) {
-        if (y === surfaceY) return BLOCK.STONE;
-        if (y >= surfaceY - 3) return BLOCK.DIRT;
-        return chooseStoneVariant(x, y, z, surfaceY);
+        return getUnderwaterBlock(x, y, surfaceY);
     }
 
     if (biome === "desert") {
@@ -323,11 +347,9 @@ function addTree(x, y, z) {
     for (let i = 0; i < trunkHeight; i++) setBlockData(x, y + i, z, BLOCK.OAK);
 
     const top = y + trunkHeight - 1;
-
     for (let layer = 0; layer < canopyLayers; layer++) {
         const layerY = top - layer;
         const layerRadius = layer === canopyLayers - 1 ? Math.max(1, canopyRadius - 1) : canopyRadius;
-
         for (let dx = -layerRadius; dx <= layerRadius; dx++) {
             for (let dz = -layerRadius; dz <= layerRadius; dz++) {
                 const distance = Math.sqrt(dx * dx + dz * dz);
@@ -464,14 +486,12 @@ function getUnderwaterShade(x, y, z) {
     const surfaceY = getTerrainProfile(x, z).height;
     if (surfaceY >= SEA_LEVEL || y > surfaceY) return 1;
 
-    // The deeper a block sits below the water surface, the darker it becomes.
-    // Keep a little light at depth so detail is still visible.
+    // Every solid block below an ocean/lake surface is darkened.
     const depth = Math.max(0, SEA_LEVEL - (y + 0.5));
-    const shade = THREE.MathUtils.clamp(1 - depth * 0.018, 0.5, 1);
-
-    // Very subtle local variation keeps submerged terrain from looking flat.
+    const depthT = THREE.MathUtils.clamp(depth / 24, 0, 1);
+    const shade = THREE.MathUtils.lerp(1, 0.43, depthT);
     const variation = 0.96 + hash3D(x, y, z, 1911) * 0.06;
-    return THREE.MathUtils.clamp(shade * variation, 0.48, 1);
+    return THREE.MathUtils.clamp(shade * variation, 0.40, 1);
 }
 
 function makeGeometryForChunk(chunk) {
