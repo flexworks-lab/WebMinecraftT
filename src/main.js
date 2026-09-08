@@ -121,43 +121,37 @@ function setMenuUiVisible(visible) {
 
 function findRandomSpawn() {
     const types = getBlockTypes();
-    const candidates = [];
 
-    // Spawn only on grass with two clear blocks above it.
-    // The world generator uses stone/dirt under water instead of grass,
-    // so a grass top surface is always dry land.
-    for (let x = -48; x <= 48; x++) {
-        for (let z = -48; z <= 48; z++) {
-            for (let y = 70; y >= -31; y--) {
-                if (getBlockAt(x, y, z) !== types.GRASS) continue;
-                if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+    // Try random points first so the play button never has to scan the whole world.
+    for (let attempt = 0; attempt < 700; attempt++) {
+        const x = Math.floor(Math.random() * 97) - 48;
+        const z = Math.floor(Math.random() * 97) - 48;
 
-                let safeLand = true;
-                for (let ox = -1; ox <= 1 && safeLand; ox++) {
-                    for (let oz = -1; oz <= 1; oz++) {
-                        if (ox === 0 && oz === 0) continue;
-                        const below = getBlockAt(x + ox, y, z + oz);
-                        if (below !== types.GRASS && below !== types.DIRT) {
-                            safeLand = false;
-                            break;
-                        }
+        for (let y = 70; y >= -31; y--) {
+            if (getBlockAt(x, y, z) !== types.GRASS) continue;
+            if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+
+            let safeLand = true;
+            for (let ox = -1; ox <= 1 && safeLand; ox++) {
+                for (let oz = -1; oz <= 1; oz++) {
+                    if (ox === 0 && oz === 0) continue;
+                    const below = getBlockAt(x + ox, y, z + oz);
+                    if (below !== types.GRASS && below !== types.DIRT) {
+                        safeLand = false;
+                        break;
                     }
                 }
-                if (!safeLand) continue;
-
-                candidates.push({ x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 });
             }
+
+            if (safeLand) return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
+            break;
         }
     }
 
-    if (candidates.length) {
-        return candidates[Math.floor(Math.random() * candidates.length)];
-    }
-
-    // Search a larger radius for a safe grass spawn before giving up.
-    for (let x = -128; x <= 128; x++) {
-        for (let z = -128; z <= 128; z++) {
-            for (let y = 90; y >= -31; y--) {
+    // Small deterministic fallback search.
+    for (let x = -16; x <= 16; x++) {
+        for (let z = -16; z <= 16; z++) {
+            for (let y = 60; y >= -31; y--) {
                 if (getBlockAt(x, y, z) !== types.GRASS) continue;
                 if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
                 return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
@@ -165,13 +159,12 @@ function findRandomSpawn() {
         }
     }
 
-    // If no generated land exists yet, wait for the normal world generation
-    // instead of intentionally placing the player in a possible water location.
-    return null;
+    // Last resort: start above the world and let gravity find the terrain.
+    return { x: 0.5, y: 80, z: 0.5 };
 }
+
 function spawnPlayer() {
     const spawn = findRandomSpawn();
-    if (!spawn) return false;
     camera.up.set(0, 1, 0);
     camera.position.set(spawn.x, spawn.y, spawn.z);
     const spawnYaw = Math.random() * Math.PI * 2;
@@ -181,7 +174,19 @@ function spawnPlayer() {
     camera.updateMatrixWorld(true);
     return true;
 }
-if (playButton && mainMenu) playButton.addEventListener("click", () => { if (!spawnPlayer()) return; gameStarted = true; mainMenu.style.display = "none"; setMenuUiVisible(false); requestPointerLock(); });
+
+if (playButton && mainMenu) {
+    playButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (gameStarted) return;
+        spawnPlayer();
+        gameStarted = true;
+        mainMenu.style.display = "none";
+        setMenuUiVisible(false);
+        requestPointerLock();
+    });
+}
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
 if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
