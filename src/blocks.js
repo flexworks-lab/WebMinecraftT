@@ -53,22 +53,22 @@ const ironTexture = createTexture("#88827b", ["#c0bbb3", "#6c6762", "#a7a098", "
 const oakPlankTexture = createTexture("#9b6a3b", ["#83562e", "#b67c45", "#744b28", "#c58d54"], 34, 24);
 const leavesTexture = loadTexture(texturePath("oak-leaves-normal-original-default.png"));
 const snowTexture = createTexture("#e8f1f4", ["#d6e2e7", "#ffffff", "#c3d3da", "#eef7fa"], 34, 25);
-const waterTexture = createTexture("#3b83b5", ["#2f709d", "#66add4", "#327da9", "#83c6e3"], 24, 26);
+const waterTexture = createTexture("#2b78aa", ["#1e628f", "#3f91c0", "#6bb9dc", "#245f86"], 30, 26);
 
-const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture });
-const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture });
-const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture });
-const stoneMaterial = new THREE.MeshLambertMaterial({ map: stoneTexture });
-const cobblestoneMaterial = new THREE.MeshLambertMaterial({ map: cobblestoneTexture });
-const gravelMaterial = new THREE.MeshLambertMaterial({ map: gravelTexture });
-const sandMaterial = new THREE.MeshLambertMaterial({ map: sandTexture });
-const sandstoneMaterial = new THREE.MeshLambertMaterial({ map: sandstoneTexture });
-const bedrockMaterial = new THREE.MeshLambertMaterial({ map: bedrockTexture });
-const coalMaterial = new THREE.MeshLambertMaterial({ map: coalTexture });
-const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture });
-const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture });
-const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture });
-const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture });
+const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true });
+const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true });
+const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture, vertexColors: true });
+const stoneMaterial = new THREE.MeshLambertMaterial({ map: stoneTexture, vertexColors: true });
+const cobblestoneMaterial = new THREE.MeshLambertMaterial({ map: cobblestoneTexture, vertexColors: true });
+const gravelMaterial = new THREE.MeshLambertMaterial({ map: gravelTexture, vertexColors: true });
+const sandMaterial = new THREE.MeshLambertMaterial({ map: sandTexture, vertexColors: true });
+const sandstoneMaterial = new THREE.MeshLambertMaterial({ map: sandstoneTexture, vertexColors: true });
+const bedrockMaterial = new THREE.MeshLambertMaterial({ map: bedrockTexture, vertexColors: true });
+const coalMaterial = new THREE.MeshLambertMaterial({ map: coalTexture, vertexColors: true });
+const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture, vertexColors: true });
+const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, vertexColors: true });
+const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true });
+const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true });
 
 // Leaf faces on the outside of the canopy are fully opaque.
 // The PNG's transparent pixels are still cut out, but the actual leaf pixels are never blended.
@@ -79,11 +79,18 @@ const leavesMaterial = new THREE.MeshLambertMaterial({
     alphaTest: 0.5,
     depthWrite: true,
     depthTest: true,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    vertexColors: true
 });
 
-const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
-const waterMaterial = new THREE.MeshLambertMaterial({ map: waterTexture, transparent: true, opacity: 0.62, depthWrite: false });
+const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true });
+const waterMaterial = new THREE.MeshLambertMaterial({
+    map: waterTexture,
+    transparent: true,
+    opacity: 0.58,
+    depthWrite: false,
+    side: THREE.DoubleSide
+});
 
 const grassMaterial = [grassSideMaterial, grassSideMaterial, grassTopMaterial, dirtMaterial, grassSideMaterial, grassSideMaterial];
 const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTopMaterial, oakSideMaterial, oakSideMaterial];
@@ -98,5 +105,5 @@ export {
     blockGeometry, grassMaterial, dirtMaterial, stoneMaterial, cobblestoneMaterial,
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial, coalMaterial,
     ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,
-    waterMaterial, createBlock
+    waterMaterial, waterTexture, createBlock
 };
