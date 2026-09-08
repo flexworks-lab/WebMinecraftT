@@ -241,10 +241,10 @@ function chooseStoneVariant(x, y, z, surfaceY) {
     return BLOCK.STONE;
 }
 
-function getUnderwaterBlock(x, y, surfaceY) {
+function getUnderwaterBlock(x, y, z, surfaceY) {
     const depth = surfaceY - y;
-    const surfaceRoll = hash2D(x + 17, zSeed(surfaceY), 1701);
-    const blockRoll = hash3D(x, y, surfaceY, 1707);
+    const surfaceRoll = hash3D(x, y, z, 1701);
+    const blockRoll = hash3D(x, y, z, 1707);
 
     // Underwater terrain is always a mix of dirt, sand and stone.
     // Dirt is intentionally the most common material.
@@ -263,17 +263,15 @@ function getUnderwaterBlock(x, y, surfaceY) {
     // Deeper ocean floors still contain dirt and sand, but become more stone-heavy.
     if (blockRoll < 0.42) return BLOCK.DIRT;
     if (blockRoll < 0.66) return BLOCK.SAND;
-    return chooseStoneVariant(x, y, surfaceY, surfaceY);
+    return chooseStoneVariant(x, y, z, surfaceY);
 }
-
-function zSeed(value) { return Math.floor(value * 17.0); }
 
 function getSurfaceBlock(biome, y, surfaceY, x, z) {
     const submerged = surfaceY < SEA_LEVEL;
     const beach = !submerged && surfaceY <= SEA_LEVEL + 2;
 
     if (submerged) {
-        return getUnderwaterBlock(x, y, surfaceY);
+        return getUnderwaterBlock(x, y, z, surfaceY);
     }
 
     if (biome === "desert") {
@@ -325,6 +323,14 @@ function getBlockType(x, y, z) {
 }
 
 export function getBlockAt(x, y, z) { return getBlockType(x, y, z); }
+
+export function isPointInWater(x, y, z) {
+    const profile = getTerrainProfile(Math.floor(x), Math.floor(z));
+    if (profile.height >= SEA_LEVEL) return false;
+    const waterSurface = SEA_LEVEL + 0.42;
+    const solidFloor = profile.height + 0.5;
+    return y < waterSurface - 0.02 && y > solidFloor + 0.05;
+}
 
 function treeChance(x, z) {
     const { temperature, humidity } = getClimate(x, z);
