@@ -72,10 +72,10 @@ const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture })
 const leavesMaterial = new THREE.MeshLambertMaterial({
     map: leavesTexture,
     transparent: true,
-    opacity: 0.82,
-    alphaTest: 0.05,
-    depthWrite: false,
-    depthTest: false,
+    opacity: 1,
+    alphaTest: 0.5,
+    depthWrite: true,
+    depthTest: true,
     side: THREE.DoubleSide
 });
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
