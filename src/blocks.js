@@ -70,18 +70,16 @@ const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture });
 const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture });
 
-// Leaves blend with the scene instead of acting like solid cutout cards.
-// This lets foliage layers stack and naturally become darker where many leaves overlap,
-// while transparent pixels still reveal whatever is behind the leaves.
+// Leaf faces on the outside of the canopy are fully opaque.
+// The PNG's transparent pixels are still cut out, but the actual leaf pixels are never blended.
 const leavesMaterial = new THREE.MeshLambertMaterial({
     map: leavesTexture,
-    transparent: true,
-    opacity: 0.72,
-    alphaTest: 0.02,
-    depthWrite: false,
+    transparent: false,
+    opacity: 1,
+    alphaTest: 0.5,
+    depthWrite: true,
     depthTest: true,
-    side: THREE.DoubleSide,
-    forceSinglePass: true
+    side: THREE.DoubleSide
 });
 
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
