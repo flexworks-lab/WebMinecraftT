@@ -69,15 +69,19 @@ const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture });
 const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture });
 const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture });
+
+// Leaves use alpha testing instead of blending. Transparent pixels are discarded,
+// while solid leaf pixels still depth-test normally so blocks are not drawn through
+// the actual leaf texture. depthWrite stays off so one leaf layer cannot hide another.
 const leavesMaterial = new THREE.MeshLambertMaterial({
     map: leavesTexture,
     transparent: true,
-    opacity: 1,
     alphaTest: 0.5,
-    depthWrite: true,
+    depthWrite: false,
     depthTest: true,
     side: THREE.DoubleSide
 });
+
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
 const waterMaterial = new THREE.MeshLambertMaterial({ map: waterTexture, transparent: true, opacity: 0.62, depthWrite: false });
 
