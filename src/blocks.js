@@ -75,6 +75,7 @@ const leavesMaterial = new THREE.MeshLambertMaterial({
     opacity: 0.82,
     alphaTest: 0.05,
     depthWrite: false,
+    depthTest: false,
     side: THREE.DoubleSide
 });
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
