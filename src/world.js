@@ -48,13 +48,14 @@ const chunkMaterials = [
 ];
 
 const waterMaterial = new THREE.MeshPhongMaterial({
-    color: 0x4fabe8,
+    color: 0xffffff,
+    vertexColors: true,
     transparent: true,
-    opacity: 0.52,
+    opacity: 0.56,
     depthWrite: false,
     side: THREE.DoubleSide,
-    shininess: 90,
-    specular: 0xbfeeff,
+    shininess: 120,
+    specular: 0xe8f8ff,
     flatShading: false
 });
 
@@ -459,10 +460,25 @@ function materialIndexFor(type, faceIndex) {
 
 function isSolid(type) { return type !== BLOCK.AIR; }
 
+function getUnderwaterShade(x, y, z) {
+    const surfaceY = getTerrainProfile(x, z).height;
+    if (surfaceY >= SEA_LEVEL || y > surfaceY) return 1;
+
+    // The deeper a block sits below the water surface, the darker it becomes.
+    // Keep a little light at depth so detail is still visible.
+    const depth = Math.max(0, SEA_LEVEL - (y + 0.5));
+    const shade = THREE.MathUtils.clamp(1 - depth * 0.018, 0.5, 1);
+
+    // Very subtle local variation keeps submerged terrain from looking flat.
+    const variation = 0.96 + hash3D(x, y, z, 1911) * 0.06;
+    return THREE.MathUtils.clamp(shade * variation, 0.48, 1);
+}
+
 function makeGeometryForChunk(chunk) {
     const positions = [];
     const normals = [];
     const uvs = [];
+    const colors = [];
     const groups = Array.from({ length: chunkMaterials.length }, () => []);
     let vertexCount = 0;
 
@@ -474,6 +490,7 @@ function makeGeometryForChunk(chunk) {
 
                 const x = chunk.x * CHUNK_SIZE + lx;
                 const z = chunk.z * CHUNK_SIZE + lz;
+                const underwaterShade = getUnderwaterShade(x, y, z);
 
                 for (let faceIndex = 0; faceIndex < 6; faceIndex++) {
                     const face = FACES[faceIndex];
@@ -488,6 +505,7 @@ function makeGeometryForChunk(chunk) {
                     for (const corner of face.corners) {
                         positions.push(x + corner[0], y + corner[1], z + corner[2]);
                         normals.push(face.normal[0], face.normal[1], face.normal[2]);
+                        colors.push(underwaterShade, underwaterShade, underwaterShade);
                     }
                     uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
                     const matIndex = materialIndexFor(type, faceIndex);
@@ -506,6 +524,7 @@ function makeGeometryForChunk(chunk) {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
     const index = [];
     for (let i = 0; i < groups.length; i++) {
@@ -524,6 +543,7 @@ function makeWaterGeometry(chunk) {
     const positions = [];
     const normals = [];
     const uvs = [];
+    const colors = [];
     const indices = [];
     let vertices = 0;
     const startX = chunk.x * CHUNK_SIZE;
@@ -537,15 +557,26 @@ function makeWaterGeometry(chunk) {
             if (surfaceY >= SEA_LEVEL) continue;
 
             const y = SEA_LEVEL + 0.42;
-            const wave = Math.sin((x + z) * 0.22) * 0.035;
+            const waveA = Math.sin((x + z) * 0.19) * 0.042;
+            const waveB = Math.sin((x * 0.31 - z * 0.17) + 1.7) * 0.025;
+            const waveC = Math.cos((x * 0.13 + z * 0.27) - 0.6) * 0.02;
             const base = vertices;
             positions.push(
-                x - 0.5, y + wave, z - 0.5,
-                x - 0.5, y + wave * 0.5, z + 0.5,
-                x + 0.5, y - wave * 0.45, z + 0.5,
-                x + 0.5, y - wave, z - 0.5
+                x - 0.5, y + waveA + waveC, z - 0.5,
+                x - 0.5, y + waveB, z + 0.5,
+                x + 0.5, y - waveA + waveC * 0.5, z + 0.5,
+                x + 0.5, y - waveB, z - 0.5
             );
             normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
+
+            const shimmer = 0.94 + hash2D(x, z, 1931) * 0.12;
+            const waterColors = [
+                0.16 * shimmer, 0.52 * shimmer, 0.80 * shimmer,
+                0.20 * shimmer, 0.59 * shimmer, 0.86 * shimmer,
+                0.13 * shimmer, 0.47 * shimmer, 0.75 * shimmer,
+                0.19 * shimmer, 0.56 * shimmer, 0.84 * shimmer
+            ];
+            colors.push(...waterColors);
             uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
             indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
             vertices += 4;
@@ -557,6 +588,7 @@ function makeWaterGeometry(chunk) {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(indices);
     geometry.computeBoundingSphere();
     return geometry;
