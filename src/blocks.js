@@ -51,7 +51,7 @@ const bedrockTexture = createTexture("#303030", ["#242424", "#494949", "#1d1d1d"
 const coalTexture = createTexture("#535353", ["#151515", "#252525", "#707070", "#0c0c0c"], 72, 22);
 const ironTexture = createTexture("#88827b", ["#c0bbb3", "#6c6762", "#a7a098", "#5d5955"], 68, 23);
 const oakPlankTexture = createTexture("#9b6a3b", ["#83562e", "#b67c45", "#744b28", "#c58d54"], 34, 24);
-const leavesTexture = createTexture("#3c8c2e", ["#2d7525", "#55a63a", "#347d28", "#6bb949", "#24661f"], 72, 17);
+const leavesTexture = loadTexture(texturePath("oak-leaves-normal-original-default.png"));
 const snowTexture = createTexture("#e8f1f4", ["#d6e2e7", "#ffffff", "#c3d3da", "#eef7fa"], 34, 25);
 const waterTexture = createTexture("#3b83b5", ["#2f709d", "#66add4", "#327da9", "#83c6e3"], 24, 26);
 
@@ -69,7 +69,7 @@ const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture });
 const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture });
 const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture });
-const leavesMaterial = new THREE.MeshLambertMaterial({ map: leavesTexture });
+const leavesMaterial = new THREE.MeshLambertMaterial({ map: leavesTexture, transparent: true, alphaTest: 0.35 });
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
 const waterMaterial = new THREE.MeshLambertMaterial({ map: waterTexture, transparent: true, opacity: 0.62, depthWrite: false });
 
