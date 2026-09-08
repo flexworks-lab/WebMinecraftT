@@ -47,7 +47,5 @@ Want to run `webminecraft` locally, tweak the engine, or contribute? Follow thes
 * Git
 
 ### Setup
-1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/yourusername/webminecraft.git](https://github.com/yourusername/webminecraft.git)
-   cd webminecraft
+1. **Open website**
+    https://flexworks-lab.github.io/WebMinecraftT/
