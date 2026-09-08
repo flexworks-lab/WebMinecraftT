@@ -69,7 +69,14 @@ const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture });
 const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture });
 const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture });
-const leavesMaterial = new THREE.MeshLambertMaterial({ map: leavesTexture, transparent: true, alphaTest: 0.35 });
+const leavesMaterial = new THREE.MeshLambertMaterial({
+    map: leavesTexture,
+    transparent: true,
+    opacity: 0.82,
+    alphaTest: 0.05,
+    depthWrite: false,
+    side: THREE.DoubleSide
+});
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture });
 const waterMaterial = new THREE.MeshLambertMaterial({ map: waterTexture, transparent: true, opacity: 0.62, depthWrite: false });
 
