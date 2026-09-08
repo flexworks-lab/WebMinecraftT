@@ -6,7 +6,7 @@ import {
     leavesMaterial, snowMaterial
 } from "./blocks.js";
 
-export const CHUNK_SIZE = 16;
+export const CHUNK_SIZE = 19;
 export const CHUNK_HEIGHT = 128;
 export const MIN_Y = -32;
 export const SEA_LEVEL = 16;
