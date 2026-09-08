@@ -64,7 +64,13 @@ function createTouchControls() {
     const root = document.createElement("div");
     root.id = "touchControls";
     root.innerHTML = `
-        <div id="touchJoystick"><div id="touchStick"></div></div>
+        <div id="touchJoystick">
+            <div class="dpadButton dpadUp" data-x="0" data-z="-1">▲</div>
+            <div class="dpadButton dpadDown" data-x="0" data-z="1">▼</div>
+            <div class="dpadButton dpadLeft" data-x="-1" data-z="0">◀</div>
+            <div class="dpadButton dpadRight" data-x="1" data-z="0">▶</div>
+            <div class="dpadCenter"></div>
+        </div>
         <div id="touchActions"></div>
         <div id="touchHint">Swipe right side to look</div>
         <div id="touchLookArea"></div>
@@ -106,8 +112,37 @@ function createTouchControls() {
     jumpButton.addEventListener("lostpointercapture", releaseJump);
 
     const joystick = root.querySelector("#touchJoystick");
-    const stick = root.querySelector("#touchStick");
+    const dpadButtons = [...root.querySelectorAll(".dpadButton")];
     const joystickRadius = 58;
+
+    const resetJoystick = () => {
+        joystickPointer = null;
+        touchInput.moveX = 0;
+        touchInput.moveZ = 0;
+        dpadButtons.forEach(button => button.classList.remove("pressed"));
+    };
+
+    const updateDpad = (clientX, clientY) => {
+        let dx = clientX - joystickCenterX;
+        let dy = clientY - joystickCenterY;
+        const distance = Math.hypot(dx, dy);
+        if (distance > joystickRadius) {
+            dx = (dx / distance) * joystickRadius;
+            dy = (dy / distance) * joystickRadius;
+        }
+
+        const normalizedX = dx / joystickRadius;
+        const normalizedZ = dy / joystickRadius;
+        touchInput.moveX = Math.abs(normalizedX) > 0.24 ? clamp(normalizedX, -1, 1) : 0;
+        touchInput.moveZ = Math.abs(normalizedZ) > 0.24 ? clamp(normalizedZ, -1, 1) : 0;
+
+        dpadButtons.forEach(button => {
+            const x = Number(button.dataset.x);
+            const z = Number(button.dataset.z);
+            const active = (x !== 0 && Math.sign(touchInput.moveX) === x) || (z !== 0 && Math.sign(touchInput.moveZ) === z);
+            button.classList.toggle("pressed", active);
+        });
+    };
 
     joystick.addEventListener("pointerdown", (event) => {
         event.preventDefault();
@@ -118,22 +153,15 @@ function createTouchControls() {
         const rect = joystick.getBoundingClientRect();
         joystickCenterX = rect.left + rect.width / 2;
         joystickCenterY = rect.top + rect.height / 2;
-        updateJoystick(event.clientX, event.clientY, stick, joystickRadius);
+        updateDpad(event.clientX, event.clientY);
     });
     joystick.addEventListener("pointermove", (event) => {
         if (event.pointerId !== joystickPointer) return;
-        updateJoystick(event.clientX, event.clientY, stick, joystickRadius);
+        updateDpad(event.clientX, event.clientY);
     });
-    const releaseJoystick = (event) => {
-        if (event.pointerId !== joystickPointer) return;
-        joystickPointer = null;
-        touchInput.moveX = 0;
-        touchInput.moveZ = 0;
-        stick.style.transform = "translate(-50%, -50%)";
-    };
-    joystick.addEventListener("pointerup", releaseJoystick);
-    joystick.addEventListener("pointercancel", releaseJoystick);
-    joystick.addEventListener("lostpointercapture", releaseJoystick);
+    joystick.addEventListener("pointerup", resetJoystick);
+    joystick.addEventListener("pointercancel", resetJoystick);
+    joystick.addEventListener("lostpointercapture", resetJoystick);
 
     const lookArea = root.querySelector("#touchLookArea");
     lookArea.addEventListener("pointerdown", (event) => {
@@ -168,8 +196,14 @@ function createTouchControls() {
     const style = document.createElement("style");
     style.textContent = `
         #touchControls { display:none; position:fixed; inset:0; z-index:40; pointer-events:none; user-select:none; -webkit-user-select:none; touch-action:none; }
-        #touchJoystick { position:absolute; left:28px; bottom:28px; width:132px; height:132px; border-radius:50%; background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.35); pointer-events:auto; touch-action:none; z-index:2; }
-        #touchStick { position:absolute; left:50%; top:50%; width:58px; height:58px; margin:-29px; border-radius:50%; background:rgba(255,255,255,.45); border:2px solid rgba(255,255,255,.7); box-sizing:border-box; pointer-events:none; }
+        #touchJoystick { position:absolute; left:28px; bottom:28px; width:132px; height:132px; border-radius:50%; background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.35); pointer-events:auto; touch-action:none; z-index:2; box-sizing:border-box; }
+        .dpadButton { position:absolute; width:52px; height:52px; display:flex; align-items:center; justify-content:center; border-radius:16px; background:rgba(255,255,255,.18); border:2px solid rgba(255,255,255,.32); color:rgba(255,255,255,.85); font:700 20px Arial,sans-serif; box-sizing:border-box; pointer-events:none; transition:transform .05s ease, background .05s ease; }
+        .dpadButton.pressed { background:rgba(255,255,255,.40); transform:scale(.94); }
+        .dpadUp { left:40px; top:6px; }
+        .dpadDown { left:40px; bottom:6px; }
+        .dpadLeft { left:6px; top:40px; }
+        .dpadRight { right:6px; top:40px; }
+        .dpadCenter { position:absolute; left:40px; top:40px; width:48px; height:48px; border-radius:14px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); pointer-events:none; }
         #touchActions { position:absolute; right:24px; bottom:24px; display:grid; grid-template-columns:repeat(2,76px); grid-auto-rows:76px; gap:10px; pointer-events:auto; z-index:5; }
         .touchControl { width:76px; height:76px; border-radius:50%; border:2px solid rgba(255,255,255,.5); background:rgba(25,25,25,.62); color:white; font:bold 14px Arial,sans-serif; -webkit-tap-highlight-color:transparent; touch-action:none; box-shadow:0 3px 10px rgba(0,0,0,.28); }
         .touchControl.pressed { background:rgba(100,100,100,.78); transform:scale(.95); }
@@ -180,19 +214,6 @@ function createTouchControls() {
         @media (orientation:portrait) { #touchJoystick { left:18px; bottom:18px; } #touchActions { right:16px; bottom:18px; } }
     `;
     document.head.appendChild(style);
-}
-
-function updateJoystick(clientX, clientY, stick, radius) {
-    let dx = clientX - joystickCenterX;
-    let dy = clientY - joystickCenterY;
-    const length = Math.hypot(dx, dy);
-    if (length > radius) {
-        dx = (dx / length) * radius;
-        dy = (dy / length) * radius;
-    }
-    stick.style.transform = `translate(${dx}px, ${dy}px)`;
-    touchInput.moveX = dx / radius;
-    touchInput.moveZ = dy / radius;
 }
 
 export function setupControls() {
