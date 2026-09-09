@@ -1,11 +1,13 @@
 const STORAGE_KEY = "webminecraft-settings-extra";
 
 const defaults = {
+    fullscreen: false,
+    pixelated: false,
+    performanceHud: false,
     fov: 75,
     renderDistance: 120,
     fog: true,
     waterEffects: true,
-    performanceHud: false,
     crosshair: true,
     hotbar: true,
     mouseSensitivity: 1,
@@ -13,6 +15,7 @@ const defaults = {
     reducedMotion: false,
     largeUi: false,
     highContrast: false,
+    colorblind: false,
     uiOpacity: 1,
     masterVolume: 1,
     soundEffects: true,
@@ -48,7 +51,27 @@ function toast() {
     }, 1300);
 }
 
-function control(id, label, type, value, description, options = []) {
+function broadcast(name, value) {
+    window.dispatchEvent(new CustomEvent("webminecraft-setting-changed", {
+        detail: { name, value, settings: { ...settings } }
+    }));
+}
+
+function applyFullscreen(enabled) {
+    if (enabled) document.documentElement.requestFullscreen?.().catch(() => {});
+    else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+}
+
+function applyVisualAccessibility() {
+    document.documentElement.style.setProperty("--ui-opacity", settings.uiOpacity);
+    document.body.classList.toggle("settings-large-ui", settings.largeUi);
+    document.body.classList.toggle("settings-high-contrast", settings.highContrast);
+    document.body.classList.toggle("settings-reduced-motion", settings.reducedMotion);
+    document.body.classList.toggle("settings-colorblind", settings.colorblind);
+    document.body.classList.toggle("settings-pixelated", settings.pixelated);
+}
+
+function control(id, label, type, description, options = []) {
     let input;
     if (type === "select") {
         input = `<select id="${id}">${options.map(([v,t]) => `<option value="${v}">${t}</option>`).join("")}</select>`;
@@ -71,33 +94,55 @@ function buildPanels() {
     tabs.appendChild(marker);
 
     const panels = {
+        Video: `
+            <div class="settingsGroup"><h3 class="settingsGroupTitle">Display & Performance</h3>
+            ${control("extraFullscreen", "Fullscreen", "checkbox", "Fill the entire browser window.")}
+            ${control("extraPixelated", "Pixelated Rendering", "checkbox", "Use a crisp pixel-style presentation.")}
+            ${control("extraFov", "Field of View", "range", "Adjust how wide your view feels while playing.", [60,110,1])}
+            ${control("extraPerformanceHudVideo", "Performance HUD", "checkbox", "Show FPS and renderer information.")}
+            ${control("extraRenderDistanceVideo", "View Distance", "select", "How far terrain is rendered.", [[60,"Short"],[90,"Normal"],[120,"Far"],[150,"Very Far"],[180,"Extreme"]])}
+            </div>
+            <div class="settingsGroup"><h3 class="settingsGroupTitle">World Effects</h3>
+            ${control("extraFogVideo", "Fog", "checkbox", "Enable distance and underground fog.")}
+            ${control("extraWaterEffectsVideo", "Water Effects", "checkbox", "Enable the underwater screen effect.")}
+            </div>`,
+        Accessibility: `
+            <div class="settingsGroup"><h3 class="settingsGroupTitle">Readability</h3>
+            ${control("extraLargeUiAccess", "Large UI", "checkbox", "Increase interface size for easier reading.")}
+            ${control("extraHighContrastAccess", "High Contrast", "checkbox", "Increase contrast for interface elements.")}
+            ${control("extraColorblind", "Colorblind-Friendly", "checkbox", "Adjust interface colors to improve color distinction.")}
+            ${control("extraUiOpacityAccess", "UI Opacity", "range", "Adjust interface opacity.", [0.5,1,0.05])}
+            </div>
+            <div class="settingsGroup"><h3 class="settingsGroupTitle">Motion</h3>
+            ${control("extraReducedMotionAccess", "Reduced Motion", "checkbox", "Reduce interface animations and movement.")}
+            </div>
+            <div class="settingsGroup"><h3 class="settingsGroupTitle">HUD</h3>
+            ${control("extraCrosshairAccess", "Crosshair", "checkbox", "Show the center crosshair while playing.")}
+            ${control("extraHotbarAccess", "Hotbar", "checkbox", "Show the item hotbar while playing.")}
+            </div>`,
         Controls: `
             <div class="settingsGroup"><h3 class="settingsGroupTitle">Mouse & Touch</h3>
-            ${control("extraMouseSensitivity", "Mouse Sensitivity", "range", settings.mouseSensitivity, "Adjust how quickly the camera turns.", [0.35,2,0.05])}
-            ${control("extraTouchSensitivity", "Touch Sensitivity", "range", settings.touchSensitivity, "Adjust touch camera movement.", [0.5,2,0.05])}
-            ${control("extraInvertY", "Invert Y Axis", "checkbox", settings.invertY, "Reverse vertical camera movement.")}
+            ${control("extraMouseSensitivity", "Mouse Sensitivity", "range", "Adjust how quickly the camera turns.", [0.35,2,0.05])}
+            ${control("extraTouchSensitivity", "Touch Sensitivity", "range", "Adjust touch camera movement.", [0.5,2,0.05])}
+            ${control("extraInvertY", "Invert Y Axis", "checkbox", "Reverse vertical camera movement.")}
             </div>`,
         Audio: `
             <div class="settingsGroup"><h3 class="settingsGroupTitle">Audio</h3>
-            ${control("extraMasterVolume", "Master Volume", "range", settings.masterVolume, "Overall game volume.", [0,1,0.05])}
-            ${control("extraSoundEffects", "Sound Effects", "checkbox", settings.soundEffects, "Enable gameplay sound effects.")}
-            ${control("extraMusic", "Music", "checkbox", settings.music, "Enable menu and gameplay music.")}
+            ${control("extraMasterVolume", "Master Volume", "range", "Overall game volume.", [0,1,0.05])}
+            ${control("extraSoundEffects", "Sound Effects", "checkbox", "Enable gameplay sound effects.")}
+            ${control("extraMusic", "Music", "checkbox", "Enable menu and gameplay music.")}
             </div>`,
         Gameplay: `
             <div class="settingsGroup"><h3 class="settingsGroupTitle">World & Gameplay</h3>
-            ${control("extraRenderDistance", "View Distance", "select", settings.renderDistance, "How far terrain is rendered.", [[60,"Short"],[90,"Normal"],[120,"Far"],[150,"Very Far"],[180,"Extreme"]])}
-            ${control("extraFog", "Fog", "checkbox", settings.fog, "Enable distance and underground fog.")}
-            ${control("extraWaterEffects", "Water Effects", "checkbox", settings.waterEffects, "Enable the blue underwater screen effect.")}
+            ${control("extraRenderDistance", "View Distance", "select", "How far terrain is rendered.", [[60,"Short"],[90,"Normal"],[120,"Far"],[150,"Very Far"],[180,"Extreme"]])}
+            ${control("extraFog", "Fog", "checkbox", "Enable distance and underground fog.")}
+            ${control("extraWaterEffects", "Water Effects", "checkbox", "Enable the blue underwater screen effect.")}
             </div>`,
         Interface: `
-            <div class="settingsGroup"><h3 class="settingsGroupTitle">HUD & Accessibility</h3>
-            ${control("extraCrosshair", "Crosshair", "checkbox", settings.crosshair, "Show the center crosshair while playing.")}
-            ${control("extraHotbar", "Hotbar", "checkbox", settings.hotbar, "Show the item hotbar while playing.")}
-            ${control("extraPerformanceHud", "Performance HUD", "checkbox", settings.performanceHud, "Show FPS and chunk performance information.")}
-            ${control("extraLargeUi", "Large UI", "checkbox", settings.largeUi, "Increase interface size for easier reading.")}
-            ${control("extraHighContrast", "High Contrast", "checkbox", settings.highContrast, "Increase contrast for interface elements.")}
-            ${control("extraReducedMotion", "Reduced Motion", "checkbox", settings.reducedMotion, "Reduce interface animations.")}
-            ${control("extraUiOpacity", "UI Opacity", "range", settings.uiOpacity, "Adjust interface opacity.", [0.5,1,0.05])}
+            <div class="settingsGroup"><h3 class="settingsGroupTitle">HUD & Interface</h3>
+            ${control("extraCrosshair", "Crosshair", "checkbox", "Show the center crosshair while playing.")}
+            ${control("extraHotbar", "Hotbar", "checkbox", "Show the item hotbar while playing.")}
+            ${control("extraPerformanceHud", "Performance HUD", "checkbox", "Show FPS and chunk performance information.")}
             </div>`
     };
 
@@ -108,19 +153,21 @@ function buildPanels() {
         section.innerHTML = html;
         section.style.display = "none";
         scroll.appendChild(section);
-        const button = document.createElement("button");
-        button.className = "settingsTab";
-        button.type = "button";
-        button.textContent = name;
-        button.dataset.settingsTab = name;
-        tabs.appendChild(button);
+        const button = [...tabs.querySelectorAll(".settingsTab")].find(b => b.textContent.trim() === name);
+        if (button) button.dataset.settingsTab = name;
+        else {
+            const newButton = document.createElement("button");
+            newButton.className = "settingsTab";
+            newButton.type = "button";
+            newButton.textContent = name;
+            newButton.dataset.settingsTab = name;
+            tabs.appendChild(newButton);
+        }
     }
 
-    const original = [...tabs.querySelectorAll(".settingsTab")].find(b => b.textContent === "Graphics");
     const originalGroups = [...scroll.children].filter(el => !el.classList.contains("settingsExtraPanel"));
-
     function show(name) {
-        [...tabs.querySelectorAll(".settingsTab")].forEach(b => b.classList.toggle("active", b.textContent === name));
+        [...tabs.querySelectorAll(".settingsTab")].forEach(b => b.classList.toggle("active", b.textContent.trim() === name));
         [...scroll.querySelectorAll(".settingsExtraPanel")].forEach(p => p.style.display = p.dataset.settingsTab === name ? "block" : "none");
         originalGroups.forEach(p => p.style.display = name === "Graphics" ? "block" : "none");
         const title = document.getElementById("settingsSectionTitle");
@@ -129,16 +176,32 @@ function buildPanels() {
     }
 
     [...tabs.querySelectorAll(".settingsTab")].forEach(button => {
-        if (button.dataset.settingsTab === "") return;
-        button.addEventListener("click", () => show(button.textContent));
+        const name = button.dataset.settingsTab || button.textContent.trim();
+        button.dataset.settingsTab = name;
+        button.addEventListener("click", () => show(name));
     });
-    if (original) original.addEventListener("click", () => show("Graphics"));
     show("Graphics");
 
-    wireRange("extraMouseSensitivity", "mouseSensitivity", v => { settings.mouseSensitivity = v; });
-    wireRange("extraTouchSensitivity", "touchSensitivity", v => { settings.touchSensitivity = v; });
-    wireRange("extraMasterVolume", "masterVolume", v => { settings.masterVolume = v; });
-    wireRange("extraUiOpacity", "uiOpacity", v => { settings.uiOpacity = v; document.documentElement.style.setProperty("--ui-opacity", v); });
+    wireCheck("extraFullscreen", "fullscreen", applyFullscreen);
+    wireCheck("extraPixelated", "pixelated", value => document.body.classList.toggle("settings-pixelated", value));
+    wireRange("extraFov", "fov");
+    wireCheck("extraPerformanceHudVideo", "performanceHud");
+    wireSelect("extraRenderDistanceVideo", "renderDistance");
+    wireCheck("extraFogVideo", "fog");
+    wireCheck("extraWaterEffectsVideo", "waterEffects");
+
+    wireCheck("extraLargeUiAccess", "largeUi", value => document.body.classList.toggle("settings-large-ui", value));
+    wireCheck("extraHighContrastAccess", "highContrast", value => document.body.classList.toggle("settings-high-contrast", value));
+    wireCheck("extraColorblind", "colorblind", value => document.body.classList.toggle("settings-colorblind", value));
+    wireRange("extraUiOpacityAccess", "uiOpacity", value => document.documentElement.style.setProperty("--ui-opacity", value));
+    wireCheck("extraReducedMotionAccess", "reducedMotion", value => document.body.classList.toggle("settings-reduced-motion", value));
+    wireCheck("extraCrosshairAccess", "crosshair");
+    wireCheck("extraHotbarAccess", "hotbar");
+
+    wireRange("extraMouseSensitivity", "mouseSensitivity");
+    wireRange("extraTouchSensitivity", "touchSensitivity");
+    wireRange("extraMasterVolume", "masterVolume");
+    wireRange("extraUiOpacity", "uiOpacity", value => document.documentElement.style.setProperty("--ui-opacity", value));
     wireSelect("extraRenderDistance", "renderDistance");
     wireCheck("extraInvertY", "invertY");
     wireCheck("extraFog", "fog");
@@ -146,31 +209,25 @@ function buildPanels() {
     wireCheck("extraCrosshair", "crosshair");
     wireCheck("extraHotbar", "hotbar");
     wireCheck("extraPerformanceHud", "performanceHud");
-    wireCheck("extraLargeUi", "largeUi", v => document.body.classList.toggle("settings-large-ui", v));
-    wireCheck("extraHighContrast", "highContrast", v => document.body.classList.toggle("settings-high-contrast", v));
-    wireCheck("extraReducedMotion", "reducedMotion", v => document.body.classList.toggle("settings-reduced-motion", v));
     wireCheck("extraSoundEffects", "soundEffects");
     wireCheck("extraMusic", "music");
 
-    document.documentElement.style.setProperty("--ui-opacity", settings.uiOpacity);
-    document.body.classList.toggle("settings-large-ui", settings.largeUi);
-    document.body.classList.toggle("settings-high-contrast", settings.highContrast);
-    document.body.classList.toggle("settings-reduced-motion", settings.reducedMotion);
+    applyVisualAccessibility();
 
     function wireRange(id, key, after) {
         const el = document.getElementById(id); if (!el) return;
         el.value = settings[key];
-        el.addEventListener("input", () => { settings[key] = Number(el.value); after?.(settings[key]); save(); toast(); });
+        el.addEventListener("input", () => { settings[key] = Number(el.value); after?.(settings[key]); save(); broadcast(key, settings[key]); toast(); });
     }
     function wireSelect(id, key) {
         const el = document.getElementById(id); if (!el) return;
         el.value = String(settings[key]);
-        el.addEventListener("change", () => { settings[key] = Number(el.value); save(); toast(); });
+        el.addEventListener("change", () => { settings[key] = Number(el.value); save(); broadcast(key, settings[key]); toast(); });
     }
     function wireCheck(id, key, after) {
         const el = document.getElementById(id); if (!el) return;
         el.checked = !!settings[key];
-        el.addEventListener("change", () => { settings[key] = el.checked; after?.(el.checked); save(); toast(); });
+        el.addEventListener("change", () => { settings[key] = el.checked; after?.(el.checked); save(); broadcast(key, settings[key]); toast(); });
     }
 }
 
