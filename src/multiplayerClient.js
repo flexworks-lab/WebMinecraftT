@@ -41,6 +41,10 @@ function startSharedWorld(worldSeed) {
     seedInput.value = String(worldSeed >>> 0);
     window.__webminecraftMultiplayerActive = true;
     window.__webminecraftMultiplayerPlayerId = localPlayerId;
+    if (overlay) {
+        overlay.style.display = "none";
+        overlay.setAttribute("aria-hidden", "true");
+    }
     openWorldButton.click();
 }
 
