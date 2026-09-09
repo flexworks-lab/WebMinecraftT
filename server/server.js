@@ -13,7 +13,7 @@ const MAX_MESSAGE_SIZE = 16 * 1024;
 const rooms = new Map();
 
 function createRoom(id) {
-    return { id, players: new Map(), createdAt: Date.now() };
+    return { id, players: new Map(), worldSeed: Math.floor(Math.random() * 4294967296) >>> 0, createdAt: Date.now() };
 }
 
 function getOrCreateRoom(id) {
@@ -282,6 +282,7 @@ function handleMessage(ws, raw, state) {
             type: "joined",
             playerId: player.id,
             room: room.id,
+            worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
             players: [...room.players.values()].map(publicPlayer),
         });
