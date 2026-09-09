@@ -7,6 +7,29 @@ const seedMenu = document.getElementById("seedMenu");
 const VERSION_KEY = "webminecraft-game-version";
 const VERSIONS = ["v1.0", "v1.1", "v1.2"];
 
+const UPDATE_DETAILS = [
+    {
+        version: "v1.1 • World Seeds",
+        title: "World Seeds",
+        body: "World generation is now driven by the world seed. Terrain height, caves, biomes, trees, water, and the world spawn all use the same seed, so entering that seed again recreates the same generated world layout."
+    },
+    {
+        version: "v1.1 • Seed Links",
+        title: "Shareable Seed Links",
+        body: "Use Copy World Link to copy the current world URL with its seed attached. Opening that link loads the matching generated world, making it easy to share a specific world with someone else."
+    },
+    {
+        version: "Latest • World Screen",
+        title: "Full-Screen World Screen",
+        body: "Singleplayer now opens a dedicated full-screen world setup screen. You can edit the seed, copy the seed, copy a complete world link, open the world, or return to the main menu."
+    },
+    {
+        version: "Latest • Update Details",
+        title: "Interactive Update Logs",
+        body: "Every update log can now be opened as a full-screen detail page. Select an update from the Latest Updates panel to read its expanded description, then use Back or Escape to return to the main menu."
+    }
+];
+
 function injectMenuAnimations() {
     if (document.getElementById("menuAnimationStyles")) return;
 
@@ -43,6 +66,14 @@ function injectMenuAnimations() {
             from { opacity: 0; transform: translateY(70px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes wmUpdateDetailIn {
+            from { opacity: 0; transform: translateY(70px) scale(.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes wmUpdateDetailContentIn {
+            from { opacity: 0; transform: translateY(22px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         #menuPanel > * { opacity: 0; animation: wmMenuFadeUp .45s cubic-bezier(.2,.75,.25,1) forwards; }
         #menuTitle { animation: wmMenuTitleIn .7s cubic-bezier(.16,.8,.24,1) .05s forwards; }
@@ -62,7 +93,8 @@ function injectMenuAnimations() {
         #closeSettings,
         #gameVersionButton,
         .gameVersionOption,
-        .settingsTab {
+        .settingsTab,
+        .menuUpdate {
             transition: transform .12s cubic-bezier(.2,.8,.2,1), filter .12s ease, box-shadow .12s ease, background .12s ease;
             will-change: transform;
         }
@@ -90,22 +122,94 @@ function injectMenuAnimations() {
         }
 
         #menuUpdates { animation: wmUpdateIn .5s cubic-bezier(.2,.8,.2,1) .18s both; }
-        .menuUpdate { transition: transform .16s ease, filter .16s ease; }
-        .menuUpdate:hover { transform: translateX(4px); filter: brightness(1.08); }
+        .menuUpdate {
+            cursor: pointer;
+            user-select: none;
+        }
+        .menuUpdate:hover,
+        .menuUpdate:focus-visible {
+            transform: translateX(4px) scale(1.015);
+            filter: brightness(1.08);
+            outline: 2px solid rgba(255,255,255,.78);
+            outline-offset: 1px;
+        }
+        .menuUpdate:active { transform: translateX(3px) scale(.985); filter: brightness(.94); }
+
+        #updateDetailMenu {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: stretch;
+            justify-content: center;
+            overflow: auto;
+            background: linear-gradient(180deg,#252525 0%,#171717 100%);
+            color: #fff;
+            z-index: 220;
+            opacity: 0;
+        }
+        #updateDetailMenu.update-detail-opening {
+            display: flex;
+            animation: wmUpdateDetailIn .48s cubic-bezier(.16,.8,.24,1) forwards;
+        }
+        #updateDetailPanel {
+            position: relative;
+            width: min(1040px,100vw);
+            min-height: 100vh;
+            padding: clamp(28px,6vh,72px) clamp(22px,7vw,92px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        #updateDetailBackWrap {
+            position: absolute;
+            left: clamp(18px,4vw,60px);
+            top: clamp(18px,4vh,44px);
+            z-index: 2;
+        }
+        #updateDetailBack { min-width: 130px; }
+        #updateDetailVersion {
+            margin: 0 0 10px;
+            color: #8fca68;
+            font-family: "MinecraftFont",monospace;
+            font-size: clamp(12px,1.5vw,16px);
+            text-shadow: 2px 2px 0 #111;
+            opacity: 0;
+        }
+        #updateDetailTitle {
+            margin: 0 0 22px;
+            max-width: 900px;
+            font-family: "MinecraftFont",monospace;
+            font-size: clamp(32px,5vw,62px);
+            line-height: 1;
+            text-shadow: 3px 3px 0 #000;
+            opacity: 0;
+        }
+        #updateDetailBody {
+            max-width: 860px;
+            color: #d6d6d6;
+            font-size: clamp(15px,1.65vw,20px);
+            line-height: 1.7;
+            opacity: 0;
+        }
+        #updateDetailMenu.update-detail-ready #updateDetailBackWrap,
+        #updateDetailMenu.update-detail-ready #updateDetailVersion,
+        #updateDetailMenu.update-detail-ready #updateDetailTitle,
+        #updateDetailMenu.update-detail-ready #updateDetailBody {
+            animation: wmUpdateDetailContentIn .38s cubic-bezier(.2,.75,.25,1) forwards;
+        }
+        #updateDetailMenu.update-detail-ready #updateDetailVersion { animation-delay: .10s; }
+        #updateDetailMenu.update-detail-ready #updateDetailTitle { animation-delay: .16s; }
+        #updateDetailMenu.update-detail-ready #updateDetailBody { animation-delay: .22s; }
+
         #menuFooter, #menuCopyright { transition: opacity .2s ease, transform .2s ease; }
         #menuFooter:hover { transform: translateY(-2px); }
         #menuCopyright:hover { transform: translateY(-2px); }
 
-        /* The seed screen now rises from below the viewport as one full-screen surface. */
-        #seedMenu {
-            overflow: hidden;
-        }
+        #seedMenu { overflow: hidden; }
         #seedMenu.seed-menu-opening {
             animation: wmSeedScreenIn .55s cubic-bezier(.16,.8,.24,1) both;
         }
-        #seedMenu.seed-menu-opening #seedPanel {
-            animation: none;
-        }
+        #seedMenu.seed-menu-opening #seedPanel { animation: none; }
         #seedMenu.seed-menu-opening #seedBackWrap,
         #seedMenu.seed-menu-opening #seedTitle,
         #seedMenu.seed-menu-opening #seedSubtitle,
@@ -130,7 +234,12 @@ function injectMenuAnimations() {
             #seedMenu.seed-menu-opening, #seedMenu.seed-menu-opening #seedBackWrap,
             #seedMenu.seed-menu-opening #seedTitle, #seedMenu.seed-menu-opening #seedSubtitle,
             #seedMenu.seed-menu-opening #seedInput, #seedMenu.seed-menu-opening #seedActions,
-            #seedMenu.seed-menu-opening #seedLinkStatus { animation: none !important; opacity: 1 !important; }
+            #seedMenu.seed-menu-opening #seedLinkStatus,
+            #updateDetailMenu.update-detail-opening,
+            #updateDetailMenu.update-detail-ready #updateDetailBackWrap,
+            #updateDetailMenu.update-detail-ready #updateDetailVersion,
+            #updateDetailMenu.update-detail-ready #updateDetailTitle,
+            #updateDetailMenu.update-detail-ready #updateDetailBody { animation: none !important; opacity: 1 !important; }
             *, *::before, *::after { scroll-behavior: auto !important; }
         }
     `;
@@ -186,6 +295,112 @@ function setupSeedBackButton() {
 
     backButton.addEventListener("click", goBack);
     backButton.addEventListener("pointerup", goBack);
+}
+
+function setupUpdateDetails() {
+    if (!updates || document.getElementById("updateDetailMenu")) return;
+
+    const cards = Array.from(updates.querySelectorAll(".menuUpdate"));
+    cards.forEach((card, index) => {
+        if (!UPDATE_DETAILS[index]) return;
+        card.dataset.updateIndex = String(index);
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-label", `Open details for ${UPDATE_DETAILS[index].title}`);
+    });
+
+    const newCard = document.createElement("article");
+    newCard.className = "menuUpdate";
+    newCard.dataset.updateIndex = "3";
+    newCard.setAttribute("role", "button");
+    newCard.setAttribute("tabindex", "0");
+    newCard.setAttribute("aria-label", "Open details for Interactive Update Logs");
+    newCard.innerHTML = `
+        <div class="menuUpdateVersion">${UPDATE_DETAILS[3].version}</div>
+        <div class="menuUpdateText">${UPDATE_DETAILS[3].body}</div>
+    `;
+    updates.appendChild(newCard);
+
+    const detailMenu = document.createElement("div");
+    detailMenu.id = "updateDetailMenu";
+    detailMenu.setAttribute("aria-hidden", "true");
+    detailMenu.innerHTML = `
+        <div id="updateDetailPanel">
+            <div id="updateDetailBackWrap">
+                <button id="updateDetailBack" class="seedButton" type="button">← Back</button>
+            </div>
+            <div id="updateDetailVersion"></div>
+            <h2 id="updateDetailTitle"></h2>
+            <div id="updateDetailBody"></div>
+        </div>
+    `;
+    document.body.appendChild(detailMenu);
+
+    const backButton = detailMenu.querySelector("#updateDetailBack");
+    const version = detailMenu.querySelector("#updateDetailVersion");
+    const title = detailMenu.querySelector("#updateDetailTitle");
+    const body = detailMenu.querySelector("#updateDetailBody");
+
+    let detailOpen = false;
+
+    const closeDetails = event => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        if (!detailOpen) return;
+        detailOpen = false;
+        detailMenu.classList.remove("update-detail-ready");
+        detailMenu.classList.remove("update-detail-opening");
+        detailMenu.style.display = "none";
+        detailMenu.setAttribute("aria-hidden", "true");
+        if (menu && getComputedStyle(menu).display === "none") menu.style.display = "flex";
+        syncMenuUpdates();
+    };
+
+    const openDetails = index => {
+        const detail = UPDATE_DETAILS[index];
+        if (!detail) return;
+        detailOpen = true;
+        version.textContent = detail.version;
+        title.textContent = detail.title;
+        body.textContent = detail.body;
+        detailMenu.classList.remove("update-detail-ready");
+        detailMenu.classList.remove("update-detail-opening");
+        detailMenu.style.display = "flex";
+        detailMenu.setAttribute("aria-hidden", "false");
+        void detailMenu.offsetWidth;
+        detailMenu.classList.add("update-detail-opening");
+        window.setTimeout(() => {
+            if (detailOpen) detailMenu.classList.add("update-detail-ready");
+        }, 30);
+    };
+
+    const attachCard = card => {
+        const index = Number(card.dataset.updateIndex);
+        const activate = event => {
+            if (event.type === "keydown" && event.code !== "Enter" && event.code !== "Space") return;
+            event.preventDefault();
+            event.stopPropagation();
+            openDetails(index);
+        };
+        card.addEventListener("click", activate);
+        card.addEventListener("keydown", activate);
+    };
+
+    updates.querySelectorAll(".menuUpdate").forEach(attachCard);
+    backButton.addEventListener("click", closeDetails);
+    backButton.addEventListener("pointerup", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeDetails(event);
+    });
+    detailMenu.addEventListener("click", event => {
+        if (event.target === detailMenu) closeDetails(event);
+    });
+    document.addEventListener("keydown", event => {
+        if (event.code === "Escape" && detailOpen) closeDetails(event);
+    });
 }
 
 function getSavedVersion() {
@@ -345,6 +560,7 @@ injectMenuAnimations();
 syncMenuUpdates();
 createVersionPicker();
 setupSeedBackButton();
+setupUpdateDetails();
 watchSeedMenu();
 
 if (menu && updates) {
