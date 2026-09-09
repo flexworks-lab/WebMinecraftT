@@ -9,14 +9,87 @@ const pendingWorldChanges = new Map();
 const PRODUCTION_SERVER_URL = "wss://webminecraft-server.onrender.com/multiplayer";
 const PRODUCTION_API_URL = "https://webminecraft-server.onrender.com";
 
-
 function queueWorldChange(change) {
     const x=Math.floor(Number(change?.x)), y=Math.floor(Number(change?.y)), z=Math.floor(Number(change?.z)), type=Math.floor(Number(change?.type));
     if (![x,y,z,type].every(Number.isFinite)) return;
     pendingWorldChanges.set(`${x},${y},${z}`, {x,y,z,type});
 }
+
 function applyPendingWorldChanges() {
     for (const [key,c] of pendingWorldChanges) if (setBlockAt(c.x,c.y,c.z,c.type)) pendingWorldChanges.delete(key);
+}
+
+function ensureChatUI() {
+    if (document.getElementById("multiplayerChat")) return;
+
+    const style = document.createElement("style");
+    style.id = "multiplayerChatStyles";
+    style.textContent = `
+        #multiplayerChat{position:fixed;top:12px;left:12px;width:min(380px,calc(100vw - 24px));z-index:180;display:none;font-family:Arial,sans-serif;text-shadow:1px 1px 2px #000;pointer-events:none}
+        #multiplayerChatFeed{box-sizing:border-box;max-height:230px;overflow-y:auto;padding:8px 9px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.16);scrollbar-width:thin}
+        .multiplayerChatLine{font-size:13px;line-height:1.4;color:#fff;overflow-wrap:anywhere;margin:2px 0}
+        .multiplayerChatSystem{color:#c6c6c6;font-style:italic}
+        .multiplayerChatName{font-weight:700}
+        #multiplayerChatInput{box-sizing:border-box;width:100%;height:34px;margin-top:6px;padding:6px 9px;background:rgba(0,0,0,.72);color:#fff;border:1px solid rgba(255,255,255,.2);outline:none;pointer-events:auto;font:13px Arial,sans-serif}
+        #multiplayerChatInput::placeholder{color:#aaa}
+    `;
+    document.head.appendChild(style);
+
+    const chat = document.createElement("div");
+    chat.id = "multiplayerChat";
+    chat.innerHTML = `
+        <div id="multiplayerChatFeed" aria-live="polite"></div>
+        <input id="multiplayerChatInput" maxlength="120" autocomplete="off" placeholder="Press Enter to chat...">
+    `;
+    document.body.appendChild(chat);
+
+    const feed = chat.querySelector("#multiplayerChatFeed");
+    const input = chat.querySelector("#multiplayerChatInput");
+
+    window.__webminecraftChatAdd = (text, system = false, name = "") => {
+        const line = document.createElement("div");
+        line.className = `multiplayerChatLine${system ? " multiplayerChatSystem" : ""}`;
+        if (system) {
+            line.textContent = text;
+        } else {
+            const label = document.createElement("span");
+            label.className = "multiplayerChatName";
+            label.textContent = `${name}: `;
+            line.appendChild(label);
+            line.appendChild(document.createTextNode(text));
+        }
+        feed.appendChild(line);
+        while (feed.children.length > 30) feed.firstElementChild.remove();
+        feed.scrollTop = feed.scrollHeight;
+    };
+
+    window.__webminecraftChatShow = () => { chat.style.display = "block"; };
+    window.__webminecraftChatHide = () => { chat.style.display = "none"; input.blur(); };
+
+    input.addEventListener("keydown", event => {
+        event.stopPropagation();
+        if (event.key === "Enter") {
+            const text = input.value.trim();
+            if (text && isMultiplayerActive()) {
+                try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}
+            }
+            input.value = "";
+            input.blur();
+            event.preventDefault();
+        } else if (event.key === "Escape") {
+            input.value = "";
+            input.blur();
+            event.preventDefault();
+        }
+    });
+}
+
+function openChatInput() {
+    if (!isMultiplayerActive()) return;
+    ensureChatUI();
+    window.__webminecraftChatShow?.();
+    const input = document.getElementById("multiplayerChatInput");
+    input?.focus();
 }
 
 function makeStyle() {
@@ -80,6 +153,8 @@ function startSharedWorld(worldSeed) {
     seedInput.value = String(worldSeed >>> 0);
     window.__webminecraftMultiplayerActive = true;
     window.__webminecraftMultiplayerPlayerId = localPlayerId;
+    ensureChatUI();
+    window.__webminecraftChatShow?.();
     if (overlay) {
         overlay.style.display = "none";
         overlay.setAttribute("aria-hidden", "true");
@@ -271,6 +346,7 @@ function ensureMenu() {
         localPlayerId = null;
         window.__webminecraftMultiplayerActive = false;
         window.__webminecraftMultiplayerPlayerId = null;
+        window.__webminecraftChatHide?.();
         overlay.style.display = "none";
         overlay.setAttribute("aria-hidden", "true");
         showServerView();
@@ -334,10 +410,28 @@ function ensureMenu() {
             } else if (message.type === "block_change") {
                 queueWorldChange(message);
                 applyPendingWorldChanges();
+            } else if (message.type === "chat_system") {
+                ensureChatUI();
+                window.__webminecraftChatShow?.();
+                window.__webminecraftChatAdd?.(String(message.text || ""), true);
+            } else if (message.type === "chat_message") {
+                ensureChatUI();
+                window.__webminecraftChatShow?.();
+                window.__webminecraftChatAdd?.(String(message.text || ""), false, String(message.name || "Player"));
             } else if (message.type === "player_joined") {
                 if (message.player?.id && message.player.id !== localPlayerId) remotePlayers.set(message.player.id, message.player);
             } else if (message.type === "player_left") {
                 if (message.playerId) remotePlayers.delete(message.playerId);
+            } else if (message.type === "world_sync") {
+                if (Number.isFinite(Number(message.worldSeed))) {
+                    const currentSeed = Number(message.worldSeed) >>> 0;
+                    if (currentSeed !== 0) {
+                        const seedInput = document.getElementById("seedInput");
+                        if (seedInput && Number(seedInput.value) !== currentSeed) seedInput.value = String(currentSeed);
+                    }
+                }
+                for (const change of message.worldChanges || []) queueWorldChange(change);
+                applyPendingWorldChanges();
             } else if (message.type === "player_states") {
                 for (const player of message.players || []) {
                     if (player.id === localPlayerId) continue;
@@ -354,6 +448,7 @@ function ensureMenu() {
             if (window.__webminecraftMultiplayerActive) {
                 setStatus("Disconnected from server.", true);
             }
+            window.__webminecraftChatHide?.();
             joinButton.disabled = false;
             joinButton.textContent = "Join Room";
             socket = null;
@@ -367,6 +462,15 @@ function ensureMenu() {
     backButton.addEventListener("click", () => {
         if (roomView.style.display !== "none") showServerView();
         else closeMenu();
+    });
+
+    window.addEventListener("keydown", event => {
+        if ((event.key === "Enter" || event.key.toLowerCase() === "t") && !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) {
+            if (isMultiplayerActive()) {
+                event.preventDefault();
+                openChatInput();
+            }
+        }
     });
 
     window.addEventListener("beforeunload", () => {
