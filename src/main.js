@@ -116,6 +116,7 @@ applySettings();
 
 const mainMenu = document.getElementById("mainMenu");
 const playButton = document.getElementById("playButton");
+const multiplayerButton = document.getElementById("multiplayerButton");
 const menuSettingsButton = document.getElementById("menuSettingsButton");
 const seedMenu = document.getElementById("seedMenu");
 const seedInput = document.getElementById("seedInput");
@@ -254,6 +255,15 @@ if (playButton && mainMenu) {
         openSeedMenu("create");
     });
 }
+if (multiplayerButton) multiplayerButton.addEventListener("click", async event => {
+    event.preventDefault(); event.stopPropagation();
+    try {
+        const { openMultiplayerMenu } = await import("./multiplayerClient.js");
+        openMultiplayerMenu();
+    } catch (error) {
+        console.error("Failed to open multiplayer menu:", error);
+    }
+});
 if (openSeedButton) openSeedButton.addEventListener("click", event => {
     event.preventDefault(); event.stopPropagation();
     openSeedMenu("open");
