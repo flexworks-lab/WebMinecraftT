@@ -6,7 +6,7 @@ export let isFlying = false;
 
 export function resetView(newYaw = 0, newPitch = 0) { yaw = newYaw; pitch = newPitch; }
 
-export const touchInput = { moveX: 0, moveZ: 0, jump: false, sprint: false, breakPressed: false, punchPressed: false, placePressed: false, lookActive: false, blockTouchActive: false, blockTouchStarted: 0 };
+export const touchInput = { moveX: 0, moveZ: 0, jump: false, sprint: false, breakPressed: false, punchPressed: false, placePressed: false, lookActive: false, blockTouchActive: false, blockTouchStarted: 0, blockTouchX: 0.5, blockTouchY: 0.5 };
 let joystickPointer = null, lookPointer = null, blockTouchPointer = null, joystickCenterX = 0, joystickCenterY = 0, lookLastX = 0, lookLastY = 0;
 let blockTouchStartX = 0, blockTouchStartY = 0;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -54,6 +54,8 @@ function createTouchControls() {
         blockTouchPointer = event.pointerId;
         blockTouchStartX = event.clientX;
         blockTouchStartY = event.clientY;
+        touchInput.blockTouchX = event.clientX / Math.max(window.innerWidth, 1);
+        touchInput.blockTouchY = event.clientY / Math.max(window.innerHeight, 1);
         touchInput.blockTouchActive = true;
         touchInput.blockTouchStarted = performance.now();
         lookLastX = event.clientX;
