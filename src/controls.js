@@ -1,3 +1,5 @@
+import "./auth.js";
+
 export const keys = {};
 
 export let yaw = 0;
