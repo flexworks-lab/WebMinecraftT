@@ -31,7 +31,14 @@ function makeWorldSeed() {
     }
 }
 
-export const WORLD_SEED = makeWorldSeed();
+let WORLD_SEED = makeWorldSeed();
+
+export function setWorldSeed(seed) {
+    const numeric = Number(seed);
+    if (!Number.isFinite(numeric)) return WORLD_SEED;
+    WORLD_SEED = (Math.floor(Math.abs(numeric)) >>> 0);
+    return WORLD_SEED;
+}
 const chunks = new Map();
 const chunkMeshes = new Map();
 const generationQueue = [];
