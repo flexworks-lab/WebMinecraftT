@@ -229,7 +229,16 @@ const sunFollowDistance = 8;
 const panoramaAngle = Math.random() * Math.PI * 2;
 const panoramaDistance = 48 + Math.random() * 112;
 const panoramaCenter = new THREE.Vector3(Math.round(Math.cos(panoramaAngle) * panoramaDistance / 16) * 16, 10, Math.round(Math.sin(panoramaAngle) * panoramaDistance / 16) * 16);
-const panoramaCamera = { position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z), targetY: 16, angle: Math.random() * Math.PI * 2, speed: 0.035, swayX: 0, swayY: 0 };
+const panoramaCamera = { position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z), targetY: 16, angle: Math.random() * Math.PI * 2, speed: 0.035, swayX: 0, swayY: 0, safeHeight: null };
+function getMenuCameraHeight() {
+    const x = Math.floor(panoramaCamera.position.x);
+    const z = Math.floor(panoramaCamera.position.z);
+    const types = getBlockTypes();
+    for (let y = 94; y >= -31; y--) {
+        if (getBlockAt(x, y, z) !== types.AIR) return y + 4.5;
+    }
+    return 32;
+}
 function updateMenuCamera(deltaTime) {
     if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
     panoramaCamera.angle += panoramaCamera.speed * deltaTime;
@@ -237,6 +246,12 @@ function updateMenuCamera(deltaTime) {
     menuLook.y = THREE.MathUtils.lerp(menuLook.y, menuLook.targetY, Math.min(deltaTime * 2.5, 1));
     panoramaCamera.swayX = THREE.MathUtils.lerp(panoramaCamera.swayX, menuLook.x, Math.min(deltaTime * 1.8, 1));
     panoramaCamera.swayY = THREE.MathUtils.lerp(panoramaCamera.swayY, menuLook.y, Math.min(deltaTime * 1.8, 1));
+    updateChunkVisibility(panoramaCamera.position, camera);
+    if (panoramaCamera.safeHeight === null) {
+        panoramaCamera.safeHeight = getMenuCameraHeight();
+        panoramaCamera.position.y = Math.max(20, panoramaCamera.safeHeight);
+        panoramaCamera.targetY = Math.max(16, panoramaCamera.position.y - 10);
+    }
     camera.position.copy(panoramaCamera.position);
     const lookDistance = 40;
     const mouseYaw = panoramaCamera.swayX * 0.12;
@@ -245,7 +260,6 @@ function updateMenuCamera(deltaTime) {
     const lookTarget = new THREE.Vector3(panoramaCamera.position.x + Math.sin(lookAngle) * lookDistance, panoramaCamera.targetY - mousePitch * lookDistance, panoramaCamera.position.z + Math.cos(lookAngle) * lookDistance);
     camera.up.set(0, 1, 0);
     camera.lookAt(lookTarget);
-    updateChunkVisibility(camera.position, camera);
     updateDepthLighting();
 }
 function updateSunPosition() {
