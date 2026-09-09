@@ -39,6 +39,14 @@ export function setWorldSeed(seed) {
     WORLD_SEED = (Math.floor(Math.abs(numeric)) >>> 0);
     return WORLD_SEED;
 }
+
+export function createNewWorldSeed() {
+    const seed = makeWorldSeed();
+    setWorldSeed(seed);
+    if (worldScene) createWorld(worldScene);
+    return seed;
+}
+
 const chunks = new Map();
 const chunkMeshes = new Map();
 const generationQueue = [];
@@ -208,7 +216,6 @@ function getTerrainProfile(x, z) {
     baseHeight += mountainMask * mountainMask * 32;
     baseHeight += (detail - 0.5) * 5;
 
-    // Much smaller and rarer oceans.
     const oceanMask = Math.max(0, 0.22 - continentalness) / 0.22;
     baseHeight -= oceanMask * 6;
 
@@ -253,8 +260,6 @@ function getUnderwaterBlock(x, y, z, surfaceY) {
     const surfaceRoll = hash3D(x, y, z, 1701);
     const blockRoll = hash3D(x, y, z, 1707);
 
-    // Underwater terrain is always a mix of dirt, sand and stone.
-    // Dirt is intentionally the most common material.
     if (depth <= 0) {
         if (surfaceRoll < 0.62) return BLOCK.DIRT;
         if (surfaceRoll < 0.88) return BLOCK.SAND;
@@ -267,7 +272,6 @@ function getUnderwaterBlock(x, y, z, surfaceY) {
         return BLOCK.STONE;
     }
 
-    // Deeper ocean floors still contain dirt and sand, but become more stone-heavy.
     if (blockRoll < 0.42) return BLOCK.DIRT;
     if (blockRoll < 0.66) return BLOCK.SAND;
     return chooseStoneVariant(x, y, z, surfaceY);
@@ -277,9 +281,7 @@ function getSurfaceBlock(biome, y, surfaceY, x, z) {
     const submerged = surfaceY < SEA_LEVEL;
     const beach = !submerged && surfaceY <= SEA_LEVEL + 2;
 
-    if (submerged) {
-        return getUnderwaterBlock(x, y, z, surfaceY);
-    }
+    if (submerged) return getUnderwaterBlock(x, y, z, surfaceY);
 
     if (biome === "desert") {
         if (y >= surfaceY - 4) return BLOCK.SAND;
@@ -499,7 +501,6 @@ function getUnderwaterShade(x, y, z) {
     const surfaceY = getTerrainProfile(x, z).height;
     if (surfaceY >= SEA_LEVEL || y > surfaceY) return 1;
 
-    // Every solid block below an ocean/lake surface is darkened.
     const depth = Math.max(0, SEA_LEVEL - (y + 0.5));
     const depthT = THREE.MathUtils.clamp(depth / 24, 0, 1);
     const shade = THREE.MathUtils.lerp(1, 0.43, depthT);
@@ -829,3 +830,34 @@ export function getPerformanceStats() {
 
 export function getBlockTypes() { return { ...BLOCK }; }
 export function getWorldSeed() { return WORLD_SEED; }
+
+function installSeedHooks() {
+    const playButton = document.getElementById("playButton");
+    const openWorldButton = document.getElementById("openWorldButton");
+    if (!playButton || !openWorldButton) return;
+    if (playButton.dataset.seedHookInstalled) return;
+    playButton.dataset.seedHookInstalled = "1";
+
+    playButton.addEventListener("click", () => {
+        createNewWorldSeed();
+    }, { capture: true });
+
+    openWorldButton.addEventListener("click", () => {
+        const seed = WORLD_SEED >>> 0;
+        let state = (seed ^ 0x9e3779b9) >>> 0;
+        const originalRandom = Math.random;
+        Math.random = () => {
+            state ^= state << 13;
+            state ^= state >>> 17;
+            state ^= state << 5;
+            state >>>= 0;
+            return state / 4294967296;
+        };
+        setTimeout(() => { Math.random = originalRandom; }, 0);
+    }, { capture: true });
+}
+
+if (typeof document !== "undefined") {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", installSeedHooks, { once: true });
+    else installSeedHooks();
+}
