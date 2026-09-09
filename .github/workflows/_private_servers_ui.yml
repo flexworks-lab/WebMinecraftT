@@ -1,0 +1,98 @@
+name: Add private server choice
+on:
+  push:
+    paths:
+      - .github/workflows/_private_servers_ui.yml
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Patch server and multiplayer UI
+        shell: python
+        run: |
+          from pathlib import Path
+
+          server = Path('server/server.js')
+          s = server.read_text()
+
+          s = s.replace('''function createRoom(id, ownerName = "Player") {\n    return {\n        id,\n        name: id,\n        ownerName,\n        players: new Map(),''', '''function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "") {\n    return {\n        id,\n        name: id,\n        ownerName,\n        isPrivate: Boolean(isPrivate),\n        privateCode: privateCode || (isPrivate ? String(Math.floor(100000 + Math.random() * 900000)) : ""),\n        players: new Map(),''')
+
+          s = s.replace('''function getOrCreateRoom(id, ownerName = "Player") {\n    let room = rooms.get(id);\n    if (room) return room;\n    if (rooms.size >= MAX_ROOMS) return null;\n    room = createRoom(id, ownerName);''', '''function getOrCreateRoom(id, ownerName = "Player", isPrivate = false) {\n    let room = rooms.get(id);\n    if (room) return room;\n    if (rooms.size >= MAX_ROOMS) return null;\n    room = createRoom(id, ownerName, isPrivate);''')
+
+          s = s.replace('''function publicRoom(room) {\n    return {\n        id: room.id,\n        name: room.name,\n        owner: room.ownerName,''', '''function publicRoom(room) {\n    return {\n        id: room.id,\n        name: room.name,\n        owner: room.ownerName,''')
+
+          s = s.replace('''            createdAt: room.createdAt,\n    };\n}''', '''            createdAt: room.createdAt,\n        private: Boolean(room.isPrivate),\n    };\n}''', 1)
+
+          old_join = '''        const roomId = sanitizeRoom(message.room);\n        const safeName = sanitizeName(message.name);\n        const room = getOrCreateRoom(roomId, safeName);\n        if (!room) {'''
+          new_join = '''        const roomId = sanitizeRoom(message.room);\n        const safeName = sanitizeName(message.name);\n        const wantsPrivate = Boolean(message.private);\n        const suppliedCode = String(message.privateCode ?? "").trim().slice(0, 16);\n        let room = rooms.get(roomId);\n        if (room && room.isPrivate && suppliedCode !== room.privateCode) {\n            send(ws, { type: "error", code: "private_code_required", message: "This is a private server. Enter the correct private code." });\n            ws.close();\n            return;\n        }\n        room = getOrCreateRoom(roomId, safeName, wantsPrivate);\n        if (!room) {'''
+          if old_join not in s:
+              raise SystemExit('join block not found')
+          s = s.replace(old_join, new_join, 1)
+
+          old_joined = '''            ownerName: room.ownerName,\n            worldSeed: room.worldSeed,'''
+          new_joined = '''            ownerName: room.ownerName,\n            private: Boolean(room.isPrivate),\n            privateCode: room.isPrivate && room.ownerName === safeName ? room.privateCode : "",\n            worldSeed: room.worldSeed,'''
+          if old_joined not in s:
+              raise SystemExit('joined payload not found')
+          s = s.replace(old_joined, new_joined, 1)
+
+          old_servers = '''                rooms: [...rooms.values()].map(publicRoom),'''
+          new_servers = '''                rooms: [...rooms.values()].filter(room => !room.isPrivate).map(publicRoom),'''
+          if old_servers not in s:
+              raise SystemExit('server list block not found')
+          s = s.replace(old_servers, new_servers, 1)
+          server.write_text(s)
+
+          client = Path('src/multiplayerClient.js')
+          c = client.read_text()
+
+          c = c.replace('''        #multiplayerSelected{padding:10px 12px;background:#1a1a1a;border:1px solid #444;color:#ccc;font-size:11px;line-height:1.5}\n        #multiplayerRefresh{margin-bottom:5px;width:100%}''', '''        #multiplayerSelected{padding:10px 12px;background:#1a1a1a;border:1px solid #444;color:#ccc;font-size:11px;line-height:1.5}\n        #multiplayerServerType{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}\n        .multiplayerTypeButton{padding:11px;background:#303030;color:#bbb;border:2px solid #111;border-top-color:#777;border-left-color:#777;cursor:pointer;font-family:"MinecraftFont",monospace;font-size:11px}\n        .multiplayerTypeButton.selected{background:#45543a;color:#fff;border-color:#83a15f}\n        #multiplayerPrivateCode{display:none}\n        #multiplayerPrivateCode.visible{display:block}\n        #multiplayerRefresh{margin-bottom:5px;width:100%}''')
+
+          c = c.replace('''                <div class="multiplayerField"><label for="multiplayerRoom">Room Name</label><input id="multiplayerRoom" maxlength="32" autocomplete="off" placeholder="default"></div>\n                <div class="multiplayerField"><label for="multiplayerServer">Server Address</label><input id="multiplayerServer" autocomplete="off" placeholder="ws://localhost:2567"></div>\n                <div class="multiplayerHint">Pick an existing room above, or type a new room name to create one when you join.</div>''', '''                <div class="multiplayerField"><label for="multiplayerRoom">Server Name</label><input id="multiplayerRoom" maxlength="32" autocomplete="off" placeholder="MyWorld"></div>\n                <div id="multiplayerServerType" role="group" aria-label="Server type">\n                    <button id="multiplayerPublic" class="multiplayerTypeButton selected" type="button">PUBLIC</button>\n                    <button id="multiplayerPrivate" class="multiplayerTypeButton" type="button">PRIVATE</button>\n                </div>\n                <div id="multiplayerPrivateCode" class="multiplayerField"><label for="multiplayerPrivateCodeInput">Private Code</label><input id="multiplayerPrivateCodeInput" maxlength="16" autocomplete="off" placeholder="Enter code or leave blank to create"></div>\n                <div class="multiplayerField"><label for="multiplayerServer">Server Address</label><input id="multiplayerServer" autocomplete="off" placeholder="ws://localhost:2567"></div>\n                <div class="multiplayerHint">Public servers appear in the server list. Private servers stay hidden and can only be joined with their private code.</div>''')
+
+          c = c.replace('''    const serverInput = overlay.querySelector("#multiplayerServer");\n    const status = overlay.querySelector("#multiplayerStatus");''', '''    const serverInput = overlay.querySelector("#multiplayerServer");\n    const publicButton = overlay.querySelector("#multiplayerPublic");\n    const privateButton = overlay.querySelector("#multiplayerPrivate");\n    const privateCodeWrap = overlay.querySelector("#multiplayerPrivateCode");\n    const privateCodeInput = overlay.querySelector("#multiplayerPrivateCodeInput");\n    const status = overlay.querySelector("#multiplayerStatus");''')
+
+          c = c.replace('''    let selectedServer = null;\n    let serverData = [];''', '''    let selectedServer = null;\n    let serverData = [];\n    let selectedPrivate = false;''')
+
+          marker = '''    const setStatus = (text, error = false) => {\n        status.textContent = text;\n        status.style.color = error ? "#e38a7b" : "#9fce72";\n    };'''
+          replacement = marker + '''\n\n    const setServerType = isPrivate => {\n        selectedPrivate = Boolean(isPrivate);\n        publicButton.classList.toggle("selected", !selectedPrivate);\n        privateButton.classList.toggle("selected", selectedPrivate);\n        privateCodeWrap.classList.toggle("visible", selectedPrivate);\n        if (!selectedPrivate) privateCodeInput.value = "";\n    };\n\n    publicButton.addEventListener("click", () => setServerType(false));\n    privateButton.addEventListener("click", () => setServerType(true));'''
+          if marker not in c:
+              raise SystemExit('status marker not found')
+          c = c.replace(marker, replacement, 1)
+
+          c = c.replace('''        selectedServer = null;\n        roomView.style.display = "none";''', '''        selectedServer = null;\n        setServerType(false);\n        roomView.style.display = "none";''', 1)
+
+          c = c.replace('''        serverInput.value = server.websocket || defaultServerUrl();\n        selectedInfo.innerHTML''', '''        serverInput.value = server.websocket || defaultServerUrl();\n        setServerType(false);\n        privateCodeInput.value = "";\n        selectedInfo.innerHTML''', 1)
+
+          old_connect = '''        const room = (roomInput.value.trim() || "default").slice(0, 32);\n        if (!address) return setStatus("Enter a server address.", true);'''
+          new_connect = '''        const room = (roomInput.value.trim() || "default").slice(0, 32);\n        const privateCode = privateCodeInput.value.trim().slice(0, 16);\n        if (!address) return setStatus("Enter a server address.", true);'''
+          if old_connect not in c:
+              raise SystemExit('connect variables not found')
+          c = c.replace(old_connect, new_connect, 1)
+
+          old_send = '''                type: "join",\n                room,\n                name,\n                position: { x: 0, y: 0, z: 0 },'''
+          new_send = '''                type: "join",\n                room,\n                name,\n                private: selectedPrivate,\n                privateCode,\n                position: { x: 0, y: 0, z: 0 },'''
+          if old_send not in c:
+              raise SystemExit('join send block not found')
+          c = c.replace(old_send, new_send, 1)
+
+          old_status = '''                setStatus(`Joined room "${message.room}". Players: ${message.players?.length || 1}.`);\n                joinButton.textContent = "Connected";'''
+          new_status = '''                const privateInfo = message.private ? ` · Private code: ${message.privateCode || "use the code you entered"}` : " · Public";\n                setStatus(`Joined server "${message.serverName || message.room}". Players: ${message.players?.length || 1}${privateInfo}.`);\n                joinButton.textContent = "Connected";'''
+          if old_status not in c:
+              raise SystemExit('joined status block not found')
+          c = c.replace(old_status, new_status, 1)
+
+          client.write_text(c)
+
+      - name: Commit changes and remove patch workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/_private_servers_ui.yml
+          git add server/server.js src/multiplayerClient.js .github/workflows
+          git commit -m "Add public and private multiplayer servers"
+          git push
