@@ -28,7 +28,6 @@
         #mobileModeButton { margin-top:8px; }
         #menuFooter { position:fixed; left:9px; bottom:7px; text-align:left; color:#fff; font-family:"MinecraftFont",monospace; font-size:10px; line-height:1.4; text-shadow:2px 2px 0 #222; z-index:2; }
         #menuCopyright { position:fixed; right:9px; bottom:7px; color:rgba(255,255,255,.92); font-family:Arial,sans-serif; font-size:10px; text-shadow:1px 1px 0 #222; z-index:2; }
-
         #seedMenu { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:#171717; z-index:200; }
         #seedPanel { position:relative; width:100vw; height:100vh; min-height:100vh; padding:clamp(32px,7vh,90px) clamp(22px,7vw,110px); display:flex; flex-direction:column; justify-content:center; text-align:center; color:white; background:linear-gradient(180deg,#252525 0%,#1b1b1b 100%); border:0; box-shadow:none; font-family:Arial,sans-serif; }
         #seedTitle { margin:0 0 12px; font-family:"MinecraftFont",monospace; font-size:clamp(34px,5vw,58px); text-shadow:3px 3px 0 #000; }
@@ -102,10 +101,9 @@
             </div>
         </div>
     </div>
-
     <div id="seedMenu" aria-hidden="true">
         <div id="seedPanel" role="dialog" aria-modal="true" aria-labelledby="seedTitle">
-            <div id="seedBackWrap"><button id="backSeedButton" class="seedButton" type="button">← Back</button></div>
+            <div id="seedBackWrap"><button id="backSeedButton" class="seedButton" type="button" onclick="document.getElementById('seedMenu').style.display='none';document.getElementById('seedMenu').setAttribute('aria-hidden','true');">← Back</button></div>
             <h2 id="seedTitle">Create World</h2>
             <p id="seedSubtitle">Your world seed is below. Copy it to share the exact same world later.</p>
             <input id="seedInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="World seed">
@@ -117,20 +115,17 @@
             <div id="seedLinkStatus" aria-live="polite"></div>
         </div>
     </div>
-
     <aside id="menuUpdates" aria-label="Latest updates">
         <h2 id="menuUpdatesTitle">Latest Updates</h2>
         <article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • World</div><div class="menuUpdateText">Randomized terrain, biomes, trees, caves, and improved water.</div></article>
         <article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • Mobile</div><div class="menuUpdateText">Minecraft-style touch controls and automatic device detection.</div></article>
         <article class="menuUpdate"><div class="menuUpdateVersion">Latest</div><div class="menuUpdateText">Settings now save automatically with a quick “Saved” notification.</div></article>
     </aside>
-
     <div id="menuFooter">WebMinecraftT<br>v1.0</div>
     <div id="menuCopyright">WebMinecraftT</div>
     <div id="crosshair">+</div>
     <div id="hotbar"><div class="slot selected">1<br>Grass</div><div class="slot">2<br>Dirt</div><div class="slot">3<br>Stone</div><div class="slot">4<br>Sand</div><div class="slot">5<br>Oak</div><div class="slot">6<br>Leaves</div><div class="slot">7<br>Grass</div><div class="slot">8<br>Dirt</div><div class="slot">9<br>Stone</div></div>
     <button id="settingsButton" aria-label="Settings">⚙</button>
-
     <div id="settingsMenu">
         <div id="settingsPanel">
             <aside id="settingsSidebar"><h1>Settings</h1><p id="settingsSubtitle">Customize how WebMinecraftT looks and runs.</p><div id="settingsTabs"><button class="settingsTab active" type="button">Graphics</button><button class="settingsTab" type="button">Video</button><button class="settingsTab" type="button">Accessibility</button></div><div id="settingsVersion">WebMinecraftT<br>Graphics & Performance</div></aside>
@@ -144,7 +139,6 @@
             </section>
         </div>
     </div>
-
     <script>
         const menuTips=["Never dig straight down!","Watch your step around cliffs.","Trees are a great early source of wood.","You can sprint while moving forward.","Caves can hide valuable ores.","Water can save you from a long fall.","Keep some blocks handy for building.","A good shelter is better than no shelter.","Explore different biomes to find new terrain.","You can fly with F.","Leaves make trees look much better with texture.","Sometimes the best view is from a mountain."];
         const menuSplash=document.getElementById("menuSplash"); if(menuSplash) menuSplash.textContent=menuTips[Math.floor(Math.random()*menuTips.length)];
