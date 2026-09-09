@@ -1,6 +1,8 @@
 let overlay = null;
 let socket = null;
 
+const PRODUCTION_SERVER_URL = "wss://webminecraft-server.onrender.com/multiplayer";
+
 function makeStyle() {
     if (document.getElementById("multiplayerMenuStyles")) return;
     const style = document.createElement("style");
@@ -27,7 +29,7 @@ function makeStyle() {
 function defaultServerUrl() {
     const hostname = window.location.hostname || "localhost";
     if (hostname === "localhost" || hostname === "127.0.0.1") return `ws://${hostname}:2567`;
-    return "";
+    return PRODUCTION_SERVER_URL;
 }
 
 function ensureMenu() {
