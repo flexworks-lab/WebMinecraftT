@@ -1,58 +1,124 @@
- https://flexworks-lab.github.io/WebMinecraftT/
+<div align="center">
 
-# WebMinecraftT Beta ⛏️
+# ⛏️ WebMinecraftT Beta
 
-> **A lightweight, voxel-based sandbox engine built for the browser.**
+### A Minecraft-style voxel game that runs right in your browser.
 
-**WebMinecraftT Beta** brings the classic block-building and exploration experience directly to your web browser with zero downloads required. Built with modern web technologies, it features procedural terrain generation, dynamic block placement, a first-person physics engine, multiplayer servers, and in-game chat.
+[**▶ Play WebMinecraftT**](https://flexworks-lab.github.io/WebMinecraftT/)
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-Beta-orange.svg)
-![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![Beta](https://img.shields.io/badge/STATUS-BETA-orange?style=for-the-badge)
+![Build](https://img.shields.io/badge/BUILD-PASSING-brightgreen?style=for-the-badge)
+![License](https://img.shields.io/badge/LICENSE-MIT-blue?style=for-the-badge)
+
+</div>
 
 ---
 
-## 🌟 Features
+## 🌎 What is WebMinecraftT?
 
-* **Zero-Install Gaming:** Jump into a world instantly. No launchers, no installations, just browser-based gameplay.
-* **Procedural Terrain Generation:** Seed-based voxel worlds with terrain, caves, trees, water, and exploration.
-* **Seamless Block Interaction:** Dig, mine, and build with live world updates.
-* **Smooth FPS Controls:** First-person camera movement and custom physics for natural movement.
-* **Multiplayer Servers:** Join existing servers or make your own named server and play in the same world with other players.
-* **Server Chat:** Talk to everyone in your multiplayer server with in-game chat.
-* **Private Servers:** Private servers appear in the server list and require a private code to join.
-* **Mobile Support:** Use mobile controls for playing on phones and tablets.
-* **Highly Optimized:** Built with Three.js and WebGL for efficient browser rendering.
+**WebMinecraftT Beta** is a browser-based voxel sandbox focused on exploring, building, and playing with friends — without needing to download anything.
+
+Create a world, explore procedural terrain, break and place blocks, or jump into multiplayer and build together.
+
+---
+
+## ✨ Features
+
+| 🌱 Worlds | 🎮 Gameplay | 🌐 Multiplayer |
+|---|---|---|
+| Seeded generation | First-person movement | Named servers |
+| Caves & terrain | Block breaking | Shared worlds |
+| Trees & water | Sprinting & jumping | Server chat |
+| Reproducible seeds | Mobile controls | Private server codes |
+
+---
 
 ## 🎮 Controls
 
-The control scheme is designed to feel familiar to traditional first-person sandbox games:
+| Action | Input |
+|:--|:--:|
+| Move | `W A S D` |
+| Jump | `Space` |
+| Sprint | `Shift` |
+| Break block | `Left Click` |
+| Place block | `Right Click` |
+| Select block | `1 - 9` |
+| Pause / release mouse | `ESC` |
 
-| Action | Key / Input |
-| :--- | :--- |
-| **Move Forward** | `W` |
-| **Move Backward** | `S` |
-| **Move Left** | `A` |
-| **Move Right** | `D` |
-| **Jump** | `Spacebar` |
-| **Sprint** | `Shift` (Hold) |
-| **Destroy Block** | `Left Click` |
-| **Place Block** | `Right Click` |
-| **Select Block Type** | `1` - `9` |
-| **Pause / Release Mouse** | `ESC` |
+---
 
 ## 🌐 Multiplayer
 
-WebMinecraftT Beta includes browser-based multiplayer with named servers, live player movement, shared block changes, chat, and private server codes.
+Multiplayer lets you create or join a named server and play in the same world as other players.
 
-## 🚀 Installation & Local Development
+**Servers currently support:**
 
-Want to run WebMinecraftT Beta locally, tweak the engine, or contribute? Follow these steps to get your development environment set up.
+- 👥 Multiple players in one world
+- 🧱 Shared block changes
+- 💬 In-game server chat
+- 🔒 Private servers with join codes
+- 📋 Public and private servers in the server list
 
-### Prerequisites
-* [Node.js](https://nodejs.org/) (v16.0 or higher recommended)
-* Git
+---
 
-### Setup
-1. **Open website**
-   https://flexworks-lab.github.io/WebMinecraftT/
+## 🧪 Beta
+
+> WebMinecraftT is currently in **Beta**.
+
+The game is still being actively developed, so features may change, break, or get improved over time.
+
+---
+
+## 🚀 Play
+
+### Browser
+
+Just open the game:
+
+**https://flexworks-lab.github.io/WebMinecraftT/**
+
+No download. No launcher. Just play.
+
+### Local development
+
+```bash
+git clone https://github.com/flexworks-lab/WebMinecraftT.git
+cd WebMinecraftT
+npm install
+npm run dev
+```
+
+---
+
+## 🛠️ Built With
+
+- **Three.js** — 3D rendering
+- **Vite** — web development and builds
+- **Node.js + WebSocket** — multiplayer server
+- **Electron** — optional Windows desktop build
+
+---
+
+## 📁 Project
+
+```text
+WebMinecraftT/
+├── src/          Game source
+├── server/       Multiplayer server
+├── electron/     Desktop build
+├── public/       Static assets
+├── index.html    Main game page
+└── package.json  Project configuration
+```
+
+---
+
+<div align="center">
+
+### ⛏️ Build. Explore. Play together.
+
+**WebMinecraftT Beta**
+
+Made by **Flexworks Lab**
+
+</div>
