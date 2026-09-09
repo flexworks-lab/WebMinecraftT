@@ -35,9 +35,13 @@ function injectMenuAnimations() {
             from { opacity: 0; transform: translateX(-16px); }
             to { opacity: 1; transform: translateX(0); }
         }
-        @keyframes wmSeedIn {
-            from { opacity: 0; transform: scale(1.018); }
-            to { opacity: 1; transform: scale(1); }
+        @keyframes wmSeedScreenIn {
+            from { opacity: 0; transform: translateY(100%); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes wmSeedContentIn {
+            from { opacity: 0; transform: translateY(70px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         #menuPanel > * { opacity: 0; animation: wmMenuFadeUp .45s cubic-bezier(.2,.75,.25,1) forwards; }
@@ -92,22 +96,41 @@ function injectMenuAnimations() {
         #menuFooter:hover { transform: translateY(-2px); }
         #menuCopyright:hover { transform: translateY(-2px); }
 
-        #seedPanel { animation: wmSeedIn .22s ease-out both; }
-        #seedBackWrap, #seedTitle, #seedSubtitle, #seedInput, #seedActions, #seedLinkStatus { opacity: 0; animation: wmMenuFadeUp .4s cubic-bezier(.2,.75,.25,1) forwards; }
-        #seedBackWrap { animation-delay: .03s; }
-        #seedTitle { animation-delay: .07s; }
-        #seedSubtitle { animation-delay: .12s; }
-        #seedInput { animation-delay: .17s; }
-        #seedActions { animation-delay: .22s; }
-        #seedLinkStatus { animation-delay: .27s; }
+        /* The seed screen now rises from below the viewport as one full-screen surface. */
+        #seedMenu {
+            overflow: hidden;
+        }
+        #seedMenu.seed-menu-opening {
+            animation: wmSeedScreenIn .55s cubic-bezier(.16,.8,.24,1) both;
+        }
+        #seedMenu.seed-menu-opening #seedPanel {
+            animation: none;
+        }
+        #seedMenu.seed-menu-opening #seedBackWrap,
+        #seedMenu.seed-menu-opening #seedTitle,
+        #seedMenu.seed-menu-opening #seedSubtitle,
+        #seedMenu.seed-menu-opening #seedInput,
+        #seedMenu.seed-menu-opening #seedActions,
+        #seedMenu.seed-menu-opening #seedLinkStatus {
+            opacity: 0;
+            animation: wmSeedContentIn .42s cubic-bezier(.2,.75,.25,1) forwards;
+        }
+        #seedMenu.seed-menu-opening #seedBackWrap { animation-delay: .12s; }
+        #seedMenu.seed-menu-opening #seedTitle { animation-delay: .17s; }
+        #seedMenu.seed-menu-opening #seedSubtitle { animation-delay: .22s; }
+        #seedMenu.seed-menu-opening #seedInput { animation-delay: .27s; }
+        #seedMenu.seed-menu-opening #seedActions { animation-delay: .32s; }
+        #seedMenu.seed-menu-opening #seedLinkStatus { animation-delay: .37s; }
 
         #gameVersionPicker { transform-origin: bottom right; }
         #gameVersionPicker[style*="display: block"] { animation: wmMenuFadeUp .16s ease-out both; }
 
         @media (prefers-reduced-motion: reduce) {
             #menuPanel > *, #menuButtons .menuButton, #menuUpdates,
-            #seedPanel, #seedBackWrap, #seedTitle, #seedSubtitle,
-            #seedInput, #seedActions, #seedLinkStatus { animation: none !important; opacity: 1 !important; }
+            #seedMenu.seed-menu-opening, #seedMenu.seed-menu-opening #seedBackWrap,
+            #seedMenu.seed-menu-opening #seedTitle, #seedMenu.seed-menu-opening #seedSubtitle,
+            #seedMenu.seed-menu-opening #seedInput, #seedMenu.seed-menu-opening #seedActions,
+            #seedMenu.seed-menu-opening #seedLinkStatus { animation: none !important; opacity: 1 !important; }
             *, *::before, *::after { scroll-behavior: auto !important; }
         }
     `;
@@ -128,8 +151,12 @@ function watchSeedMenu() {
         if (open && !cleared) {
             clearWorld();
             cleared = true;
+            seedMenu.classList.remove("seed-menu-opening");
+            void seedMenu.offsetWidth;
+            seedMenu.classList.add("seed-menu-opening");
         } else if (!open) {
             cleared = false;
+            seedMenu.classList.remove("seed-menu-opening");
         }
     };
     const observer = new MutationObserver(syncSeedMenu);
@@ -146,13 +173,12 @@ function setupSeedBackButton() {
         event.preventDefault();
         event.stopPropagation();
         if (seedMenu) {
+            seedMenu.classList.remove("seed-menu-opening");
             seedMenu.style.display = "none";
             seedMenu.setAttribute("aria-hidden", "true");
         }
         if (menu) menu.style.display = "flex";
 
-        // The seed screen intentionally clears the menu preview world.
-        // Reloading the menu restores that preview without altering the selected seed.
         window.setTimeout(() => {
             window.location.reload();
         }, 80);
