@@ -9,6 +9,7 @@ const TICK_RATE = 20;
 const BROADCAST_INTERVAL = 1000 / TICK_RATE;
 const MAX_NAME_LENGTH = 16;
 const MAX_MESSAGE_SIZE = 16 * 1024;
+const MAX_CHAT_LENGTH = 120;
 
 const rooms = new Map();
 
@@ -39,6 +40,14 @@ function sanitizeName(value) {
         .replace(/[<>]/g, "")
         .slice(0, MAX_NAME_LENGTH);
     return name || "Player";
+}
+
+function sanitizeChat(value) {
+    return String(value ?? "")
+        .replace(/[<>]/g, "")
+        .replace(/[\r\n]+/g, " ")
+        .trim()
+        .slice(0, MAX_CHAT_LENGTH);
 }
 
 function numberOr(value, fallback = 0) {
@@ -298,11 +307,26 @@ function handleMessage(ws, raw, state) {
         });
 
         broadcast(room, { type: "player_joined", player: publicPlayer(player) }, player.id);
+        broadcast(room, { type: "chat_system", text: `${player.name} has joined the server` });
         return;
     }
 
     const player = state.player;
     if (!state.joined || !player) return;
+
+    if (message.type === "chat_message") {
+        const room = rooms.get(player.room);
+        if (!room) return;
+        const text = sanitizeChat(message.text);
+        if (!text) return;
+        broadcast(room, {
+            type: "chat_message",
+            playerId: player.id,
+            name: player.name,
+            text,
+        });
+        return;
+    }
 
     if (message.type === "block_change") {
         const x = Math.floor(numberOr(message.x, NaN));
@@ -320,7 +344,6 @@ function handleMessage(ws, raw, state) {
             if (oldest) room.blockChanges.delete(oldest);
         }
 
-        // Canonical live world update: every connected player receives it immediately.
         broadcast(room, { type: "block_change", x, y, z, type });
         send(ws, { type: "block_change_ack", x, y, z, type });
         return;
@@ -424,6 +447,7 @@ httpServer.on("upgrade", (request, socket) => {
         if (!room) return;
 
         room.players.delete(player.id);
+        broadcast(room, { type: "chat_system", text: `${player.name} has left the server` });
         broadcast(room, { type: "player_left", playerId: player.id });
         cleanRoom(room);
     });
