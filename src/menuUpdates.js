@@ -5,17 +5,19 @@ const menu = document.getElementById("mainMenu");
 const seedMenu = document.getElementById("seedMenu");
 
 const VERSION_KEY = "webminecraft-game-version";
-const VERSIONS = ["v1.0", "v1.1", "v1.2"];
+const VERSIONS = ["v1.0", "v1.1", "v1.2", "Beta"];
 
 const UPDATE_DETAILS = [
-    { version: "v1.2 • Multiplayer", title: "Multiplayer Servers", body: "Multiplayer is now available. Join an existing server, create your own named server, and play together with other players in the same world." },
-    { version: "v1.2 • Chat", title: "Server Chat", body: "Multiplayer now has an in-game chat in the top-left corner. Players can send messages to everyone in the server, and join messages appear automatically when someone enters." },
-    { version: "v1.2 • Server Making", title: "Make Your Own Server", body: "You can create your own named multiplayer server by entering a new server name when joining. The first player becomes the server owner, and friends can find the server in the multiplayer list." },
-    { version: "v1.2 • Live World", title: "Live World Changes", body: "Block changes are now shared between players in the same multiplayer server. Breaking or placing a block sends the change to everyone in the room so players can build and edit the same world together." },
-    { version: "v1.1 • World Seeds", title: "World Seeds", body: "World generation is now driven by the world seed. Terrain height, caves, biomes, trees, water, and the world spawn all use the same seed, so entering that seed again recreates the same generated world layout." },
-    { version: "v1.1 • Seed Links", title: "Shareable Seed Links", body: "Use Copy World Link to copy the current world URL with its seed attached. Opening that link loads the matching generated world, making it easy to share a specific world with someone else." },
-    { version: "Latest • World Screen", title: "Full-Screen World Screen", body: "Singleplayer now opens a dedicated full-screen world setup screen. You can edit the seed, copy the seed, copy a complete world link, open the world, or return to the main menu." },
-    { version: "Latest • Update Details", title: "Interactive Update Logs", body: "Every update log can be opened as a full-screen detail page. Select an update from the Latest Updates panel to read its expanded description, then use Back or Escape to return to the main menu." }
+    { version: "BETA • Multiplayer", title: "WebMinecraftT Beta", body: "WebMinecraftT is now in beta. Multiplayer servers, shared worlds, chat, private servers, mobile support, and more are being actively improved." },
+    { version: "BETA • Private Servers", title: "Private Servers", body: "Private servers now stay visible in the server list. You can select a private server and enter its private code before joining." },
+    { version: "BETA • Server List", title: "Server List Refresh", body: "The multiplayer server list now shows both public and private servers, making it easier to find a friend's world or choose a server to join." },
+    { version: "BETA • Shared World", title: "Live World Changes", body: "Breaking and placing blocks now syncs between players in the same multiplayer server so everyone can build in the same world." },
+    { version: "BETA • Chat", title: "Server Chat", body: "Multiplayer includes in-game chat with join messages so players can talk while they play together." },
+    { version: "v1.2 • Server Making", title: "Make Your Own Server", body: "Enter a new server name when joining to create your own multiplayer server. The first player becomes the server owner." },
+    { version: "v1.1 • World Seeds", title: "World Seeds", body: "World generation uses the world seed for terrain, caves, biomes, trees, water, and the world spawn, making generated worlds reproducible." },
+    { version: "v1.1 • Seed Links", title: "Shareable Seed Links", body: "Copy a complete world link with the current seed attached so another player can open the same generated world." },
+    { version: "Latest • World Screen", title: "Full-Screen World Screen", body: "Singleplayer opens a dedicated world setup screen where you can edit the seed, copy it, copy a world link, open the world, or return to the main menu." },
+    { version: "Latest • Update Details", title: "Interactive Update Logs", body: "Select any update to open its full details. Use Back or Escape to return to the main menu." }
 ];
 
 function disableMotion() {
@@ -248,6 +250,14 @@ function setupUpdateDetails() {
 
     updates.querySelectorAll(".menuUpdate").forEach(card => card.remove());
 
+    const header = document.createElement("div");
+    header.id = "betaNewsHeader";
+    header.innerHTML = `
+        <span class="betaNewsTitle">LATEST NEWS</span>
+        <span class="betaNewsBadge">BETA</span>
+    `;
+    updates.prepend(header);
+
     UPDATE_DETAILS.forEach((detail, index) => {
         const card = document.createElement("article");
         card.className = "menuUpdate";
@@ -287,11 +297,17 @@ function setupUpdateDetails() {
     const style = document.createElement("style");
     style.id = "updateDetailStaticStyles";
     style.textContent = `
+        #betaNewsHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:7px 9px;background:#202020;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:3px 3px 0 rgba(0,0,0,.45)}
+        .betaNewsTitle{font-family:"MinecraftFont",monospace;font-size:13px;color:#fff;text-shadow:2px 2px 0 #000}
+        .betaNewsBadge{padding:4px 7px;background:#b77724;border:2px solid #111;border-top-color:#e1ae62;border-left-color:#e1ae62;color:#fff;font-family:"MinecraftFont",monospace;font-size:10px;text-shadow:2px 2px 0 #222}
+        #menuUpdates .menuUpdateVersion{color:#8fca68;font-family:"MinecraftFont",monospace}
+        #menuUpdates .menuUpdate{position:relative;overflow:hidden}
+        #menuUpdates .menuUpdate::after{content:"";position:absolute;top:0;right:0;width:3px;height:100%;background:#b77724;opacity:.85}
         #updateDetailMenu{position:fixed;inset:0;display:none;align-items:stretch;justify-content:center;overflow:auto;background:#171717;color:#fff;z-index:220}
         #updateDetailPanel{position:relative;width:min(1040px,100vw);min-height:100vh;padding:clamp(28px,6vh,72px) clamp(22px,7vw,92px);display:flex;flex-direction:column;justify-content:center}
         #updateDetailBackWrap{position:absolute;left:clamp(18px,4vw,60px);top:clamp(18px,4vh,44px)}
         #updateDetailBack{min-width:130px}
-        #updateDetailVersion{margin:0 0 10px;color:#8fca68;font-family:"MinecraftFont",monospace;font-size:clamp(12px,1.5vw,16px);text-shadow:2px 2px 0 #111}
+        #updateDetailVersion{margin:0 0 10px;color:#b77724;font-family:"MinecraftFont",monospace;font-size:clamp(12px,1.5vw,16px);text-shadow:2px 2px 0 #111}
         #updateDetailTitle{margin:0 0 22px;max-width:900px;font-family:"MinecraftFont",monospace;font-size:clamp(32px,5vw,62px);line-height:1;text-shadow:3px 3px 0 #000}
         #updateDetailBody{max-width:860px;color:#d6d6d6;font-size:clamp(15px,1.65vw,20px);line-height:1.7}
     `;
