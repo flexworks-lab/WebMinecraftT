@@ -6,10 +6,12 @@ export let isFlying = false;
 
 export function resetView(newYaw = 0, newPitch = 0) { yaw = newYaw; pitch = newPitch; }
 
-export const touchInput = { moveX: 0, moveZ: 0, jump: false, sprint: false, breakPressed: false, punchPressed: false, placePressed: false, lookActive: false, blockTouchActive: false, blockTouchStarted: 0, blockTouchX: 0.5, blockTouchY: 0.5, blockTapPending: false, blockTapX: 0.5, blockTapY: 0.5 };
+export const touchInput = { moveX: 0, moveZ: 0, jump: false, sprint: false, breakPressed: false, punchPressed: false, placePressed: false, lookActive: false, blockTouchActive: false, blockTouchStarted: 0, blockTouchX: 0, blockTouchY: 0, blockTapPending: false, blockTapX: 0, blockTapY: 0 };
 let joystickPointer = null, lookPointer = null, blockTouchPointer = null, joystickCenterX = 0, joystickCenterY = 0, lookLastX = 0, lookLastY = 0;
 let blockTouchStartX = 0, blockTouchStartY = 0;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function toNdcX(clientX) { return (clientX / Math.max(window.innerWidth, 1)) * 2 - 1; }
+function toNdcY(clientY) { return 1 - (clientY / Math.max(window.innerHeight, 1)) * 2; }
 function makeButton(id, text, className = "") {
     const button = document.createElement("button"); button.id = id; button.className = `touchControl ${className}`.trim(); button.type = "button"; button.textContent = text;
     button.addEventListener("contextmenu", event => event.preventDefault()); return button;
@@ -54,8 +56,8 @@ function createTouchControls() {
         blockTouchPointer = event.pointerId;
         blockTouchStartX = event.clientX;
         blockTouchStartY = event.clientY;
-        touchInput.blockTouchX = event.clientX / Math.max(window.innerWidth, 1);
-        touchInput.blockTouchY = event.clientY / Math.max(window.innerHeight, 1);
+        touchInput.blockTouchX = toNdcX(event.clientX);
+        touchInput.blockTouchY = toNdcY(event.clientY);
         touchInput.blockTouchActive = true;
         touchInput.blockTouchStarted = performance.now();
         lookLastX = event.clientX;
@@ -79,8 +81,8 @@ function createTouchControls() {
         if (event.pointerId !== lookPointer) return;
         const moved = Math.hypot(event.clientX - blockTouchStartX, event.clientY - blockTouchStartY);
         if (moved <= 18 && touchInput.blockTouchActive) {
-            touchInput.blockTapX = event.clientX / Math.max(window.innerWidth, 1);
-            touchInput.blockTapY = event.clientY / Math.max(window.innerHeight, 1);
+            touchInput.blockTapX = toNdcX(event.clientX);
+            touchInput.blockTapY = toNdcY(event.clientY);
             touchInput.blockTapPending = true;
         }
         lookPointer = null;
