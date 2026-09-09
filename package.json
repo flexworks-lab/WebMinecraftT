@@ -2,11 +2,14 @@
   "name": "webminecraft",
   "version": "1.0.0",
   "description": "Minecraft-style browser game with an optional multiplayer server",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server/server.js"
+    "server": "node server/server.js",
+    "electron:dev": "vite & electron .",
+    "electron:build": "npm run build && electron-builder --win --x64"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +20,24 @@
     "ws": "^8.21.3"
   },
   "devDependencies": {
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12",
     "vite": "^7.1.5"
+  },
+  "build": {
+    "appId": "com.webminecraft.game",
+    "productName": "WebMinecraftT",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "WebMinecraftT-Setup-${version}.${ext}"
+    }
   }
 }
