@@ -1,0 +1,143 @@
+name: Sync multiplayer world state
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !startsWith(github.event.head_commit.message, 'AUTO: Sync multiplayer world state') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch multiplayer sync
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # Server: store block changes per room and broadcast them.
+          server = Path('server/server.js').read_text()
+          server = server.replace(
+              'return { id, players: new Map(), worldSeed: Math.floor(Math.random() * 4294967296) >>> 0, createdAt: Date.now() };',
+              'return { id, players: new Map(), worldSeed: Math.floor(Math.random() * 4294967296) >>> 0, blockChanges: new Map(), createdAt: Date.now() };',
+              1,
+          )
+          server = server.replace(
+              'function publicRoom(room) {\n    return {\n        id: room.id,\n        players: room.players.size,\n        maxPlayers: MAX_PLAYERS_PER_SERVER,\n        worldSeed: room.worldSeed,\n    };\n}',
+              'function publicRoom(room) {\n    return {\n        id: room.id,\n        players: room.players.size,\n        maxPlayers: MAX_PLAYERS_PER_SERVER,\n        worldSeed: room.worldSeed,\n    };\n}',
+              1,
+          )
+          server = server.replace(
+              '            worldSeed: room.worldSeed,\n            maxPlayers: MAX_PLAYERS_PER_SERVER,\n            players: [...room.players.values()].map(publicPlayer),',
+              '            worldSeed: room.worldSeed,\n            maxPlayers: MAX_PLAYERS_PER_SERVER,\n            worldChanges: [...room.blockChanges.values()],\n            players: [...room.players.values()].map(publicPlayer),',
+              1,
+          )
+          marker = '''    if (message.type === "player_state") {'''
+          insert = '''    if (message.type === "block_change") {\n        const x = Math.floor(numberOr(message.x, NaN));\n        const y = Math.floor(numberOr(message.y, NaN));\n        const z = Math.floor(numberOr(message.z, NaN));\n        const type = Math.floor(numberOr(message.blockType, NaN));\n        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 15) return;\n        const key = `${x},${y},${z}`;\n        roomForPlayer: {\n            const room = rooms.get(player.room);\n            if (!room) break roomForPlayer;\n            room.blockChanges.set(key, { x, y, z, type });\n            if (room.blockChanges.size > 50000) {\n                const oldest = room.blockChanges.keys().next().value;\n                if (oldest) room.blockChanges.delete(oldest);\n            }\n            broadcast(room, { type: "block_change", x, y, z, type }, player.id);\n        }\n        return;\n    }\n\n'''
+          if marker not in server:
+              raise SystemExit('server player_state marker not found')
+          server = server.replace(marker, insert + marker, 1)
+          Path('server/server.js').write_text(server)
+
+          # Client: keep a pending set so changes also reapply when chunks stream in.
+          client = Path('src/multiplayerClient.js').read_text()
+          client = client.replace(
+              'let remotePlayers = new Map();\n',
+              'let remotePlayers = new Map();\nconst pendingWorldChanges = new Map();\n\n',
+              1,
+          )
+          helper_marker = 'function makeStyle() {'
+          helpers = '''function changeKey(x, y, z) { return `${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`; }\n\nfunction queueWorldChange(change) {\n    const x = Math.floor(Number(change?.x));\n    const y = Math.floor(Number(change?.y));\n    const z = Math.floor(Number(change?.z));\n    const type = Math.floor(Number(change?.type));\n    if (![x, y, z, type].every(Number.isFinite)) return;\n    pendingWorldChanges.set(changeKey(x, y, z), { x, y, z, type });\n}\n\nfunction applyPendingWorldChanges() {\n    if (!pendingWorldChanges.size) return;\n    for (const [key, change] of pendingWorldChanges) {\n        if (setBlockAt(change.x, change.y, change.z, change.type)) pendingWorldChanges.delete(key);\n    }\n}\n\n'''
+          if helper_marker not in client:
+              raise SystemExit('client style marker not found')
+          client = client.replace(helper_marker, helpers + helper_marker, 1)
+          client = client.replace(
+              '    openWorldButton.click();\n}',
+              '    openWorldButton.click();\n    requestAnimationFrame(applyPendingWorldChanges);\n}',
+              1,
+          )
+          client = client.replace(
+              '                pendingWorldChanges.clear();\n                for (const change of message.worldChanges || []) queueWorldChange(change);',
+              '                pendingWorldChanges.clear();\n                for (const change of message.worldChanges || []) queueWorldChange(change);',
+              1,
+          )
+          joined_anchor = '            } else if (message.type === "player_joined") {'
+          joined_insert = '            } else if (message.type === "block_change") {\n                queueWorldChange(message);\n'
+          if joined_anchor not in client:
+              raise SystemExit('client player_joined marker not found')
+          client = client.replace(joined_anchor, joined_insert + joined_anchor, 1)
+          client = client.replace(
+              '        pendingWorldChanges.clear();\n        window.__webminecraftMultiplayerActive = false;',
+              '        pendingWorldChanges.clear();\n        window.__webminecraftMultiplayerActive = false;',
+              1,
+          )
+          end_marker = 'export function getRemotePlayers() { return remotePlayers; }'
+          exports = '''export function sendBlockChange(x, y, z, blockType) {\n    const change = { x: Math.floor(x), y: Math.floor(y), z: Math.floor(z), type: Math.floor(blockType) };\n    queueWorldChange(change);\n    applyPendingWorldChanges();\n    if (isMultiplayerActive()) socket.send(JSON.stringify({ type: "block_change", ...change, blockType: change.type }));\n}\n\nexport function syncWorldChanges() {\n    if (isMultiplayerActive()) applyPendingWorldChanges();\n}\n\n'''
+          if end_marker not in client:
+              raise SystemExit('client export marker not found')
+          client = client.replace(end_marker, exports + end_marker, 1)
+          client = client.replace('import { setBlockAt } from "./world.js";\n\n', '', 1) if 'import { setBlockAt } from "./world.js";' in client else client
+          client = 'import { setBlockAt } from "./world.js";\n\n' + client
+          Path('src/multiplayerClient.js').write_text(client)
+
+          # Interaction: report local block changes to the multiplayer client.
+          interaction = Path('src/interaction.js').read_text()
+          interaction = interaction.replace(
+              'import { touchInput } from "./controls.js";\n',
+              'import { touchInput } from "./controls.js";\nimport { sendBlockChange } from "./multiplayerClient.js";\n',
+              1,
+          )
+          interaction = interaction.replace(
+              '        if (getBlockAt(x, y, z)) setBlockAt(x, y, z, BLOCK.AIR);',
+              '        if (getBlockAt(x, y, z) && setBlockAt(x, y, z, BLOCK.AIR)) sendBlockChange(x, y, z, BLOCK.AIR);',
+              1,
+          )
+          interaction = interaction.replace(
+              '    setBlockAt(x, y, z, materials[selectedSlot]);',
+              '    if (setBlockAt(x, y, z, materials[selectedSlot])) sendBlockChange(x, y, z, materials[selectedSlot]);',
+              1,
+          )
+          Path('src/interaction.js').write_text(interaction)
+
+          # Player: sync world changes and show remote player names above the dots.
+          player = Path('src/player.js').read_text()
+          player = player.replace(
+              'import { getRemotePlayers, isMultiplayerActive, sendPlayerState } from "./multiplayerClient.js";',
+              'import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";',
+              1,
+          )
+          name_helper_marker = 'function updateMultiplayerAvatars(scene) {'
+          name_helper = '''function createNameplate(name) {\n    const canvas = document.createElement("canvas");\n    canvas.width = 384;\n    canvas.height = 72;\n    const ctx = canvas.getContext("2d");\n    ctx.clearRect(0, 0, canvas.width, canvas.height);\n    const text = String(name || "Player").slice(0, 16);\n    ctx.font = "bold 32px Arial";\n    ctx.textAlign = "center";\n    ctx.textBaseline = "middle";\n    ctx.lineWidth = 9;\n    ctx.strokeStyle = "rgba(0,0,0,.9)";\n    ctx.fillStyle = "white";\n    ctx.strokeText(text, canvas.width / 2, canvas.height / 2);\n    ctx.fillText(text, canvas.width / 2, canvas.height / 2);\n    const texture = new THREE.CanvasTexture(canvas);\n    texture.colorSpace = THREE.SRGBColorSpace;\n    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));\n    sprite.scale.set(Math.max(1.1, Math.min(2.8, 0.8 + text.length * 0.13)), 0.36, 1);\n    sprite.position.y = 2.0;\n    return sprite;\n}\n\n'''
+          if name_helper_marker not in player:
+              raise SystemExit('player avatar marker not found')
+          player = player.replace(name_helper_marker, name_helper + name_helper_marker, 1)
+          old_avatar = '''        let dot = avatarDots.get(id);\n        if (!dot) {\n            dot = new THREE.Mesh(\n                new THREE.SphereGeometry(0.18, 8, 6),\n                new THREE.MeshBasicMaterial({ color: avatarColor(id) }),\n            );\n            dot.userData.multiplayerAvatar = true;\n            scene.add(dot);\n            avatarDots.set(id, dot);\n        }\n        dot.position.set(\n            Number(player.position.x) || 0,\n            (Number(player.position.y) || 0) - PLAYER_HEIGHT + 0.18,\n            Number(player.position.z) || 0,\n        );'''
+          new_avatar = '''        let avatar = avatarDots.get(id);\n        if (!avatar) {\n            avatar = new THREE.Group();\n            const dot = new THREE.Mesh(\n                new THREE.SphereGeometry(0.18, 8, 6),\n                new THREE.MeshBasicMaterial({ color: avatarColor(id) }),\n            );\n            dot.userData.multiplayerAvatar = true;\n            avatar.add(dot);\n            avatar.add(createNameplate(player.name));\n            scene.add(avatar);\n            avatarDots.set(id, avatar);\n        }\n        avatar.position.set(\n            Number(player.position.x) || 0,\n            (Number(player.position.y) || 0) - PLAYER_HEIGHT + 0.18,\n            Number(player.position.z) || 0,\n        );'''
+          if old_avatar not in player:
+              raise SystemExit('player old avatar block not found')
+          player = player.replace(old_avatar, new_avatar, 1)
+          old_cleanup = '''        if (!players.has(id)) {\n            scene.remove(dot);\n            dot.geometry.dispose();\n            dot.material.dispose();\n            avatarDots.delete(id);\n        }'''
+          new_cleanup = '''        if (!players.has(id)) {\n            scene.remove(avatar);\n            avatar.traverse(child => {\n                if (child.geometry) child.geometry.dispose();\n                if (child.material) {\n                    if (child.material.map) child.material.map.dispose();\n                    child.material.dispose();\n                }\n            });\n            avatarDots.delete(id);\n        }'''
+          if old_cleanup not in player:
+              raise SystemExit('player cleanup block not found')
+          player = player.replace(old_cleanup, new_cleanup, 1)
+          player = player.replace('    updateMultiplayerAvatars(scene);\n}', '    updateMultiplayerAvatars(scene);\n    syncWorldChanges();\n}', 1)
+          Path('src/player.js').write_text(player)
+          PY
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/server.js src/multiplayerClient.js src/interaction.js src/player.js
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git commit -m "AUTO: Sync multiplayer world state"
+          git push
