@@ -1,5 +1,7 @@
 let overlay = null;
 let socket = null;
+let localPlayerId = null;
+let remotePlayers = new Map();
 
 const PRODUCTION_SERVER_URL = "wss://webminecraft-server.onrender.com/multiplayer";
 
@@ -30,6 +32,16 @@ function defaultServerUrl() {
     const hostname = window.location.hostname || "localhost";
     if (hostname === "localhost" || hostname === "127.0.0.1") return `ws://${hostname}:2567`;
     return PRODUCTION_SERVER_URL;
+}
+
+function startSharedWorld(worldSeed) {
+    const seedInput = document.getElementById("seedInput");
+    const openWorldButton = document.getElementById("openWorldButton");
+    if (!seedInput || !openWorldButton) return;
+    seedInput.value = String(worldSeed >>> 0);
+    window.__webminecraftMultiplayerActive = true;
+    window.__webminecraftMultiplayerPlayerId = localPlayerId;
+    openWorldButton.click();
 }
 
 function ensureMenu() {
@@ -74,6 +86,10 @@ function ensureMenu() {
             try { socket.close(); } catch {}
             socket = null;
         }
+        remotePlayers.clear();
+        localPlayerId = null;
+        window.__webminecraftMultiplayerActive = false;
+        window.__webminecraftMultiplayerPlayerId = null;
         overlay.style.display = "none";
         overlay.setAttribute("aria-hidden", "true");
         setStatus("Start the multiplayer server, then connect.");
@@ -125,13 +141,23 @@ function ensureMenu() {
             if (message.type === "server_info") {
                 setStatus(`Server online. ${message.maxPlayers || "?"} player slots available.`);
             } else if (message.type === "joined") {
+                localPlayerId = message.playerId || null;
+                remotePlayers = new Map((message.players || []).filter(player => player.id !== localPlayerId).map(player => [player.id, player]));
                 setStatus(`Joined room "${message.room}". Players: ${message.players?.length || 1}.`);
                 joinButton.disabled = false;
                 joinButton.textContent = "Connected";
+                startSharedWorld(Number(message.worldSeed) || 0);
             } else if (message.type === "player_joined") {
+                if (message.player?.id && message.player.id !== localPlayerId) remotePlayers.set(message.player.id, message.player);
                 setStatus(`${message.player?.name || "A player"} joined the room.`);
             } else if (message.type === "player_left") {
+                if (message.playerId) remotePlayers.delete(message.playerId);
                 setStatus("A player left the room.");
+            } else if (message.type === "player_states") {
+                for (const player of message.players || []) {
+                    if (player.id === localPlayerId) continue;
+                    remotePlayers.set(player.id, player);
+                }
             } else if (message.type === "error") {
                 setStatus(message.message || "The server rejected the connection.", true);
                 joinButton.disabled = false;
@@ -142,6 +168,9 @@ function ensureMenu() {
         socket.addEventListener("close", () => {
             if (socket) {
                 socket = null;
+                remotePlayers.clear();
+                window.__webminecraftMultiplayerActive = false;
+                window.__webminecraftMultiplayerPlayerId = null;
                 joinButton.disabled = false;
                 joinButton.textContent = "Join Server";
                 setStatus("Disconnected from server.", true);
@@ -168,4 +197,17 @@ export function openMultiplayerMenu() {
     overlay.style.display = "flex";
     overlay.setAttribute("aria-hidden", "false");
     overlay.querySelector("#multiplayerServer").focus();
+}
+
+export function isMultiplayerActive() {
+    return Boolean(window.__webminecraftMultiplayerActive && socket && socket.readyState === WebSocket.OPEN);
+}
+
+export function sendPlayerState(position, rotation) {
+    if (!isMultiplayerActive()) return;
+    socket.send(JSON.stringify({ type: "player_state", position, rotation }));
+}
+
+export function getRemotePlayers() {
+    return remotePlayers;
 }
