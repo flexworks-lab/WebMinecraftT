@@ -182,6 +182,7 @@ function ensureMenu() {
                 <div id="multiplayerViewTitle">Servers</div>
                 <button id="multiplayerRefresh" class="multiplayerButton" type="button">Refresh Servers</button>
                 <div id="multiplayerServerList"><div class="multiplayerEmpty">Loading servers...</div></div>
+                <div class="multiplayerHint">Choose PUBLIC to appear in the server list, or PRIVATE to keep your server hidden.</div>
             </section>
 
             <section id="multiplayerRoomView" style="display:none">
@@ -297,7 +298,7 @@ function ensureMenu() {
         serverView.style.display = "none";
         roomView.style.display = "block";
         serverInput.value = server.websocket || defaultServerUrl();
-        setServerType(false);
+        setServerType(selectedPrivate);
         privateCodeInput.value = "";
         selectedInfo.innerHTML = `<strong>${escapeHtml(server.name || "Server")}</strong><br><span class="multiplayerMeta">${server.online === false ? "Offline" : `${Number(server.players) || 0} / ${Number(server.maxPlayers) || 10} players online`} · ${(server.rooms || []).length || 1} room${(server.rooms || []).length === 1 ? "" : "s"}</span>`;
         renderRoomList(server);
