@@ -30,7 +30,7 @@
         #menuCopyright { position:fixed; right:9px; bottom:7px; color:rgba(255,255,255,.92); font-family:Arial,sans-serif; font-size:10px; text-shadow:1px 1px 0 #222; z-index:2; }
 
         #seedMenu { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:#171717; z-index:200; }
-        #seedPanel { width:100vw; height:100vh; min-height:100vh; padding:clamp(32px,7vh,90px) clamp(22px,7vw,110px); display:flex; flex-direction:column; justify-content:center; text-align:center; color:white; background:linear-gradient(180deg,#252525 0%,#1b1b1b 100%); border:0; box-shadow:none; font-family:Arial,sans-serif; }
+        #seedPanel { position:relative; width:100vw; height:100vh; min-height:100vh; padding:clamp(32px,7vh,90px) clamp(22px,7vw,110px); display:flex; flex-direction:column; justify-content:center; text-align:center; color:white; background:linear-gradient(180deg,#252525 0%,#1b1b1b 100%); border:0; box-shadow:none; font-family:Arial,sans-serif; }
         #seedTitle { margin:0 0 12px; font-family:"MinecraftFont",monospace; font-size:clamp(34px,5vw,58px); text-shadow:3px 3px 0 #000; }
         #seedSubtitle { width:min(720px,90vw); margin:0 auto 28px; color:#aaa; font-size:clamp(13px,1.5vw,17px); line-height:1.5; }
         #seedInput { width:min(680px,90vw); height:58px; margin:0 auto; padding:10px 16px; background:#111; color:#fff; border:2px solid #0a0a0a; border-top-color:#777; border-left-color:#777; outline:none; text-align:center; font-size:clamp(20px,2.2vw,28px); }
@@ -39,8 +39,9 @@
         .seedButton { min-height:54px; padding:10px 12px; border:2px solid #111; border-top-color:#888; border-left-color:#888; background:linear-gradient(#696969,#505050); color:#fff; font-family:"MinecraftFont",monospace; font-size:clamp(11px,1.3vw,15px); cursor:pointer; text-shadow:2px 2px 0 #222; }
         .seedButton:hover { filter:brightness(1.12); }
         #openWorldButton { background:linear-gradient(#6d8d4e,#526f3c); }
+        #backSeedButton { background:linear-gradient(#5d5d5d,#454545); }
         #seedLinkStatus { min-height:22px; margin-top:12px; color:#8fca68; font-size:13px; }
-
+        #seedBackWrap { position:absolute; left:clamp(18px,4vw,60px); top:clamp(18px,4vh,44px); z-index:2; }
         #menuUpdates { position:fixed; left:24px; top:50%; transform:translateY(-50%); width:250px; padding:14px; color:#fff; text-align:left; background:#191919; border:2px solid #111; border-top-color:#777; border-left-color:#777; box-shadow:4px 4px 0 rgba(0,0,0,.55),inset 2px 2px 0 rgba(255,255,255,.08); z-index:95; display:none; filter:none; backdrop-filter:none; -webkit-backdrop-filter:none; pointer-events:auto; }
         #menuUpdatesTitle { margin:0 0 10px; padding-bottom:8px; border-bottom:2px solid #111; font-family:"MinecraftFont",monospace; font-size:18px; text-shadow:2px 2px 0 #000; }
         .menuUpdate { margin:8px 0; padding:9px 10px; background:#414141; border:2px solid #171717; border-top-color:#777; border-left-color:#777; }
@@ -77,29 +78,78 @@
         #settingsBottom { max-width:980px; margin:6px auto 0; display:flex; justify-content:flex-end; } #closeSettings { min-width:180px; min-height:48px; padding:12px 20px; border:2px solid #111; border-top-color:#8c8c8c; border-left-color:#8c8c8c; background:linear-gradient(#686868,#505050); color:white; font-family:"MinecraftFont",monospace; font-size:14px; cursor:pointer; text-shadow:2px 2px 0 #222; }
         #closeSettings:hover { filter:brightness(1.1); } #closeSettings:active { transform:translateY(2px); }
         @media(max-width:1050px){#menuUpdates{left:12px;width:210px}}
-        @media(max-width:900px){#settingsButton{top:max(12px,env(safe-area-inset-top));right:12px}#menuPanel{margin-top:-7px}#menuTitle{font-size:clamp(46px,13vw,62px)}#menuSubtitle{font-size:10px;margin-bottom:14px}#menuSplash{font-size:14px;margin-bottom:14px}#menuButtons{width:min(300px,88vw)}.menuButton{height:45px;font-size:16px;margin:9px auto}#seedPanel{padding:24px 14px}#seedActions{grid-template-columns:1fr;max-width:420px}.seedButton{min-height:48px}#settingsPanel{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}#settingsSidebar{padding:max(14px,env(safe-area-inset-top)) 12px 10px;border-right:0;border-bottom:2px solid #090909}#settingsPanel h1{margin:0 8px 4px;font-size:23px}#settingsSubtitle{display:none}#settingsTabs{display:flex;gap:6px;overflow-x:auto}.settingsTab{flex:0 0 auto;width:auto;min-height:40px;margin:0;padding:8px 12px}#settingsVersion{display:none}#settingsHeader{height:64px;flex-basis:64px;padding:0 16px}#settingsSectionTitle{font-size:17px}#settingsCloseTop{width:38px;height:38px;font-size:19px}#settingsScroll{padding:18px 12px 24px}.setting{grid-template-columns:1fr;gap:12px;padding:13px}.settingControl{justify-content:flex-start}select,input[type=range]{width:100%}#settingsBottom{justify-content:stretch}#closeSettings{width:100%}}
+        @media(max-width:900px){#settingsButton{top:max(12px,env(safe-area-inset-top));right:12px}#menuPanel{margin-top:-7px}#menuTitle{font-size:clamp(46px,13vw,62px)}#menuSubtitle{font-size:10px;margin-bottom:14px}#menuSplash{font-size:14px;margin-bottom:14px}#menuButtons{width:min(300px,88vw)}.menuButton{height:45px;font-size:16px;margin:9px auto}#seedPanel{padding:24px 14px}#seedActions{grid-template-columns:1fr;max-width:420px}#seedBackWrap{left:14px;top:14px}.seedButton{min-height:48px}#settingsPanel{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}#settingsSidebar{padding:max(14px,env(safe-area-inset-top)) 12px 10px;border-right:0;border-bottom:2px solid #090909}#settingsPanel h1{margin:0 8px 4px;font-size:23px}#settingsSubtitle{display:none}#settingsTabs{display:flex;gap:6px;overflow-x:auto}.settingsTab{flex:0 0 auto;width:auto;min-height:40px;margin:0;padding:8px 12px}#settingsVersion{display:none}#settingsHeader{height:64px;flex-basis:64px;padding:0 16px}#settingsSectionTitle{font-size:17px}#settingsCloseTop{width:38px;height:38px;font-size:19px}#settingsScroll{padding:18px 12px 24px}.setting{grid-template-columns:1fr;gap:12px;padding:13px}.settingControl{justify-content:flex-start}select,input[type=range]{width:100%}#settingsBottom{justify-content:stretch}#closeSettings{width:100%}}
         @media(max-width:760px){#menuUpdates{display:none}}
-        body.mobile-mode #hotbar{pointer-events:auto;bottom:154px;max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none} body.mobile-mode #hotbar::-webkit-scrollbar{display:none} body.mobile-mode .slot{flex:0 0 48px}
+        body.mobile-mode #hotbar{pointer-events:auto;bottom:154px;max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none}
+        body.mobile-mode #hotbar::-webkit-scrollbar{display:none}
+        body.mobile-mode .slot{flex:0 0 48px}
     </style>
-    <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js"}}</script>
+    <script type="importmap">
+    {"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js"}}
+    </script>
 </head>
 <body>
-    <div id="mainMenu"><div id="menuPanel"><h1 id="menuTitle">MINECRAFT</h1><div id="menuSubtitle">WEB EDITION</div><div id="menuSplash">Loading tip...</div><div id="menuButtons"><button id="playButton" class="menuButton">Singleplayer</button><button id="multiplayerButton" class="menuButton">Multiplayer</button><button id="realmsButton" class="menuButton">Minecraft Realms</button><button id="menuSettingsButton" class="menuButton">Options...</button><button id="mobileModeButton" class="menuButton">Mobile Mode</button></div></div></div>
+    <div id="mainMenu">
+        <div id="menuPanel">
+            <h1 id="menuTitle">MINECRAFT</h1>
+            <div id="menuSubtitle">WEB EDITION</div>
+            <div id="menuSplash">Loading tip...</div>
+            <div id="menuButtons">
+                <button id="playButton" class="menuButton">Singleplayer</button>
+                <button id="multiplayerButton" class="menuButton">Multiplayer</button>
+                <button id="menuSettingsButton" class="menuButton">Options...</button>
+                <button id="mobileModeButton" class="menuButton">Mobile Mode</button>
+            </div>
+        </div>
+    </div>
 
     <div id="seedMenu" aria-hidden="true">
         <div id="seedPanel" role="dialog" aria-modal="true" aria-labelledby="seedTitle">
+            <div id="seedBackWrap"><button id="backSeedButton" class="seedButton" type="button">← Back</button></div>
             <h2 id="seedTitle">Create World</h2>
             <p id="seedSubtitle">Your world seed is below. Copy it to share the exact same world later.</p>
             <input id="seedInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="World seed">
-            <div id="seedActions"><button id="copySeedButton" class="seedButton" type="button">Copy Seed</button><button id="copyWorldLinkButton" class="seedButton" type="button">Copy World Link</button><button id="openWorldButton" class="seedButton" type="button">Open World</button></div>
+            <div id="seedActions">
+                <button id="copySeedButton" class="seedButton" type="button">Copy Seed</button>
+                <button id="copyWorldLinkButton" class="seedButton" type="button">Copy World Link</button>
+                <button id="openWorldButton" class="seedButton" type="button">Open World</button>
+            </div>
             <div id="seedLinkStatus" aria-live="polite"></div>
         </div>
     </div>
 
-    <aside id="menuUpdates" aria-label="Latest updates"><h2 id="menuUpdatesTitle">Latest Updates</h2><article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • World</div><div class="menuUpdateText">Randomized terrain, biomes, trees, caves, and improved water.</div></article><article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • Mobile</div><div class="menuUpdateText">Minecraft-style touch controls and automatic device detection.</div></article><article class="menuUpdate"><div class="menuUpdateVersion">Latest</div><div class="menuUpdateText">Settings now save automatically with a quick “Saved” notification.</div></article></aside>
-    <div id="menuFooter">WebMinecraftT<br>v1.0</div><div id="menuCopyright">WebMinecraftT</div><div id="crosshair">+</div><div id="hotbar"><div class="slot selected">1<br>Grass</div><div class="slot">2<br>Dirt</div><div class="slot">3<br>Stone</div><div class="slot">4<br>Sand</div><div class="slot">5<br>Oak</div><div class="slot">6<br>Leaves</div><div class="slot">7<br>Grass</div><div class="slot">8<br>Dirt</div><div class="slot">9<br>Stone</div></div><button id="settingsButton" aria-label="Settings">⚙</button>
-    <div id="settingsMenu"><div id="settingsPanel"><aside id="settingsSidebar"><h1>Settings</h1><p id="settingsSubtitle">Customize how WebMinecraftT looks and runs.</p><div id="settingsTabs"><button class="settingsTab active" type="button">Graphics</button><button class="settingsTab" type="button">Video</button><button class="settingsTab" type="button">Accessibility</button></div><div id="settingsVersion">WebMinecraftT<br>Graphics & Performance</div></aside><section id="settingsContent"><header id="settingsHeader"><h2 id="settingsSectionTitle">Graphics</h2><button id="settingsCloseTop" type="button" aria-label="Close settings">×</button></header><div id="settingsScroll"><div class="settingsGroup"><h3 class="settingsGroupTitle">Lighting & Shadows</h3><div class="setting"><div><label>Shadows</label><small>Enable dynamic sun shadows.</small></div><div class="settingControl"><input id="shadowsToggle" type="checkbox"></div></div><div class="setting"><div><label>Shadow Quality</label><small>Higher quality makes shadows sharper but uses more GPU power.</small></div><div class="settingControl"><select id="shadowQuality"><option value="512">Low</option><option value="1024">Medium</option><option value="2048">High</option><option value="4096">Ultra</option></select></div></div><div class="setting"><div><label>Lighting Quality</label><small>Controls ambient lighting and shadow softness.</small></div><div class="settingControl"><select id="lightingQuality"><option value="performance">Performance</option><option value="balanced">Balanced</option><option value="high">High</option></select></div></div></div><div class="settingsGroup"><h3 class="settingsGroupTitle">Display</h3><div class="setting"><div><label>Brightness</label><small>Adjust the overall scene exposure.</small></div><div class="settingControl"><input id="brightnessControl" type="range" min="0.65" max="1.35" step="0.05" value="1"></div></div><div class="setting"><div><label>Graphics Quality</label><small>Changes the render resolution scale.</small></div><div class="settingControl"><select id="pixelQuality"><option value="0.75">Low</option><option value="1" selected>Medium</option><option value="1.5">High</option></select></div></div></div><div id="settingsBottom"><button id="closeSettings" type="button">Done</button></div></div></section></div></div>
-    <script>const menuTips=["Never dig straight down!","Watch your step around cliffs.","Trees are a great early source of wood.","You can sprint while moving forward.","Caves can hide valuable ores.","Water can save you from a long fall.","Keep some blocks handy for building.","A good shelter is better than no shelter.","Explore different biomes to find new terrain.","You can fly with F.","Leaves make trees look much better with texture.","Sometimes the best view is from a mountain."];const menuSplash=document.getElementById("menuSplash");if(menuSplash)menuSplash.textContent=menuTips[Math.floor(Math.random()*menuTips.length)];</script>
-    <script type="module" src="./src/menuUpdates.js"></script><script type="module" src="./src/main.js"></script>
+    <aside id="menuUpdates" aria-label="Latest updates">
+        <h2 id="menuUpdatesTitle">Latest Updates</h2>
+        <article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • World</div><div class="menuUpdateText">Randomized terrain, biomes, trees, caves, and improved water.</div></article>
+        <article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • Mobile</div><div class="menuUpdateText">Minecraft-style touch controls and automatic device detection.</div></article>
+        <article class="menuUpdate"><div class="menuUpdateVersion">Latest</div><div class="menuUpdateText">Settings now save automatically with a quick “Saved” notification.</div></article>
+    </aside>
+
+    <div id="menuFooter">WebMinecraftT<br>v1.0</div>
+    <div id="menuCopyright">WebMinecraftT</div>
+    <div id="crosshair">+</div>
+    <div id="hotbar"><div class="slot selected">1<br>Grass</div><div class="slot">2<br>Dirt</div><div class="slot">3<br>Stone</div><div class="slot">4<br>Sand</div><div class="slot">5<br>Oak</div><div class="slot">6<br>Leaves</div><div class="slot">7<br>Grass</div><div class="slot">8<br>Dirt</div><div class="slot">9<br>Stone</div></div>
+    <button id="settingsButton" aria-label="Settings">⚙</button>
+
+    <div id="settingsMenu">
+        <div id="settingsPanel">
+            <aside id="settingsSidebar"><h1>Settings</h1><p id="settingsSubtitle">Customize how WebMinecraftT looks and runs.</p><div id="settingsTabs"><button class="settingsTab active" type="button">Graphics</button><button class="settingsTab" type="button">Video</button><button class="settingsTab" type="button">Accessibility</button></div><div id="settingsVersion">WebMinecraftT<br>Graphics & Performance</div></aside>
+            <section id="settingsContent">
+                <header id="settingsHeader"><h2 id="settingsSectionTitle">Graphics</h2><button id="settingsCloseTop" type="button" aria-label="Close settings">×</button></header>
+                <div id="settingsScroll">
+                    <div class="settingsGroup"><h3 class="settingsGroupTitle">Lighting & Shadows</h3><div class="setting"><div><label>Shadows</label><small>Enable dynamic sun shadows.</small></div><div class="settingControl"><input id="shadowsToggle" type="checkbox"></div></div><div class="setting"><div><label>Shadow Quality</label><small>Higher quality makes shadows sharper but uses more GPU power.</small></div><div class="settingControl"><select id="shadowQuality"><option value="512">Low</option><option value="1024">Medium</option><option value="2048">High</option><option value="4096">Ultra</option></select></div></div><div class="setting"><div><label>Lighting Quality</label><small>Controls ambient lighting and shadow softness.</small></div><div class="settingControl"><select id="lightingQuality"><option value="performance">Performance</option><option value="balanced">Balanced</option><option value="high">High</option></select></div></div></div>
+                    <div class="settingsGroup"><h3 class="settingsGroupTitle">Display</h3><div class="setting"><div><label>Brightness</label><small>Adjust the overall scene exposure.</small></div><div class="settingControl"><input id="brightnessControl" type="range" min="0.65" max="1.35" step="0.05" value="1"></div></div><div class="setting"><div><label>Graphics Quality</label><small>Changes the render resolution scale.</small></div><div class="settingControl"><select id="pixelQuality"><option value="0.75">Low</option><option value="1" selected>Medium</option><option value="1.5">High</option></select></div></div></div>
+                    <div id="settingsBottom"><button id="closeSettings" type="button">Done</button></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const menuTips=["Never dig straight down!","Watch your step around cliffs.","Trees are a great early source of wood.","You can sprint while moving forward.","Caves can hide valuable ores.","Water can save you from a long fall.","Keep some blocks handy for building.","A good shelter is better than no shelter.","Explore different biomes to find new terrain.","You can fly with F.","Leaves make trees look much better with texture.","Sometimes the best view is from a mountain."];
+        const menuSplash=document.getElementById("menuSplash"); if(menuSplash) menuSplash.textContent=menuTips[Math.floor(Math.random()*menuTips.length)];
+    </script>
+    <script type="module" src="./src/menuUpdates.js"></script>
+    <script type="module" src="./src/main.js"></script>
 </body>
 </html>
