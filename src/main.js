@@ -106,6 +106,7 @@ const settingsButton = document.getElementById("settingsButton");
 const settingsMenu = document.getElementById("settingsMenu");
 const closeSettings = document.getElementById("closeSettings");
 const settingsCloseTop = document.getElementById("settingsCloseTop");
+const menuUpdates = document.getElementById("menuUpdates");
 const crosshair = document.getElementById("crosshair");
 const hotbar = document.getElementById("hotbar");
 function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); } }
@@ -117,37 +118,30 @@ function setMenuUiVisible(visible) {
     if (crosshair) crosshair.style.display = display;
     if (hotbar) hotbar.style.display = display;
     if (settingsButton) settingsButton.style.display = display;
+    if (menuUpdates) menuUpdates.style.display = visible ? "block" : "none";
     if (performanceHud) performanceHud.style.display = display;
 }
 
 function findRandomSpawn() {
     const types = getBlockTypes();
-
     for (let attempt = 0; attempt < 700; attempt++) {
         const x = Math.floor(Math.random() * 97) - 48;
         const z = Math.floor(Math.random() * 97) - 48;
-
         for (let y = 70; y >= -31; y--) {
             if (getBlockAt(x, y, z) !== types.GRASS) continue;
             if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
-
             let safeLand = true;
             for (let ox = -1; ox <= 1 && safeLand; ox++) {
                 for (let oz = -1; oz <= 1; oz++) {
                     if (ox === 0 && oz === 0) continue;
                     const below = getBlockAt(x + ox, y, z + oz);
-                    if (below !== types.GRASS && below !== types.DIRT) {
-                        safeLand = false;
-                        break;
-                    }
+                    if (below !== types.GRASS && below !== types.DIRT) { safeLand = false; break; }
                 }
             }
-
             if (safeLand) return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
             break;
         }
     }
-
     for (let x = -16; x <= 16; x++) {
         for (let z = -16; z <= 16; z++) {
             for (let y = 60; y >= -31; y--) {
@@ -157,7 +151,6 @@ function findRandomSpawn() {
             }
         }
     }
-
     return { x: 0.5, y: 80, z: 0.5 };
 }
 
@@ -175,8 +168,7 @@ function spawnPlayer() {
 
 if (playButton && mainMenu) {
     playButton.addEventListener("click", event => {
-        event.preventDefault();
-        event.stopPropagation();
+        event.preventDefault(); event.stopPropagation();
         if (gameStarted) return;
         spawnPlayer();
         gameStarted = true;
@@ -237,14 +229,7 @@ const sunFollowDistance = 8;
 const panoramaAngle = Math.random() * Math.PI * 2;
 const panoramaDistance = 48 + Math.random() * 112;
 const panoramaCenter = new THREE.Vector3(Math.round(Math.cos(panoramaAngle) * panoramaDistance / 16) * 16, 10, Math.round(Math.sin(panoramaAngle) * panoramaDistance / 16) * 16);
-const panoramaCamera = {
-    position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z),
-    targetY: 16,
-    angle: Math.random() * Math.PI * 2,
-    speed: 0.035,
-    swayX: 0,
-    swayY: 0
-};
+const panoramaCamera = { position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z), targetY: 16, angle: Math.random() * Math.PI * 2, speed: 0.035, swayX: 0, swayY: 0 };
 function updateMenuCamera(deltaTime) {
     if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
     panoramaCamera.angle += panoramaCamera.speed * deltaTime;
@@ -252,17 +237,12 @@ function updateMenuCamera(deltaTime) {
     menuLook.y = THREE.MathUtils.lerp(menuLook.y, menuLook.targetY, Math.min(deltaTime * 2.5, 1));
     panoramaCamera.swayX = THREE.MathUtils.lerp(panoramaCamera.swayX, menuLook.x, Math.min(deltaTime * 1.8, 1));
     panoramaCamera.swayY = THREE.MathUtils.lerp(panoramaCamera.swayY, menuLook.y, Math.min(deltaTime * 1.8, 1));
-
     camera.position.copy(panoramaCamera.position);
     const lookDistance = 40;
     const mouseYaw = panoramaCamera.swayX * 0.12;
     const mousePitch = panoramaCamera.swayY * 0.055;
     const lookAngle = panoramaCamera.angle + mouseYaw;
-    const lookTarget = new THREE.Vector3(
-        panoramaCamera.position.x + Math.sin(lookAngle) * lookDistance,
-        panoramaCamera.targetY - mousePitch * lookDistance,
-        panoramaCamera.position.z + Math.cos(lookAngle) * lookDistance
-    );
+    const lookTarget = new THREE.Vector3(panoramaCamera.position.x + Math.sin(lookAngle) * lookDistance, panoramaCamera.targetY - mousePitch * lookDistance, panoramaCamera.position.z + Math.cos(lookAngle) * lookDistance);
     camera.up.set(0, 1, 0);
     camera.lookAt(lookTarget);
     updateChunkVisibility(camera.position, camera);
