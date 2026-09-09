@@ -8,6 +8,9 @@ const VERSION_KEY = "webminecraft-game-version";
 const VERSIONS = ["v1.0", "v1.1", "v1.2"];
 
 const UPDATE_DETAILS = [
+    { version: "v1.2 • Multiplayer", title: "Multiplayer Servers", body: "Multiplayer is now available. Join an existing server, create your own named server, and play together with other players in the same world." },
+    { version: "v1.2 • Chat", title: "Server Chat", body: "Multiplayer now has an in-game chat in the top-left corner. Players can send messages to everyone in the server, and join messages appear automatically when someone enters." },
+    { version: "v1.2 • Server Making", title: "Make Your Own Server", body: "You can create your own named multiplayer server by entering a new server name when joining. The first player becomes the server owner, and friends can find the server in the multiplayer list." },
     { version: "v1.1 • World Seeds", title: "World Seeds", body: "World generation is now driven by the world seed. Terrain height, caves, biomes, trees, water, and the world spawn all use the same seed, so entering that seed again recreates the same generated world layout." },
     { version: "v1.1 • Seed Links", title: "Shareable Seed Links", body: "Use Copy World Link to copy the current world URL with its seed attached. Opening that link loads the matching generated world, making it easy to share a specific world with someone else." },
     { version: "Latest • World Screen", title: "Full-Screen World Screen", body: "Singleplayer now opens a dedicated full-screen world setup screen. You can edit the seed, copy the seed, copy a complete world link, open the world, or return to the main menu." },
@@ -222,4 +225,3 @@ createVersionPicker();
 
 if(seedMenu){let cleared=false;const observer=new MutationObserver(()=>{const open=getComputedStyle(seedMenu).display!=="none";if(open&&!cleared){clearWorld();cleared=true}else if(!open){cleared=false}});observer.observe(seedMenu,{attributes:true,attributeFilter:["style","class"]})}
 if(menu&&updates){const observer=new MutationObserver(syncMenuUpdates);observer.observe(menu,{attributes:true,attributeFilter:["style","class"]})}
-window.addEventListener("pageshow",syncMenuUpdates);
