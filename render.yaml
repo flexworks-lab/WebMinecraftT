@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: webminecraft-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run server
+    healthCheckPath: /health
+    envVars:
+      - key: MAX_PLAYERS
+        value: "10"
