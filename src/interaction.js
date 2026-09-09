@@ -28,7 +28,6 @@ export function setupInteraction(scene, camera) {
     const selectionOutline = createSelectionOutline();
     scene.add(selectionOutline);
 
-    let mobilePressStart = 0;
     let mobilePressKey = null;
     let mobileHoldBroken = false;
 
@@ -68,44 +67,29 @@ export function setupInteraction(scene, camera) {
     function pollTouchActions() {
         const mobile = document.body.classList.contains("mobile-mode");
         if (mobile) {
-            const currentBreak = !!(touchInput.breakPressed || touchInput.punchPressed);
+            const currentBreakButton = !!(touchInput.breakPressed || touchInput.punchPressed);
             const currentPlace = !!touchInput.placePressed;
+            const blockTouch = !!touchInput.blockTouchActive;
+            const target = blockTouch ? getTargetBlock(camera, BLOCK, new THREE.Vector2(touchInput.blockTouchX, touchInput.blockTouchY)) : null;
+            const key = target ? `${target.x},${target.y},${target.z}` : null;
 
-            if (currentBreak && !lastBreak) {
-                const target = getTargetBlock(camera, BLOCK);
-                if (target) {
-                    mobilePressStart = performance.now();
-                    mobilePressKey = `${target.x},${target.y},${target.z}`;
-                    mobileHoldBroken = false;
-                } else {
-                    mobilePressStart = 0;
-                    mobilePressKey = null;
-                    mobileHoldBroken = false;
-                }
-            }
-
-            if (currentBreak) {
-                const target = getTargetBlock(camera, BLOCK);
-                const key = target ? `${target.x},${target.y},${target.z}` : null;
-                if (!target || key !== mobilePressKey) {
-                    mobilePressStart = target ? performance.now() : 0;
+            if (blockTouch) {
+                if (key !== mobilePressKey) {
                     mobilePressKey = key;
                     mobileHoldBroken = false;
-                } else if (!mobileHoldBroken && mobilePressStart && performance.now() - mobilePressStart >= MOBILE_HOLD_TIME) {
-                    performAction(scene, camera, BLOCK, materials, "break");
+                }
+                if (!mobileHoldBroken && key && touchInput.blockTouchStarted && performance.now() - touchInput.blockTouchStarted >= MOBILE_HOLD_TIME) {
+                    performAction(scene, camera, BLOCK, materials, "break", target);
                     mobileHoldBroken = true;
                 }
             } else {
-                mobilePressStart = 0;
                 mobilePressKey = null;
                 mobileHoldBroken = false;
             }
 
-            if (currentPlace && !lastPlace) {
-                performAction(scene, camera, BLOCK, materials, "place");
-            }
+            if (currentBreakButton && !lastBreak) performAction(scene, camera, BLOCK, materials, "break");
+            if (currentPlace && !lastPlace) performAction(scene, camera, BLOCK, materials, "place");
         } else {
-            mobilePressStart = 0;
             mobilePressKey = null;
             mobileHoldBroken = false;
         }
@@ -118,7 +102,11 @@ export function setupInteraction(scene, camera) {
     pollTouchActions();
 
     function updateSelection() {
-        const target = getTargetBlock(camera, BLOCK);
+        const mobile = document.body.classList.contains("mobile-mode");
+        const pointer = mobile && touchInput.blockTouchActive
+            ? new THREE.Vector2(touchInput.blockTouchX, touchInput.blockTouchY)
+            : new THREE.Vector2(0, 0);
+        const target = getTargetBlock(camera, BLOCK, pointer);
 
         if (!target) {
             selectionOutline.visible = false;
@@ -135,8 +123,8 @@ export function setupInteraction(scene, camera) {
     updateSelection();
 }
 
-function getTargetBlock(camera, BLOCK) {
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+function getTargetBlock(camera, BLOCK, pointer = new THREE.Vector2(0, 0)) {
+    raycaster.setFromCamera(pointer, camera);
     raycaster.near = 0;
     raycaster.far = INTERACTION_DISTANCE;
 
@@ -152,24 +140,20 @@ function getTargetBlock(camera, BLOCK) {
     return {
         ...block,
         normal: hit.face.normal.clone().normalize(),
-        distance: hit.distance
+        distance: hit.distance,
+        hit
     };
 }
 
-function performAction(scene, camera, BLOCK, materials, action) {
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    raycaster.near = 0;
-    raycaster.far = INTERACTION_DISTANCE;
-    const hits = raycaster.intersectObjects(scene.children, false);
-    raycaster.far = Infinity;
-    const hit = hits.find((entry) => entry.object.userData?.isChunk);
+function performAction(scene, camera, BLOCK, materials, action, providedTarget = null) {
+    const target = providedTarget || getTargetBlock(camera, BLOCK, new THREE.Vector2(0, 0));
+    if (!target) return;
+
+    const hit = target.hit;
     if (!hit || !hit.face || hit.distance > INTERACTION_DISTANCE) return;
 
     if (action === "break") {
-        const point = hit.point.clone().sub(hit.face.normal.clone().multiplyScalar(0.01));
-        const x = Math.floor(point.x + 0.5);
-        const y = Math.floor(point.y + 0.5);
-        const z = Math.floor(point.z + 0.5);
+        const { x, y, z } = target;
         const blockType = getBlockAt(x, y, z);
         if (blockType) {
             createBreakParticles(scene, new THREE.Vector3(x, y, z), blockType, BLOCK);
@@ -201,14 +185,14 @@ function getHitBlock(hit, BLOCK) {
 function createSelectionOutline() {
     const geometry = new THREE.BufferGeometry();
     const vertices = new Float32Array([
-        -0.492, -0.492, 0,
-         0.492, -0.492, 0,
-         0.492, -0.492, 0,
-         0.492,  0.492, 0,
-         0.492,  0.492, 0,
-        -0.492,  0.492, 0,
-        -0.492,  0.492, 0,
-        -0.492, -0.492, 0
+        -0.49, -0.49, 0,
+         0.49, -0.49, 0,
+         0.49, -0.49, 0,
+         0.49,  0.49, 0,
+         0.49,  0.49, 0,
+        -0.49,  0.49, 0,
+        -0.49,  0.49, 0,
+        -0.49, -0.49, 0
     ]);
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
 
@@ -217,7 +201,7 @@ function createSelectionOutline() {
         transparent: true,
         opacity: 0.95,
         depthTest: false,
-        linewidth: 4
+        linewidth: 6
     });
 
     const outline = new THREE.LineSegments(geometry, material);
