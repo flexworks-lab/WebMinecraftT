@@ -51,6 +51,15 @@ function normalizeSeed(value) {
     if (!Number.isFinite(numeric)) return null;
     return Math.floor(Math.abs(numeric)) >>> 0;
 }
+function makeNewSeed() {
+    try {
+        const values = new Uint32Array(2);
+        crypto.getRandomValues(values);
+        return (values[0] * 4096 + (values[1] >>> 20)) >>> 0;
+    } catch {
+        return Math.floor(Math.random() * 4294967296) >>> 0;
+    }
+}
 const urlSeed = normalizeSeed(params.get("seed"));
 if (urlSeed !== null) setWorldSeed(urlSeed);
 createWorld(scene);
@@ -186,10 +195,10 @@ let seedMenuMode = "create";
 function openSeedMenu(mode = "create") {
     if (!seedMenu || gameStarted) return;
     seedMenuMode = mode;
-    const currentSeed = getWorldSeed();
+    const currentSeed = mode === "create" ? makeNewSeed() : getWorldSeed();
     if (seedTitle) seedTitle.textContent = mode === "create" ? "Create World" : "Open World";
     if (seedSubtitle) seedSubtitle.textContent = mode === "create"
-        ? "Your world seed is below. Copy it to share the exact same world later."
+        ? "Your new world seed is below. Copy it to share the exact same world later."
         : "Enter a seed number to return to the exact same world.";
     if (seedInput) { seedInput.value = String(currentSeed); seedInput.focus(); seedInput.select(); }
     if (seedLinkStatus) seedLinkStatus.textContent = "";
@@ -339,7 +348,7 @@ function updateMenuCamera(deltaTime) {
     menuLook.x = THREE.MathUtils.lerp(menuLook.x, menuLook.targetX, Math.min(deltaTime * 2.5, 1));
     menuLook.y = THREE.MathUtils.lerp(menuLook.y, menuLook.targetY, Math.min(deltaTime * 2.5, 1));
     panoramaCamera.swayX = THREE.MathUtils.lerp(panoramaCamera.swayX, menuLook.x, Math.min(deltaTime * 1.8, 1));
-    panoramaCamera.swayY = THREE.MathUtils.lerp(panoramaCamera.swayY, menuLook.y, Math.min(deltaTime * 1.8, 1));
+    panoramaCamera.swayY = THREE.MathUtils.lerp(panoramaCamera.swayY, menuLook.targetY, Math.min(deltaTime * 1.8, 1));
     updateChunkVisibility(panoramaCamera.position, camera);
     if (panoramaCamera.safeHeight === null) {
         panoramaCamera.safeHeight = getMenuCameraHeight();
