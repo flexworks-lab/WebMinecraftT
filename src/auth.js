@@ -1,4 +1,5 @@
 import { firebaseConfig, isFirebaseConfigured } from "./firebaseConfig.js";
+import "./drive.js";
 
 let firebaseReady = false;
 let auth = null;
