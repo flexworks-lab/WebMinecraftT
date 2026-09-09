@@ -417,6 +417,21 @@ export function sendPlayerState(position, rotation) {
     socket.send(JSON.stringify({ type: "player_state", position, rotation }));
 }
 
+export function sendBlockChange(x, y, z, blockType) {
+    if (!isMultiplayerActive()) return;
+    socket.send(JSON.stringify({
+        type: "block_change",
+        x: Math.floor(x),
+        y: Math.floor(y),
+        z: Math.floor(z),
+        blockType: Math.floor(blockType),
+    }));
+}
+
+export function syncWorldChanges() {
+    if (isMultiplayerActive()) applyPendingWorldChanges();
+}
+
 export function getRemotePlayers() {
     return remotePlayers;
 }
