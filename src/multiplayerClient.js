@@ -218,8 +218,18 @@ function ensureMenu() {
         }
     };
 
+    const fallbackServer = () => ({
+        id: "webminecraft-official",
+        name: "WebMinecraft Official",
+        online: true,
+        players: 0,
+        maxPlayers: 10,
+        rooms: [],
+        websocket: PRODUCTION_SERVER_URL,
+    });
+
     const loadServers = async () => {
-        serverList.innerHTML = '<div class="multiplayerEmpty">Loading servers...</div>';
+        renderServers([fallbackServer()]);
         refreshButton.disabled = true;
         try {
             const response = await fetch(`${PRODUCTION_API_URL}/servers`, { cache: "no-store" });
@@ -229,11 +239,10 @@ function ensureMenu() {
                 ...server,
                 websocket: server.websocket || PRODUCTION_SERVER_URL,
             }));
-            renderServers(servers);
+            renderServers(servers.length ? servers : [fallbackServer()]);
         } catch (error) {
             console.error("Failed to load multiplayer servers:", error);
-            renderServers([{ id: "webminecraft-official", name: "WebMinecraft Official", online: true, players: 0, maxPlayers: 10, rooms: [], websocket: PRODUCTION_SERVER_URL }]);
-            setStatus("Live server list is unavailable. The official server is still available.", false);
+            setStatus("Live server list unavailable. The official server is still available.", false);
         } finally {
             refreshButton.disabled = false;
         }
