@@ -20,30 +20,10 @@ function getCurrentUser() {
     return user;
 }
 
-function getDriveCacheKey(user) {
-    return `${DRIVE_CACHE_KEY}:${user.uid}`;
-}
-
-function readDriveAuthCache(user) {
-    try {
-        return JSON.parse(localStorage.getItem(getDriveCacheKey(user)) || "null") || {};
-    } catch {
-        return {};
-    }
-}
-
-function writeDriveAuthCache(user, data) {
-    try { localStorage.setItem(getDriveCacheKey(user), JSON.stringify(data)); } catch {}
-}
-
-function clearDriveToken(user) {
-    try {
-        const cached = readDriveAuthCache(user);
-        delete cached.accessToken;
-        delete cached.expiresAt;
-        writeDriveAuthCache(user, cached);
-    } catch {}
-}
+function getDriveCacheKey(user) { return `${DRIVE_CACHE_KEY}:${user.uid}`; }
+function readDriveAuthCache(user) { try { return JSON.parse(localStorage.getItem(getDriveCacheKey(user)) || "null") || {}; } catch { return {}; } }
+function writeDriveAuthCache(user, data) { try { localStorage.setItem(getDriveCacheKey(user), JSON.stringify(data)); } catch {} }
+function clearDriveToken(user) { try { const cached = readDriveAuthCache(user); delete cached.accessToken; delete cached.expiresAt; writeDriveAuthCache(user, cached); } catch {} }
 
 function getWorldDetails() {
     const panel = document.getElementById("worldDetailsPanel");
@@ -62,18 +42,12 @@ function setMessage(text, success = false) {
     message.textContent = text;
 }
 
-function providerIsGoogle(user) {
-    return user.providerData?.some(provider => provider.providerId === "google.com");
-}
+function providerIsGoogle(user) { return user.providerData?.some(provider => provider.providerId === "google.com"); }
 
 async function getDriveAccessToken(user, forceRefresh = false) {
     if (!providerIsGoogle(user)) throw new Error("Google Drive requires a Google Account login.");
-
     const cached = readDriveAuthCache(user);
-    if (!forceRefresh && cached.accessToken && Number(cached.expiresAt) > Date.now() + 60_000) {
-        return cached.accessToken;
-    }
-
+    if (!forceRefresh && cached.accessToken && Number(cached.expiresAt) > Date.now() + 60_000) return cached.accessToken;
     const firebase = getFirebase();
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope(DRIVE_SCOPE);
@@ -81,23 +55,16 @@ async function getDriveAccessToken(user, forceRefresh = false) {
     provider.setCustomParameters(alreadyAuthorized
         ? { prompt: "", include_granted_scopes: "true" }
         : { prompt: "consent", access_type: "offline", include_granted_scopes: "true" });
-
     const result = await user.reauthenticateWithPopup(provider);
     const token = result?.credential?.accessToken;
     if (!token) throw new Error("Google did not return a Drive access token.");
-
-    writeDriveAuthCache(user, {
-        authorized: true,
-        accessToken: token,
-        expiresAt: Date.now() + (55 * 60 * 1000)
-    });
+    writeDriveAuthCache(user, { authorized: true, accessToken: token, expiresAt: Date.now() + (55 * 60 * 1000) });
     return token;
 }
 
 async function getWorldFromFirestore(user, seed) {
     const firebase = getFirebase();
-    const snapshot = await firebase.firestore().collection("users").doc(user.uid).collection(WORLD_COLLECTION)
-        .where("seed", "==", seed).limit(1).get();
+    const snapshot = await firebase.firestore().collection("users").doc(user.uid).collection(WORLD_COLLECTION).where("seed", "==", seed).limit(1).get();
     if (snapshot.empty) throw new Error("Could not find this saved world.");
     const doc = snapshot.docs[0];
     return { id: doc.id, ref: doc.ref, data: doc.data() || {} };
@@ -112,40 +79,19 @@ function serializeTimestamp(value) {
 
 function buildWorldExport(world, title, seed) {
     const data = world.data || {};
-    return {
-        format: DRIVE_WORLD_MARKER,
-        formatVersion: 1,
-        name: data.name || title || "World",
-        seed,
-        createdAt: serializeTimestamp(data.createdAt),
-        updatedAt: serializeTimestamp(data.updatedAt),
-        blocks: data.blocks && typeof data.blocks === "object" ? data.blocks : {}
-    };
+    return { format: DRIVE_WORLD_MARKER, formatVersion: 1, name: data.name || title || "World", seed, createdAt: serializeTimestamp(data.createdAt), updatedAt: serializeTimestamp(data.updatedAt), blocks: data.blocks && typeof data.blocks === "object" ? data.blocks : {} };
 }
 
 function buildNewWorldExport(name, seed) {
     const now = new Date().toISOString();
-    return {
-        format: DRIVE_WORLD_MARKER,
-        formatVersion: 1,
-        name: String(name || "New World"),
-        seed: Math.floor(Math.abs(Number(seed))) >>> 0,
-        createdAt: now,
-        updatedAt: now,
-        blocks: {}
-    };
+    return { format: DRIVE_WORLD_MARKER, formatVersion: 1, name: String(name || "New World"), seed: Math.floor(Math.abs(Number(seed))) >>> 0, createdAt: now, updatedAt: now, blocks: {} };
 }
 
 function makeMultipartBody(metadata, blob) {
     const boundary = `webminecraft_${crypto.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
     const body = new Blob([
-        `--${boundary}\r\n`,
-        "Content-Type: application/json; charset=UTF-8\r\n\r\n",
-        JSON.stringify(metadata),
-        `\r\n--${boundary}\r\n`,
-        `Content-Type: ${DRIVE_MIME}\r\n\r\n`,
-        blob,
-        `\r\n--${boundary}--`
+        `--${boundary}\r\n`, "Content-Type: application/json; charset=UTF-8\r\n\r\n", JSON.stringify(metadata),
+        `\r\n--${boundary}\r\n`, `Content-Type: ${DRIVE_MIME}\r\n\r\n`, blob, `\r\n--${boundary}--`
     ]);
     return { boundary, body };
 }
@@ -165,31 +111,22 @@ async function uploadWorldToDrive(accessToken, exportData, existingFileId) {
     const safeName = String(exportData.name || "World").replace(/[\\/:*?"<>|]/g, "_").trim() || "World";
     const metadata = { name: `${safeName}.webminecraftworld`, mimeType: DRIVE_MIME, description: "WebMinecraftT world backup" };
     const { boundary, body } = makeMultipartBody(metadata, blob);
-
     if (existingFileId) {
         try {
             return await driveRequest(`${DRIVE_API}/upload/drive/v3/files/${encodeURIComponent(existingFileId)}?uploadType=multipart&fields=id,name,webViewLink`, {
-                method: "PATCH",
-                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
-                body
+                method: "PATCH", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` }, body
             });
-        } catch (error) {
-            if (error.driveStatus !== 404) throw error;
-        }
+        } catch (error) { if (error.driveStatus !== 404) throw error; }
     }
-
     return driveRequest(`${DRIVE_API}/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
-        body
+        method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` }, body
     });
 }
 
 async function uploadWithFreshToken(user, exportData, existingFileId) {
     let accessToken = await getDriveAccessToken(user);
-    try {
-        return await uploadWorldToDrive(accessToken, exportData, existingFileId);
-    } catch (error) {
+    try { return await uploadWorldToDrive(accessToken, exportData, existingFileId); }
+    catch (error) {
         if (error.driveStatus !== 401) throw error;
         clearDriveToken(user);
         accessToken = await getDriveAccessToken(user, true);
@@ -200,39 +137,31 @@ async function uploadWithFreshToken(user, exportData, existingFileId) {
 export async function saveNewWorldToDrive(name, seed) {
     const user = getCurrentUser();
     const exportData = buildNewWorldExport(name, seed);
-    const result = await uploadWithFreshToken(user, exportData, null);
-    return { ...exportData, id: result.id, webViewLink: result.webViewLink || null };
+
+    // Start the backup without making world generation wait on Drive auth/network work.
+    void (async () => {
+        try {
+            await uploadWithFreshToken(user, exportData, null);
+        } catch (error) {
+            console.warn("Background Drive backup skipped:", error);
+        }
+    })();
+
+    return { ...exportData, id: null, webViewLink: null, pending: true };
 }
 
 async function listWorldsWithToken(user, accessToken) {
     const query = "trashed = false and name contains '.webminecraftworld'";
-    const list = await driveRequest(
-        `${DRIVE_API}/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&orderBy=modifiedTime desc&pageSize=100&fields=files(id,name,mimeType,modifiedTime,createdTime,webViewLink)`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-
+    const list = await driveRequest(`${DRIVE_API}/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&orderBy=modifiedTime desc&pageSize=100&fields=files(id,name,mimeType,modifiedTime,createdTime,webViewLink)`, { headers: { Authorization: `Bearer ${accessToken}` } });
     const worlds = [];
     for (const file of list.files || []) {
         try {
-            const response = await fetch(`${DRIVE_API}/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`, {
-                headers: { Authorization: `Bearer ${accessToken}` }
-            });
+            const response = await fetch(`${DRIVE_API}/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`, { headers: { Authorization: `Bearer ${accessToken}` } });
             if (!response.ok) continue;
             const data = await response.json();
             if (data?.format !== DRIVE_WORLD_MARKER || !Number.isFinite(Number(data.seed))) continue;
-            worlds.push({
-                id: `drive-${file.id}`,
-                driveFileId: file.id,
-                driveFileUrl: file.webViewLink || `https://drive.google.com/open?id=${encodeURIComponent(file.id)}`,
-                name: data.name || file.name.replace(/\.webminecraftworld$/i, "") || "World",
-                seed: Math.floor(Math.abs(Number(data.seed))) >>> 0,
-                createdAt: data.createdAt || file.createdTime || null,
-                updatedAt: data.updatedAt || file.modifiedTime || null,
-                blocks: data.blocks && typeof data.blocks === "object" ? data.blocks : {}
-            });
-        } catch (error) {
-            console.warn("Skipping invalid Drive world:", file.name, error);
-        }
+            worlds.push({ id: `drive-${file.id}`, driveFileId: file.id, driveFileUrl: file.webViewLink || `https://drive.google.com/open?id=${encodeURIComponent(file.id)}`, name: data.name || file.name.replace(/\.webminecraftworld$/i, "") || "World", seed: Math.floor(Math.abs(Number(data.seed))) >>> 0, createdAt: data.createdAt || file.createdTime || null, updatedAt: data.updatedAt || file.modifiedTime || null, blocks: data.blocks && typeof data.blocks === "object" ? data.blocks : {} });
+        } catch (error) { console.warn("Skipping invalid Drive world:", file.name, error); }
     }
     return worlds;
 }
@@ -240,9 +169,8 @@ async function listWorldsWithToken(user, accessToken) {
 export async function loadWorldsFromDrive() {
     const user = getCurrentUser();
     let accessToken = await getDriveAccessToken(user);
-    try {
-        return await listWorldsWithToken(user, accessToken);
-    } catch (error) {
+    try { return await listWorldsWithToken(user, accessToken); }
+    catch (error) {
         if (error.driveStatus !== 401) throw error;
         clearDriveToken(user);
         accessToken = await getDriveAccessToken(user, true);
@@ -257,15 +185,7 @@ export async function restoreDriveWorldToFirestore(world) {
     let existing = null;
     try { existing = await getWorldFromFirestore(user, world.seed); } catch {}
     const ref = existing?.ref || db.collection("users").doc(user.uid).collection(WORLD_COLLECTION).doc();
-    const payload = {
-        name: world.name || "World",
-        seed: world.seed,
-        blocks: world.blocks || {},
-        driveFileId: world.driveFileId,
-        driveFileUrl: world.driveFileUrl,
-        driveSavedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: world.updatedAt ? new Date(world.updatedAt) : firebase.firestore.FieldValue.serverTimestamp()
-    };
+    const payload = { name: world.name || "World", seed: world.seed, blocks: world.blocks || {}, driveFileId: world.driveFileId, driveFileUrl: world.driveFileUrl, driveSavedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: world.updatedAt ? new Date(world.updatedAt) : firebase.firestore.FieldValue.serverTimestamp() };
     if (!existing) payload.createdAt = world.createdAt ? new Date(world.createdAt) : firebase.firestore.FieldValue.serverTimestamp();
     await ref.set(payload, { merge: true });
     return { id: ref.id, ...world };
