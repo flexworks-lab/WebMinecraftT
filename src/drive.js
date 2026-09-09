@@ -7,26 +7,15 @@ const DRIVE_WORLD_MARKER = "WebMinecraftT World";
 let buttonInjected = false;
 let saving = false;
 
-function escapeHtml(value) {
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
 function getFirebase() {
-    if (!window.firebase?.auth || !window.firebase?.firestore) {
-        throw new Error("Account service is not ready yet.");
-    }
+    if (!window.firebase?.auth || !window.firebase?.firestore) throw new Error("Account service is not ready yet.");
     return window.firebase;
 }
 
 function getCurrentUser() {
     const firebase = getFirebase();
     const user = firebase.auth().currentUser;
-    if (!user) throw new Error("Log in first to save a world to Google Drive.");
+    if (!user) throw new Error("Log in first to use Google Drive worlds.");
     return user;
 }
 
@@ -52,29 +41,21 @@ function providerIsGoogle(user) {
 }
 
 async function getDriveAccessToken(user) {
-    if (!providerIsGoogle(user)) {
-        throw new Error("Google Drive saving requires a Google Account. Log in with Google for this account first.");
-    }
-
+    if (!providerIsGoogle(user)) throw new Error("Google Drive requires a Google Account login.");
     const firebase = getFirebase();
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope(DRIVE_SCOPE);
     provider.setCustomParameters({ prompt: "consent", include_granted_scopes: "true" });
-
     const result = await user.reauthenticateWithPopup(provider);
-    const credential = result?.credential;
-    const token = credential?.accessToken;
+    const token = result?.credential?.accessToken;
     if (!token) throw new Error("Google did not return a Drive access token.");
     return token;
 }
 
 async function getWorldFromFirestore(user, seed) {
     const firebase = getFirebase();
-    const db = firebase.firestore();
-    const snapshot = await db.collection("users").doc(user.uid).collection(WORLD_COLLECTION)
-        .where("seed", "==", seed)
-        .limit(1)
-        .get();
+    const snapshot = await firebase.firestore().collection("users").doc(user.uid).collection(WORLD_COLLECTION)
+        .where("seed", "==", seed).limit(1).get();
     if (snapshot.empty) throw new Error("Could not find this saved world.");
     const doc = snapshot.docs[0];
     return { id: doc.id, ref: doc.ref, data: doc.data() || {} };
@@ -131,89 +112,33 @@ async function driveRequest(url, options) {
     const response = await fetch(url, options);
     if (response.ok) return response.json();
     let detail = "";
-    try {
-        const payload = await response.json();
-        detail = payload?.error?.message || "";
-    } catch {}
+    try { detail = (await response.json())?.error?.message || ""; } catch {}
     throw new Error(detail || `Google Drive request failed (${response.status}).`);
 }
 
 async function uploadWorldToDrive(accessToken, exportData, existingFileId) {
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: DRIVE_MIME });
     const safeName = String(exportData.name || "World").replace(/[\\/:*?"<>|]/g, "_").trim() || "World";
-    const metadata = {
-        name: `${safeName}.webminecraftworld`,
-        mimeType: DRIVE_MIME,
-        description: "WebMinecraftT world backup"
-    };
+    const metadata = { name: `${safeName}.webminecraftworld`, mimeType: DRIVE_MIME, description: "WebMinecraftT world backup" };
     const { boundary, body } = makeMultipartBody(metadata, blob);
 
     if (existingFileId) {
         try {
-            return await driveRequest(
-                `${DRIVE_API}/upload/drive/v3/files/${encodeURIComponent(existingFileId)}?uploadType=multipart&fields=id,name,webViewLink`,
-                {
-                    method: "PATCH",
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                        "Content-Type": `multipart/related; boundary=${boundary}`
-                    },
-                    body
-                }
-            );
+            return await driveRequest(`${DRIVE_API}/upload/drive/v3/files/${encodeURIComponent(existingFileId)}?uploadType=multipart&fields=id,name,webViewLink`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+                body
+            });
         } catch (error) {
             if (!String(error.message).includes("404")) throw error;
         }
     }
 
-    return driveRequest(
-        `${DRIVE_API}/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink`,
-        {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": `multipart/related; boundary=${boundary}`
-            },
-            body
-        }
-    );
-}
-
-async function saveCurrentWorldToDrive() {
-    if (saving) return;
-    saving = true;
-    const button = document.getElementById("worldDetailsDrive");
-    if (button) {
-        button.disabled = true;
-        button.textContent = "Saving to Drive…";
-    }
-    setMessage("");
-
-    try {
-        const user = getCurrentUser();
-        const { title, seed } = getWorldDetails();
-        const world = await getWorldFromFirestore(user, seed);
-        const exportData = buildWorldExport(world, title, seed);
-        const accessToken = await getDriveAccessToken(user);
-        const result = await uploadWorldToDrive(accessToken, exportData, world.data.driveFileId);
-
-        await world.ref.set({
-            driveFileId: result.id,
-            driveFileUrl: result.webViewLink || `https://drive.google.com/open?id=${encodeURIComponent(result.id)}`,
-            driveSavedAt: window.firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        setMessage("World saved to Google Drive!", true);
-    } catch (error) {
-        console.error("Could not save world to Google Drive:", error);
-        setMessage(error?.message || "Could not save this world to Google Drive.");
-    } finally {
-        saving = false;
-        if (button) {
-            button.disabled = false;
-            button.textContent = "Save to Google Drive";
-        }
-    }
+    return driveRequest(`${DRIVE_API}/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+        body
+    });
 }
 
 export async function saveNewWorldToDrive(name, seed) {
@@ -227,43 +152,87 @@ export async function saveNewWorldToDrive(name, seed) {
 export async function loadWorldsFromDrive() {
     const user = getCurrentUser();
     const accessToken = await getDriveAccessToken(user);
-    const query = `name contains '.webminecraftworld' and trashed = false`;
+    const query = "trashed = false and name contains '.webminecraftworld'";
     const list = await driveRequest(
-        `${DRIVE_API}/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id,name,modifiedTime)&pageSize=100`,
+        `${DRIVE_API}/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&orderBy=modifiedTime desc&pageSize=100&fields=files(id,name,mimeType,modifiedTime,createdTime,webViewLink)`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
     const worlds = [];
     for (const file of list.files || []) {
         try {
-            const response = await fetch(
-                `${DRIVE_API}/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`,
-                { headers: { Authorization: `Bearer ${accessToken}` } }
-            );
+            const response = await fetch(`${DRIVE_API}/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`, {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
             if (!response.ok) continue;
             const data = await response.json();
             if (data?.format !== DRIVE_WORLD_MARKER || !Number.isFinite(Number(data.seed))) continue;
             worlds.push({
                 id: `drive-${file.id}`,
                 driveFileId: file.id,
+                driveFileUrl: file.webViewLink || `https://drive.google.com/open?id=${encodeURIComponent(file.id)}`,
                 name: data.name || file.name.replace(/\.webminecraftworld$/i, "") || "World",
                 seed: Math.floor(Math.abs(Number(data.seed))) >>> 0,
-                createdAt: data.createdAt || file.modifiedTime || new Date().toISOString(),
-                updatedAt: data.updatedAt || file.modifiedTime || data.createdAt || new Date().toISOString(),
+                createdAt: data.createdAt || file.createdTime || null,
+                updatedAt: data.updatedAt || file.modifiedTime || null,
                 blocks: data.blocks && typeof data.blocks === "object" ? data.blocks : {}
             });
         } catch (error) {
-            console.warn("Could not read Drive world:", file.name, error);
+            console.warn("Skipping invalid Drive world:", file.name, error);
         }
     }
     return worlds;
+}
+
+export async function restoreDriveWorldToFirestore(world) {
+    const user = getCurrentUser();
+    const firebase = getFirebase();
+    const db = firebase.firestore();
+    let existing = null;
+    try { existing = await getWorldFromFirestore(user, world.seed); } catch {}
+    const ref = existing?.ref || db.collection("users").doc(user.uid).collection(WORLD_COLLECTION).doc();
+    const payload = {
+        name: world.name || "World",
+        seed: world.seed,
+        blocks: world.blocks || {},
+        driveFileId: world.driveFileId,
+        driveFileUrl: world.driveFileUrl,
+        driveSavedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: world.updatedAt ? new Date(world.updatedAt) : firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (!existing) payload.createdAt = world.createdAt ? new Date(world.createdAt) : firebase.firestore.FieldValue.serverTimestamp();
+    await ref.set(payload, { merge: true });
+    return { id: ref.id, ...world };
+}
+
+async function saveCurrentWorldToDrive() {
+    if (saving) return;
+    saving = true;
+    const button = document.getElementById("worldDetailsDrive");
+    if (button) { button.disabled = true; button.textContent = "Saving to Drive…"; }
+    setMessage("");
+    try {
+        const user = getCurrentUser();
+        const { title, seed } = getWorldDetails();
+        const world = await getWorldFromFirestore(user, seed);
+        const exportData = buildWorldExport(world, title, seed);
+        const accessToken = await getDriveAccessToken(user);
+        const result = await uploadWorldToDrive(accessToken, exportData, world.data.driveFileId);
+        await world.ref.set({ driveFileId: result.id, driveFileUrl: result.webViewLink || `https://drive.google.com/open?id=${encodeURIComponent(result.id)}`, driveSavedAt: window.firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        setMessage("World saved to Google Drive!", true);
+    } catch (error) {
+        console.error("Could not save world to Google Drive:", error);
+        setMessage(error?.message || "Could not save this world to Google Drive.");
+    } finally {
+        saving = false;
+        if (button) { button.disabled = false; button.textContent = "Save to Google Drive"; }
+    }
 }
 
 function injectButton() {
     const panel = document.getElementById("worldDetailsPanel");
     const deleteButton = document.getElementById("worldDetailsDelete");
     if (!panel || !deleteButton || document.getElementById("worldDetailsDrive")) return;
-
     const button = document.createElement("button");
     button.id = "worldDetailsDrive";
     button.className = "savedWorldButton worldDetailAction";
@@ -284,4 +253,4 @@ function init() {
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
 else init();
 
-window.webMinecraftDrive = { saveCurrentWorldToDrive, saveNewWorldToDrive, loadWorldsFromDrive };
+window.webMinecraftDrive = { saveCurrentWorldToDrive, saveNewWorldToDrive, loadWorldsFromDrive, restoreDriveWorldToFirestore }; 
