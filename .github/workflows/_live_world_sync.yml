@@ -1,6 +1,8 @@
 name: Live world sync patch
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/_live_world_sync.yml
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -12,52 +14,66 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-
           world = Path('src/world.js')
           s = world.read_text()
+          s = s.replace('const queuedKeys = new Set();\nlet worldScene = null;', 'const queuedKeys = new Set();\nconst worldOverrides = new Map();\nlet worldScene = null;', 1)
+          marker = 'function generateChunk(chunkX, chunkZ) {'
+          helper = '''function applyWorldOverridesToChunk(chunk) {
+              for (const [key, type] of worldOverrides) {
+                  const [x, y, z] = key.split(',').map(Number);
+                  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+                  if (Math.floor(x / CHUNK_SIZE) !== chunk.x || Math.floor(z / CHUNK_SIZE) !== chunk.z) continue;
+                  if (y < MIN_Y || y > WORLD_TOP) continue;
+                  const localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+                  const localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+                  chunk.blocks[blockIndex(localX, y, localZ)] = type;
+              }
+          }
 
-          s = s.replace(
-              'const queuedKeys = new Set();\nlet worldScene = null;',
-              'const queuedKeys = new Set();\nconst worldOverrides = new Map();\nlet worldScene = null;',
-              1,
-          )
-
-          marker = '''function generateChunk(chunkX, chunkZ) {'''
-          helper = '''function applyWorldOverridesToChunk(chunk) {\n    const startX = chunk.x * CHUNK_SIZE;\n    const startZ = chunk.z * CHUNK_SIZE;\n    for (const [key, type] of worldOverrides) {\n        const [x, y, z] = key.split(",").map(Number);\n        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;\n        if (Math.floor(x / CHUNK_SIZE) !== chunk.x || Math.floor(z / CHUNK_SIZE) !== chunk.z) continue;\n        const localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;\n        const localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;\n        if (y < MIN_Y || y > WORLD_TOP) continue;\n        chunk.blocks[blockIndex(localX, y, localZ)] = type;\n    }\n}\n\nfunction generateChunk(chunkX, chunkZ) {'''
+          function generateChunk(chunkX, chunkZ) {'''
           if marker in s and 'function applyWorldOverridesToChunk(chunk)' not in s:
               s = s.replace(marker, helper, 1)
+          s = s.replace('    generateTerrain(chunk);\n    generateTrees(chunk);\n    chunk.generated = true;', '    generateTerrain(chunk);\n    generateTrees(chunk);\n    applyWorldOverridesToChunk(chunk);\n    chunk.generated = true;', 1)
+          old = '''export function setBlockAt(x, y, z, type) {
+              x = Math.floor(x);
+              y = Math.floor(y);
+              z = Math.floor(z);
+              if (y < MIN_Y || y > WORLD_TOP) return false;
 
-          s = s.replace(
-              '    generateTerrain(chunk);\n    generateTrees(chunk);\n    chunk.generated = true;',
-              '    generateTerrain(chunk);\n    generateTrees(chunk);\n    applyWorldOverridesToChunk(chunk);\n    chunk.generated = true;',
-              1,
-          )
+              const { chunkX, chunkZ, localX, localZ } = getChunkCoords(x, z);
+              const chunk = getChunk(chunkX, chunkZ);
+              if (!chunk) return false;
+              chunk.blocks[blockIndex(localX, y, localZ)] = type;'''
+          new = '''export function setBlockAt(x, y, z, type) {
+              x = Math.floor(x);
+              y = Math.floor(y);
+              z = Math.floor(z);
+              type = Math.floor(Number(type));
+              if (![x, y, z, type].every(Number.isFinite)) return false;
+              if (y < MIN_Y || y > WORLD_TOP) return false;
 
-          s = s.replace(
-              'export function setBlockAt(x, y, z, type) {\n    x = Math.floor(x);\n    y = Math.floor(y);\n    z = Math.floor(z);\n    if (y < MIN_Y || y > WORLD_TOP) return false;\n\n    const { chunkX, chunkZ, localX, localZ } = getChunkCoords(x, z);\n    const chunk = getChunk(chunkX, chunkZ);\n    if (!chunk) return false;\n    chunk.blocks[blockIndex(localX, y, localZ)] = type;',
-              'export function setBlockAt(x, y, z, type) {\n    x = Math.floor(x);\n    y = Math.floor(y);\n    z = Math.floor(z);\n    type = Math.floor(Number(type));\n    if (![x, y, z, type].every(Number.isFinite)) return false;\n    if (y < MIN_Y || y > WORLD_TOP) return false;\n\n    worldOverrides.set(`${x},${y},${z}`, type);\n\n    const { chunkX, chunkZ, localX, localZ } = getChunkCoords(x, z);\n    const chunk = getChunk(chunkX, chunkZ);\n    if (!chunk) return true;\n    chunk.blocks[blockIndex(localX, y, localZ)] = type;',
-              1,
-          )
+              worldOverrides.set(`${x},${y},${z}`, type);
 
-          s = s.replace(
-              '    queuedKeys.clear();\n    lastPlayerChunkX = Infinity;',
-              '    queuedKeys.clear();\n    worldOverrides.clear();\n    lastPlayerChunkX = Infinity;',
-              1,
-          )
-
+              const { chunkX, chunkZ, localX, localZ } = getChunkCoords(x, z);
+              const chunk = getChunk(chunkX, chunkZ);
+              if (!chunk) return true;
+              chunk.blocks[blockIndex(localX, y, localZ)] = type;'''
+          s = s.replace(old, new, 1)
+          s = s.replace('    queuedKeys.clear();\n    lastPlayerChunkX = Infinity;', '    queuedKeys.clear();\n    worldOverrides.clear();\n    lastPlayerChunkX = Infinity;', 1)
           world.write_text(s)
 
           client = Path('src/multiplayerClient.js')
           s = client.read_text()
-          s = s.replace(
-              '''} else if (message.type === "block_change") {\n        queueWorldChange(message);\n    }''',
-              '''} else if (message.type === "block_change") {\n        queueWorldChange(message);\n        applyPendingWorldChanges();\n    }''',
-              1,
-          )
+          old = '''} else if (message.type === "block_change") {
+              queueWorldChange(message);
+          }'''
+          new = '''} else if (message.type === "block_change") {
+              queueWorldChange(message);
+              applyPendingWorldChanges();
+          }'''
+          s = s.replace(old, new, 1)
           client.write_text(s)
-
-          print('Patched live world sync')
-
+          print('patched')
       - name: Commit and push
         shell: bash
         run: |
