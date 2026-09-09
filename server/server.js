@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { randomUUID } from "node:crypto";
 
 const PORT = Number(process.env.PORT) || 2567;
+const HOST = process.env.HOST || "0.0.0.0";
 const MAX_PLAYERS_PER_SERVER = Math.max(2, Number(process.env.MAX_PLAYERS) || 10);
 const TICK_RATE = 20;
 const BROADCAST_INTERVAL = 1000 / TICK_RATE;
@@ -370,8 +371,8 @@ setInterval(() => {
     }
 }, BROADCAST_INTERVAL);
 
-httpServer.listen(PORT, () => {
-    console.log(`WebMinecraft multiplayer server listening on port ${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+    console.log(`WebMinecraft multiplayer server listening on ${HOST}:${PORT}`);
     console.log(`Health: http://localhost:${PORT}/health`);
     console.log(`WebSocket: ws://localhost:${PORT}/multiplayer`);
 });
