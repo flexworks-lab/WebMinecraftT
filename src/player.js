@@ -328,9 +328,36 @@ function avatarColor(id) {
     return new THREE.Color().setHSL(hue, 0.8, 0.58);
 }
 
+function createMultiplayerNameplate(name) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 384;
+    canvas.height = 80;
+    const context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.font = "bold 34px Arial";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.lineWidth = 10;
+    context.strokeStyle = "rgba(0,0,0,0.9)";
+    context.fillStyle = "#ffffff";
+    const text = String(name || "Player").slice(0, 16);
+    context.strokeText(text, canvas.width / 2, canvas.height / 2);
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(material);
+    const width = Math.max(1.15, Math.min(2.7, text.length * 0.13 + 0.9));
+    sprite.scale.set(width, 0.38, 1);
+    sprite.position.set(0, PLAYER_HEIGHT + 0.15, 0);
+    return sprite;
+}
+
 function updateMultiplayerAvatars(scene) {
     if (!isMultiplayerActive()) {
-        for (const dot of avatarDots.values()) scene.remove(dot);
+        for (const avatar of avatarDots.values()) scene.remove(avatar);
         avatarDots.clear();
         return;
     }
@@ -338,28 +365,37 @@ function updateMultiplayerAvatars(scene) {
     const players = getRemotePlayers();
     for (const [id, player] of players) {
         if (!player?.position) continue;
-        let dot = avatarDots.get(id);
-        if (!dot) {
-            dot = new THREE.Mesh(
+        let avatar = avatarDots.get(id);
+        if (!avatar) {
+            avatar = new THREE.Group();
+            const dot = new THREE.Mesh(
                 new THREE.SphereGeometry(0.18, 8, 6),
                 new THREE.MeshBasicMaterial({ color: avatarColor(id) }),
             );
             dot.userData.multiplayerAvatar = true;
-            scene.add(dot);
-            avatarDots.set(id, dot);
+            const nameplate = createMultiplayerNameplate(player.name);
+            avatar.add(dot);
+            avatar.add(nameplate);
+            scene.add(avatar);
+            avatarDots.set(id, avatar);
         }
-        dot.position.set(
+        avatar.position.set(
             Number(player.position.x) || 0,
             (Number(player.position.y) || 0) - PLAYER_HEIGHT + 0.18,
             Number(player.position.z) || 0,
         );
     }
 
-    for (const [id, dot] of avatarDots) {
+    for (const [id, avatar] of avatarDots) {
         if (!players.has(id)) {
-            scene.remove(dot);
-            dot.geometry.dispose();
-            dot.material.dispose();
+            scene.remove(avatar);
+            avatar.traverse(child => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (child.material.map) child.material.map.dispose();
+                    child.material.dispose();
+                }
+            });
             avatarDots.delete(id);
         }
     }
