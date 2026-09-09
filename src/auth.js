@@ -5,15 +5,38 @@ let auth = null;
 let currentUser = null;
 
 function loadFirebaseScript(src) {
-    return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    if (!window.__webMinecraftFirebaseLoads) window.__webMinecraftFirebaseLoads = new Map();
+    const loads = window.__webMinecraftFirebaseLoads;
+    if (loads.has(src)) return loads.get(src);
+
+    const promise = new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            if (src.includes("firebase-app-compat") && window.firebase) return resolve();
+            if (src.includes("firebase-auth-compat") && window.firebase?.auth) return resolve();
+            if (src.includes("firebase-firestore-compat") && window.firebase?.firestore) return resolve();
+
+            const cleanup = () => {
+                existing.removeEventListener("load", onLoad);
+                existing.removeEventListener("error", onError);
+            };
+            const onLoad = () => { cleanup(); resolve(); };
+            const onError = () => { cleanup(); reject(new Error(`Could not load ${src}`)); };
+            existing.addEventListener("load", onLoad, { once: true });
+            existing.addEventListener("error", onError, { once: true });
+            return;
+        }
+
         const script = document.createElement("script");
         script.src = src;
         script.async = true;
-        script.onload = resolve;
+        script.onload = () => resolve();
         script.onerror = () => reject(new Error(`Could not load ${src}`));
         document.head.appendChild(script);
     });
+
+    loads.set(src, promise);
+    return promise;
 }
 
 async function initFirebase() {
