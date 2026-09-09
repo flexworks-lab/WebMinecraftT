@@ -210,14 +210,16 @@ function getTerrainProfile(x, z) {
     const peaks = octave2D(x - 600, z + 1100, 4, 120, 0.50, 89);
     const detail = octave2D(x + 2400, z - 1700, 3, 28, 0.50, 97);
 
-    let baseHeight = 13 + (continentalness - 0.5) * 24;
+    // Favor solid land while keeping oceans and lakes in the world.
+    let baseHeight = 16 + (continentalness - 0.5) * 24;
     baseHeight += (0.5 - erosion) * 12;
     const mountainMask = Math.max(0, (peaks - 0.57) / 0.43);
     baseHeight += mountainMask * mountainMask * 32;
     baseHeight += (detail - 0.5) * 5;
 
-    const oceanMask = Math.max(0, 0.22 - continentalness) / 0.22;
-    baseHeight -= oceanMask * 6;
+    // Only the lowest continentalness values become proper water terrain.
+    const oceanMask = Math.max(0, 0.15 - continentalness) / 0.15;
+    baseHeight -= oceanMask * 5;
 
     return {
         height: Math.floor(THREE.MathUtils.clamp(baseHeight, MIN_Y + 4, WORLD_TOP - 8)),
@@ -290,13 +292,6 @@ function getSurfaceBlock(biome, y, surfaceY, x, z) {
     }
 
     if (biome === "badlands") {
-        if (y === surfaceY) return BLOCK.SAND;
-        if (y >= surfaceY - 5) return BLOCK.SANDSTONE;
-        return chooseStoneVariant(x, y, z, surfaceY);
-    }
-
-    if (biome === "snow" || biome === "tundra") {
-        if (y === surfaceY) return BLOCK.SNOW;
         if (y >= surfaceY - 4) return BLOCK.DIRT;
         return chooseStoneVariant(x, y, z, surfaceY);
     }
@@ -392,6 +387,7 @@ function generateTerrain(chunk) {
     const startX = chunk.x * CHUNK_SIZE;
     const startZ = chunk.z * CHUNK_SIZE;
 
+    // Phase 1: generate the solid land/terrain completely first.
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
@@ -407,6 +403,7 @@ function generateTerrain(chunk) {
         }
     }
 
+    // Phase 2: apply terrain surface variations after the land exists.
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
@@ -624,240 +621,128 @@ function makeWaterGeometry(chunk) {
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(indices);
+    geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     return geometry;
 }
 
 function disposeChunkMesh(chunk) {
-    if (!chunk || !worldScene) return;
-    const key = chunkKey(chunk.x, chunk.z);
-    const mesh = chunkMeshes.get(key);
+    const mesh = chunkMeshes.get(chunkKey(chunk.x, chunk.z));
     if (mesh) {
-        worldScene.remove(mesh);
         mesh.geometry.dispose();
-        chunkMeshes.delete(key);
+        if (mesh.parent) mesh.parent.remove(mesh);
+        chunkMeshes.delete(chunkKey(chunk.x, chunk.z));
     }
     if (chunk.waterMesh) {
-        worldScene.remove(chunk.waterMesh);
         chunk.waterMesh.geometry.dispose();
+        if (chunk.waterMesh.parent) chunk.waterMesh.parent.remove(chunk.waterMesh);
         chunk.waterMesh = null;
     }
 }
 
-function rebuildChunkMesh(chunk) {
-    if (!chunk || !worldScene) return;
+function buildChunkMesh(chunk) {
     disposeChunkMesh(chunk);
-
     const geometry = makeGeometryForChunk(chunk);
-    if (geometry) {
+    if (geometry && worldScene) {
         const mesh = new THREE.Mesh(geometry, chunkMaterials);
-        mesh.userData.isChunk = true;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        mesh.position.set(0, 0, 0);
         worldScene.add(mesh);
         chunkMeshes.set(chunkKey(chunk.x, chunk.z), mesh);
     }
 
+    // Water is deliberately built after the land mesh.
     const waterGeometry = makeWaterGeometry(chunk);
-    if (waterGeometry) {
+    if (waterGeometry && worldScene) {
         const waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
-        waterMesh.userData.isChunk = true;
-        waterMesh.userData.isWater = true;
-        waterMesh.castShadow = false;
-        waterMesh.receiveShadow = false;
         worldScene.add(waterMesh);
         chunk.waterMesh = waterMesh;
     }
 }
 
-function queueNeededChunks(playerChunkX, playerChunkZ) {
-    const wanted = [];
-    for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
-        for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
-            if (Math.max(Math.abs(dx), Math.abs(dz)) > RENDER_DISTANCE) continue;
-            const x = playerChunkX + dx;
-            const z = playerChunkZ + dz;
-            const key = chunkKey(x, z);
-            if (chunks.has(key) || queuedKeys.has(key)) continue;
-            wanted.push({ x, z, distance: Math.sqrt(dx * dx + dz * dz) });
-        }
-    }
-    wanted.sort((a, b) => a.distance - b.distance);
-    for (const item of wanted) {
-        const key = chunkKey(item.x, item.z);
-        queuedKeys.add(key);
-        generationQueue.push(item);
-    }
+function queueChunk(chunkX, chunkZ) {
+    const key = chunkKey(chunkX, chunkZ);
+    if (chunks.has(key) || queuedKeys.has(key)) return;
+    generationQueue.push({ chunkX, chunkZ });
+    queuedKeys.add(key);
 }
 
-function processChunkQueue() {
-    const first = generationQueue.shift();
-    if (!first) return;
-    const key = chunkKey(first.x, first.z);
-    queuedKeys.delete(key);
-    if (chunks.has(key)) return;
-    const chunk = generateChunk(first.x, first.z);
-    rebuildChunkMesh(chunk);
+function processGenerationQueue(limit = 1) {
+    for (let i = 0; i < limit && generationQueue.length; i++) {
+        const { chunkX, chunkZ } = generationQueue.shift();
+        queuedKeys.delete(chunkKey(chunkX, chunkZ));
+        const chunk = generateChunk(chunkX, chunkZ);
+        buildChunkMesh(chunk);
+    }
 }
 
 function unloadFarChunks(playerChunkX, playerChunkZ) {
     for (const [key, chunk] of chunks) {
-        const distance = Math.max(
-            Math.abs(chunk.x - playerChunkX),
-            Math.abs(chunk.z - playerChunkZ)
-        );
-        if (distance > UNLOAD_DISTANCE) {
+        if (Math.max(Math.abs(chunk.x - playerChunkX), Math.abs(chunk.z - playerChunkZ)) > UNLOAD_DISTANCE) {
             disposeChunkMesh(chunk);
             chunks.delete(key);
         }
     }
-
-    for (let i = generationQueue.length - 1; i >= 0; i--) {
-        const item = generationQueue[i];
-        if (Math.max(Math.abs(item.x - playerChunkX), Math.abs(item.z - playerChunkZ)) > UNLOAD_DISTANCE) {
-            queuedKeys.delete(chunkKey(item.x, item.z));
-            generationQueue.splice(i, 1);
-        }
-    }
 }
 
-function updateFacingVisibility(playerPosition, camera) {
-    if (!camera) return;
-    const direction = new THREE.Vector3();
-    camera.getWorldDirection(direction);
-    direction.y = 0;
-    if (direction.lengthSq() < 0.0001) return;
-    direction.normalize();
-
-    const playerChunk = getChunkCoords(playerPosition.x, playerPosition.z);
-    const maxDistance = RENDER_DISTANCE + 1;
-
-    for (const chunk of chunks.values()) {
-        const mesh = chunkMeshes.get(chunkKey(chunk.x, chunk.z));
-        const water = chunk.waterMesh;
-        if (!mesh && !water) continue;
-
-        const dx = chunk.x - playerChunk.chunkX;
-        const dz = chunk.z - playerChunk.chunkZ;
-        if (Math.max(Math.abs(dx), Math.abs(dz)) > maxDistance) {
-            if (mesh) mesh.visible = false;
-            if (water) water.visible = false;
-            continue;
-        }
-
-        const toChunk = new THREE.Vector3(dx, 0, dz);
-        const distance = toChunk.length();
-        const shouldKeep = distance < 2.4 || toChunk.normalize().dot(direction) > -0.72;
-        if (mesh) mesh.visible = shouldKeep;
-        if (water) water.visible = shouldKeep;
-    }
-}
-
-export function setBlockAt(x, y, z, type) {
-    x = Math.floor(x);
-    y = Math.floor(y);
-    z = Math.floor(z);
-    if (y < MIN_Y || y > WORLD_TOP) return false;
-
-    const { chunkX, chunkZ, localX, localZ } = getChunkCoords(x, z);
-    const chunk = getChunk(chunkX, chunkZ);
-    if (!chunk) return false;
-    chunk.blocks[blockIndex(localX, y, localZ)] = type;
-    rebuildChunkMesh(chunk);
-
-    if (localX === 0) {
-        const neighbor = getChunk(chunkX - 1, chunkZ);
-        if (neighbor) rebuildChunkMesh(neighbor);
-    }
-    if (localX === CHUNK_SIZE - 1) {
-        const neighbor = getChunk(chunkX + 1, chunkZ);
-        if (neighbor) rebuildChunkMesh(neighbor);
-    }
-    if (localZ === 0) {
-        const neighbor = getChunk(chunkX, chunkZ - 1);
-        if (neighbor) rebuildChunkMesh(neighbor);
-    }
-    if (localZ === CHUNK_SIZE - 1) {
-        const neighbor = getChunk(chunkX, chunkZ + 1);
-        if (neighbor) rebuildChunkMesh(neighbor);
-    }
-
-    return true;
-}
-
-export function createWorld(scene) {
-    worldScene = scene;
+export function clearWorld() {
+    for (const chunk of chunks.values()) disposeChunkMesh(chunk);
     chunks.clear();
     chunkMeshes.clear();
     generationQueue.length = 0;
     queuedKeys.clear();
     lastPlayerChunkX = Infinity;
     lastPlayerChunkZ = Infinity;
+}
+
+export function createWorld(scene) {
+    worldScene = scene;
+    clearWorld();
 
     for (let dx = -1; dx <= 1; dx++) {
         for (let dz = -1; dz <= 1; dz++) {
             const chunk = generateChunk(dx, dz);
-            rebuildChunkMesh(chunk);
+            buildChunkMesh(chunk);
         }
     }
 
-    queueNeededChunks(0, 0);
+    for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
+        for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
+            if (dx * dx + dz * dz <= RENDER_DISTANCE * RENDER_DISTANCE) queueChunk(dx, dz);
+        }
+    }
 }
 
-export function updateChunkVisibility(position, camera) {
-    if (!worldScene || !position) return;
-    const { chunkX, chunkZ } = getChunkCoords(position.x, position.z);
+export function updateChunkVisibility(playerX, playerZ) {
+    const playerChunkX = Math.floor(playerX / CHUNK_SIZE);
+    const playerChunkZ = Math.floor(playerZ / CHUNK_SIZE);
 
-    if (chunkX !== lastPlayerChunkX || chunkZ !== lastPlayerChunkZ) {
-        lastPlayerChunkX = chunkX;
-        lastPlayerChunkZ = chunkZ;
-        queueNeededChunks(chunkX, chunkZ);
-        unloadFarChunks(chunkX, chunkZ);
+    if (playerChunkX !== lastPlayerChunkX || playerChunkZ !== lastPlayerChunkZ) {
+        lastPlayerChunkX = playerChunkX;
+        lastPlayerChunkZ = playerChunkZ;
+
+        for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
+            for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
+                if (dx * dx + dz * dz > RENDER_DISTANCE * RENDER_DISTANCE) continue;
+                const chunkX = playerChunkX + dx;
+                const chunkZ = playerChunkZ + dz;
+                const key = chunkKey(chunkX, chunkZ);
+                if (!chunks.has(key) && !queuedKeys.has(key)) queueChunk(chunkX, chunkZ);
+            }
+        }
+
+        unloadFarChunks(playerChunkX, playerChunkZ);
     }
 
-    processChunkQueue();
-    updateFacingVisibility(position, camera);
+    processGenerationQueue(2);
 }
 
 export function getPerformanceStats() {
     return {
+        seed: WORLD_SEED,
         loadedChunks: chunks.size,
         queuedChunks: generationQueue.length,
-        renderDistance: RENDER_DISTANCE,
-        seed: WORLD_SEED
+        renderDistance: RENDER_DISTANCE
     };
 }
 
-export function getBlockTypes() { return { ...BLOCK }; }
 export function getWorldSeed() { return WORLD_SEED; }
-
-function installSeedHooks() {
-    const playButton = document.getElementById("playButton");
-    const openWorldButton = document.getElementById("openWorldButton");
-    if (!playButton || !openWorldButton) return;
-    if (playButton.dataset.seedHookInstalled) return;
-    playButton.dataset.seedHookInstalled = "1";
-
-    playButton.addEventListener("click", () => {
-        createNewWorldSeed();
-    }, { capture: true });
-
-    openWorldButton.addEventListener("click", () => {
-        const seed = WORLD_SEED >>> 0;
-        let state = (seed ^ 0x9e3779b9) >>> 0;
-        const originalRandom = Math.random;
-        Math.random = () => {
-            state ^= state << 13;
-            state ^= state >>> 17;
-            state ^= state << 5;
-            state >>>= 0;
-            return state / 4294967296;
-        };
-        setTimeout(() => { Math.random = originalRandom; }, 0);
-    }, { capture: true });
-}
-
-if (typeof document !== "undefined") {
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", installSeedHooks, { once: true });
-    else installSeedHooks();
-}
