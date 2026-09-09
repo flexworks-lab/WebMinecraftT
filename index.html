@@ -77,7 +77,7 @@
         #settingsBottom { max-width:980px; margin:6px auto 0; display:flex; justify-content:flex-end; } #closeSettings { min-width:180px; min-height:48px; padding:12px 20px; border:2px solid #111; border-top-color:#8c8c8c; border-left-color:#8c8c8c; background:linear-gradient(#686868,#505050); color:white; font-family:"MinecraftFont",monospace; font-size:14px; cursor:pointer; text-shadow:2px 2px 0 #222; }
         #closeSettings:hover { filter:brightness(1.1); } #closeSettings:active { transform:translateY(2px); }
         @media(max-width:1050px){#menuUpdates{left:12px;width:210px}}
-        @media(max-width:900px){#settingsButton{top:max(12px,env(safe-area-inset-top));right:12px}#menuPanel{margin-top:-7px}#menuTitle{font-size:clamp(46px,13vw,62px)}#menuSubtitle{font-size:10px;margin-bottom:14px}#menuSplash{font-size:14px;margin-bottom:14px}#menuButtons{width:min(300px,88vw)}.menuButton{height:45px;font-size:16px;margin:9px auto}#seedPanel{padding:24px 14px}#seedActions{grid-template-columns:1fr;max-width:420px}#seedBackWrap{left:14px;top:14px}.seedButton{min-height:48px}#settingsPanel{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}#settingsSidebar{padding:max(14px,env(safe-area-inset-top)) 12px 10px;border-right:0;border-bottom:2px solid #090909}#settingsPanel h1{margin:0 8px 4px;font-size:23px}#settingsSubtitle{display:none}#settingsTabs{display:flex;gap:6px;overflow-x:auto}.settingsTab{flex:0 0 auto;width:auto;min-height:40px;margin:0;padding:8px 12px}#settingsVersion{display:none}#settingsHeader{height:64px;flex-basis:64px;padding:0 16px}#settingsSectionTitle{font-size:17px}#settingsCloseTop{width:38px;height:38px;font-size:19px}#settingsScroll{padding:18px 12px 24px}.setting{grid-template-columns:1fr;gap:12px;padding:13px}.settingControl{justify-content:flex-start}select,input[type=range]{width:100%}#settingsBottom{justify-content:stretch}#closeSettings{width:100%}}
+        @media(max-width:900px){#settingsButton{top:max(12px,env(safe-area-inset-top));right:12px}#menuPanel{margin-top:-7px}#menuTitle{font-size:clamp(46px,13vw,62px)}#menuSubtitle{font-size:10px;margin-bottom:14px}#menuSplash{font-size:14px;margin-bottom:14px}#menuButtons{width:min(300px,88vw)}.menuButton{height:45px;font-size:16px;margin:9px auto}#seedPanel{padding:24px 14px}#seedActions{grid-template-columns:1fr;max-width:420px}.seedButton{min-height:48px}#settingsPanel{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}#settingsSidebar{padding:max(14px,env(safe-area-inset-top)) 12px 10px;border-right:0;border-bottom:2px solid #090909}#settingsPanel h1{margin:0 8px 4px;font-size:23px}#settingsSubtitle{display:none}#settingsTabs{display:flex;gap:6px;overflow-x:auto}.settingsTab{flex:0 0 auto;width:auto;min-height:40px;margin:0;padding:8px 12px}#settingsVersion{display:none}#settingsHeader{height:64px;flex-basis:64px;padding:0 16px}#settingsSectionTitle{font-size:17px}#settingsCloseTop{width:38px;height:38px;font-size:19px}#settingsScroll{padding:18px 12px 24px}.setting{grid-template-columns:1fr;gap:12px;padding:13px}.settingControl{justify-content:flex-start}select,input[type=range]{width:100%}#settingsBottom{justify-content:stretch}#closeSettings{width:100%}}
         @media(max-width:760px){#menuUpdates{display:none}}
         body.mobile-mode #hotbar{pointer-events:auto;bottom:154px;max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none}
         body.mobile-mode #hotbar::-webkit-scrollbar{display:none}
@@ -101,11 +101,12 @@
             </div>
         </div>
     </div>
+
     <div id="seedMenu" aria-hidden="true">
-        <div id="seedPanel" role="dialog" aria-modal="true" aria-labelledby="seedTitle">
-            <div id="seedBackWrap"><button id="backSeedButton" class="seedButton" type="button" onclick="document.getElementById('seedMenu').style.display='none';document.getElementById('seedMenu').setAttribute('aria-hidden','true');">← Back</button></div>
+        <div id="seedPanel">
+            <div id="seedBackWrap"><button id="backSeedButton" class="seedButton" type="button">← Back</button></div>
             <h2 id="seedTitle">Create World</h2>
-            <p id="seedSubtitle">Your world seed is below. Copy it to share the exact same world later.</p>
+            <p id="seedSubtitle">Your new world seed is below. Copy it to share the exact same world later.</p>
             <input id="seedInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="World seed">
             <div id="seedActions">
                 <button id="copySeedButton" class="seedButton" type="button">Copy Seed</button>
@@ -115,17 +116,20 @@
             <div id="seedLinkStatus" aria-live="polite"></div>
         </div>
     </div>
+
     <aside id="menuUpdates" aria-label="Latest updates">
         <h2 id="menuUpdatesTitle">Latest Updates</h2>
-        <article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • World</div><div class="menuUpdateText">Randomized terrain, biomes, trees, caves, and improved water.</div></article>
-        <article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • Mobile</div><div class="menuUpdateText">Minecraft-style touch controls and automatic device detection.</div></article>
-        <article class="menuUpdate"><div class="menuUpdateVersion">Latest</div><div class="menuUpdateText">Settings now save automatically with a quick “Saved” notification.</div></article>
+        <article class="menuUpdate"><div class="menuUpdateVersion">v1.1 • World Seeds</div><div class="menuUpdateText">World seeds now control generated terrain, caves, biomes, trees, water, and the world spawn. Copy a seed to return to the same generated world.</div></article>
+        <article class="menuUpdate"><div class="menuUpdateVersion">v1.1 • Seed Links</div><div class="menuUpdateText">Copy a world link to share a seed directly. Opening the link loads the matching generated world.</div></article>
+        <article class="menuUpdate"><div class="menuUpdateVersion">Latest • World Screen</div><div class="menuUpdateText">Singleplayer now opens a full-screen world seed screen with Copy Seed, Copy World Link, Open World, and Back.</div></article>
     </aside>
+
     <div id="menuFooter">WebMinecraftT<br>v1.0</div>
     <div id="menuCopyright">WebMinecraftT</div>
     <div id="crosshair">+</div>
     <div id="hotbar"><div class="slot selected">1<br>Grass</div><div class="slot">2<br>Dirt</div><div class="slot">3<br>Stone</div><div class="slot">4<br>Sand</div><div class="slot">5<br>Oak</div><div class="slot">6<br>Leaves</div><div class="slot">7<br>Grass</div><div class="slot">8<br>Dirt</div><div class="slot">9<br>Stone</div></div>
     <button id="settingsButton" aria-label="Settings">⚙</button>
+
     <div id="settingsMenu">
         <div id="settingsPanel">
             <aside id="settingsSidebar"><h1>Settings</h1><p id="settingsSubtitle">Customize how WebMinecraftT looks and runs.</p><div id="settingsTabs"><button class="settingsTab active" type="button">Graphics</button><button class="settingsTab" type="button">Video</button><button class="settingsTab" type="button">Accessibility</button></div><div id="settingsVersion">WebMinecraftT<br>Graphics & Performance</div></aside>
@@ -139,6 +143,7 @@
             </section>
         </div>
     </div>
+
     <script>
         const menuTips=["Never dig straight down!","Watch your step around cliffs.","Trees are a great early source of wood.","You can sprint while moving forward.","Caves can hide valuable ores.","Water can save you from a long fall.","Keep some blocks handy for building.","A good shelter is better than no shelter.","Explore different biomes to find new terrain.","You can fly with F.","Leaves make trees look much better with texture.","Sometimes the best view is from a mountain."];
         const menuSplash=document.getElementById("menuSplash"); if(menuSplash) menuSplash.textContent=menuTips[Math.floor(Math.random()*menuTips.length)];
