@@ -46,7 +46,7 @@ function addStyles() {
     const style = document.createElement("style");
     style.id = "accountStyles";
     style.textContent = `
-#accountButton{position:fixed;top:20px;left:20px;z-index:90;min-width:48px;height:48px;padding:0 14px;border:2px solid #111;border-top-color:#888;border-left-color:#888;border-radius:3px;background:#4c4c4c;color:#fff;font:bold 13px Arial,sans-serif;cursor:pointer;box-shadow:0 3px 0 #171717}
+#accountButton{position:fixed;top:92px;right:20px;left:auto;z-index:90;min-width:48px;height:48px;padding:0 14px;border:2px solid #111;border-top-color:#888;border-left-color:#888;border-radius:3px;background:#4c4c4c;color:#fff;font:bold 13px Arial,sans-serif;cursor:pointer;box-shadow:0 3px 0 #171717}
 #accountButton:hover{background:#5e5e5e}
 #accountModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:250;padding:20px}
 #accountPanel{width:min(420px,94vw);background:linear-gradient(#282828,#1b1b1b);border:2px solid #101010;border-top-color:#707070;border-left-color:#707070;box-shadow:7px 7px 0 rgba(0,0,0,.55);padding:26px 24px 22px;color:#fff;font-family:Arial,sans-serif}
@@ -68,7 +68,7 @@ function addStyles() {
 #accountEmail{font-size:12px;color:#999;word-break:break-all;margin-bottom:16px}
 #accountClose{background:#454545}
 #accountLoading{font-size:12px;color:#aaa;text-align:center;padding:10px 0}
-@media(max-width:560px){#accountButton{top:12px;left:12px}.settingsOpenPlaceholder{top:12px;right:12px}}
+@media(max-width:560px){#accountButton{top:76px;right:12px;left:auto}.settingsOpenPlaceholder{top:12px;right:12px}}
 `;
     document.head.appendChild(style);
 }
