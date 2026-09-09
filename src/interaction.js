@@ -5,7 +5,6 @@ import { sendBlockChange } from "./multiplayerClient.js";
 
 const raycaster = new THREE.Raycaster();
 const INTERACTION_DISTANCE = 4;
-const MOBILE_HOLD_TIME = 700;
 let selectedSlot = 0;
 let lastBreak = false;
 let lastPunch = false;
@@ -27,9 +26,6 @@ export function setupInteraction(scene, camera) {
 
     const selectionOutline = createSelectionOutline();
     scene.add(selectionOutline);
-
-    let mobilePressKey = null;
-    let mobileHoldBroken = false;
 
     const updateHotbar = () => {
         document.querySelectorAll(".slot").forEach((slot, index) => {
@@ -67,31 +63,18 @@ export function setupInteraction(scene, camera) {
     function pollTouchActions() {
         const mobile = document.body.classList.contains("mobile-mode");
         if (mobile) {
-            const currentBreakButton = !!(touchInput.breakPressed || touchInput.punchPressed);
-            const currentPlace = !!touchInput.placePressed;
-            const blockTouch = !!touchInput.blockTouchActive;
-            const target = blockTouch ? getTargetBlock(camera, BLOCK, new THREE.Vector2(touchInput.blockTouchX, touchInput.blockTouchY)) : null;
-            const key = target ? `${target.x},${target.y},${target.z}` : null;
-
-            if (blockTouch) {
-                if (key !== mobilePressKey) {
-                    mobilePressKey = key;
-                    mobileHoldBroken = false;
-                }
-                if (!mobileHoldBroken && key && touchInput.blockTouchStarted && performance.now() - touchInput.blockTouchStarted >= MOBILE_HOLD_TIME) {
-                    performAction(scene, camera, BLOCK, materials, "break", target);
-                    mobileHoldBroken = true;
-                }
-            } else {
-                mobilePressKey = null;
-                mobileHoldBroken = false;
+            // A simple tap on the right side of the screen breaks the block under the tap.
+            if (touchInput.blockTapPending) {
+                const tap = new THREE.Vector2(touchInput.blockTapX, touchInput.blockTapY);
+                const target = getTargetBlock(camera, BLOCK, tap);
+                touchInput.blockTapPending = false;
+                if (target) performAction(scene, camera, BLOCK, materials, "break", target);
             }
 
+            const currentBreakButton = !!(touchInput.breakPressed || touchInput.punchPressed);
+            const currentPlace = !!touchInput.placePressed;
             if (currentBreakButton && !lastBreak) performAction(scene, camera, BLOCK, materials, "break");
             if (currentPlace && !lastPlace) performAction(scene, camera, BLOCK, materials, "place");
-        } else {
-            mobilePressKey = null;
-            mobileHoldBroken = false;
         }
 
         lastBreak = !!(touchInput.breakPressed || touchInput.punchPressed);
