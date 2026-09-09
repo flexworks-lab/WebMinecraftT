@@ -3,6 +3,7 @@ import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, ge
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
+import "./auth.js";
 
 const scene = new THREE.Scene();
 const skyColor = new THREE.Color(0x87ceeb);
