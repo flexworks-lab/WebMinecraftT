@@ -3,6 +3,7 @@ import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, ge
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
+import { showLoading, hideLoading, setLoadingStatus, showLoadingError } from "./loadingScreen.js";
 
 const scene = new THREE.Scene();
 const skyColor = new THREE.Color(0x87ceeb);
@@ -62,7 +63,6 @@ function makeNewSeed() {
 }
 const urlSeed = normalizeSeed(params.get("seed"));
 if (urlSeed !== null) setWorldSeed(urlSeed);
-createWorld(scene);
 const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobile";
 if (mobileMode) document.body.classList.add("mobile-mode");
 
@@ -145,6 +145,20 @@ function setMenuUiVisible(visible) {
     if (settingsButton) settingsButton.style.display = display;
     if (menuUpdates) menuUpdates.style.display = visible ? "block" : "none";
     if (performanceHud) performanceHud.style.display = display;
+}
+
+async function initializeMenuWorld() {
+    showLoading();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+        setLoadingStatus("Generating starting terrain...");
+        createWorld(scene);
+        setLoadingStatus("Preparing menu view...");
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        hideLoading();
+    } catch (error) {
+        showLoadingError(error);
+    }
 }
 
 function findRandomSpawn() {
@@ -237,15 +251,21 @@ async function copyText(text) {
     }
 }
 function startWorldWithSeed(seed) {
-    setWorldSeed(seed);
-    createWorld(scene);
-    setWorldUrl(seed);
-    spawnPlayer();
-    gameStarted = true;
-    closeSeedMenu();
-    if (mainMenu) mainMenu.style.display = "none";
-    setMenuUiVisible(false);
-    requestPointerLock();
+    try {
+        setWorldSeed(seed);
+        setLoadingStatus("Building world...");
+        createWorld(scene);
+        setWorldUrl(seed);
+        spawnPlayer();
+        gameStarted = true;
+        closeSeedMenu();
+        if (mainMenu) mainMenu.style.display = "none";
+        setMenuUiVisible(false);
+        return true;
+    } catch (error) {
+        showLoadingError(error);
+        return false;
+    }
 }
 if (playButton && mainMenu) {
     playButton.addEventListener("click", event => {
@@ -385,3 +405,5 @@ function animate() {
     if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
 }
 animate();
+
+initializeMenuWorld();
