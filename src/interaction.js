@@ -91,7 +91,9 @@ export function setupInteraction(scene, camera) {
             return;
         }
 
-        selectionOutline.position.set(block.x, block.y, block.z);
+        const normal = hit.face.normal.clone().normalize();
+        selectionOutline.position.copy(new THREE.Vector3(block.x, block.y, block.z)).addScaledVector(normal, 0.506);
+        selectionOutline.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
         selectionOutline.visible = true;
         requestAnimationFrame(updateSelection);
     }
@@ -138,13 +140,26 @@ function getHitBlock(hit, BLOCK) {
 }
 
 function createSelectionOutline() {
-    const geometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.01, 1.01, 1.01));
+    const geometry = new THREE.BufferGeometry();
+    const vertices = new Float32Array([
+        -0.492, -0.492, 0,
+         0.492, -0.492, 0,
+         0.492, -0.492, 0,
+         0.492,  0.492, 0,
+         0.492,  0.492, 0,
+        -0.492,  0.492, 0,
+        -0.492,  0.492, 0,
+        -0.492, -0.492, 0
+    ]);
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+
     const material = new THREE.LineBasicMaterial({
         color: 0x000000,
         transparent: true,
         opacity: 0.95,
         depthTest: false
     });
+
     const outline = new THREE.LineSegments(geometry, material);
     outline.visible = false;
     outline.renderOrder = 1000;
