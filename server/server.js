@@ -88,6 +88,7 @@ function publicRoom(room) {
         owner: room.ownerName,
         players: room.players.size,
         maxPlayers: MAX_PLAYERS_PER_SERVER,
+        private: Boolean(room.isPrivate),
         worldSeed: room.worldSeed,
         createdAt: room.createdAt,
     };
@@ -450,7 +451,7 @@ const httpServer = http.createServer((request, response) => {
                 online: true,
                 players: totalPlayers,
                 maxPlayers: MAX_PLAYERS_PER_SERVER,
-                rooms: [...rooms.values()].filter(room => !room.isPrivate).map(publicRoom),
+                rooms: [...rooms.values()].map(publicRoom),
             }],
             updatedAt: Date.now(),
         }));

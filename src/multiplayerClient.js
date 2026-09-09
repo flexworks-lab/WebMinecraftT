@@ -182,7 +182,7 @@ function ensureMenu() {
                 <div id="multiplayerViewTitle">Servers</div>
                 <button id="multiplayerRefresh" class="multiplayerButton" type="button">Refresh Servers</button>
                 <div id="multiplayerServerList"><div class="multiplayerEmpty">Loading servers...</div></div>
-                <div class="multiplayerHint">Choose PUBLIC to appear in the server list, or PRIVATE to keep your server hidden.</div>
+                <div class="multiplayerHint">PRIVATE servers are visible in the list, but require a private code to join.</div>
             </section>
 
             <section id="multiplayerRoomView" style="display:none">
@@ -197,7 +197,7 @@ function ensureMenu() {
                 </div>
                 <div id="multiplayerPrivateCode" class="multiplayerField"><label for="multiplayerPrivateCodeInput">Private Code</label><input id="multiplayerPrivateCodeInput" maxlength="16" autocomplete="off" placeholder="Enter code or leave blank to create"></div>
                 <div class="multiplayerField"><label for="multiplayerServer">Server Address</label><input id="multiplayerServer" autocomplete="off" placeholder="ws://localhost:2567"></div>
-                <div class="multiplayerHint">Public servers appear in the server list. Private servers stay hidden and can only be joined with their private code.</div>
+                <div class="multiplayerHint">Public and private servers both appear in the list. Private servers require their private code to join.</div>
                 <div id="multiplayerStatus" aria-live="polite"></div>
             </section>
 
@@ -277,17 +277,18 @@ function ensureMenu() {
             card.innerHTML = `
                 <div class="multiplayerCardTop">
                     <div class="multiplayerCardName">${escapeHtml(room.id)}</div>
-                    <div class="${full ? "multiplayerOffline" : "multiplayerOnline"}">${full ? "FULL" : "OPEN"}</div>
+                    <div class="${room.isPrivate ? "multiplayerOffline" : (full ? "multiplayerOffline" : "multiplayerOnline")}">${room.isPrivate ? "PRIVATE" : (full ? "FULL" : "OPEN")}</div>
                 </div>
                 <div class="multiplayerMeta">${Number(room.players) || 0} / ${Number(room.maxPlayers || server.maxPlayers || 10)} players</div>
             `;
             card.addEventListener("click", () => {
                 roomInput.value = room.id;
                 localStorage.setItem("webminecraft-room", room.id);
+                setServerType(Boolean(room.isPrivate));
                 [...roomList.querySelectorAll(".multiplayerCard")].forEach(item => item.classList.remove("selected"));
                 card.classList.add("selected");
                 joinButton.disabled = false;
-                setStatus(`Ready to join room "${room.id}".`);
+                setStatus(room.isPrivate ? `Private room "${room.id}" selected. Enter the private code to join.` : `Ready to join room "${room.id}".`);
             });
             roomList.appendChild(card);
         }
@@ -298,13 +299,13 @@ function ensureMenu() {
         serverView.style.display = "none";
         roomView.style.display = "block";
         serverInput.value = server.websocket || defaultServerUrl();
-        setServerType(selectedPrivate);
         privateCodeInput.value = "";
         selectedInfo.innerHTML = `<strong>${escapeHtml(server.name || "Server")}</strong><br><span class="multiplayerMeta">${server.online === false ? "Offline" : `${Number(server.players) || 0} / ${Number(server.maxPlayers) || 10} players online`} · ${(server.rooms || []).length || 1} room${(server.rooms || []).length === 1 ? "" : "s"}</span>`;
         renderRoomList(server);
         const defaultRoom = (server.rooms || []).find(room => room.id === (roomInput.value || "default")) || (server.rooms || [])[0];
         if (defaultRoom) {
             roomInput.value = defaultRoom.id;
+            setServerType(Boolean(defaultRoom.isPrivate));
             joinButton.disabled = Number(defaultRoom.players) >= Number(defaultRoom.maxPlayers || server.maxPlayers || 10);
         } else {
             roomInput.value = localStorage.getItem("webminecraft-room") || "default";
