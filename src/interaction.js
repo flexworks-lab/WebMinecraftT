@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
 import { sendBlockChange } from "./multiplayerClient.js";
+import "./worldSave.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
@@ -74,6 +75,12 @@ export function setupInteraction(scene, camera) {
     }
     pollTouchActions();
 
+    function notifyBlockChange(x, y, z, type) {
+        window.dispatchEvent(new CustomEvent("webminecraft:blockchange", {
+            detail: { x, y, z, type }
+        }));
+    }
+
     function breakBlock() {
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) return;
@@ -82,9 +89,10 @@ export function setupInteraction(scene, camera) {
         if (!type || type === BLOCK.AIR) return;
         if (type === BLOCK.BEDROCK) return;
 
-        // Change the world first, then tell multiplayer and spawn the effect.
+        // Change the world first, then tell multiplayer and save it.
         if (!setBlockAt(target.x, target.y, target.z, BLOCK.AIR)) return;
         sendBlockChange(target.x, target.y, target.z, BLOCK.AIR);
+        notifyBlockChange(target.x, target.y, target.z, BLOCK.AIR);
         createBreakParticles(scene, new THREE.Vector3(target.x, target.y, target.z), type, BLOCK);
     }
 
@@ -101,6 +109,7 @@ export function setupInteraction(scene, camera) {
         if (playerOverlapsBlock({ x, y, z }, camera)) return;
         if (!setBlockAt(x, y, z, type)) return;
         sendBlockChange(x, y, z, type);
+        notifyBlockChange(x, y, z, type);
     }
 
     function updateSelection() {
