@@ -30,21 +30,21 @@ function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch {}
 }
 
-function toast(message) {
+function toast() {
     let el = document.getElementById("settingsToast");
     if (!el) {
         el = document.createElement("div");
         el.id = "settingsToast";
-        el.style.cssText = "position:fixed;left:50%;bottom:34px;transform:translate(-50%,18px);opacity:0;z-index:1000;padding:11px 16px;background:rgba(25,25,25,.94);border:2px solid #111;border-top-color:#777;border-left-color:#777;color:#fff;font:13px Arial,sans-serif;box-shadow:0 4px 0 #000;pointer-events:none;transition:opacity .16s ease,transform .16s ease;";
+        el.style.cssText = "position:fixed;left:50%;bottom:34px;transform:translate(-50%,18px) scale(.96);opacity:0;z-index:1000;padding:11px 18px;background:rgba(25,25,25,.96);border:2px solid #111;border-top-color:#777;border-left-color:#777;color:#fff;font:13px Arial,sans-serif;box-shadow:0 4px 0 #000;pointer-events:none;transition:opacity .16s ease,transform .16s cubic-bezier(.2,.9,.25,1.25);";
         document.body.appendChild(el);
     }
-    el.textContent = message;
+    el.textContent = "Saved";
     el.style.opacity = "1";
-    el.style.transform = "translate(-50%,0)";
+    el.style.transform = "translate(-50%,0) scale(1)";
     clearTimeout(el._timer);
     el._timer = setTimeout(() => {
         el.style.opacity = "0";
-        el.style.transform = "translate(-50%,18px)";
+        el.style.transform = "translate(-50%,18px) scale(.96)";
     }, 1300);
 }
 
@@ -117,7 +117,6 @@ function buildPanels() {
     }
 
     const original = [...tabs.querySelectorAll(".settingsTab")].find(b => b.textContent === "Graphics");
-    const graphicsPanel = [...scroll.querySelectorAll(".settingsGroup")][0];
     const originalGroups = [...scroll.children].filter(el => !el.classList.contains("settingsExtraPanel"));
 
     function show(name) {
@@ -161,17 +160,17 @@ function buildPanels() {
     function wireRange(id, key, after) {
         const el = document.getElementById(id); if (!el) return;
         el.value = settings[key];
-        el.addEventListener("input", () => { settings[key] = Number(el.value); after?.(settings[key]); save(); toast(`${el.parentElement.parentElement.querySelector("label")?.textContent || "Setting"} changed`); });
+        el.addEventListener("input", () => { settings[key] = Number(el.value); after?.(settings[key]); save(); toast(); });
     }
     function wireSelect(id, key) {
         const el = document.getElementById(id); if (!el) return;
         el.value = String(settings[key]);
-        el.addEventListener("change", () => { settings[key] = Number(el.value); save(); toast("View Distance changed"); });
+        el.addEventListener("change", () => { settings[key] = Number(el.value); save(); toast(); });
     }
     function wireCheck(id, key, after) {
         const el = document.getElementById(id); if (!el) return;
         el.checked = !!settings[key];
-        el.addEventListener("change", () => { settings[key] = el.checked; after?.(el.checked); save(); toast(`${el.parentElement.parentElement.querySelector("label")?.textContent || "Setting"} changed`); });
+        el.addEventListener("change", () => { settings[key] = el.checked; after?.(el.checked); save(); toast(); });
     }
 }
 
