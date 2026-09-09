@@ -2,6 +2,7 @@ const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const DRIVE_API = "https://www.googleapis.com";
 const WORLD_COLLECTION = "worlds";
 const DRIVE_MIME = "application/json";
+const DRIVE_WORLD_MARKER = "WebMinecraftT World";
 
 let buttonInjected = false;
 let saving = false;
@@ -89,13 +90,26 @@ function serializeTimestamp(value) {
 function buildWorldExport(world, title, seed) {
     const data = world.data || {};
     return {
-        format: "WebMinecraftT World",
+        format: DRIVE_WORLD_MARKER,
         formatVersion: 1,
         name: data.name || title || "World",
         seed,
         createdAt: serializeTimestamp(data.createdAt),
         updatedAt: serializeTimestamp(data.updatedAt),
         blocks: data.blocks && typeof data.blocks === "object" ? data.blocks : {}
+    };
+}
+
+function buildNewWorldExport(name, seed) {
+    const now = new Date().toISOString();
+    return {
+        format: DRIVE_WORLD_MARKER,
+        formatVersion: 1,
+        name: String(name || "New World"),
+        seed: Math.floor(Math.abs(Number(seed))) >>> 0,
+        createdAt: now,
+        updatedAt: now,
+        blocks: {}
     };
 }
 
@@ -202,6 +216,49 @@ async function saveCurrentWorldToDrive() {
     }
 }
 
+export async function saveNewWorldToDrive(name, seed) {
+    const user = getCurrentUser();
+    const accessToken = await getDriveAccessToken(user);
+    const exportData = buildNewWorldExport(name, seed);
+    const result = await uploadWorldToDrive(accessToken, exportData, null);
+    return { ...exportData, id: result.id, webViewLink: result.webViewLink || null };
+}
+
+export async function loadWorldsFromDrive() {
+    const user = getCurrentUser();
+    const accessToken = await getDriveAccessToken(user);
+    const query = `name contains '.webminecraftworld' and trashed = false`;
+    const list = await driveRequest(
+        `${DRIVE_API}/drive/v3/files?q=${encodeURIComponent(query)}&spaces=drive&fields=files(id,name,modifiedTime)&pageSize=100`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    const worlds = [];
+    for (const file of list.files || []) {
+        try {
+            const response = await fetch(
+                `${DRIVE_API}/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            if (!response.ok) continue;
+            const data = await response.json();
+            if (data?.format !== DRIVE_WORLD_MARKER || !Number.isFinite(Number(data.seed))) continue;
+            worlds.push({
+                id: `drive-${file.id}`,
+                driveFileId: file.id,
+                name: data.name || file.name.replace(/\.webminecraftworld$/i, "") || "World",
+                seed: Math.floor(Math.abs(Number(data.seed))) >>> 0,
+                createdAt: data.createdAt || file.modifiedTime || new Date().toISOString(),
+                updatedAt: data.updatedAt || file.modifiedTime || data.createdAt || new Date().toISOString(),
+                blocks: data.blocks && typeof data.blocks === "object" ? data.blocks : {}
+            });
+        } catch (error) {
+            console.warn("Could not read Drive world:", file.name, error);
+        }
+    }
+    return worlds;
+}
+
 function injectButton() {
     const panel = document.getElementById("worldDetailsPanel");
     const deleteButton = document.getElementById("worldDetailsDelete");
@@ -227,4 +284,4 @@ function init() {
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
 else init();
 
-window.webMinecraftDrive = { saveCurrentWorldToDrive };
+window.webMinecraftDrive = { saveCurrentWorldToDrive, saveNewWorldToDrive, loadWorldsFromDrive };
