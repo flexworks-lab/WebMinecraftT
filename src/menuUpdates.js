@@ -11,6 +11,7 @@ const UPDATE_DETAILS = [
     { version: "v1.2 • Multiplayer", title: "Multiplayer Servers", body: "Multiplayer is now available. Join an existing server, create your own named server, and play together with other players in the same world." },
     { version: "v1.2 • Chat", title: "Server Chat", body: "Multiplayer now has an in-game chat in the top-left corner. Players can send messages to everyone in the server, and join messages appear automatically when someone enters." },
     { version: "v1.2 • Server Making", title: "Make Your Own Server", body: "You can create your own named multiplayer server by entering a new server name when joining. The first player becomes the server owner, and friends can find the server in the multiplayer list." },
+    { version: "v1.2 • Live World", title: "Live World Changes", body: "Block changes are now shared between players in the same multiplayer server. Breaking or placing a block sends the change to everyone in the room so players can build and edit the same world together." },
     { version: "v1.1 • World Seeds", title: "World Seeds", body: "World generation is now driven by the world seed. Terrain height, caves, biomes, trees, water, and the world spawn all use the same seed, so entering that seed again recreates the same generated world layout." },
     { version: "v1.1 • Seed Links", title: "Shareable Seed Links", body: "Use Copy World Link to copy the current world URL with its seed attached. Opening that link loads the matching generated world, making it easy to share a specific world with someone else." },
     { version: "Latest • World Screen", title: "Full-Screen World Screen", body: "Singleplayer now opens a dedicated full-screen world setup screen. You can edit the seed, copy the seed, copy a complete world link, open the world, or return to the main menu." },
@@ -167,16 +168,29 @@ function setupSeedBackButton() {
 
 function setupUpdateDetails() {
     if (!updates || document.getElementById("updateDetailMenu")) return;
-    const cards = Array.from(updates.querySelectorAll(".menuUpdate"));
-    cards.forEach((card,index)=>{
-        if (!UPDATE_DETAILS[index]) return;
-        card.dataset.updateIndex=String(index);
-        card.setAttribute("role","button");
-        card.setAttribute("tabindex","0");
-        card.setAttribute("aria-label",`Open details for ${UPDATE_DETAILS[index].title}`);
-        card.style.cursor="pointer";
-        card.style.userSelect="none";
+
+    updates.querySelectorAll(".menuUpdate").forEach(card => card.remove());
+    UPDATE_DETAILS.forEach((detail, index) => {
+        const card = document.createElement("article");
+        card.className = "menuUpdate";
+        card.dataset.updateIndex = String(index);
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-label", `Open details for ${detail.title}`);
+        card.style.cursor = "pointer";
+        card.style.userSelect = "none";
+
+        const version = document.createElement("div");
+        version.className = "menuUpdateVersion";
+        version.textContent = detail.version;
+        const text = document.createElement("div");
+        text.className = "menuUpdateText";
+        text.textContent = detail.body;
+        card.append(version, text);
+        updates.appendChild(card);
     });
+
+    const cards = Array.from(updates.querySelectorAll(".menuUpdate"));
     const detailMenu=document.createElement("div");
     detailMenu.id="updateDetailMenu";
     detailMenu.setAttribute("aria-hidden","true");
