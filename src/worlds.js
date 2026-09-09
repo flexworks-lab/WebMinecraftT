@@ -17,6 +17,7 @@ let selectedWorld = null;
 let initialized = false;
 let openWorldCallback = null;
 let worldsCache = [];
+let worldsCacheUid = null;
 let loadRequest = 0;
 
 function loadScript(src) {
@@ -68,8 +69,12 @@ async function ensureFirebase() {
         }
         auth.onAuthStateChanged(user => {
             currentUser = user || null;
+            if (!user) {
+                worldsCache = [];
+                worldsCacheUid = null;
+            }
             authReadyResolve?.(currentUser);
-            if (overlay?.style.display === "block") loadWorlds(true);
+            if (overlay?.style.display === "block" && currentUser) loadWorlds(true);
         });
     }
     return true;
@@ -154,7 +159,6 @@ function buildUi() {
             </header>
             <main id="savedWorldsBody">
                 <div id="savedWorldsGrid"></div>
-                <div id="savedWorldsOverlayPanel"></div>
                 <aside id="worldDetailsPanel" aria-hidden="true">
                     <header id="worldDetailsHeader"><h2 id="worldDetailsTitle">World</h2><button id="worldDetailsClose" class="savedWorldButton" type="button">×</button></header>
                     <div id="worldDetailsContent">
@@ -213,6 +217,14 @@ function makeSeed() {
     }
 }
 
+function timestampToCacheValue(timestamp) {
+    if (!timestamp) return null;
+    if (typeof timestamp === "string") return timestamp;
+    if (timestamp.toDate) return timestamp.toDate().toISOString();
+    if (timestamp.seconds) return new Date(timestamp.seconds * 1000).toISOString();
+    return null;
+}
+
 function formatDate(timestamp) {
     const date = timestamp?.toDate ? timestamp.toDate() : timestamp ? new Date(timestamp) : null;
     if (!date || Number.isNaN(date.getTime())) return "Just created";
@@ -226,18 +238,21 @@ function setOverlayVisible(visible) {
 }
 
 function cacheWorldsForUser(user, worlds) {
+    if (!user) return;
     try {
-        localStorage.setItem(`${CACHE_KEY}:${user.uid}`, JSON.stringify(worlds.map(world => ({
+        const cached = worlds.map(world => ({
             id: world.id,
             name: world.name,
             seed: world.seed,
-            createdAt: typeof world.createdAt === "string" ? world.createdAt : null,
-            updatedAt: typeof world.updatedAt === "string" ? world.updatedAt : null
-        }))));
+            createdAt: timestampToCacheValue(world.createdAt),
+            updatedAt: timestampToCacheValue(world.updatedAt)
+        }));
+        localStorage.setItem(`${CACHE_KEY}:${user.uid}`, JSON.stringify(cached));
     } catch {}
 }
 
 function getCachedWorlds(user) {
+    if (!user) return [];
     try {
         const raw = localStorage.getItem(`${CACHE_KEY}:${user.uid}`);
         return raw ? JSON.parse(raw) : [];
@@ -256,19 +271,32 @@ async function loadWorlds(forceRefresh = false) {
     const requestId = ++loadRequest;
     const user = currentUser || await waitForAuthState();
     if (!user) {
+        worldsCache = [];
+        worldsCacheUid = null;
         showStatus("Log in to save worlds");
         overlay.querySelector("#savedWorldsCount").textContent = "Account required";
         return;
     }
     currentUser = user;
 
-    if (!forceRefresh && !worldsCache.length) worldsCache = getCachedWorlds(user);
-    if (worldsCache.length) renderWorlds(worldsCache);
+    if (worldsCacheUid !== user.uid) {
+        worldsCacheUid = user.uid;
+        worldsCache = getCachedWorlds(user);
+        renderWorlds(worldsCache);
+    } else if (!forceRefresh && worldsCache.length) {
+        renderWorlds(worldsCache);
+    }
 
     try {
-        const snapshot = await db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).orderBy("updatedAt", "desc").get();
+        const snapshot = await db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).get();
         if (requestId !== loadRequest) return;
-        worldsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        worldsCache = snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => {
+                const getMs = value => value?.toMillis ? value.toMillis() : value ? new Date(value).getTime() : 0;
+                return getMs(b.updatedAt || b.createdAt) - getMs(a.updatedAt || a.createdAt);
+            });
+        worldsCacheUid = user.uid;
         cacheWorldsForUser(user, worldsCache);
         renderWorlds(worldsCache);
     } catch (error) {
@@ -359,13 +387,21 @@ function playSelectedWorld() {
 
 async function saveUpdatedTime(world) {
     if (!currentUser || !world?.id || !db) return;
-    await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).doc(world.id).set({ updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    const updatedAt = new Date().toISOString();
+    try {
+        await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).doc(world.id).set({ updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        const cachedWorld = worldsCache.find(item => item.id === world.id);
+        if (cachedWorld) {
+            cachedWorld.updatedAt = updatedAt;
+            cacheWorldsForUser(currentUser, worldsCache);
+        }
+    } catch {}
 }
 
 async function deleteSelectedWorld() {
     if (!selectedWorld || !currentUser || !db) return;
     const name = selectedWorld.name || "this world";
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete \"${name}\"? This cannot be undone.`)) return;
     try {
         await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).doc(selectedWorld.id).delete();
         worldsCache = worldsCache.filter(world => world.id !== selectedWorld.id);
@@ -398,33 +434,48 @@ async function createNewWorld() {
     const user = currentUser || await waitForAuthState();
     if (!user) return;
     currentUser = user;
-
     const input = overlay.querySelector("#worldNameInput");
+    const message = overlay.querySelector("#worldCreateMessage");
     const button = overlay.querySelector("#worldCreateConfirm");
     const name = input.value.trim() || "New World";
     const seed = makeSeed();
-    const id = db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc().id;
-    const world = { id, name, seed, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const optimisticWorld = {
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        seed,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
 
     button.disabled = true;
-    closeCreateWorld();
-    closeWorldMenu();
+    message.textContent = "";
 
-    worldsCache = [world, ...worldsCache.filter(item => item.id !== id)];
+    worldsCacheUid = user.uid;
+    worldsCache = [optimisticWorld, ...worldsCache.filter(world => world.seed !== seed)];
     cacheWorldsForUser(user, worldsCache);
-
-    // Start the game immediately; Firestore save continues in the background.
-    openWorldCallback?.(seed);
+    renderWorlds(worldsCache);
 
     try {
-        await db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc(id).set({
+        const ref = db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc();
+        await ref.set({
             name,
             seed,
             createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
         });
+
+        worldsCache = worldsCache.map(world => world.id === optimisticWorld.id ? { ...world, id: ref.id } : world);
+        cacheWorldsForUser(user, worldsCache);
+        closeCreateWorld();
+        closeWorldMenu();
+        openWorldCallback?.(seed);
     } catch (error) {
-        console.error("Could not save world:", error);
+        console.error("Could not create world:", error);
+        worldsCache = worldsCache.filter(world => world.id !== optimisticWorld.id);
+        cacheWorldsForUser(user, worldsCache);
+        renderWorlds(worldsCache);
+        message.textContent = error?.message || "Could not save the world.";
+        return;
     } finally {
         button.disabled = false;
     }
@@ -437,34 +488,27 @@ function closeWorldMenu() {
     const mainMenu = document.getElementById("mainMenu");
     if (mainMenu) mainMenu.style.display = "flex";
     const seedMenu = document.getElementById("seedMenu");
-    if (seedMenu) {
-        seedMenu.style.display = "none";
-        seedMenu.setAttribute("aria-hidden", "true");
-    }
+    if (seedMenu) { seedMenu.style.display = "none"; seedMenu.setAttribute("aria-hidden", "true"); }
 }
 
 async function openWorldMenu() {
     buildUi();
     setOverlayVisible(true);
     document.exitPointerLock?.();
-
     const mainMenu = document.getElementById("mainMenu");
     if (mainMenu) mainMenu.style.display = "none";
     const seedMenu = document.getElementById("seedMenu");
-    if (seedMenu) {
-        seedMenu.style.display = "none";
-        seedMenu.setAttribute("aria-hidden", "true");
-    }
+    if (seedMenu) { seedMenu.style.display = "none"; seedMenu.setAttribute("aria-hidden", "true"); }
 
-    // Show cached worlds immediately; network refresh happens silently.
-    const user = await waitForAuthState();
-    currentUser = user || null;
-    if (currentUser && !worldsCache.length) {
-        worldsCache = getCachedWorlds(currentUser);
-        if (worldsCache.length) renderWorlds(worldsCache);
+    if (currentUser && worldsCacheUid === currentUser.uid) renderWorlds(worldsCache);
+    try {
+        await waitForAuthState();
+        currentUser = auth.currentUser || currentUser || null;
+        await loadWorlds(true);
+    } catch (error) {
+        console.error("Saved worlds setup failed:", error);
+        if (!worldsCache.length) showStatus("Could not connect to saved worlds.", true);
     }
-    if (currentUser) loadWorlds(true);
-    else showStatus("Log in to save worlds");
 }
 
 export function initSavedWorlds({ onOpenWorld } = {}) {
@@ -472,7 +516,6 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
     initialized = true;
     openWorldCallback = onOpenWorld;
     buildUi();
-
     const playButton = document.getElementById("playButton");
     if (playButton) {
         playButton.addEventListener("click", event => {
@@ -481,7 +524,6 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
             openWorldMenu();
         }, true);
     }
-
     window.addEventListener("keydown", event => {
         if (event.code === "Escape" && overlay?.style.display === "block") {
             if (detailsPanel?.classList.contains("open")) closeDetails();
@@ -489,6 +531,5 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
             else closeWorldMenu();
         }
     });
-
     ensureFirebase().catch(error => console.warn("Saved worlds auth setup waiting:", error));
 }
