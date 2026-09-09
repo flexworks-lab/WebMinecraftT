@@ -14,22 +14,84 @@
 
 ---
 
-## 🌎 What is WebMinecraftT?
+## 🌎 The Game
 
-**WebMinecraftT Beta** is a browser-based voxel sandbox focused on exploring, building, and playing with friends — without needing to download anything.
+**WebMinecraftT Beta** is a browser-based voxel sandbox where you can explore, build, and play with other people.
 
-Create a world, explore procedural terrain, break and place blocks, or jump into multiplayer and build together.
+No launcher. No download. Open the game and start playing.
 
 ---
 
-## ✨ Features
+## 🗺️ World Generation
 
-| 🌱 Worlds | 🎮 Gameplay | 🌐 Multiplayer |
-|---|---|---|
-| Seeded generation | First-person movement | Named servers |
-| Caves & terrain | Block breaking | Shared worlds |
-| Trees & water | Sprinting & jumping | Server chat |
-| Reproducible seeds | Mobile controls | Private server codes |
+Every world is generated from a **seed**.
+
+World generation includes:
+
+- 🌱 Procedural terrain
+- 🕳️ Caves
+- 🌳 Trees
+- 💧 Water
+- 🏞️ Different terrain and landscapes
+- 🔢 Reproducible world seeds
+
+Use the same seed again to recreate the same generated world.
+
+---
+
+## 🧱 Building & Gameplay
+
+The core game is built around exploring the world and changing it.
+
+- Break blocks
+- Place blocks
+- Select different block types
+- First-person movement
+- Sprinting and jumping
+- Block targeting and interaction
+- Break particles and block outlines
+
+---
+
+## 🌐 Multiplayer
+
+Multiplayer lets players join the same server and play in the same world.
+
+### Servers
+
+- 👥 Multiple players can play together
+- 📋 Servers appear in the multiplayer list
+- 🏷️ Servers can have custom names
+- 🌍 Each server has its own world state
+- 👑 The first player becomes the server owner
+
+### Shared Worlds
+
+Players can see world changes made by other players.
+
+Break a block and everyone can see it disappear. Place a block and it appears for everyone in the same server.
+
+### 💬 Server Chat
+
+Players can talk to everyone in their server with the built-in chat system.
+
+Join messages also appear when someone enters the server.
+
+---
+
+## 🔒 Private Servers
+
+Private servers are still visible in the multiplayer server list, but they require a **private code** to join.
+
+This makes it easy to share a server with friends without completely hiding it from the list.
+
+---
+
+## 📱 Mobile
+
+WebMinecraftT is also designed to work on mobile devices.
+
+Mobile gameplay includes touch controls for movement, looking around, jumping, running, and interacting with blocks.
 
 ---
 
@@ -47,25 +109,20 @@ Create a world, explore procedural terrain, break and place blocks, or jump into
 
 ---
 
-## 🌐 Multiplayer
-
-Multiplayer lets you create or join a named server and play in the same world as other players.
-
-**Servers currently support:**
-
-- 👥 Multiple players in one world
-- 🧱 Shared block changes
-- 💬 In-game server chat
-- 🔒 Private servers with join codes
-- 📋 Public and private servers in the server list
-
----
-
 ## 🧪 Beta
 
 > WebMinecraftT is currently in **Beta**.
 
-The game is still being actively developed, so features may change, break, or get improved over time.
+The game is actively being developed. Multiplayer, world generation, mobile controls, and other systems may continue to change as the project grows.
+
+---
+
+## 🛠️ Built With
+
+- **Three.js** — 3D rendering
+- **Vite** — web development and builds
+- **Node.js + WebSocket** — multiplayer server
+- **Electron** — optional Windows desktop version
 
 ---
 
@@ -73,13 +130,9 @@ The game is still being actively developed, so features may change, break, or ge
 
 ### Browser
 
-Just open the game:
-
 **https://flexworks-lab.github.io/WebMinecraftT/**
 
-No download. No launcher. Just play.
-
-### Local development
+### Run Locally
 
 ```bash
 git clone https://github.com/flexworks-lab/WebMinecraftT.git
@@ -90,16 +143,7 @@ npm run dev
 
 ---
 
-## 🛠️ Built With
-
-- **Three.js** — 3D rendering
-- **Vite** — web development and builds
-- **Node.js + WebSocket** — multiplayer server
-- **Electron** — optional Windows desktop build
-
----
-
-## 📁 Project
+## 📁 Project Structure
 
 ```text
 WebMinecraftT/
@@ -115,7 +159,7 @@ WebMinecraftT/
 
 <div align="center">
 
-### ⛏️ Build. Explore. Play together.
+### ⛏️ Explore. Build. Play together.
 
 **WebMinecraftT Beta**
 
