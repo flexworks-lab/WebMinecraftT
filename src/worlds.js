@@ -67,6 +67,11 @@ function addStyles() {
 #savedWorldsEmpty h2{margin:0 0 10px;font-family:"MinecraftFont",monospace;color:#fff;font-size:25px;text-shadow:2px 2px 0 #000}
 #savedWorldsEmpty p{margin:0 0 22px;line-height:1.5}
 #savedWorldsLoading{text-align:center;color:#aaa;padding:70px 20px}
+#savedWorldsProgressWrap{width:min(520px,84vw);margin:0 auto 14px;text-align:center}
+#savedWorldsProgressTrack{height:20px;padding:2px;background:#0c0c0c;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:0 2px 0 #101010}
+#savedWorldsProgressBar{width:0%;height:100%;background:linear-gradient(#86b85d,#5e8c3e);transition:width .25s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+#savedWorldsProgressText{margin-top:9px;font-size:13px;color:#ddd}
+#savedWorldsProgressPercent{margin-top:5px;color:#8fca68;font-family:"MinecraftFont",monospace;font-size:12px;text-shadow:1px 1px 0 #111}
 #savedWorldsError{text-align:center;color:#e8a4a4;padding:40px 20px}
 #savedWorldsOverlayPanel{position:absolute;inset:0;pointer-events:none;display:flex;justify-content:flex-end}
 #worldDetailsPanel{width:min(440px,100vw);height:100%;background:#202020;border-left:2px solid #777;box-shadow:-8px 0 20px rgba(0,0,0,.35);transform:translateX(100%);transition:transform .18s ease;pointer-events:auto;display:flex;flex-direction:column}
@@ -181,6 +186,19 @@ function setOverlayVisible(visible) {
     overlay.setAttribute("aria-hidden", visible ? "false" : "true");
 }
 
+function showLoadingProgress(percent, text = "Loading saved worlds…") {
+    if (!worldsList) return;
+    const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+    let wrap = worldsList.querySelector("#savedWorldsProgressWrap");
+    if (!wrap) {
+        worldsList.innerHTML = `<div id="savedWorldsLoading"><div id="savedWorldsProgressWrap"><div id="savedWorldsProgressTrack"><div id="savedWorldsProgressBar"></div></div><div id="savedWorldsProgressText"></div><div id="savedWorldsProgressPercent">0%</div></div></div>`;
+        wrap = worldsList.querySelector("#savedWorldsProgressWrap");
+    }
+    wrap.querySelector("#savedWorldsProgressBar").style.width = `${safePercent}%`;
+    wrap.querySelector("#savedWorldsProgressText").textContent = text;
+    wrap.querySelector("#savedWorldsProgressPercent").textContent = `${Math.round(safePercent)}%`;
+}
+
 function showStatus(text, error = false) {
     if (!worldsList) return;
     worldsList.innerHTML = `<div id="${error ? "savedWorldsError" : "savedWorldsLoading"}">${text}</div>`;
@@ -193,9 +211,10 @@ async function loadWorlds() {
         overlay.querySelector("#savedWorldsCount").textContent = "Account required";
         return;
     }
-    showStatus("Loading saved worlds…");
+    showLoadingProgress(72, "Loading your saved worlds…");
     try {
         const snapshot = await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).orderBy("updatedAt", "desc").get();
+        showLoadingProgress(92, "Finishing…");
         const worlds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderWorlds(worlds);
     } catch (error) {
@@ -352,14 +371,18 @@ function closeWorldMenu() {
 async function openWorldMenu() {
     buildUi();
     setOverlayVisible(true);
+    showLoadingProgress(10, "Connecting to saved worlds…");
     document.exitPointerLock?.();
     const mainMenu = document.getElementById("mainMenu");
     if (mainMenu) mainMenu.style.display = "none";
     const seedMenu = document.getElementById("seedMenu");
     if (seedMenu) { seedMenu.style.display = "none"; seedMenu.setAttribute("aria-hidden", "true"); }
     try {
+        showLoadingProgress(35, "Preparing account service…");
         await ensureFirebase();
+        showLoadingProgress(55, "Checking your account…");
         currentUser = auth.currentUser || null;
+        if (currentUser) showLoadingProgress(65, "Finding your worlds…");
         await loadWorlds();
     } catch (error) {
         console.error("Saved worlds setup failed:", error);
