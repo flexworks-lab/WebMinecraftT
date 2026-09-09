@@ -26,6 +26,23 @@ function disableMotion() {
         *, *::before, *::after {
             scroll-behavior: auto !important;
         }
+        @keyframes webminecraftButtonIn {
+            0% {
+                opacity: 0;
+                transform: translateY(28px) scale(0.94);
+                filter: brightness(0.72);
+            }
+            70% {
+                opacity: 1;
+                transform: translateY(-3px) scale(1.015);
+                filter: brightness(1.04);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: brightness(1);
+            }
+        }
         #menuUpdates .menuUpdate,
         button,
         .menuButton,
@@ -33,25 +50,39 @@ function disableMotion() {
         .pauseButton,
         #gameVersionButton,
         .gameVersionOption {
-            transition: transform 0.1s ease, filter 0.1s ease, background-color 0.1s ease, box-shadow 0.1s ease !important;
+            transition: transform 0.14s ease, filter 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease !important;
         }
-        #menuUpdates .menuUpdate:hover,
-        button:hover,
+        .menuButton,
+        .seedButton,
+        .pauseButton,
+        #gameVersionButton,
+        .gameVersionOption,
+        #menuUpdates .menuUpdate {
+            animation: webminecraftButtonIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+            will-change: transform, opacity, filter;
+        }
+        .menuButton:nth-child(1), .pauseButton:nth-child(1), .menuUpdate:nth-child(1) { animation-delay: 0.03s; }
+        .menuButton:nth-child(2), .pauseButton:nth-child(2), .menuUpdate:nth-child(2) { animation-delay: 0.09s; }
+        .menuButton:nth-child(3), .pauseButton:nth-child(3), .menuUpdate:nth-child(3) { animation-delay: 0.15s; }
+        .menuButton:nth-child(4), .pauseButton:nth-child(4), .menuUpdate:nth-child(4) { animation-delay: 0.21s; }
+        .menuButton:nth-child(5), .pauseButton:nth-child(5), .menuUpdate:nth-child(5) { animation-delay: 0.27s; }
+        .menuButton:nth-child(6), .pauseButton:nth-child(6), .menuUpdate:nth-child(6) { animation-delay: 0.33s; }
         .menuButton:hover,
         .seedButton:hover,
         .pauseButton:hover,
         #gameVersionButton:hover,
-        .gameVersionOption:hover {
+        .gameVersionOption:hover,
+        #menuUpdates .menuUpdate:hover {
+            transform: translateY(-2px) scale(1.02);
             filter: brightness(1.12);
         }
-        #menuUpdates .menuUpdate:active,
-        button:active,
         .menuButton:active,
         .seedButton:active,
         .pauseButton:active,
         #gameVersionButton:active,
-        .gameVersionOption:active {
-            transform: translateY(2px);
+        .gameVersionOption:active,
+        #menuUpdates .menuUpdate:active {
+            transform: translateY(2px) scale(0.98);
             filter: brightness(0.92);
         }
         #menuUpdates .menuUpdate:focus-visible,
