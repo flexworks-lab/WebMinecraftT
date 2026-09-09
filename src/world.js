@@ -51,6 +51,7 @@ const chunks = new Map();
 const chunkMeshes = new Map();
 const generationQueue = [];
 const queuedKeys = new Set();
+const worldOverrides = new Map();
 let worldScene = null;
 let lastPlayerChunkX = Infinity;
 let lastPlayerChunkZ = Infinity;
@@ -462,6 +463,18 @@ function generateTrees(chunk) {
     }
 }
 
+function applyWorldOverridesToChunk(chunk) {
+    for (const [key, type] of worldOverrides) {
+        const [x, y, z] = key.split(',').map(Number);
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+        if (Math.floor(x / CHUNK_SIZE) !== chunk.x || Math.floor(z / CHUNK_SIZE) !== chunk.z) continue;
+        if (y < MIN_Y || y > WORLD_TOP) continue;
+        const localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        const localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        chunk.blocks[blockIndex(localX, y, localZ)] = type;
+    }
+}
+
 function generateChunk(chunkX, chunkZ) {
     const key = chunkKey(chunkX, chunkZ);
     if (chunks.has(key)) return chunks.get(key);
@@ -477,6 +490,7 @@ function generateChunk(chunkX, chunkZ) {
     chunks.set(key, chunk);
     generateTerrain(chunk);
     generateTrees(chunk);
+    applyWorldOverridesToChunk(chunk);
     chunk.generated = true;
     return chunk;
 }
@@ -760,11 +774,15 @@ export function setBlockAt(x, y, z, type) {
     x = Math.floor(x);
     y = Math.floor(y);
     z = Math.floor(z);
+    type = Math.floor(Number(type));
+    if (![x, y, z, type].every(Number.isFinite)) return false;
     if (y < MIN_Y || y > WORLD_TOP) return false;
+
+    worldOverrides.set(`${x},${y},${z}`, type);
 
     const { chunkX, chunkZ, localX, localZ } = getChunkCoords(x, z);
     const chunk = getChunk(chunkX, chunkZ);
-    if (!chunk) return false;
+    if (!chunk) return true;
     chunk.blocks[blockIndex(localX, y, localZ)] = type;
     rebuildChunkMesh(chunk);
 
@@ -794,6 +812,7 @@ export function clearWorld() {
     chunkMeshes.clear();
     generationQueue.length = 0;
     queuedKeys.clear();
+    worldOverrides.clear();
     lastPlayerChunkX = Infinity;
     lastPlayerChunkZ = Infinity;
 }
