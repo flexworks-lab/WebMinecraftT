@@ -7,6 +7,113 @@ const seedMenu = document.getElementById("seedMenu");
 const VERSION_KEY = "webminecraft-game-version";
 const VERSIONS = ["v1.0", "v1.1", "v1.2"];
 
+function injectMenuAnimations() {
+    if (document.getElementById("menuAnimationStyles")) return;
+
+    const style = document.createElement("style");
+    style.id = "menuAnimationStyles";
+    style.textContent = `
+        @keyframes wmMenuFadeUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes wmMenuTitleIn {
+            0% { opacity: 0; transform: translateY(-14px) scaleX(1.04) scale(.98); }
+            70% { transform: translateY(2px) scaleX(1.04) scale(1.015); }
+            100% { opacity: 1; transform: translateY(0) scaleX(1.04) scale(1); }
+        }
+        @keyframes wmMenuSplash {
+            0% { opacity: 0; transform: rotate(-3deg) scale(.94); }
+            55% { opacity: 1; transform: rotate(-3deg) scale(1.04); }
+            100% { opacity: 1; transform: rotate(-3deg) scale(1); }
+        }
+        @keyframes wmMenuButtonIn {
+            from { opacity: 0; transform: translateY(10px) scale(.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes wmUpdateIn {
+            from { opacity: 0; transform: translateX(-16px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes wmSeedIn {
+            from { opacity: 0; transform: scale(1.018); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        #menuPanel > * { opacity: 0; animation: wmMenuFadeUp .45s cubic-bezier(.2,.75,.25,1) forwards; }
+        #menuTitle { animation: wmMenuTitleIn .7s cubic-bezier(.16,.8,.24,1) .05s forwards; }
+        #menuSubtitle { animation-delay: .15s; }
+        #menuSplash { animation: wmMenuSplash .55s cubic-bezier(.2,.8,.2,1) .22s forwards; }
+        #menuButtons { opacity: 1; }
+        #menuButtons .menuButton { opacity: 0; animation: wmMenuButtonIn .4s cubic-bezier(.2,.8,.2,1) forwards; }
+        #menuButtons .menuButton:nth-child(1) { animation-delay: .30s; }
+        #menuButtons .menuButton:nth-child(2) { animation-delay: .37s; }
+        #menuButtons .menuButton:nth-child(3) { animation-delay: .44s; }
+        #menuButtons .menuButton:nth-child(4) { animation-delay: .51s; }
+
+        .menuButton,
+        .seedButton,
+        #settingsButton,
+        #settingsCloseTop,
+        #closeSettings,
+        #gameVersionButton,
+        .gameVersionOption,
+        .settingsTab {
+            transition: transform .12s cubic-bezier(.2,.8,.2,1), filter .12s ease, box-shadow .12s ease, background .12s ease;
+            will-change: transform;
+        }
+        .menuButton:hover,
+        .seedButton:hover,
+        #settingsButton:hover,
+        #settingsCloseTop:hover,
+        #closeSettings:hover,
+        #gameVersionButton:hover,
+        .gameVersionOption:hover,
+        .settingsTab:hover {
+            transform: translateY(-2px) scale(1.015);
+            filter: brightness(1.08);
+        }
+        .menuButton:active,
+        .seedButton:active,
+        #settingsButton:active,
+        #settingsCloseTop:active,
+        #closeSettings:active,
+        #gameVersionButton:active,
+        .gameVersionOption:active,
+        .settingsTab:active {
+            transform: translateY(2px) scale(.985);
+            filter: brightness(.94);
+        }
+
+        #menuUpdates { animation: wmUpdateIn .5s cubic-bezier(.2,.8,.2,1) .18s both; }
+        .menuUpdate { transition: transform .16s ease, filter .16s ease; }
+        .menuUpdate:hover { transform: translateX(4px); filter: brightness(1.08); }
+        #menuFooter, #menuCopyright { transition: opacity .2s ease, transform .2s ease; }
+        #menuFooter:hover { transform: translateY(-2px); }
+        #menuCopyright:hover { transform: translateY(-2px); }
+
+        #seedPanel { animation: wmSeedIn .22s ease-out both; }
+        #seedBackWrap, #seedTitle, #seedSubtitle, #seedInput, #seedActions, #seedLinkStatus { opacity: 0; animation: wmMenuFadeUp .4s cubic-bezier(.2,.75,.25,1) forwards; }
+        #seedBackWrap { animation-delay: .03s; }
+        #seedTitle { animation-delay: .07s; }
+        #seedSubtitle { animation-delay: .12s; }
+        #seedInput { animation-delay: .17s; }
+        #seedActions { animation-delay: .22s; }
+        #seedLinkStatus { animation-delay: .27s; }
+
+        #gameVersionPicker { transform-origin: bottom right; }
+        #gameVersionPicker[style*="display: block"] { animation: wmMenuFadeUp .16s ease-out both; }
+
+        @media (prefers-reduced-motion: reduce) {
+            #menuPanel > *, #menuButtons .menuButton, #menuUpdates,
+            #seedPanel, #seedBackWrap, #seedTitle, #seedSubtitle,
+            #seedInput, #seedActions, #seedLinkStatus { animation: none !important; opacity: 1 !important; }
+            *, *::before, *::after { scroll-behavior: auto !important; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 function syncMenuUpdates() {
     if (!updates || !menu) return;
     const menuVisible = getComputedStyle(menu).display !== "none";
@@ -28,6 +135,31 @@ function watchSeedMenu() {
     const observer = new MutationObserver(syncSeedMenu);
     observer.observe(seedMenu, { attributes: true, attributeFilter: ["style", "class"] });
     syncSeedMenu();
+}
+
+function setupSeedBackButton() {
+    const backButton = document.getElementById("backSeedButton");
+    if (!backButton || backButton.dataset.backHookInstalled) return;
+    backButton.dataset.backHookInstalled = "1";
+
+    const goBack = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (seedMenu) {
+            seedMenu.style.display = "none";
+            seedMenu.setAttribute("aria-hidden", "true");
+        }
+        if (menu) menu.style.display = "flex";
+
+        // The seed screen intentionally clears the menu preview world.
+        // Reloading the menu restores that preview without altering the selected seed.
+        window.setTimeout(() => {
+            window.location.reload();
+        }, 80);
+    };
+
+    backButton.addEventListener("click", goBack);
+    backButton.addEventListener("pointerup", goBack);
 }
 
 function getSavedVersion() {
@@ -183,8 +315,10 @@ function createVersionPicker() {
     }
 }
 
+injectMenuAnimations();
 syncMenuUpdates();
 createVersionPicker();
+setupSeedBackButton();
 watchSeedMenu();
 
 if (menu && updates) {
