@@ -1,0 +1,33 @@
+name: Fix live client sync 2
+on:
+  push:
+    paths:
+      - .github/workflows/_fix_live_client2.yml
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch client handler
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p = Path('src/multiplayerClient.js')
+          s = p.read_text()
+          pattern = r'(else if \(message\.type === ["\']block_change["\']\)\s*\{\s*queueWorldChange\(message\);)(?!\s*applyPendingWorldChanges\(\);)'
+          s2, count = re.subn(pattern, r'\1\n                applyPendingWorldChanges();', s, count=1)
+          if count != 1:
+              raise SystemExit('live block_change handler not found or already patched')
+          p.write_text(s2)
+      - name: Commit and remove temp workflows
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/_fix_live_client.yml .github/workflows/_fix_live_client2.yml .github/workflows/_live_world_sync.yml
+          git add src/multiplayerClient.js .github/workflows
+          git commit -m "FIX: Live multiplayer block sync"
+          git push
