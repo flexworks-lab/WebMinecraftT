@@ -313,12 +313,27 @@ function handleMessage(ws, raw, state) {
         const room = rooms.get(player.room);
         if (!room) return;
         const key = `${x},${y},${z}`;
-        room.blockChanges.set(key, { x, y, z, type });
+        const change = { x, y, z, type };
+        room.blockChanges.set(key, change);
         if (room.blockChanges.size > 50000) {
             const oldest = room.blockChanges.keys().next().value;
             if (oldest) room.blockChanges.delete(oldest);
         }
-        broadcast(room, { type: "block_change", x, y, z, type }, player.id);
+
+        // Canonical live world update: every connected player receives it immediately.
+        broadcast(room, { type: "block_change", x, y, z, type });
+        send(ws, { type: "block_change_ack", x, y, z, type });
+        return;
+    }
+
+    if (message.type === "world_sync_request") {
+        const room = rooms.get(player.room);
+        if (!room) return;
+        send(ws, {
+            type: "world_sync",
+            worldSeed: room.worldSeed,
+            worldChanges: [...room.blockChanges.values()],
+        });
         return;
     }
 
