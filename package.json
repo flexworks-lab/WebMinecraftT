@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "node server/server.js",
     "electron:dev": "vite & electron .",
-    "electron:build": "npm run build && electron-builder --win --x64"
+    "electron:build": "npm run build && electron-builder --win --x64 --publish never"
   },
   "keywords": [],
   "author": "",
