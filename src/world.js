@@ -802,13 +802,9 @@ export function createWorld(scene) {
     worldScene = scene;
     clearWorld();
 
-    for (let dx = -1; dx <= 1; dx++) {
-        for (let dz = -1; dz <= 1; dz++) {
-            const chunk = generateChunk(dx, dz);
-            rebuildChunkMesh(chunk);
-        }
-    }
-
+    // Build only the spawn chunk synchronously. Everything around it streams in over frames.
+    const spawnChunk = generateChunk(0, 0);
+    rebuildChunkMesh(spawnChunk);
     queueNeededChunks(0, 0);
 }
 
