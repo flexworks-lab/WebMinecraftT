@@ -210,14 +210,14 @@ function getTerrainProfile(x, z) {
     const peaks = octave2D(x - 600, z + 1100, 4, 120, 0.50, 89);
     const detail = octave2D(x + 2400, z - 1700, 3, 28, 0.50, 97);
 
-    // Favor solid land while keeping oceans and lakes in the world.
+    // More of the map stays above sea level.
     let baseHeight = 16 + (continentalness - 0.5) * 24;
     baseHeight += (0.5 - erosion) * 12;
     const mountainMask = Math.max(0, (peaks - 0.57) / 0.43);
     baseHeight += mountainMask * mountainMask * 32;
     baseHeight += (detail - 0.5) * 5;
 
-    // Only the lowest continentalness values become proper water terrain.
+    // Water is reserved for the lowest continental areas.
     const oceanMask = Math.max(0, 0.15 - continentalness) / 0.15;
     baseHeight -= oceanMask * 5;
 
@@ -292,6 +292,13 @@ function getSurfaceBlock(biome, y, surfaceY, x, z) {
     }
 
     if (biome === "badlands") {
+        if (y === surfaceY) return BLOCK.SAND;
+        if (y >= surfaceY - 5) return BLOCK.SANDSTONE;
+        return chooseStoneVariant(x, y, z, surfaceY);
+    }
+
+    if (biome === "snow" || biome === "tundra") {
+        if (y === surfaceY) return BLOCK.SNOW;
         if (y >= surfaceY - 4) return BLOCK.DIRT;
         return chooseStoneVariant(x, y, z, surfaceY);
     }
@@ -327,6 +334,8 @@ function getBlockType(x, y, z) {
 }
 
 export function getBlockAt(x, y, z) { return getBlockType(x, y, z); }
+
+export function getBlockTypes() { return { ...BLOCK }; }
 
 export function isPointInWater(x, y, z) {
     const profile = getTerrainProfile(Math.floor(x), Math.floor(z));
@@ -387,7 +396,7 @@ function generateTerrain(chunk) {
     const startX = chunk.x * CHUNK_SIZE;
     const startZ = chunk.z * CHUNK_SIZE;
 
-    // Phase 1: generate the solid land/terrain completely first.
+    // Phase 1: make the solid land first.
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
@@ -403,7 +412,7 @@ function generateTerrain(chunk) {
         }
     }
 
-    // Phase 2: apply terrain surface variations after the land exists.
+    // Phase 2: surface variations are added after the land exists.
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
@@ -540,10 +549,7 @@ function makeGeometryForChunk(chunk) {
                     }
                     uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
                     const matIndex = materialIndexFor(type, faceIndex);
-                    groups[matIndex].push(
-                        base, base + 1, base + 2,
-                        base, base + 2, base + 3
-                    );
+                    groups[matIndex].push(base, base + 1, base + 2, base, base + 2, base + 3);
                     vertexCount += 4;
                 }
             }
@@ -601,13 +607,12 @@ function makeWaterGeometry(chunk) {
             normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
 
             const shimmer = 0.94 + hash2D(x, z, 1931) * 0.12;
-            const waterColors = [
+            colors.push(
                 0.16 * shimmer, 0.52 * shimmer, 0.80 * shimmer,
                 0.20 * shimmer, 0.59 * shimmer, 0.86 * shimmer,
                 0.13 * shimmer, 0.47 * shimmer, 0.75 * shimmer,
                 0.19 * shimmer, 0.56 * shimmer, 0.84 * shimmer
-            ];
-            colors.push(...waterColors);
+            );
             uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
             indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
             vertices += 4;
@@ -621,67 +626,166 @@ function makeWaterGeometry(chunk) {
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(indices);
-    geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     return geometry;
 }
 
 function disposeChunkMesh(chunk) {
-    const mesh = chunkMeshes.get(chunkKey(chunk.x, chunk.z));
+    if (!chunk || !worldScene) return;
+    const key = chunkKey(chunk.x, chunk.z);
+    const mesh = chunkMeshes.get(key);
     if (mesh) {
+        worldScene.remove(mesh);
         mesh.geometry.dispose();
-        if (mesh.parent) mesh.parent.remove(mesh);
-        chunkMeshes.delete(chunkKey(chunk.x, chunk.z));
+        chunkMeshes.delete(key);
     }
     if (chunk.waterMesh) {
+        worldScene.remove(chunk.waterMesh);
         chunk.waterMesh.geometry.dispose();
-        if (chunk.waterMesh.parent) chunk.waterMesh.parent.remove(chunk.waterMesh);
         chunk.waterMesh = null;
     }
 }
 
-function buildChunkMesh(chunk) {
+function rebuildChunkMesh(chunk) {
+    if (!chunk || !worldScene) return;
     disposeChunkMesh(chunk);
+
     const geometry = makeGeometryForChunk(chunk);
-    if (geometry && worldScene) {
+    if (geometry) {
         const mesh = new THREE.Mesh(geometry, chunkMaterials);
-        mesh.position.set(0, 0, 0);
+        mesh.userData.isChunk = true;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
         worldScene.add(mesh);
         chunkMeshes.set(chunkKey(chunk.x, chunk.z), mesh);
     }
 
-    // Water is deliberately built after the land mesh.
+    // Land is built first; water is rendered second.
     const waterGeometry = makeWaterGeometry(chunk);
-    if (waterGeometry && worldScene) {
+    if (waterGeometry) {
         const waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
+        waterMesh.userData.isChunk = true;
+        waterMesh.userData.isWater = true;
+        waterMesh.castShadow = false;
+        waterMesh.receiveShadow = false;
         worldScene.add(waterMesh);
         chunk.waterMesh = waterMesh;
     }
 }
 
-function queueChunk(chunkX, chunkZ) {
-    const key = chunkKey(chunkX, chunkZ);
-    if (chunks.has(key) || queuedKeys.has(key)) return;
-    generationQueue.push({ chunkX, chunkZ });
-    queuedKeys.add(key);
+function queueNeededChunks(playerChunkX, playerChunkZ) {
+    const wanted = [];
+    for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
+        for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
+            if (Math.max(Math.abs(dx), Math.abs(dz)) > RENDER_DISTANCE) continue;
+            const x = playerChunkX + dx;
+            const z = playerChunkZ + dz;
+            const key = chunkKey(x, z);
+            if (chunks.has(key) || queuedKeys.has(key)) continue;
+            wanted.push({ x, z, distance: Math.sqrt(dx * dx + dz * dz) });
+        }
+    }
+    wanted.sort((a, b) => a.distance - b.distance);
+    for (const item of wanted) {
+        const key = chunkKey(item.x, item.z);
+        queuedKeys.add(key);
+        generationQueue.push(item);
+    }
 }
 
-function processGenerationQueue(limit = 1) {
-    for (let i = 0; i < limit && generationQueue.length; i++) {
-        const { chunkX, chunkZ } = generationQueue.shift();
-        queuedKeys.delete(chunkKey(chunkX, chunkZ));
-        const chunk = generateChunk(chunkX, chunkZ);
-        buildChunkMesh(chunk);
-    }
+function processChunkQueue() {
+    const first = generationQueue.shift();
+    if (!first) return;
+    const key = chunkKey(first.x, first.z);
+    queuedKeys.delete(key);
+    if (chunks.has(key)) return;
+    const chunk = generateChunk(first.x, first.z);
+    rebuildChunkMesh(chunk);
 }
 
 function unloadFarChunks(playerChunkX, playerChunkZ) {
     for (const [key, chunk] of chunks) {
-        if (Math.max(Math.abs(chunk.x - playerChunkX), Math.abs(chunk.z - playerChunkZ)) > UNLOAD_DISTANCE) {
+        const distance = Math.max(
+            Math.abs(chunk.x - playerChunkX),
+            Math.abs(chunk.z - playerChunkZ)
+        );
+        if (distance > UNLOAD_DISTANCE) {
             disposeChunkMesh(chunk);
             chunks.delete(key);
         }
     }
+
+    for (let i = generationQueue.length - 1; i >= 0; i--) {
+        const item = generationQueue[i];
+        if (Math.max(Math.abs(item.x - playerChunkX), Math.abs(item.z - playerChunkZ)) > UNLOAD_DISTANCE) {
+            queuedKeys.delete(chunkKey(item.x, item.z));
+            generationQueue.splice(i, 1);
+        }
+    }
+}
+
+function updateFacingVisibility(playerPosition, camera) {
+    if (!camera) return;
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    direction.y = 0;
+    if (direction.lengthSq() < 0.0001) return;
+    direction.normalize();
+
+    const playerChunk = getChunkCoords(playerPosition.x, playerPosition.z);
+    const maxDistance = RENDER_DISTANCE + 1;
+
+    for (const chunk of chunks.values()) {
+        const mesh = chunkMeshes.get(chunkKey(chunk.x, chunk.z));
+        const water = chunk.waterMesh;
+        if (!mesh && !water) continue;
+
+        const dx = chunk.x - playerChunk.chunkX;
+        const dz = chunk.z - playerChunk.chunkZ;
+        if (Math.max(Math.abs(dx), Math.abs(dz)) > maxDistance) {
+            if (mesh) mesh.visible = false;
+            if (water) water.visible = false;
+            continue;
+        }
+
+        const toChunk = new THREE.Vector3(dx, 0, dz);
+        const distance = toChunk.length();
+        const shouldKeep = distance < 2.4 || toChunk.normalize().dot(direction) > -0.72;
+        if (mesh) mesh.visible = shouldKeep;
+        if (water) water.visible = shouldKeep;
+    }
+}
+
+export function setBlockAt(x, y, z, type) {
+    x = Math.floor(x);
+    y = Math.floor(y);
+    z = Math.floor(z);
+    if (y < MIN_Y || y > WORLD_TOP) return false;
+
+    const { chunkX, chunkZ, localX, localZ } = getChunkCoords(x, z);
+    const chunk = getChunk(chunkX, chunkZ);
+    if (!chunk) return false;
+    chunk.blocks[blockIndex(localX, y, localZ)] = type;
+    rebuildChunkMesh(chunk);
+
+    if (localX === 0) {
+        const neighbor = getChunk(chunkX - 1, chunkZ);
+        if (neighbor) rebuildChunkMesh(neighbor);
+    }
+    if (localX === CHUNK_SIZE - 1) {
+        const neighbor = getChunk(chunkX + 1, chunkZ);
+        if (neighbor) rebuildChunkMesh(neighbor);
+    }
+    if (localZ === 0) {
+        const neighbor = getChunk(chunkX, chunkZ - 1);
+        if (neighbor) rebuildChunkMesh(neighbor);
+    }
+    if (localZ === CHUNK_SIZE - 1) {
+        const neighbor = getChunk(chunkX, chunkZ + 1);
+        if (neighbor) rebuildChunkMesh(neighbor);
+    }
+
+    return true;
 }
 
 export function clearWorld() {
@@ -701,47 +805,34 @@ export function createWorld(scene) {
     for (let dx = -1; dx <= 1; dx++) {
         for (let dz = -1; dz <= 1; dz++) {
             const chunk = generateChunk(dx, dz);
-            buildChunkMesh(chunk);
+            rebuildChunkMesh(chunk);
         }
     }
 
-    for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
-        for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
-            if (dx * dx + dz * dz <= RENDER_DISTANCE * RENDER_DISTANCE) queueChunk(dx, dz);
-        }
-    }
+    queueNeededChunks(0, 0);
 }
 
-export function updateChunkVisibility(playerX, playerZ) {
-    const playerChunkX = Math.floor(playerX / CHUNK_SIZE);
-    const playerChunkZ = Math.floor(playerZ / CHUNK_SIZE);
+export function updateChunkVisibility(position, camera) {
+    if (!worldScene || !position) return;
+    const { chunkX, chunkZ } = getChunkCoords(position.x, position.z);
 
-    if (playerChunkX !== lastPlayerChunkX || playerChunkZ !== lastPlayerChunkZ) {
-        lastPlayerChunkX = playerChunkX;
-        lastPlayerChunkZ = playerChunkZ;
-
-        for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
-            for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
-                if (dx * dx + dz * dz > RENDER_DISTANCE * RENDER_DISTANCE) continue;
-                const chunkX = playerChunkX + dx;
-                const chunkZ = playerChunkZ + dz;
-                const key = chunkKey(chunkX, chunkZ);
-                if (!chunks.has(key) && !queuedKeys.has(key)) queueChunk(chunkX, chunkZ);
-            }
-        }
-
-        unloadFarChunks(playerChunkX, playerChunkZ);
+    if (chunkX !== lastPlayerChunkX || chunkZ !== lastPlayerChunkZ) {
+        lastPlayerChunkX = chunkX;
+        lastPlayerChunkZ = chunkZ;
+        queueNeededChunks(chunkX, chunkZ);
+        unloadFarChunks(chunkX, chunkZ);
     }
 
-    processGenerationQueue(2);
+    processChunkQueue();
+    updateFacingVisibility(position, camera);
 }
 
 export function getPerformanceStats() {
     return {
-        seed: WORLD_SEED,
         loadedChunks: chunks.size,
         queuedChunks: generationQueue.length,
-        renderDistance: RENDER_DISTANCE
+        renderDistance: RENDER_DISTANCE,
+        seed: WORLD_SEED
     };
 }
 
