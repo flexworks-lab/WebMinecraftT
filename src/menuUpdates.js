@@ -1,4 +1,4 @@
-import { clearWorld } from "./world.js";
+import { clearWorld, getWorldSeed } from "./world.js";
 
 const updates = document.getElementById("menuUpdates");
 const menu = document.getElementById("mainMenu");
@@ -30,8 +30,6 @@ const UPDATE_DETAILS = [
     }
 ];
 
-// Keep the UI completely static for now. This also overrides transitions already
-// present in index.html so no menu animation code runs or affects startup.
 function disableMotion() {
     if (document.getElementById("noMenuMotion")) return;
     const style = document.createElement("style");
@@ -49,6 +47,195 @@ function disableMotion() {
 function syncMenuUpdates() {
     if (!updates || !menu) return;
     updates.style.display = getComputedStyle(menu).display === "none" ? "none" : "block";
+}
+
+function setupPauseMenu() {
+    if (document.getElementById("pauseMenu")) return;
+
+    const style = document.createElement("style");
+    style.id = "pauseMenuStyles";
+    style.textContent = `
+        #pauseMenu {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,.62);
+            color: #fff;
+            z-index: 500;
+            pointer-events: auto;
+        }
+        #pausePanel {
+            width: min(420px, 90vw);
+            padding: 30px 28px 26px;
+            background: #262626;
+            border: 2px solid #111;
+            border-top-color: #777;
+            border-left-color: #777;
+            box-shadow: 6px 6px 0 rgba(0,0,0,.6);
+            text-align: center;
+        }
+        #pauseTitle {
+            margin: 0 0 8px;
+            font-family: "MinecraftFont", monospace;
+            font-size: 34px;
+            text-shadow: 3px 3px 0 #000;
+        }
+        #pauseSeed {
+            min-height: 20px;
+            margin: 0 0 20px;
+            color: #999;
+            font: 12px Arial, sans-serif;
+            overflow-wrap: anywhere;
+        }
+        #pauseButtons {
+            display: grid;
+            gap: 9px;
+        }
+        #pauseButtons .pauseButton {
+            width: 100%;
+            min-height: 46px;
+            padding: 9px 12px;
+            border: 2px solid #111;
+            border-top-color: #888;
+            border-left-color: #888;
+            background: linear-gradient(#696969,#505050);
+            color: #fff;
+            font-family: "MinecraftFont", monospace;
+            font-size: 13px;
+            cursor: pointer;
+            text-shadow: 2px 2px 0 #222;
+        }
+        #pauseButtons .pauseButton:hover { background: #777; }
+        #pauseResume { background: linear-gradient(#6d8d4e,#526f3c) !important; }
+        #pauseReturn { background: linear-gradient(#5d5d5d,#444) !important; }
+        @media(max-width:760px) {
+            #pausePanel { width: min(380px, 92vw); padding: 26px 20px 22px; }
+            #pauseTitle { font-size: 29px; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    const overlay = document.createElement("div");
+    overlay.id = "pauseMenu";
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.innerHTML = `
+        <div id="pausePanel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+            <h2 id="pauseTitle">Game Paused</h2>
+            <div id="pauseSeed"></div>
+            <div id="pauseButtons">
+                <button id="pauseResume" class="pauseButton" type="button">Resume Game</button>
+                <button id="pauseSettings" class="pauseButton" type="button">Settings</button>
+                <button id="pauseMobile" class="pauseButton" type="button">Mobile Mode</button>
+                <button id="pauseReturn" class="pauseButton" type="button">Return to Main Menu</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const pauseSeed = overlay.querySelector("#pauseSeed");
+    const resume = overlay.querySelector("#pauseResume");
+    const settings = overlay.querySelector("#pauseSettings");
+    const mobile = overlay.querySelector("#pauseMobile");
+    const returnButton = overlay.querySelector("#pauseReturn");
+    const settingsMenu = document.getElementById("settingsMenu");
+    const gameSettingsButton = document.getElementById("settingsButton");
+
+    let paused = false;
+    let settingsWasOpen = false;
+
+    const isGameRunning = () => Boolean(window.webminecraftGameStarted);
+
+    const openPause = event => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        if (!isGameRunning() || settingsMenu?.style.display === "flex") return;
+        paused = true;
+        settingsWasOpen = false;
+        pauseSeed.textContent = `Seed: ${getWorldSeed()}`;
+        overlay.style.display = "flex";
+        overlay.setAttribute("aria-hidden", "false");
+        document.exitPointerLock?.();
+        resume.focus();
+    };
+
+    const closePause = event => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        paused = false;
+        overlay.style.display = "none";
+        overlay.setAttribute("aria-hidden", "true");
+        if (isGameRunning()) document.body.requestPointerLock?.();
+    };
+
+    resume.addEventListener("click", closePause);
+
+    settings.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!settingsMenu) return;
+        paused = false;
+        settingsWasOpen = true;
+        overlay.style.display = "none";
+        overlay.setAttribute("aria-hidden", "true");
+        settingsMenu.style.display = "flex";
+        document.exitPointerLock?.();
+    });
+
+    mobile.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("mobile") === "1" || url.searchParams.get("mode") === "mobile") {
+            url.searchParams.delete("mobile");
+            url.searchParams.delete("mode");
+        } else {
+            url.searchParams.set("mobile", "1");
+            url.searchParams.delete("mode");
+        }
+        window.location.href = url.toString();
+    });
+
+    returnButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.location.reload();
+    });
+
+    overlay.addEventListener("click", event => {
+        if (event.target === overlay) closePause(event);
+    });
+
+    document.addEventListener("keydown", event => {
+        if (event.code === "Escape") {
+            if (paused) {
+                closePause(event);
+                return;
+            }
+            if (settingsMenu?.style.display === "flex") return;
+            if (isGameRunning()) openPause(event);
+        }
+    }, true);
+
+    if (gameSettingsButton) {
+        gameSettingsButton.addEventListener("pointerdown", event => {
+            if (!isGameRunning()) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            openPause(event);
+        }, true);
+    }
+
+    window.webminecraftPause = {
+        open: openPause,
+        close: closePause,
+        isOpen: () => paused
+    };
 }
 
 function setupSeedBackButton() {
@@ -78,6 +265,8 @@ function setupUpdateDetails() {
         card.setAttribute("role", "button");
         card.setAttribute("tabindex", "0");
         card.setAttribute("aria-label", `Open details for ${UPDATE_DETAILS[index].title}`);
+        card.style.cursor = "pointer";
+        card.style.userSelect = "none";
     });
 
     const detailMenu = document.createElement("div");
@@ -98,53 +287,13 @@ function setupUpdateDetails() {
     const style = document.createElement("style");
     style.id = "updateDetailStaticStyles";
     style.textContent = `
-        #updateDetailMenu {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: stretch;
-            justify-content: center;
-            overflow: auto;
-            background: #171717;
-            color: #fff;
-            z-index: 220;
-        }
-        #updateDetailPanel {
-            position: relative;
-            width: min(1040px, 100vw);
-            min-height: 100vh;
-            padding: clamp(28px, 6vh, 72px) clamp(22px, 7vw, 92px);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        #updateDetailBackWrap {
-            position: absolute;
-            left: clamp(18px, 4vw, 60px);
-            top: clamp(18px, 4vh, 44px);
-        }
-        #updateDetailBack { min-width: 130px; }
-        #updateDetailVersion {
-            margin: 0 0 10px;
-            color: #8fca68;
-            font-family: "MinecraftFont", monospace;
-            font-size: clamp(12px, 1.5vw, 16px);
-            text-shadow: 2px 2px 0 #111;
-        }
-        #updateDetailTitle {
-            margin: 0 0 22px;
-            max-width: 900px;
-            font-family: "MinecraftFont", monospace;
-            font-size: clamp(32px, 5vw, 62px);
-            line-height: 1;
-            text-shadow: 3px 3px 0 #000;
-        }
-        #updateDetailBody {
-            max-width: 860px;
-            color: #d6d6d6;
-            font-size: clamp(15px, 1.65vw, 20px);
-            line-height: 1.7;
-        }
+        #updateDetailMenu { position:fixed; inset:0; display:none; align-items:stretch; justify-content:center; overflow:auto; background:#171717; color:#fff; z-index:220; }
+        #updateDetailPanel { position:relative; width:min(1040px,100vw); min-height:100vh; padding:clamp(28px,6vh,72px) clamp(22px,7vw,92px); display:flex; flex-direction:column; justify-content:center; }
+        #updateDetailBackWrap { position:absolute; left:clamp(18px,4vw,60px); top:clamp(18px,4vh,44px); }
+        #updateDetailBack { min-width:130px; }
+        #updateDetailVersion { margin:0 0 10px; color:#8fca68; font-family:"MinecraftFont",monospace; font-size:clamp(12px,1.5vw,16px); text-shadow:2px 2px 0 #111; }
+        #updateDetailTitle { margin:0 0 22px; max-width:900px; font-family:"MinecraftFont",monospace; font-size:clamp(32px,5vw,62px); line-height:1; text-shadow:3px 3px 0 #000; }
+        #updateDetailBody { max-width:860px; color:#d6d6d6; font-size:clamp(15px,1.65vw,20px); line-height:1.7; }
     `;
     document.head.appendChild(style);
 
@@ -185,8 +334,6 @@ function setupUpdateDetails() {
         };
         card.addEventListener("click", activate);
         card.addEventListener("keydown", activate);
-        card.style.cursor = "pointer";
-        card.style.userSelect = "none";
     });
 
     backButton.addEventListener("click", closeDetails);
@@ -195,7 +342,7 @@ function setupUpdateDetails() {
     });
     document.addEventListener("keydown", event => {
         if (event.code === "Escape" && detailOpen) closeDetails(event);
-    });
+    }, true);
 }
 
 function getSavedVersion() {
@@ -213,61 +360,12 @@ function createVersionPicker() {
     const style = document.createElement("style");
     style.id = "gameVersionStyles";
     style.textContent = `
-        #gameVersionButton {
-            position: fixed;
-            right: 10px;
-            bottom: 8px;
-            min-width: 88px;
-            height: 34px;
-            padding: 5px 10px;
-            border: 2px solid #111;
-            border-top-color: #9a9a9a;
-            border-left-color: #9a9a9a;
-            background: linear-gradient(#666,#4d4d4d);
-            color: #fff;
-            font-family: "MinecraftFont", monospace;
-            font-size: 11px;
-            text-shadow: 2px 2px 0 #222;
-            cursor: pointer;
-            z-index: 97;
-            box-shadow: inset 2px 2px 0 rgba(255,255,255,.12), 0 2px 0 rgba(0,0,0,.7);
-        }
-        #gameVersionButton:hover,
-        #gameVersionButton:focus-visible { background: #777; outline: 2px solid #fff; outline-offset: 1px; }
-        #gameVersionPicker {
-            position: fixed;
-            right: 10px;
-            bottom: 48px;
-            width: 160px;
-            padding: 6px;
-            background: #191919;
-            border: 2px solid #111;
-            border-top-color: #777;
-            border-left-color: #777;
-            box-shadow: 4px 4px 0 rgba(0,0,0,.55);
-            z-index: 97;
-            display: none;
-        }
-        .gameVersionOption {
-            display: block;
-            width: 100%;
-            min-height: 34px;
-            margin: 3px 0;
-            border: 2px solid #111;
-            border-top-color: #777;
-            border-left-color: #777;
-            background: #3d3d3d;
-            color: #fff;
-            font-family: "MinecraftFont", monospace;
-            font-size: 11px;
-            text-align: left;
-            padding: 7px 9px;
-            cursor: pointer;
-            text-shadow: 2px 2px 0 #111;
-        }
-        .gameVersionOption:hover,
-        .gameVersionOption:focus-visible { background: #545454; outline: 2px solid #fff; }
-        .gameVersionOption.active { background: #5e5e5e; }
+        #gameVersionButton { position:fixed; right:10px; bottom:8px; min-width:88px; height:34px; padding:5px 10px; border:2px solid #111; border-top-color:#9a9a9a; border-left-color:#9a9a9a; background:linear-gradient(#666,#4d4d4d); color:#fff; font-family:"MinecraftFont",monospace; font-size:11px; text-shadow:2px 2px 0 #222; cursor:pointer; z-index:97; box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),0 2px 0 rgba(0,0,0,.7); }
+        #gameVersionButton:hover,#gameVersionButton:focus-visible { background:#777; outline:2px solid #fff; outline-offset:1px; }
+        #gameVersionPicker { position:fixed; right:10px; bottom:48px; width:160px; padding:6px; background:#191919; border:2px solid #111; border-top-color:#777; border-left-color:#777; box-shadow:4px 4px 0 rgba(0,0,0,.55); z-index:97; display:none; }
+        .gameVersionOption { display:block; width:100%; min-height:34px; margin:3px 0; border:2px solid #111; border-top-color:#777; border-left-color:#777; background:#3d3d3d; color:#fff; font-family:"MinecraftFont",monospace; font-size:11px; text-align:left; padding:7px 9px; cursor:pointer; text-shadow:2px 2px 0 #111; }
+        .gameVersionOption:hover,.gameVersionOption:focus-visible { background:#545454; outline:2px solid #fff; }
+        .gameVersionOption.active { background:#5e5e5e; }
     `;
     document.head.appendChild(style);
 
@@ -281,32 +379,31 @@ function createVersionPicker() {
     picker.setAttribute("role", "menu");
 
     let currentVersion = getSavedVersion();
-
-    for (const v of VERSIONS) {
-        const option = document.createElement("button");
-        option.className = "gameVersionOption";
-        option.type = "button";
-        option.dataset.version = v;
-        option.textContent = v;
-        option.setAttribute("role", "menuitem");
-        option.addEventListener("click", event => {
-            event.preventDefault();
-            event.stopPropagation();
-            currentVersion = v;
-            try { localStorage.setItem(VERSION_KEY, v); } catch {}
-            window.webminecraftVersion = v;
-            refresh();
-            picker.style.display = "none";
-        });
-        picker.appendChild(option);
-    }
-
     const refresh = () => {
         button.textContent = currentVersion;
         picker.querySelectorAll(".gameVersionOption").forEach(option => {
             option.classList.toggle("active", option.dataset.version === currentVersion);
         });
     };
+
+    for (const version of VERSIONS) {
+        const option = document.createElement("button");
+        option.className = "gameVersionOption";
+        option.type = "button";
+        option.dataset.version = version;
+        option.textContent = version;
+        option.setAttribute("role", "menuitem");
+        option.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            currentVersion = version;
+            try { localStorage.setItem(VERSION_KEY, version); } catch {}
+            window.webminecraftVersion = version;
+            refresh();
+            picker.style.display = "none";
+        });
+        picker.appendChild(option);
+    }
 
     button.addEventListener("click", event => {
         event.preventDefault();
@@ -337,6 +434,7 @@ function createVersionPicker() {
 
 disableMotion();
 syncMenuUpdates();
+setupPauseMenu();
 setupSeedBackButton();
 setupUpdateDetails();
 createVersionPicker();
