@@ -1,5 +1,8 @@
+import { clearWorld } from "./world.js";
+
 const updates = document.getElementById("menuUpdates");
 const menu = document.getElementById("mainMenu");
+const seedMenu = document.getElementById("seedMenu");
 
 const VERSION_KEY = "webminecraft-game-version";
 const VERSIONS = ["v1.0", "v1.1", "v1.2"];
@@ -8,6 +11,23 @@ function syncMenuUpdates() {
     if (!updates || !menu) return;
     const menuVisible = getComputedStyle(menu).display !== "none";
     updates.style.display = menuVisible ? "block" : "none";
+}
+
+function watchSeedMenu() {
+    if (!seedMenu) return;
+    let cleared = false;
+    const syncSeedMenu = () => {
+        const open = getComputedStyle(seedMenu).display !== "none";
+        if (open && !cleared) {
+            clearWorld();
+            cleared = true;
+        } else if (!open) {
+            cleared = false;
+        }
+    };
+    const observer = new MutationObserver(syncSeedMenu);
+    observer.observe(seedMenu, { attributes: true, attributeFilter: ["style", "class"] });
+    syncSeedMenu();
 }
 
 function getSavedVersion() {
@@ -165,6 +185,7 @@ function createVersionPicker() {
 
 syncMenuUpdates();
 createVersionPicker();
+watchSeedMenu();
 
 if (menu && updates) {
     const observer = new MutationObserver(syncMenuUpdates);
