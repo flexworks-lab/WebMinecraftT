@@ -55,6 +55,15 @@ function publicPlayer(player) {
     };
 }
 
+function publicRoom(room) {
+    return {
+        id: room.id,
+        players: room.players.size,
+        maxPlayers: MAX_PLAYERS_PER_SERVER,
+        worldSeed: room.worldSeed,
+    };
+}
+
 function send(ws, message) {
     if (!ws.connected) return;
     ws.sendText(JSON.stringify(message));
@@ -317,12 +326,37 @@ function handleMessage(ws, raw, state) {
 
 const httpServer = http.createServer((request, response) => {
     if (request.url === "/health") {
-        response.writeHead(200, { "content-type": "application/json" });
+        response.writeHead(200, {
+            "content-type": "application/json",
+            "access-control-allow-origin": "*",
+            "cache-control": "no-store",
+        });
         response.end(JSON.stringify({
             ok: true,
             rooms: rooms.size,
             players: [...rooms.values()].reduce((count, room) => count + room.players.size, 0),
             maxPlayers: MAX_PLAYERS_PER_SERVER,
+        }));
+        return;
+    }
+
+    if (request.url === "/servers") {
+        const totalPlayers = [...rooms.values()].reduce((count, room) => count + room.players.size, 0);
+        response.writeHead(200, {
+            "content-type": "application/json",
+            "access-control-allow-origin": "*",
+            "cache-control": "no-store",
+        });
+        response.end(JSON.stringify({
+            servers: [{
+                id: "webminecraft-official",
+                name: "WebMinecraft Official",
+                online: true,
+                players: totalPlayers,
+                maxPlayers: MAX_PLAYERS_PER_SERVER,
+                rooms: [...rooms.values()].map(publicRoom),
+            }],
+            updatedAt: Date.now(),
         }));
         return;
     }
