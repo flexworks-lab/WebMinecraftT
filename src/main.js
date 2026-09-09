@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes } from "./world.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, setWorldSeed, getWorldSeed } from "./world.js";
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
@@ -45,8 +45,15 @@ scene.add(sun.target);
 const depthLight = new THREE.PointLight(0x9db6d2, 0, 1, 2);
 scene.add(depthLight);
 
-createWorld(scene);
 const params = new URLSearchParams(window.location.search);
+function normalizeSeed(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.floor(Math.abs(numeric)) >>> 0;
+}
+const urlSeed = normalizeSeed(params.get("seed"));
+if (urlSeed !== null) setWorldSeed(urlSeed);
+createWorld(scene);
 const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobile";
 if (mobileMode) document.body.classList.add("mobile-mode");
 
@@ -101,6 +108,15 @@ applySettings();
 const mainMenu = document.getElementById("mainMenu");
 const playButton = document.getElementById("playButton");
 const menuSettingsButton = document.getElementById("menuSettingsButton");
+const seedMenu = document.getElementById("seedMenu");
+const seedInput = document.getElementById("seedInput");
+const seedTitle = document.getElementById("seedTitle");
+const seedSubtitle = document.getElementById("seedSubtitle");
+const seedLinkStatus = document.getElementById("seedLinkStatus");
+const copySeedButton = document.getElementById("copySeedButton");
+const copyWorldLinkButton = document.getElementById("copyWorldLinkButton");
+const openWorldButton = document.getElementById("openWorldButton");
+const openSeedButton = document.getElementById("openSeedButton");
 const mobileModeButton = document.getElementById("mobileModeButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsMenu = document.getElementById("settingsMenu");
@@ -166,17 +182,95 @@ function spawnPlayer() {
     return true;
 }
 
+let seedMenuMode = "create";
+function openSeedMenu(mode = "create") {
+    if (!seedMenu || gameStarted) return;
+    seedMenuMode = mode;
+    const currentSeed = getWorldSeed();
+    if (seedTitle) seedTitle.textContent = mode === "create" ? "Create World" : "Open World";
+    if (seedSubtitle) seedSubtitle.textContent = mode === "create"
+        ? "Your world seed is below. Copy it to share the exact same world later."
+        : "Enter a seed number to return to the exact same world.";
+    if (seedInput) { seedInput.value = String(currentSeed); seedInput.focus(); seedInput.select(); }
+    if (seedLinkStatus) seedLinkStatus.textContent = "";
+    seedMenu.style.display = "flex";
+    seedMenu.setAttribute("aria-hidden", "false");
+}
+function closeSeedMenu() {
+    if (!seedMenu) return;
+    seedMenu.style.display = "none";
+    seedMenu.setAttribute("aria-hidden", "true");
+}
+function getSeedFromInput() {
+    const seed = normalizeSeed(seedInput?.value?.trim());
+    if (seed === null) {
+        if (seedLinkStatus) seedLinkStatus.textContent = "Enter a valid seed number.";
+        seedInput?.focus();
+        return null;
+    }
+    return seed;
+}
+function setWorldUrl(seed) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("seed", String(seed));
+    if (mobileMode) url.searchParams.set("mobile", "1");
+    else url.searchParams.delete("mobile");
+    window.history.replaceState({}, "", url.toString());
+}
+async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; }
+    catch {
+        const helper = document.createElement("textarea");
+        helper.value = text; helper.style.position = "fixed"; helper.style.opacity = "0";
+        document.body.appendChild(helper); helper.select();
+        let ok = false; try { ok = document.execCommand("copy"); } catch {}
+        helper.remove(); return ok;
+    }
+}
+function startWorldWithSeed(seed) {
+    setWorldSeed(seed);
+    createWorld(scene);
+    setWorldUrl(seed);
+    spawnPlayer();
+    gameStarted = true;
+    closeSeedMenu();
+    if (mainMenu) mainMenu.style.display = "none";
+    setMenuUiVisible(false);
+    requestPointerLock();
+}
 if (playButton && mainMenu) {
     playButton.addEventListener("click", event => {
         event.preventDefault(); event.stopPropagation();
         if (gameStarted) return;
-        spawnPlayer();
-        gameStarted = true;
-        mainMenu.style.display = "none";
-        setMenuUiVisible(false);
-        requestPointerLock();
+        openSeedMenu("create");
     });
 }
+if (openSeedButton) openSeedButton.addEventListener("click", event => {
+    event.preventDefault(); event.stopPropagation();
+    openSeedMenu("open");
+});
+if (copySeedButton) copySeedButton.addEventListener("click", async () => {
+    const seed = getSeedFromInput(); if (seed === null) return;
+    if (await copyText(String(seed))) { if (seedLinkStatus) seedLinkStatus.textContent = "Seed copied!"; }
+    else if (seedLinkStatus) seedLinkStatus.textContent = "Could not copy automatically.";
+});
+if (copyWorldLinkButton) copyWorldLinkButton.addEventListener("click", async () => {
+    const seed = getSeedFromInput(); if (seed === null) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("seed", String(seed));
+    if (mobileMode) url.searchParams.set("mobile", "1");
+    else url.searchParams.delete("mobile");
+    if (await copyText(url.toString())) { if (seedLinkStatus) seedLinkStatus.textContent = "World link copied!"; }
+    else if (seedLinkStatus) seedLinkStatus.textContent = "Could not copy automatically.";
+});
+if (openWorldButton) openWorldButton.addEventListener("click", () => {
+    const seed = getSeedFromInput(); if (seed === null) return;
+    startWorldWithSeed(seed);
+});
+if (seedInput) seedInput.addEventListener("keydown", event => {
+    if (event.key === "Enter") openWorldButton?.click();
+    if (event.key === "Escape") closeSeedMenu();
+});
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
 if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
