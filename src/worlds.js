@@ -6,6 +6,8 @@ const WORLDS_COLLECTION = "worlds";
 let db = null;
 let auth = null;
 let currentUser = null;
+let authReadyPromise = null;
+let authReadyResolve = null;
 let overlay = null;
 let worldsList = null;
 let detailsPanel = null;
@@ -16,7 +18,21 @@ let openWorldCallback = null;
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) return resolve();
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            if (src.includes("firebase-app-compat") && window.firebase) return resolve();
+            if (src.includes("firebase-auth-compat") && window.firebase?.auth) return resolve();
+            if (src.includes("firebase-firestore-compat") && window.firebase?.firestore) return resolve();
+            const cleanup = () => {
+                existing.removeEventListener("load", onLoad);
+                existing.removeEventListener("error", onError);
+            };
+            const onLoad = () => { cleanup(); resolve(); };
+            const onError = () => { cleanup(); reject(new Error(`Could not load ${src}`)); };
+            existing.addEventListener("load", onLoad, { once: true });
+            existing.addEventListener("error", onError, { once: true });
+            return;
+        }
         const script = document.createElement("script");
         script.src = src;
         script.async = true;
@@ -37,7 +53,27 @@ async function ensureFirebase() {
     ]);
     auth = window.firebase.auth(app);
     db = window.firebase.firestore(app);
+
+    if (!authReadyPromise) {
+        authReadyPromise = new Promise(resolve => { authReadyResolve = resolve; });
+        auth.onAuthStateChanged(user => {
+            currentUser = user || null;
+            authReadyResolve?.(currentUser);
+            if (overlay?.style.display === "block") loadWorlds();
+        });
+    }
     return true;
+}
+
+async function waitForAuthState() {
+    await ensureFirebase();
+    if (auth?.currentUser) {
+        currentUser = auth.currentUser;
+        if (authReadyResolve) authReadyResolve(currentUser);
+        return currentUser;
+    }
+    if (authReadyPromise) return authReadyPromise;
+    return null;
 }
 
 function addStyles() {
@@ -206,14 +242,15 @@ function showStatus(text, error = false) {
 
 async function loadWorlds() {
     if (!worldsList) return;
-    if (!currentUser) {
+    const user = await waitForAuthState();
+    if (!user) {
         worldsList.innerHTML = `<div id="savedWorldsEmpty"><h2>Log in to save worlds</h2><p>Your saved worlds are connected to your player account, so they can follow you across devices.</p></div>`;
         overlay.querySelector("#savedWorldsCount").textContent = "Account required";
         return;
     }
     showLoadingProgress(72, "Loading your saved worlds…");
     try {
-        const snapshot = await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).orderBy("updatedAt", "desc").get();
+        const snapshot = await db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).orderBy("updatedAt", "desc").get();
         showLoadingProgress(92, "Finishing…");
         const worlds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderWorlds(worlds);
@@ -336,7 +373,9 @@ function closeCreateWorld() {
 }
 
 async function createNewWorld() {
-    if (!currentUser) return;
+    const user = await waitForAuthState();
+    if (!user) return;
+    currentUser = user;
     const input = overlay.querySelector("#worldNameInput");
     const message = overlay.querySelector("#worldCreateMessage");
     const button = overlay.querySelector("#worldCreateConfirm");
@@ -345,7 +384,7 @@ async function createNewWorld() {
         button.disabled = true;
         message.textContent = "Saving world…";
         const seed = makeSeed();
-        const ref = db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).doc();
+        const ref = db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc();
         await ref.set({ name, seed, createdAt: window.firebase.firestore.FieldValue.serverTimestamp(), updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() });
         closeCreateWorld();
         closeWorldMenu();
@@ -379,7 +418,7 @@ async function openWorldMenu() {
     if (seedMenu) { seedMenu.style.display = "none"; seedMenu.setAttribute("aria-hidden", "true"); }
     try {
         showLoadingProgress(35, "Preparing account service…");
-        await ensureFirebase();
+        await waitForAuthState();
         showLoadingProgress(55, "Checking your account…");
         currentUser = auth.currentUser || null;
         if (currentUser) showLoadingProgress(65, "Finding your worlds…");
@@ -410,11 +449,5 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
             else closeWorldMenu();
         }
     });
-    ensureFirebase().then(() => {
-        auth = window.firebase.auth();
-        auth.onAuthStateChanged(user => {
-            currentUser = user || null;
-            if (overlay?.style.display === "block") loadWorlds();
-        });
-    }).catch(error => console.warn("Saved worlds auth setup waiting:", error));
+    ensureFirebase().catch(error => console.warn("Saved worlds auth setup waiting:", error));
 }
