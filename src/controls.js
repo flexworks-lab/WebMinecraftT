@@ -28,7 +28,10 @@ function createTouchControls() {
     const actions = root.querySelector("#touchActions");
     const mineButton = makeButton("touchBreak", "Mine", "actionButton mineButton"), punchButton = makeButton("touchPunch", "Punch", "actionButton punchButton"), placeButton = makeButton("touchPlace", "Place", "actionButton placeButton"), jumpButton = makeButton("touchJump", "Jump", "actionButton jumpButton"), sprintButton = makeButton("touchSprint", "Run", "actionButton sprintButton"), flyButton = makeButton("touchFly", "Fly", "actionButton flyButton");
     actions.append(mineButton, punchButton, placeButton, jumpButton, sprintButton, flyButton);
-    addActionButton(mineButton, "breakPressed"); addActionButton(punchButton, "punchPressed"); addActionButton(placeButton, "placePressed"); addActionButton(sprintButton, "sprint");
+    addActionButton(mineButton, "breakPressed");
+    addActionButton(punchButton, "breakPressed");
+    addActionButton(placeButton, "placePressed");
+    addActionButton(sprintButton, "sprint");
     flyButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); isFlying = !isFlying; flyButton.classList.toggle("pressed", isFlying); });
     document.body.appendChild(root);
 
