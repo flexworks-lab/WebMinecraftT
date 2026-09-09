@@ -4,6 +4,7 @@ import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
 import { initSavedWorlds } from "./worlds.js";
+import "./background.js";
 import "./auth.js";
 
 const scene = new THREE.Scene();
