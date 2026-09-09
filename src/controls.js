@@ -6,7 +6,7 @@ export let isFlying = false;
 
 export function resetView(newYaw = 0, newPitch = 0) { yaw = newYaw; pitch = newPitch; }
 
-export const touchInput = { moveX: 0, moveZ: 0, jump: false, sprint: false, breakPressed: false, punchPressed: false, placePressed: false, lookActive: false, blockTouchActive: false, blockTouchStarted: 0, blockTouchX: 0.5, blockTouchY: 0.5 };
+export const touchInput = { moveX: 0, moveZ: 0, jump: false, sprint: false, breakPressed: false, punchPressed: false, placePressed: false, lookActive: false, blockTouchActive: false, blockTouchStarted: 0, blockTouchX: 0.5, blockTouchY: 0.5, blockTapPending: false, blockTapX: 0.5, blockTapY: 0.5 };
 let joystickPointer = null, lookPointer = null, blockTouchPointer = null, joystickCenterX = 0, joystickCenterY = 0, lookLastX = 0, lookLastY = 0;
 let blockTouchStartX = 0, blockTouchStartY = 0;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -22,7 +22,7 @@ function addActionButton(button, property) {
 function createTouchControls() {
     if (document.getElementById("touchControls")) return;
     const root = document.createElement("div"); root.id = "touchControls";
-    root.innerHTML = `<div id="touchJoystick"><div class="joystickKnob"></div></div><div id="touchActions"></div><div id="touchHint">Drag right side to look • Tap a block to select • Hold to mine</div><div id="touchLookArea"></div>`;
+    root.innerHTML = `<div id="touchJoystick"><div class="joystickKnob"></div></div><div id="touchActions"></div><div id="touchHint">Drag right side to look • Tap a block to break it</div><div id="touchLookArea"></div>`;
     const actions = root.querySelector("#touchActions");
     const mineButton = makeButton("touchBreak", "Mine", "actionButton mineButton"), punchButton = makeButton("touchPunch", "Punch", "actionButton punchButton"), placeButton = makeButton("touchPlace", "Place", "actionButton placeButton"), jumpButton = makeButton("touchJump", "Jump", "actionButton jumpButton"), sprintButton = makeButton("touchSprint", "Run", "actionButton sprintButton"), flyButton = makeButton("touchFly", "Fly", "actionButton flyButton");
     actions.append(mineButton, punchButton, placeButton, jumpButton, sprintButton, flyButton);
@@ -77,6 +77,12 @@ function createTouchControls() {
     });
     const releaseLook = event => {
         if (event.pointerId !== lookPointer) return;
+        const moved = Math.hypot(event.clientX - blockTouchStartX, event.clientY - blockTouchStartY);
+        if (moved <= 18 && touchInput.blockTouchActive) {
+            touchInput.blockTapX = event.clientX / Math.max(window.innerWidth, 1);
+            touchInput.blockTapY = event.clientY / Math.max(window.innerHeight, 1);
+            touchInput.blockTapPending = true;
+        }
         lookPointer = null;
         blockTouchPointer = null;
         touchInput.blockTouchActive = false;
