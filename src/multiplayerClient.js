@@ -333,6 +333,7 @@ function ensureMenu() {
                 startSharedWorld(Number(message.worldSeed) || 0);
             } else if (message.type === "block_change") {
                 queueWorldChange(message);
+                applyPendingWorldChanges();
             } else if (message.type === "player_joined") {
                 if (message.player?.id && message.player.id !== localPlayerId) remotePlayers.set(message.player.id, message.player);
             } else if (message.type === "player_left") {
@@ -343,69 +344,51 @@ function ensureMenu() {
                     remotePlayers.set(player.id, player);
                 }
             } else if (message.type === "error") {
-                setStatus(message.message || "The server rejected the connection.", true);
+                setStatus(message.message || "Server error.", true);
                 joinButton.disabled = false;
                 joinButton.textContent = "Join Room";
             }
         });
 
         socket.addEventListener("close", () => {
-            if (socket) {
-                socket = null;
-                remotePlayers.clear();
-                window.__webminecraftMultiplayerActive = false;
-                window.__webminecraftMultiplayerPlayerId = null;
-                if (roomView.style.display !== "none") {
-                    joinButton.disabled = false;
-                    joinButton.textContent = "Join Room";
-                    setStatus("Disconnected from server.", true);
-                }
+            if (window.__webminecraftMultiplayerActive) {
+                setStatus("Disconnected from server.", true);
             }
-        });
-
-        socket.addEventListener("error", () => {
             joinButton.disabled = false;
             joinButton.textContent = "Join Room";
-            setStatus("Could not connect to that server.", true);
+            socket = null;
         });
+
+        socket.addEventListener("error", () => setStatus("Multiplayer connection failed.", true));
     };
 
     refreshButton.addEventListener("click", loadServers);
-    roomInput.addEventListener("input", () => {
-        const room = roomInput.value.trim();
-        joinButton.disabled = !selectedServer || !room;
-        if (room) localStorage.setItem("webminecraft-room", room);
-    });
-    nameInput.addEventListener("input", () => {
-        localStorage.setItem("webminecraft-player-name", nameInput.value.trim().slice(0, 16));
-    });
     joinButton.addEventListener("click", connect);
     backButton.addEventListener("click", () => {
         if (roomView.style.display !== "none") showServerView();
         else closeMenu();
     });
-    overlay.addEventListener("click", event => { if (event.target === overlay) closeMenu(); });
-    document.addEventListener("keydown", event => {
-        if (event.code === "Escape" && overlay.style.display === "flex") closeMenu();
-    }, true);
+
+    window.addEventListener("beforeunload", () => {
+        if (socket) {
+            try { socket.close(); } catch {}
+        }
+    });
+
+    overlay.addEventListener("click", event => {
+        if (event.target === overlay) showServerView();
+    });
 
     loadServers();
 }
 
 function escapeHtml(value) {
     return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
-}
-
-export function openMultiplayerMenu() {
-    ensureMenu();
-    overlay.style.display = "flex";
-    overlay.setAttribute("aria-hidden", "false");
-    overlay.querySelector("#multiplayerName").focus();
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 export function isMultiplayerActive() {
@@ -414,17 +397,27 @@ export function isMultiplayerActive() {
 
 export function sendPlayerState(position, rotation) {
     if (!isMultiplayerActive()) return;
-    socket.send(JSON.stringify({ type: "player_state", position, rotation }));
+    socket.send(JSON.stringify({
+        type: "player_state",
+        position: {
+            x: Number(position?.x) || 0,
+            y: Number(position?.y) || 0,
+            z: Number(position?.z) || 0,
+        },
+        rotation: {
+            x: Number(rotation?.x) || 0,
+            y: Number(rotation?.y) || 0,
+            z: Number(rotation?.z) || 0,
+        },
+    }));
 }
 
-export function sendBlockChange(x, y, z, blockType) {
+export function sendBlockChange(x,y,z,blockType) {
     if (!isMultiplayerActive()) return;
     socket.send(JSON.stringify({
-        type: "block_change",
-        x: Math.floor(x),
-        y: Math.floor(y),
-        z: Math.floor(z),
-        blockType: Math.floor(blockType),
+        type:"block_change",
+        x:Math.floor(x), y:Math.floor(y), z:Math.floor(z),
+        blockType:Math.floor(blockType),
     }));
 }
 
@@ -434,4 +427,10 @@ export function syncWorldChanges() {
 
 export function getRemotePlayers() {
     return remotePlayers;
+}
+
+export function openMultiplayerMenu() {
+    ensureMenu();
+    overlay.style.display = "flex";
+    overlay.setAttribute("aria-hidden", "false");
 }
