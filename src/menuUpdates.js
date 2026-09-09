@@ -74,6 +74,10 @@ function injectMenuAnimations() {
             from { opacity: 0; transform: translateY(22px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes wmUpdateDetailIn {
+            from { opacity: 0; transform: scale(.985); }
+            to { opacity: 1; transform: scale(1); }
+        }
 
         #menuPanel > * { opacity: 0; animation: wmMenuFadeUp .45s cubic-bezier(.2,.75,.25,1) forwards; }
         #menuTitle { animation: wmMenuTitleIn .7s cubic-bezier(.16,.8,.24,1) .05s forwards; }
@@ -124,6 +128,7 @@ function injectMenuAnimations() {
         #menuUpdates { animation: wmUpdateIn .5s cubic-bezier(.2,.8,.2,1) .18s both; }
         .menuUpdate {
             cursor: pointer;
+<<<<<<< HEAD
             user-select: none;
         }
         .menuUpdate:hover,
@@ -200,6 +205,12 @@ function injectMenuAnimations() {
         #updateDetailMenu.update-detail-ready #updateDetailVersion { animation-delay: .10s; }
         #updateDetailMenu.update-detail-ready #updateDetailTitle { animation-delay: .16s; }
         #updateDetailMenu.update-detail-ready #updateDetailBody { animation-delay: .22s; }
+=======
+            transition: transform .16s ease, filter .16s ease, background .16s ease;
+        }
+        .menuUpdate:hover { transform: translateX(4px); filter: brightness(1.08); background:#4a4a4a; }
+        .menuUpdate:focus-visible { outline:2px solid #fff; outline-offset:1px; }
+>>>>>>> 8cf521c0847471e01f70dbe635b93219a24b727e
 
         #menuFooter, #menuCopyright { transition: opacity .2s ease, transform .2s ease; }
         #menuFooter:hover { transform: translateY(-2px); }
@@ -229,8 +240,80 @@ function injectMenuAnimations() {
         #gameVersionPicker { transform-origin: bottom right; }
         #gameVersionPicker[style*="display: block"] { animation: wmMenuFadeUp .16s ease-out both; }
 
+        #updateDetail {
+            position:fixed;
+            inset:0;
+            display:none;
+            align-items:center;
+            justify-content:center;
+            padding:clamp(18px,4vw,60px);
+            background:#171717;
+            z-index:300;
+            color:#fff;
+        }
+        #updateDetail.open { display:flex; animation:wmUpdateDetailIn .2s ease-out both; }
+        #updateDetailPanel {
+            position:relative;
+            width:min(900px,100%);
+            max-height:min(720px,92vh);
+            overflow:auto;
+            padding:clamp(26px,5vw,58px);
+            background:linear-gradient(180deg,#252525 0%,#1b1b1b 100%);
+            border:2px solid #111;
+            border-top-color:#777;
+            border-left-color:#777;
+            box-shadow:6px 6px 0 rgba(0,0,0,.55),inset 2px 2px 0 rgba(255,255,255,.05);
+        }
+        #updateDetailBack {
+            position:absolute;
+            top:18px;
+            left:18px;
+            min-width:110px;
+            min-height:42px;
+            padding:8px 12px;
+            border:2px solid #111;
+            border-top-color:#888;
+            border-left-color:#888;
+            background:linear-gradient(#696969,#505050);
+            color:#fff;
+            font-family:"MinecraftFont",monospace;
+            font-size:12px;
+            cursor:pointer;
+            text-shadow:2px 2px 0 #222;
+        }
+        #updateDetailBack:hover { filter:brightness(1.1); transform:translateY(-1px); }
+        #updateDetailVersion {
+            margin:52px 0 10px;
+            color:#8fca68;
+            font-family:"MinecraftFont",monospace;
+            font-size:13px;
+            text-shadow:2px 2px 0 #111;
+        }
+        #updateDetailTitle {
+            margin:0 0 22px;
+            font-family:"MinecraftFont",monospace;
+            font-size:clamp(30px,5vw,54px);
+            line-height:1.05;
+            text-shadow:3px 3px 0 #000;
+        }
+        #updateDetailBody {
+            max-width:760px;
+            margin:0;
+            color:#d0d0d0;
+            font-family:Arial,sans-serif;
+            font-size:clamp(15px,1.6vw,18px);
+            line-height:1.65;
+        }
+        @media(max-width:760px) {
+            #updateDetail { padding:0; }
+            #updateDetailPanel { width:100vw; height:100vh; max-height:none; border:0; padding:22px; }
+            #updateDetailBack { top:16px; left:16px; }
+            #updateDetailVersion { margin-top:70px; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             #menuPanel > *, #menuButtons .menuButton, #menuUpdates,
+<<<<<<< HEAD
             #seedMenu.seed-menu-opening, #seedMenu.seed-menu-opening #seedBackWrap,
             #seedMenu.seed-menu-opening #seedTitle, #seedMenu.seed-menu-opening #seedSubtitle,
             #seedMenu.seed-menu-opening #seedInput, #seedMenu.seed-menu-opening #seedActions,
@@ -240,10 +323,89 @@ function injectMenuAnimations() {
             #updateDetailMenu.update-detail-ready #updateDetailVersion,
             #updateDetailMenu.update-detail-ready #updateDetailTitle,
             #updateDetailMenu.update-detail-ready #updateDetailBody { animation: none !important; opacity: 1 !important; }
+=======
+            #seedPanel, #seedBackWrap, #seedTitle, #seedSubtitle,
+            #seedInput, #seedActions, #seedLinkStatus, #updateDetail.open { animation: none !important; opacity: 1 !important; }
+>>>>>>> 8cf521c0847471e01f70dbe635b93219a24b727e
             *, *::before, *::after { scroll-behavior: auto !important; }
         }
     `;
     document.head.appendChild(style);
+}
+
+function createUpdateDetail() {
+    if (!updates || document.getElementById("updateDetail")) return;
+
+    const detail = document.createElement("div");
+    detail.id = "updateDetail";
+    detail.setAttribute("aria-hidden", "true");
+    detail.innerHTML = `
+        <div id="updateDetailPanel" role="dialog" aria-modal="true" aria-labelledby="updateDetailTitle">
+            <button id="updateDetailBack" type="button">Back</button>
+            <div id="updateDetailVersion"></div>
+            <h1 id="updateDetailTitle"></h1>
+            <p id="updateDetailBody"></p>
+        </div>
+    `;
+    document.body.appendChild(detail);
+
+    const back = detail.querySelector("#updateDetailBack");
+    const version = detail.querySelector("#updateDetailVersion");
+    const title = detail.querySelector("#updateDetailTitle");
+    const body = detail.querySelector("#updateDetailBody");
+
+    function close() {
+        detail.classList.remove("open");
+        detail.setAttribute("aria-hidden", "true");
+        if (menu) menu.style.pointerEvents = "auto";
+    }
+
+    function open(index) {
+        const item = UPDATE_DETAILS[index];
+        if (!item) return;
+        version.textContent = item.version;
+        title.textContent = item.title;
+        body.textContent = item.body;
+        detail.classList.add("open");
+        detail.setAttribute("aria-hidden", "false");
+        if (menu) menu.style.pointerEvents = "none";
+        back.focus();
+    }
+
+    back.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        close();
+    });
+
+    detail.addEventListener("click", event => {
+        if (event.target === detail) close();
+    });
+
+    document.addEventListener("keydown", event => {
+        if (event.code === "Escape" && detail.classList.contains("open")) {
+            event.preventDefault();
+            close();
+        }
+    });
+
+    const cards = updates.querySelectorAll(".menuUpdate");
+    cards.forEach((card, index) => {
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-label", `Open details for ${card.textContent.trim()}`);
+        card.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            open(index);
+        });
+        card.addEventListener("keydown", event => {
+            if (event.code === "Enter" || event.code === "Space") {
+                event.preventDefault();
+                open(index);
+            }
+        });
+    });
 }
 
 function syncMenuUpdates() {
@@ -506,19 +668,19 @@ function createVersionPicker() {
         }
     }
 
-    for (const version of VERSIONS) {
+    for (const gameVersion of VERSIONS) {
         const option = document.createElement("button");
         option.className = "gameVersionOption";
         option.type = "button";
-        option.dataset.version = version;
-        option.textContent = version;
+        option.dataset.version = gameVersion;
+        option.textContent = gameVersion;
         option.setAttribute("role", "menuitem");
         option.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
-            currentVersion = version;
-            localStorage.setItem(VERSION_KEY, version);
-            window.webminecraftVersion = version;
+            currentVersion = gameVersion;
+            localStorage.setItem(VERSION_KEY, gameVersion);
+            window.webminecraftVersion = gameVersion;
             updateButton();
             picker.style.display = "none";
         });
@@ -558,6 +720,7 @@ function createVersionPicker() {
 
 injectMenuAnimations();
 syncMenuUpdates();
+createUpdateDetail();
 createVersionPicker();
 setupSeedBackButton();
 setupUpdateDetails();
