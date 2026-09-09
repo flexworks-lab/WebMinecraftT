@@ -4,6 +4,7 @@ import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
 import { initSavedWorlds } from "./worlds.js";
+import { setWorldSeedForPersistence } from "./worldSave.js";
 import "./background.js";
 import "./auth.js";
 
@@ -240,7 +241,7 @@ async function copyText(text) {
         helper.remove(); return ok;
     }
 }
-function startWorldWithSeed(seed) {
+async function startWorldWithSeed(seed) {
     setWorldSeed(seed);
     createWorld(scene);
     setWorldUrl(seed);
@@ -249,6 +250,7 @@ function startWorldWithSeed(seed) {
     closeSeedMenu();
     if (mainMenu) mainMenu.style.display = "none";
     setMenuUiVisible(false);
+    await setWorldSeedForPersistence(seed);
     requestPointerLock();
 }
 
