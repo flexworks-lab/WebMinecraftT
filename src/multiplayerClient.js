@@ -84,7 +84,7 @@ function ensureMenu() {
         const name = (nameInput.value.trim() || "Player").slice(0, 16);
         const room = (roomInput.value.trim() || "default").slice(0, 32);
         if (!address) return setStatus("Enter a server address.", true);
-        if (!/^wss?:\\/\\//i.test(address)) return setStatus("Server address must start with ws:// or wss://.", true);
+        if (!/^wss?:\/\//i.test(address)) return setStatus("Server address must start with ws:// or wss://.", true);
 
         if (socket) {
             try { socket.close(); } catch {}
