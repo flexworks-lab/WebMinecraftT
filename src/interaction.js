@@ -4,6 +4,8 @@ import { touchInput } from "./controls.js";
 import { sendBlockChange } from "./multiplayerClient.js";
 
 const raycaster = new THREE.Raycaster();
+const INTERACTION_DISTANCE = 4;
+const MOBILE_HOLD_TIME = 700;
 let selectedSlot = 0;
 let lastBreak = false;
 let lastPunch = false;
@@ -25,6 +27,10 @@ export function setupInteraction(scene, camera) {
 
     const selectionOutline = createSelectionOutline();
     scene.add(selectionOutline);
+
+    let mobilePressStart = 0;
+    let mobilePressKey = null;
+    let mobileHoldBroken = false;
 
     const updateHotbar = () => {
         document.querySelectorAll(".slot").forEach((slot, index) => {
@@ -62,49 +68,102 @@ export function setupInteraction(scene, camera) {
     function pollTouchActions() {
         const mobile = document.body.classList.contains("mobile-mode");
         if (mobile) {
-            if (touchInput.breakPressed && !lastBreak) performAction(scene, camera, BLOCK, materials, "break");
-            if (touchInput.punchPressed && !lastPunch) performAction(scene, camera, BLOCK, materials, "break");
-            if (touchInput.placePressed && !lastPlace) performAction(scene, camera, BLOCK, materials, "place");
+            const currentBreak = !!(touchInput.breakPressed || touchInput.punchPressed);
+            const currentPlace = !!touchInput.placePressed;
+
+            if (currentBreak && !lastBreak) {
+                const target = getTargetBlock(camera, BLOCK);
+                if (target) {
+                    mobilePressStart = performance.now();
+                    mobilePressKey = `${target.x},${target.y},${target.z}`;
+                    mobileHoldBroken = false;
+                } else {
+                    mobilePressStart = 0;
+                    mobilePressKey = null;
+                    mobileHoldBroken = false;
+                }
+            }
+
+            if (currentBreak) {
+                const target = getTargetBlock(camera, BLOCK);
+                const key = target ? `${target.x},${target.y},${target.z}` : null;
+                if (!target || key !== mobilePressKey) {
+                    mobilePressStart = target ? performance.now() : 0;
+                    mobilePressKey = key;
+                    mobileHoldBroken = false;
+                } else if (!mobileHoldBroken && mobilePressStart && performance.now() - mobilePressStart >= MOBILE_HOLD_TIME) {
+                    performAction(scene, camera, BLOCK, materials, "break");
+                    mobileHoldBroken = true;
+                }
+            } else {
+                mobilePressStart = 0;
+                mobilePressKey = null;
+                mobileHoldBroken = false;
+            }
+
+            if (currentPlace && !lastPlace) {
+                performAction(scene, camera, BLOCK, materials, "place");
+            }
+        } else {
+            mobilePressStart = 0;
+            mobilePressKey = null;
+            mobileHoldBroken = false;
         }
-        lastBreak = touchInput.breakPressed;
-        lastPunch = touchInput.punchPressed;
-        lastPlace = touchInput.placePressed;
+
+        lastBreak = !!(touchInput.breakPressed || touchInput.punchPressed);
+        lastPlace = !!touchInput.placePressed;
+        lastPunch = !!touchInput.punchPressed;
         requestAnimationFrame(pollTouchActions);
     }
     pollTouchActions();
 
     function updateSelection() {
-        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-        const hits = raycaster.intersectObjects(scene.children, false);
-        const hit = hits.find((entry) => entry.object.userData?.isChunk && entry.face);
+        const target = getTargetBlock(camera, BLOCK);
 
-        if (!hit || !hit.face) {
+        if (!target) {
             selectionOutline.visible = false;
             requestAnimationFrame(updateSelection);
             return;
         }
 
-        const block = getHitBlock(hit, BLOCK);
-        if (!block || !getBlockAt(block.x, block.y, block.z)) {
-            selectionOutline.visible = false;
-            requestAnimationFrame(updateSelection);
-            return;
-        }
-
-        const normal = hit.face.normal.clone().normalize();
-        selectionOutline.position.copy(new THREE.Vector3(block.x, block.y, block.z)).addScaledVector(normal, 0.506);
-        selectionOutline.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+        selectionOutline.position.copy(new THREE.Vector3(target.x, target.y, target.z))
+            .addScaledVector(target.normal, 0.506);
+        selectionOutline.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), target.normal);
         selectionOutline.visible = true;
         requestAnimationFrame(updateSelection);
     }
     updateSelection();
 }
 
+function getTargetBlock(camera, BLOCK) {
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    raycaster.near = 0;
+    raycaster.far = INTERACTION_DISTANCE;
+
+    const hits = raycaster.intersectObjects(camera.parent?.children || [], false);
+    const hit = hits.find((entry) => entry.object.userData?.isChunk && entry.face);
+    raycaster.far = Infinity;
+
+    if (!hit || !hit.face || hit.distance > INTERACTION_DISTANCE) return null;
+
+    const block = getHitBlock(hit, BLOCK);
+    if (!block) return null;
+
+    return {
+        ...block,
+        normal: hit.face.normal.clone().normalize(),
+        distance: hit.distance
+    };
+}
+
 function performAction(scene, camera, BLOCK, materials, action) {
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    raycaster.near = 0;
+    raycaster.far = INTERACTION_DISTANCE;
     const hits = raycaster.intersectObjects(scene.children, false);
+    raycaster.far = Infinity;
     const hit = hits.find((entry) => entry.object.userData?.isChunk);
-    if (!hit || !hit.face) return;
+    if (!hit || !hit.face || hit.distance > INTERACTION_DISTANCE) return;
 
     if (action === "break") {
         const point = hit.point.clone().sub(hit.face.normal.clone().multiplyScalar(0.01));
@@ -157,7 +216,8 @@ function createSelectionOutline() {
         color: 0x000000,
         transparent: true,
         opacity: 0.95,
-        depthTest: false
+        depthTest: false,
+        linewidth: 4
     });
 
     const outline = new THREE.LineSegments(geometry, material);
