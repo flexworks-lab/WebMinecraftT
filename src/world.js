@@ -197,12 +197,12 @@ function getClimate(x, z) {
 function getBiome(x, z) {
     const { temperature, humidity } = getClimate(x, z);
     const weirdness = octave2D(x + 300, z + 700, 2, 220, 0.55, 47);
-    if (temperature < 0.26) return humidity > 0.45 ? "snow" : "tundra";
-    if (temperature > 0.80 && humidity < 0.30) return weirdness > 0.68 ? "badlands" : "desert";
-    if (humidity > 0.76) return "forest";
-    if (humidity < 0.18) return "plains";
-    if (weirdness > 0.80 && temperature > 0.55) return "desert";
-    return humidity > 0.58 ? "forest" : "plains";
+    if (temperature < 0.24) return humidity > 0.45 ? "snow" : "tundra";
+    if (temperature > 0.86 && humidity < 0.24) return weirdness > 0.72 ? "badlands" : "desert";
+    if (humidity > 0.79) return "forest";
+    if (humidity < 0.12) return "plains";
+    if (weirdness > 0.88 && temperature > 0.58) return "desert";
+    return humidity > 0.54 ? "forest" : "plains";
 }
 
 function getTerrainProfile(x, z) {
@@ -211,16 +211,16 @@ function getTerrainProfile(x, z) {
     const peaks = octave2D(x - 600, z + 1100, 4, 120, 0.50, 89);
     const detail = octave2D(x + 2400, z - 1700, 3, 28, 0.50, 97);
 
-    // More of the map stays above sea level.
-    let baseHeight = 16 + (continentalness - 0.5) * 24;
-    baseHeight += (0.5 - erosion) * 12;
+    // Raise the average terrain so grassy land is much more common than water.
+    let baseHeight = 21 + (continentalness - 0.5) * 21;
+    baseHeight += (0.5 - erosion) * 10;
     const mountainMask = Math.max(0, (peaks - 0.57) / 0.43);
-    baseHeight += mountainMask * mountainMask * 32;
+    baseHeight += mountainMask * mountainMask * 30;
     baseHeight += (detail - 0.5) * 5;
 
-    // Water is reserved for the lowest continental areas.
-    const oceanMask = Math.max(0, 0.15 - continentalness) / 0.15;
-    baseHeight -= oceanMask * 5;
+    // Keep only the lowest continental areas underwater.
+    const oceanMask = Math.max(0, 0.09 - continentalness) / 0.09;
+    baseHeight -= oceanMask * 4;
 
     return {
         height: Math.floor(THREE.MathUtils.clamp(baseHeight, MIN_Y + 4, WORLD_TOP - 8)),
@@ -264,25 +264,25 @@ function getUnderwaterBlock(x, y, z, surfaceY) {
     const blockRoll = hash3D(x, y, z, 1707);
 
     if (depth <= 0) {
-        if (surfaceRoll < 0.62) return BLOCK.DIRT;
-        if (surfaceRoll < 0.88) return BLOCK.SAND;
+        if (surfaceRoll < 0.72) return BLOCK.DIRT;
+        if (surfaceRoll < 0.94) return BLOCK.SAND;
         return BLOCK.STONE;
     }
 
     if (depth <= 4) {
-        if (blockRoll < 0.58) return BLOCK.DIRT;
-        if (blockRoll < 0.84) return BLOCK.SAND;
+        if (blockRoll < 0.64) return BLOCK.DIRT;
+        if (blockRoll < 0.88) return BLOCK.SAND;
         return BLOCK.STONE;
     }
 
-    if (blockRoll < 0.42) return BLOCK.DIRT;
-    if (blockRoll < 0.66) return BLOCK.SAND;
+    if (blockRoll < 0.46) return BLOCK.DIRT;
+    if (blockRoll < 0.67) return BLOCK.SAND;
     return chooseStoneVariant(x, y, z, surfaceY);
 }
 
 function getSurfaceBlock(biome, y, surfaceY, x, z) {
     const submerged = surfaceY < SEA_LEVEL;
-    const beach = !submerged && surfaceY <= SEA_LEVEL + 2;
+    const beach = !submerged && surfaceY <= SEA_LEVEL + 1;
 
     if (submerged) return getUnderwaterBlock(x, y, z, surfaceY);
 
@@ -304,9 +304,10 @@ function getSurfaceBlock(biome, y, surfaceY, x, z) {
         return chooseStoneVariant(x, y, z, surfaceY);
     }
 
+    // Keep beaches narrow so grass dominates coastlines too.
     if (beach) {
-        if (y >= surfaceY - 2) return BLOCK.SAND;
-        if (y === surfaceY - 3) return BLOCK.SANDSTONE;
+        if (y >= surfaceY - 1) return BLOCK.SAND;
+        if (y === surfaceY - 2) return BLOCK.SANDSTONE;
     }
 
     if (y === surfaceY) return BLOCK.GRASS;
@@ -420,7 +421,7 @@ function generateTerrain(chunk) {
             const z = startZ + lz;
             const biome = getBiome(x, z);
             const surfaceY = getTerrainProfile(x, z).height;
-            if (surfaceY <= SEA_LEVEL + 2) continue;
+            if (surfaceY <= SEA_LEVEL + 1) continue;
             if (biome === "desert" || biome === "badlands" || biome === "snow" || biome === "tundra") continue;
             const patch = octave2D(x - 400, z + 900, 2, 11, 0.55, 1409);
             if (patch > 0.82) {
