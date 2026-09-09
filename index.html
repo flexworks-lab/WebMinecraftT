@@ -62,6 +62,7 @@
         .settingsTab.active { background:linear-gradient(#666,#525252); }
         #settingsVersion { margin-top:auto; padding:14px 10px 8px; color:#6f6f6f; font-size:11px; }
         #settingsContent { min-width:0; min-height:0; display:flex; flex-direction:column; background:#262626; }
+        #settingsSidebar { background:linear-gradient(#202020,#181818); border-right:2px solid #090909; padding:28px 18px 20px; display:flex; flex-direction:column; }
         #settingsHeader { height:82px; flex:0 0 82px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 28px; background:#2c2c2c; border-bottom:2px solid #111; }
         #settingsSectionTitle { margin:0; font-family:"MinecraftFont",monospace; font-size:20px; text-shadow:2px 2px 0 #000; }
         #settingsCloseTop { width:44px; height:44px; border:2px solid #101010; border-top-color:#888; border-left-color:#888; background:#555; color:white; font-size:22px; cursor:pointer; line-height:1; }
@@ -144,6 +145,7 @@
         const menuTips=["Never dig straight down!","Watch your step around cliffs.","Trees are a great early source of wood.","You can sprint while moving forward.","Caves can hide valuable ores.","Water can save you from a long fall.","Keep some blocks handy for building.","A good shelter is better than no shelter.","Explore different biomes to find new terrain.","You can fly with F.","Leaves make trees look much better with texture.","Sometimes the best view is from a mountain."];
         const menuSplash=document.getElementById("menuSplash"); if(menuSplash) menuSplash.textContent=menuTips[Math.floor(Math.random()*menuTips.length)];
     </script>
+    <script type="module" src="./src/loadingScreen.js"></script>
     <script type="module" src="./src/menuUpdates.js"></script>
     <script type="module" src="./src/main.js"></script>
 </body>
