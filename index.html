@@ -37,6 +37,19 @@
         #menuSettingsButton { margin-top:12px; }
         #mobileModeButton { margin-top:8px; }
         #menuFooter { position:fixed; left:9px; bottom:7px; text-align:left; color:#fff; font-family:"MinecraftFont",monospace; font-size:10px; line-height:1.4; text-shadow:2px 2px 0 #222; z-index:2; }
+
+        #seedMenu { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.58); z-index:200; }
+        #seedPanel { width:min(440px,92vw); padding:24px; text-align:center; color:white; background:#262626; border:2px solid #111; border-top-color:#888; border-left-color:#888; box-shadow:6px 6px 0 rgba(0,0,0,.65); font-family:Arial,sans-serif; }
+        #seedTitle { margin:0 0 8px; font-family:"MinecraftFont",monospace; font-size:25px; text-shadow:2px 2px 0 #000; }
+        #seedSubtitle { margin:0 0 18px; color:#aaa; font-size:13px; line-height:1.4; }
+        #seedInput { width:100%; height:44px; padding:8px 10px; background:#171717; color:#fff; border:2px solid #111; border-top-color:#777; border-left-color:#777; outline:none; text-align:center; font-size:17px; }
+        #seedInput:focus { border-color:#84ad5e; }
+        #seedActions { display:flex; gap:8px; margin-top:12px; }
+        .seedButton { flex:1; min-height:42px; padding:8px 10px; border:2px solid #111; border-top-color:#888; border-left-color:#888; background:linear-gradient(#696969,#505050); color:#fff; font-family:"MinecraftFont",monospace; font-size:12px; cursor:pointer; text-shadow:2px 2px 0 #222; }
+        .seedButton:hover { filter:brightness(1.12); }
+        #openWorldButton { background:linear-gradient(#6d8d4e,#526f3c); }
+        #seedLinkStatus { min-height:17px; margin-top:10px; color:#8fca68; font-size:11px; }
+        #seedMainButton { margin-top:8px; }
         #menuCopyright { position:fixed; right:9px; bottom:7px; color:rgba(255,255,255,.92); font-family:Arial,sans-serif; font-size:10px; text-shadow:1px 1px 0 #222; z-index:2; }
 
         #menuUpdates { position:fixed; left:24px; top:50%; transform:translateY(-50%); width:250px; padding:14px; color:#fff; text-align:left; background:#191919; border:2px solid #111; border-top-color:#777; border-left-color:#777; box-shadow:4px 4px 0 rgba(0,0,0,.55),inset 2px 2px 0 rgba(255,255,255,.08); z-index:95; display:none; filter:none; backdrop-filter:none; -webkit-backdrop-filter:none; pointer-events:auto; }
@@ -107,6 +120,21 @@
                 <button id="menuSettingsButton" class="menuButton">Options...</button>
                 <button id="mobileModeButton" class="menuButton">Mobile Mode</button>
             </div>
+        </div>
+    </div>
+
+
+    <div id="seedMenu" aria-hidden="true">
+        <div id="seedPanel" role="dialog" aria-modal="true" aria-labelledby="seedTitle">
+            <h2 id="seedTitle">Create World</h2>
+            <p id="seedSubtitle">Your world seed is below. Copy it to share the exact same world later.</p>
+            <input id="seedInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="World seed">
+            <div id="seedActions">
+                <button id="copySeedButton" class="seedButton" type="button">Copy Seed</button>
+                <button id="copyWorldLinkButton" class="seedButton" type="button">Copy World Link</button>
+                <button id="openWorldButton" class="seedButton" type="button">Open World</button>
+            </div>
+            <div id="seedLinkStatus" aria-live="polite"></div>
         </div>
     </div>
 
