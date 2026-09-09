@@ -91,6 +91,9 @@ function addStyles() {
 #accountEmail{font-size:12px;color:#999;word-break:break-all;margin-bottom:16px}
 #accountClose{background:#454545}
 #accountLoading{font-size:12px;color:#aaa;text-align:center;padding:10px 0}
+#savedWorldsLoading{position:relative}
+#savedWorldsLoading::before{content:"";display:block;width:min(420px,78vw);height:10px;margin:0 auto 18px;background:linear-gradient(90deg,#4f6b37 0%,#8fca68 25%,#c4df9d 38%,#4f6b37 62%,#8fca68 80%,#4f6b37 100%);background-size:220% 100%;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:0 2px 0 #101010;animation:savedWorldsProgress 1.15s linear infinite}
+@keyframes savedWorldsProgress{from{background-position:100% 0}to{background-position:-120% 0}}
 @media(max-width:560px){#accountButton{top:76px;right:12px;left:auto}.settingsOpenPlaceholder{top:12px;right:12px}}
 `;
     document.head.appendChild(style);
