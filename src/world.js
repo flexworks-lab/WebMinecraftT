@@ -31,7 +31,22 @@ function makeWorldSeed() {
     }
 }
 
-export const WORLD_SEED = makeWorldSeed();
+let WORLD_SEED = makeWorldSeed();
+
+export function setWorldSeed(seed) {
+    const numeric = Number(seed);
+    if (!Number.isFinite(numeric)) return WORLD_SEED;
+    WORLD_SEED = (Math.floor(Math.abs(numeric)) >>> 0);
+    return WORLD_SEED;
+}
+
+export function createNewWorldSeed() {
+    const seed = makeWorldSeed();
+    setWorldSeed(seed);
+    if (worldScene) createWorld(worldScene);
+    return seed;
+}
+
 const chunks = new Map();
 const chunkMeshes = new Map();
 const generationQueue = [];
@@ -195,15 +210,16 @@ function getTerrainProfile(x, z) {
     const peaks = octave2D(x - 600, z + 1100, 4, 120, 0.50, 89);
     const detail = octave2D(x + 2400, z - 1700, 3, 28, 0.50, 97);
 
-    let baseHeight = 13 + (continentalness - 0.5) * 24;
+    // More of the map stays above sea level.
+    let baseHeight = 16 + (continentalness - 0.5) * 24;
     baseHeight += (0.5 - erosion) * 12;
     const mountainMask = Math.max(0, (peaks - 0.57) / 0.43);
     baseHeight += mountainMask * mountainMask * 32;
     baseHeight += (detail - 0.5) * 5;
 
-    // Much smaller and rarer oceans.
-    const oceanMask = Math.max(0, 0.22 - continentalness) / 0.22;
-    baseHeight -= oceanMask * 6;
+    // Water is reserved for the lowest continental areas.
+    const oceanMask = Math.max(0, 0.15 - continentalness) / 0.15;
+    baseHeight -= oceanMask * 5;
 
     return {
         height: Math.floor(THREE.MathUtils.clamp(baseHeight, MIN_Y + 4, WORLD_TOP - 8)),
@@ -241,13 +257,11 @@ function chooseStoneVariant(x, y, z, surfaceY) {
     return BLOCK.STONE;
 }
 
-function getUnderwaterBlock(x, y, surfaceY) {
+function getUnderwaterBlock(x, y, z, surfaceY) {
     const depth = surfaceY - y;
-    const surfaceRoll = hash2D(x + 17, zSeed(surfaceY), 1701);
-    const blockRoll = hash3D(x, y, surfaceY, 1707);
+    const surfaceRoll = hash3D(x, y, z, 1701);
+    const blockRoll = hash3D(x, y, z, 1707);
 
-    // Underwater terrain is always a mix of dirt, sand and stone.
-    // Dirt is intentionally the most common material.
     if (depth <= 0) {
         if (surfaceRoll < 0.62) return BLOCK.DIRT;
         if (surfaceRoll < 0.88) return BLOCK.SAND;
@@ -260,21 +274,16 @@ function getUnderwaterBlock(x, y, surfaceY) {
         return BLOCK.STONE;
     }
 
-    // Deeper ocean floors still contain dirt and sand, but become more stone-heavy.
     if (blockRoll < 0.42) return BLOCK.DIRT;
     if (blockRoll < 0.66) return BLOCK.SAND;
-    return chooseStoneVariant(x, y, surfaceY, surfaceY);
+    return chooseStoneVariant(x, y, z, surfaceY);
 }
-
-function zSeed(value) { return Math.floor(value * 17.0); }
 
 function getSurfaceBlock(biome, y, surfaceY, x, z) {
     const submerged = surfaceY < SEA_LEVEL;
     const beach = !submerged && surfaceY <= SEA_LEVEL + 2;
 
-    if (submerged) {
-        return getUnderwaterBlock(x, y, surfaceY);
-    }
+    if (submerged) return getUnderwaterBlock(x, y, z, surfaceY);
 
     if (biome === "desert") {
         if (y >= surfaceY - 4) return BLOCK.SAND;
@@ -325,6 +334,16 @@ function getBlockType(x, y, z) {
 }
 
 export function getBlockAt(x, y, z) { return getBlockType(x, y, z); }
+
+export function getBlockTypes() { return { ...BLOCK }; }
+
+export function isPointInWater(x, y, z) {
+    const profile = getTerrainProfile(Math.floor(x), Math.floor(z));
+    if (profile.height >= SEA_LEVEL) return false;
+    const waterSurface = SEA_LEVEL + 0.42;
+    const solidFloor = profile.height + 0.5;
+    return y < waterSurface - 0.02 && y > solidFloor + 0.05;
+}
 
 function treeChance(x, z) {
     const { temperature, humidity } = getClimate(x, z);
@@ -377,6 +396,7 @@ function generateTerrain(chunk) {
     const startX = chunk.x * CHUNK_SIZE;
     const startZ = chunk.z * CHUNK_SIZE;
 
+    // Phase 1: make the solid land first.
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
@@ -392,6 +412,7 @@ function generateTerrain(chunk) {
         }
     }
 
+    // Phase 2: surface variations are added after the land exists.
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
@@ -486,7 +507,6 @@ function getUnderwaterShade(x, y, z) {
     const surfaceY = getTerrainProfile(x, z).height;
     if (surfaceY >= SEA_LEVEL || y > surfaceY) return 1;
 
-    // Every solid block below an ocean/lake surface is darkened.
     const depth = Math.max(0, SEA_LEVEL - (y + 0.5));
     const depthT = THREE.MathUtils.clamp(depth / 24, 0, 1);
     const shade = THREE.MathUtils.lerp(1, 0.43, depthT);
@@ -529,10 +549,7 @@ function makeGeometryForChunk(chunk) {
                     }
                     uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
                     const matIndex = materialIndexFor(type, faceIndex);
-                    groups[matIndex].push(
-                        base, base + 1, base + 2,
-                        base, base + 2, base + 3
-                    );
+                    groups[matIndex].push(base, base + 1, base + 2, base, base + 2, base + 3);
                     vertexCount += 4;
                 }
             }
@@ -590,13 +607,12 @@ function makeWaterGeometry(chunk) {
             normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
 
             const shimmer = 0.94 + hash2D(x, z, 1931) * 0.12;
-            const waterColors = [
+            colors.push(
                 0.16 * shimmer, 0.52 * shimmer, 0.80 * shimmer,
                 0.20 * shimmer, 0.59 * shimmer, 0.86 * shimmer,
                 0.13 * shimmer, 0.47 * shimmer, 0.75 * shimmer,
                 0.19 * shimmer, 0.56 * shimmer, 0.84 * shimmer
-            ];
-            colors.push(...waterColors);
+            );
             uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
             indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
             vertices += 4;
@@ -644,6 +660,7 @@ function rebuildChunkMesh(chunk) {
         chunkMeshes.set(chunkKey(chunk.x, chunk.z), mesh);
     }
 
+    // Land is built first; water is rendered second.
     const waterGeometry = makeWaterGeometry(chunk);
     if (waterGeometry) {
         const waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
@@ -771,22 +788,23 @@ export function setBlockAt(x, y, z, type) {
     return true;
 }
 
-export function createWorld(scene) {
-    worldScene = scene;
+export function clearWorld() {
+    for (const chunk of chunks.values()) disposeChunkMesh(chunk);
     chunks.clear();
     chunkMeshes.clear();
     generationQueue.length = 0;
     queuedKeys.clear();
     lastPlayerChunkX = Infinity;
     lastPlayerChunkZ = Infinity;
+}
 
-    for (let dx = -1; dx <= 1; dx++) {
-        for (let dz = -1; dz <= 1; dz++) {
-            const chunk = generateChunk(dx, dz);
-            rebuildChunkMesh(chunk);
-        }
-    }
+export function createWorld(scene) {
+    worldScene = scene;
+    clearWorld();
 
+    // Build only the spawn chunk synchronously. Everything around it streams in over frames.
+    const spawnChunk = generateChunk(0, 0);
+    rebuildChunkMesh(spawnChunk);
     queueNeededChunks(0, 0);
 }
 
@@ -814,5 +832,4 @@ export function getPerformanceStats() {
     };
 }
 
-export function getBlockTypes() { return { ...BLOCK }; }
 export function getWorldSeed() { return WORLD_SEED; }
