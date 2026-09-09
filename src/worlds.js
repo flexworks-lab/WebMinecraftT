@@ -31,8 +31,10 @@ async function ensureFirebase() {
     if (!window.firebase) await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app-compat.js`);
     if (!window.firebase) throw new Error("Firebase SDK did not load.");
     const app = window.firebase.apps?.length ? window.firebase.apps[0] : window.firebase.initializeApp(firebaseConfig);
-    if (!window.firebase.firestore) await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore-compat.js`);
-    if (!window.firebase.auth) await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth-compat.js`);
+    await Promise.all([
+        window.firebase.firestore ? Promise.resolve() : loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore-compat.js`),
+        window.firebase.auth ? Promise.resolve() : loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth-compat.js`)
+    ]);
     auth = window.firebase.auth(app);
     db = window.firebase.firestore(app);
     return true;
@@ -211,7 +213,7 @@ function renderWorlds(worlds) {
     const count = overlay.querySelector("#savedWorldsCount");
     count.textContent = `${worlds.length} world${worlds.length === 1 ? "" : "s"}`;
     if (!worlds.length) {
-        worldsList.innerHTML = `<div id="savedWorldsEmpty"><h2>No saved worlds yet</h2><p>Create your first world and it will be saved to your player account.</p><button id="emptyCreateWorld" class="savedWorldButton" type="button">+ Create New World</button></div>`;
+        worldsList.innerHTML = `<div id="savedWorldsEmpty"><h2>No worlds found</h2><p>This account has no saved worlds yet.</p><button id="emptyCreateWorld" class="savedWorldButton" type="button">+ Create New World</button></div>`;
         worldsList.querySelector("#emptyCreateWorld").addEventListener("click", openCreateWorld);
         return;
     }
