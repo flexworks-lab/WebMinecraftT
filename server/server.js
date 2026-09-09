@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 const PORT = Number(process.env.PORT) || 2567;
 const HOST = process.env.HOST || "0.0.0.0";
 const MAX_PLAYERS_PER_SERVER = Math.max(2, Number(process.env.MAX_PLAYERS) || 10);
+const MAX_ROOMS = Math.max(10, Number(process.env.MAX_ROOMS) || 500);
 const TICK_RATE = 20;
 const BROADCAST_INTERVAL = 1000 / TICK_RATE;
 const MAX_NAME_LENGTH = 16;
@@ -13,17 +14,31 @@ const MAX_CHAT_LENGTH = 120;
 
 const rooms = new Map();
 
-function createRoom(id) {
-    return { id, players: new Map(), worldSeed: Math.floor(Math.random() * 4294967296) >>> 0, blockChanges: new Map(), createdAt: Date.now() };
+function createRoom(id, ownerName = "Player") {
+    return {
+        id,
+        name: id,
+        ownerName,
+        players: new Map(),
+        worldSeed: Math.floor(Math.random() * 4294967296) >>> 0,
+        blockChanges: new Map(),
+        createdAt: Date.now(),
+    };
 }
 
-function getOrCreateRoom(id) {
-    if (!rooms.has(id)) rooms.set(id, createRoom(id));
-    return rooms.get(id);
+function getOrCreateRoom(id, ownerName = "Player") {
+    let room = rooms.get(id);
+    if (room) return room;
+    if (rooms.size >= MAX_ROOMS) return null;
+    room = createRoom(id, ownerName);
+    rooms.set(id, room);
+    return room;
 }
 
 function cleanRoom(room) {
-    if (room.players.size === 0) rooms.delete(room.id);
+    // Player-created servers stay listed even when everyone leaves.
+    // Their world seed and block changes remain available for the next join.
+    if (!room || room.players.size !== 0) return;
 }
 
 function sanitizeRoom(value) {
@@ -67,9 +82,12 @@ function publicPlayer(player) {
 function publicRoom(room) {
     return {
         id: room.id,
+        name: room.name,
+        owner: room.ownerName,
         players: room.players.size,
         maxPlayers: MAX_PLAYERS_PER_SERVER,
         worldSeed: room.worldSeed,
+        createdAt: room.createdAt,
     };
 }
 
@@ -267,7 +285,13 @@ function handleMessage(ws, raw, state) {
         if (state.joined) return;
 
         const roomId = sanitizeRoom(message.room);
-        const room = getOrCreateRoom(roomId);
+        const safeName = sanitizeName(message.name);
+        const room = getOrCreateRoom(roomId, safeName);
+        if (!room) {
+            send(ws, { type: "error", code: "server_limit", message: "The server has reached its room limit." });
+            ws.close();
+            return;
+        }
         if (room.players.size >= MAX_PLAYERS_PER_SERVER) {
             send(ws, { type: "error", code: "server_full", message: "This server is full." });
             ws.close();
@@ -276,7 +300,7 @@ function handleMessage(ws, raw, state) {
 
         const player = {
             id: randomUUID(),
-            name: sanitizeName(message.name),
+            name: safeName,
             room: roomId,
             ws,
             position: {
@@ -300,6 +324,8 @@ function handleMessage(ws, raw, state) {
             type: "joined",
             playerId: player.id,
             room: room.id,
+            serverName: room.name,
+            ownerName: room.ownerName,
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
             worldChanges: [...room.blockChanges.values()],
@@ -393,6 +419,7 @@ const httpServer = http.createServer((request, response) => {
             rooms: rooms.size,
             players: [...rooms.values()].reduce((count, room) => count + room.players.size, 0),
             maxPlayers: MAX_PLAYERS_PER_SERVER,
+            maxRooms: MAX_ROOMS,
         }));
         return;
     }
@@ -437,6 +464,7 @@ httpServer.on("upgrade", (request, socket) => {
         type: "server_info",
         tickRate: TICK_RATE,
         maxPlayers: MAX_PLAYERS_PER_SERVER,
+        maxRooms: MAX_ROOMS,
     });
 
     ws.onMessage(raw => handleMessage(ws, raw, state));
