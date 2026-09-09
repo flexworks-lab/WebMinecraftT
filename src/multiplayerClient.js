@@ -124,6 +124,11 @@ function makeStyle() {
         #multiplayerJoin{background:linear-gradient(#6d8d4e,#526f3c)}
         #multiplayerBack{background:linear-gradient(#696969,#505050)}
         #multiplayerSelected{padding:10px 12px;background:#1a1a1a;border:1px solid #444;color:#ccc;font-size:11px;line-height:1.5}
+        #multiplayerServerType{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+        .multiplayerTypeButton{padding:11px;background:#303030;color:#bbb;border:2px solid #111;border-top-color:#777;border-left-color:#777;cursor:pointer;font-family:"MinecraftFont",monospace;font-size:11px}
+        .multiplayerTypeButton.selected{background:#45543a;color:#fff;border-color:#83a15f}
+        #multiplayerPrivateCode{display:none}
+        #multiplayerPrivateCode.visible{display:block}
         #multiplayerRefresh{margin-bottom:5px;width:100%}
         .multiplayerHint{color:#888;font-size:10px;line-height:1.4;margin-top:5px}
         @media(max-width:620px){#multiplayerPanel{padding:20px}.multiplayerCardTop{align-items:flex-start}.multiplayerButton{font-size:11px}}
@@ -184,9 +189,14 @@ function ensureMenu() {
                 <div id="multiplayerSelected"></div>
                 <div id="multiplayerRoomList"></div>
                 <div class="multiplayerField"><label for="multiplayerName">Player Name</label><input id="multiplayerName" maxlength="16" autocomplete="nickname" placeholder="Player"></div>
-                <div class="multiplayerField"><label for="multiplayerRoom">Room Name</label><input id="multiplayerRoom" maxlength="32" autocomplete="off" placeholder="default"></div>
+                <div class="multiplayerField"><label for="multiplayerRoom">Server Name</label><input id="multiplayerRoom" maxlength="32" autocomplete="off" placeholder="MyWorld"></div>
+                <div id="multiplayerServerType" role="group" aria-label="Server type">
+                    <button id="multiplayerPublic" class="multiplayerTypeButton selected" type="button">PUBLIC</button>
+                    <button id="multiplayerPrivate" class="multiplayerTypeButton" type="button">PRIVATE</button>
+                </div>
+                <div id="multiplayerPrivateCode" class="multiplayerField"><label for="multiplayerPrivateCodeInput">Private Code</label><input id="multiplayerPrivateCodeInput" maxlength="16" autocomplete="off" placeholder="Enter code or leave blank to create"></div>
                 <div class="multiplayerField"><label for="multiplayerServer">Server Address</label><input id="multiplayerServer" autocomplete="off" placeholder="ws://localhost:2567"></div>
-                <div class="multiplayerHint">Pick an existing room above, or type a new room name to create one when you join.</div>
+                <div class="multiplayerHint">Public servers appear in the server list. Private servers stay hidden and can only be joined with their private code.</div>
                 <div id="multiplayerStatus" aria-live="polite"></div>
             </section>
 
@@ -207,12 +217,17 @@ function ensureMenu() {
     const nameInput = overlay.querySelector("#multiplayerName");
     const roomInput = overlay.querySelector("#multiplayerRoom");
     const serverInput = overlay.querySelector("#multiplayerServer");
+    const publicButton = overlay.querySelector("#multiplayerPublic");
+    const privateButton = overlay.querySelector("#multiplayerPrivate");
+    const privateCodeWrap = overlay.querySelector("#multiplayerPrivateCode");
+    const privateCodeInput = overlay.querySelector("#multiplayerPrivateCodeInput");
     const status = overlay.querySelector("#multiplayerStatus");
     const joinButton = overlay.querySelector("#multiplayerJoin");
     const backButton = overlay.querySelector("#multiplayerBack");
 
     let selectedServer = null;
     let serverData = [];
+    let selectedPrivate = false;
 
     nameInput.value = localStorage.getItem("webminecraft-player-name") || "Player";
     roomInput.value = localStorage.getItem("webminecraft-room") || "default";
@@ -223,8 +238,20 @@ function ensureMenu() {
         status.style.color = error ? "#e38a7b" : "#9fce72";
     };
 
+    const setServerType = isPrivate => {
+        selectedPrivate = Boolean(isPrivate);
+        publicButton.classList.toggle("selected", !selectedPrivate);
+        privateButton.classList.toggle("selected", selectedPrivate);
+        privateCodeWrap.classList.toggle("visible", selectedPrivate);
+        if (!selectedPrivate) privateCodeInput.value = "";
+    };
+
+    publicButton.addEventListener("click", () => setServerType(false));
+    privateButton.addEventListener("click", () => setServerType(true));
+
     const showServerView = () => {
         selectedServer = null;
+        setServerType(false);
         roomView.style.display = "none";
         serverView.style.display = "block";
         joinButton.disabled = true;
@@ -270,6 +297,8 @@ function ensureMenu() {
         serverView.style.display = "none";
         roomView.style.display = "block";
         serverInput.value = server.websocket || defaultServerUrl();
+        setServerType(false);
+        privateCodeInput.value = "";
         selectedInfo.innerHTML = `<strong>${escapeHtml(server.name || "Server")}</strong><br><span class="multiplayerMeta">${server.online === false ? "Offline" : `${Number(server.players) || 0} / ${Number(server.maxPlayers) || 10} players online`} · ${(server.rooms || []).length || 1} room${(server.rooms || []).length === 1 ? "" : "s"}</span>`;
         renderRoomList(server);
         const defaultRoom = (server.rooms || []).find(room => room.id === (roomInput.value || "default")) || (server.rooms || [])[0];
@@ -359,6 +388,7 @@ function ensureMenu() {
         const address = serverInput.value.trim();
         const name = (nameInput.value.trim() || "Player").slice(0, 16);
         const room = (roomInput.value.trim() || "default").slice(0, 32);
+        const privateCode = privateCodeInput.value.trim().slice(0, 16);
         if (!address) return setStatus("Enter a server address.", true);
         if (!/^wss?:\/\//i.test(address)) return setStatus("Server address must start with ws:// or wss://.", true);
         if (!room) return setStatus("Enter a room name.", true);
@@ -389,6 +419,8 @@ function ensureMenu() {
                 type: "join",
                 room,
                 name,
+                private: selectedPrivate,
+                privateCode,
                 position: { x: 0, y: 0, z: 0 },
                 rotation: { x: 0, y: 0, z: 0 },
             }));
@@ -404,7 +436,8 @@ function ensureMenu() {
                 remotePlayers = new Map((message.players || []).filter(player => player.id !== localPlayerId).map(player => [player.id, player]));
                 pendingWorldChanges.clear();
                 for (const change of message.worldChanges || []) queueWorldChange(change);
-                setStatus(`Joined room "${message.room}". Players: ${message.players?.length || 1}.`);
+                const privateInfo = message.private ? ` · Private code: ${message.privateCode || "use the code you entered"}` : " · Public";
+                setStatus(`Joined server "${message.serverName || message.room}". Players: ${message.players?.length || 1}${privateInfo}.`);
                 joinButton.textContent = "Connected";
                 startSharedWorld(Number(message.worldSeed) || 0);
             } else if (message.type === "block_change") {

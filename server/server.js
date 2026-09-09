@@ -14,11 +14,13 @@ const MAX_CHAT_LENGTH = 120;
 
 const rooms = new Map();
 
-function createRoom(id, ownerName = "Player") {
+function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "") {
     return {
         id,
         name: id,
         ownerName,
+        isPrivate: Boolean(isPrivate),
+        privateCode: privateCode || (isPrivate ? String(Math.floor(100000 + Math.random() * 900000)) : ""),
         players: new Map(),
         worldSeed: Math.floor(Math.random() * 4294967296) >>> 0,
         blockChanges: new Map(),
@@ -26,11 +28,11 @@ function createRoom(id, ownerName = "Player") {
     };
 }
 
-function getOrCreateRoom(id, ownerName = "Player") {
+function getOrCreateRoom(id, ownerName = "Player", isPrivate = false) {
     let room = rooms.get(id);
     if (room) return room;
     if (rooms.size >= MAX_ROOMS) return null;
-    room = createRoom(id, ownerName);
+    room = createRoom(id, ownerName, isPrivate);
     rooms.set(id, room);
     return room;
 }
@@ -286,7 +288,15 @@ function handleMessage(ws, raw, state) {
 
         const roomId = sanitizeRoom(message.room);
         const safeName = sanitizeName(message.name);
-        const room = getOrCreateRoom(roomId, safeName);
+        const wantsPrivate = Boolean(message.private);
+        const suppliedCode = String(message.privateCode ?? "").trim().slice(0, 16);
+        let room = rooms.get(roomId);
+        if (room && room.isPrivate && suppliedCode !== room.privateCode) {
+            send(ws, { type: "error", code: "private_code_required", message: "This is a private server. Enter the correct private code." });
+            ws.close();
+            return;
+        }
+        room = getOrCreateRoom(roomId, safeName, wantsPrivate);
         if (!room) {
             send(ws, { type: "error", code: "server_limit", message: "The server has reached its room limit." });
             ws.close();
@@ -326,6 +336,8 @@ function handleMessage(ws, raw, state) {
             room: room.id,
             serverName: room.name,
             ownerName: room.ownerName,
+            private: Boolean(room.isPrivate),
+            privateCode: room.isPrivate && room.ownerName === safeName ? room.privateCode : "",
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
             worldChanges: [...room.blockChanges.values()],
@@ -438,7 +450,7 @@ const httpServer = http.createServer((request, response) => {
                 online: true,
                 players: totalPlayers,
                 maxPlayers: MAX_PLAYERS_PER_SERVER,
-                rooms: [...rooms.values()].map(publicRoom),
+                rooms: [...rooms.values()].filter(room => !room.isPrivate).map(publicRoom),
             }],
             updatedAt: Date.now(),
         }));
