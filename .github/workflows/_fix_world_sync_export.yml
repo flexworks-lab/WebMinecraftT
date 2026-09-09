@@ -1,0 +1,33 @@
+name: Fix world sync export
+on:
+  push:
+    branches: ["main"]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: "${{ !startsWith(github.event.head_commit.message, 'AUTO: Fix world sync export') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix export
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/multiplayerClient.js')
+          s=p.read_text()
+          if 'export function sendBlockChange' not in s:
+              anchor='export function getRemotePlayers() {\n    return remotePlayers;\n}'
+              addition='''export function sendBlockChange(x, y, z, blockType) {\n    if (!isMultiplayerActive()) return;\n    socket.send(JSON.stringify({\n        type: "block_change",\n        x: Math.floor(x),\n        y: Math.floor(y),\n        z: Math.floor(z),\n        blockType: Math.floor(blockType),\n    }));\n}\n\nexport function syncWorldChanges() {\n    if (isMultiplayerActive()) applyPendingWorldChanges();\n}\n\n'''
+              if anchor not in s: raise SystemExit('export anchor missing')
+              s=s.replace(anchor,addition+anchor,1)
+              p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/multiplayerClient.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "AUTO: Fix world sync export"
+          git push
