@@ -1,11 +1,15 @@
+import * as THREE from "three";
 import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getBlockAt } from "./world.js";
+import { getRemotePlayers, isMultiplayerActive, sendPlayerState } from "./multiplayerClient.js";
 
 let velocityX = 0;
 let velocityY = 0;
 let velocityZ = 0;
 let onGround = false;
 let jumpWasDown = false;
+let lastNetworkSend = 0;
+const avatarDots = new Map();
 
 const PLAYER_WIDTH = 0.98;
 const PLAYER_HEIGHT = 1.8;
@@ -317,6 +321,61 @@ function physicsStep(camera, dt) {
     updateGround(camera);
 }
 
+function avatarColor(id) {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+    const hue = ((hash >>> 0) % 360) / 360;
+    return new THREE.Color().setHSL(hue, 0.8, 0.58);
+}
+
+function updateMultiplayerAvatars(scene) {
+    if (!isMultiplayerActive()) {
+        for (const dot of avatarDots.values()) scene.remove(dot);
+        avatarDots.clear();
+        return;
+    }
+
+    const players = getRemotePlayers();
+    for (const [id, player] of players) {
+        if (!player?.position) continue;
+        let dot = avatarDots.get(id);
+        if (!dot) {
+            dot = new THREE.Mesh(
+                new THREE.SphereGeometry(0.18, 8, 6),
+                new THREE.MeshBasicMaterial({ color: avatarColor(id) }),
+            );
+            dot.userData.multiplayerAvatar = true;
+            scene.add(dot);
+            avatarDots.set(id, dot);
+        }
+        dot.position.set(
+            Number(player.position.x) || 0,
+            (Number(player.position.y) || 0) - PLAYER_HEIGHT + 0.18,
+            Number(player.position.z) || 0,
+        );
+    }
+
+    for (const [id, dot] of avatarDots) {
+        if (!players.has(id)) {
+            scene.remove(dot);
+            dot.geometry.dispose();
+            dot.material.dispose();
+            avatarDots.delete(id);
+        }
+    }
+}
+
+function syncMultiplayerState(camera) {
+    if (!isMultiplayerActive()) return;
+    const now = performance.now();
+    if (now - lastNetworkSend < 50) return;
+    lastNetworkSend = now;
+    sendPlayerState(
+        { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        { x: pitch, y: yaw, z: 0 },
+    );
+}
+
 export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     deltaTime = Math.min(deltaTime, 0.05);
     camera.rotation.order = "YXZ";
@@ -330,4 +389,6 @@ export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     }
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
+    syncMultiplayerState(camera);
+    updateMultiplayerAvatars(scene);
 }
