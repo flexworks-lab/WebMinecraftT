@@ -2,6 +2,7 @@ import { firebaseConfig, isFirebaseConfigured } from "./firebaseConfig.js";
 
 const FIREBASE_VERSION = "12.18.0";
 const WORLDS_COLLECTION = "worlds";
+const CACHE_KEY = "webminecraft_saved_worlds";
 
 let db = null;
 let auth = null;
@@ -15,6 +16,8 @@ let createPanel = null;
 let selectedWorld = null;
 let initialized = false;
 let openWorldCallback = null;
+let worldsCache = [];
+let loadRequest = 0;
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -47,19 +50,26 @@ async function ensureFirebase() {
     if (!window.firebase) await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app-compat.js`);
     if (!window.firebase) throw new Error("Firebase SDK did not load.");
     const app = window.firebase.apps?.length ? window.firebase.apps[0] : window.firebase.initializeApp(firebaseConfig);
+
     await Promise.all([
-        window.firebase.firestore ? Promise.resolve() : loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore-compat.js`),
-        window.firebase.auth ? Promise.resolve() : loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth-compat.js`)
+        window.firebase.auth ? Promise.resolve() : loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth-compat.js`),
+        window.firebase.firestore ? Promise.resolve() : loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore-compat.js`)
     ]);
+
     auth = window.firebase.auth(app);
     db = window.firebase.firestore(app);
 
     if (!authReadyPromise) {
         authReadyPromise = new Promise(resolve => { authReadyResolve = resolve; });
+        try {
+            await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+        } catch (error) {
+            console.warn("Could not set local auth persistence:", error);
+        }
         auth.onAuthStateChanged(user => {
             currentUser = user || null;
             authReadyResolve?.(currentUser);
-            if (overlay?.style.display === "block") loadWorlds();
+            if (overlay?.style.display === "block") loadWorlds(true);
         });
     }
     return true;
@@ -72,8 +82,7 @@ async function waitForAuthState() {
         if (authReadyResolve) authReadyResolve(currentUser);
         return currentUser;
     }
-    if (authReadyPromise) return authReadyPromise;
-    return null;
+    return authReadyPromise || null;
 }
 
 function addStyles() {
@@ -89,6 +98,7 @@ function addStyles() {
 .savedWorldButton{min-height:42px;padding:9px 15px;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#696969,#505050);color:#fff;font-family:"MinecraftFont",monospace;font-size:12px;cursor:pointer;text-shadow:2px 2px 0 #222;box-shadow:0 2px 0 #101010}
 .savedWorldButton:hover{filter:brightness(1.12)}
 .savedWorldButton:active{transform:translateY(2px)}
+.savedWorldButton:disabled{opacity:.55;cursor:default;filter:none}
 #savedWorldNew{background:linear-gradient(#6d8d4e,#526f3c)}
 #savedWorldBack{background:#4a4a4a}
 #savedWorldsBody{position:relative;flex:1;min-height:0;overflow:auto;padding:30px}
@@ -102,14 +112,7 @@ function addStyles() {
 #savedWorldsEmpty{width:min(620px,92vw);margin:10vh auto;text-align:center;color:#aaa}
 #savedWorldsEmpty h2{margin:0 0 10px;font-family:"MinecraftFont",monospace;color:#fff;font-size:25px;text-shadow:2px 2px 0 #000}
 #savedWorldsEmpty p{margin:0 0 22px;line-height:1.5}
-#savedWorldsLoading{text-align:center;color:#aaa;padding:70px 20px}
-#savedWorldsProgressWrap{width:min(520px,84vw);margin:0 auto 14px;text-align:center}
-#savedWorldsProgressTrack{height:20px;padding:2px;background:#0c0c0c;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:0 2px 0 #101010}
-#savedWorldsProgressBar{width:0%;height:100%;background:linear-gradient(#86b85d,#5e8c3e);transition:width .25s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
-#savedWorldsProgressText{margin-top:9px;font-size:13px;color:#ddd}
-#savedWorldsProgressPercent{margin-top:5px;color:#8fca68;font-family:"MinecraftFont",monospace;font-size:12px;text-shadow:1px 1px 0 #111}
 #savedWorldsError{text-align:center;color:#e8a4a4;padding:40px 20px}
-#savedWorldsOverlayPanel{position:absolute;inset:0;pointer-events:none;display:flex;justify-content:flex-end}
 #worldDetailsPanel{width:min(440px,100vw);height:100%;background:#202020;border-left:2px solid #777;box-shadow:-8px 0 20px rgba(0,0,0,.35);transform:translateX(100%);transition:transform .18s ease;pointer-events:auto;display:flex;flex-direction:column}
 #worldDetailsPanel.open{transform:translateX(0)}
 #worldDetailsHeader{height:76px;flex:0 0 76px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:#2c2c2c;border-bottom:2px solid #111}
@@ -126,7 +129,7 @@ function addStyles() {
 #worldCreateCard{width:min(480px,94vw);padding:25px;background:#282828;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:6px 6px 0 rgba(0,0,0,.55)}
 #worldCreateTitle{margin:0 0 8px;font-family:"MinecraftFont",monospace;font-size:25px;text-shadow:2px 2px 0 #000}
 #worldCreateText{margin:0 0 18px;color:#999;font-size:12px;line-height:1.45}
-#worldNameInput{width:100%;height:46px;padding:0 12px;background:#111;color:#fff;border:2px solid #080808;border-top-color:#777;border-left-color:#777;outline:none}
+#worldNameInput{width:100%;height:46px;padding:0 12px;background:#111;color:#fff;border:2px solid #080808;border-top-color:#777;border-left-color:#777;outline:none;box-sizing:border-box}
 #worldCreateMessage{min-height:20px;margin-top:9px;color:#d8d8d8;font-size:12px}
 #worldCreateActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
 #worldCreateConfirm{background:linear-gradient(#6d8d4e,#526f3c)}
@@ -151,20 +154,19 @@ function buildUi() {
             </header>
             <main id="savedWorldsBody">
                 <div id="savedWorldsGrid"></div>
-                <div id="savedWorldsOverlayPanel">
-                    <aside id="worldDetailsPanel" aria-hidden="true">
-                        <header id="worldDetailsHeader"><h2 id="worldDetailsTitle">World</h2><button id="worldDetailsClose" class="savedWorldButton" type="button">×</button></header>
-                        <div id="worldDetailsContent">
-                            <p class="worldDetailLabel">World seed</p>
-                            <div id="worldDetailsSeed" class="worldDetailSeed"></div>
-                            <p id="worldDetailsHint">The seed is hidden from the world card. Open this panel whenever you need to copy or view it.</p>
-                            <button id="worldDetailsCopy" class="savedWorldButton worldDetailAction" type="button">Copy Seed</button>
-                            <button id="worldDetailsPlay" class="savedWorldButton worldDetailAction" type="button">Play World</button>
-                            <button id="worldDetailsDelete" class="savedWorldButton worldDetailAction" type="button">Delete World</button>
-                            <div id="worldDetailsMessage"></div>
-                        </div>
-                    </aside>
-                </div>
+                <div id="savedWorldsOverlayPanel"></div>
+                <aside id="worldDetailsPanel" aria-hidden="true">
+                    <header id="worldDetailsHeader"><h2 id="worldDetailsTitle">World</h2><button id="worldDetailsClose" class="savedWorldButton" type="button">×</button></header>
+                    <div id="worldDetailsContent">
+                        <p class="worldDetailLabel">World seed</p>
+                        <div id="worldDetailsSeed" class="worldDetailSeed"></div>
+                        <p id="worldDetailsHint">The seed is hidden from the world card. Open this panel whenever you need to copy or view it.</p>
+                        <button id="worldDetailsCopy" class="savedWorldButton worldDetailAction" type="button">Copy Seed</button>
+                        <button id="worldDetailsPlay" class="savedWorldButton worldDetailAction" type="button">Play World</button>
+                        <button id="worldDetailsDelete" class="savedWorldButton worldDetailAction" type="button">Delete World</button>
+                        <div id="worldDetailsMessage"></div>
+                    </div>
+                </aside>
                 <div id="worldCreateModal" aria-hidden="true">
                     <div id="worldCreateCard" role="dialog" aria-modal="true" aria-labelledby="worldCreateTitle">
                         <h2 id="worldCreateTitle">Create New World</h2>
@@ -181,6 +183,7 @@ function buildUi() {
         </div>
     `;
     document.body.appendChild(overlay);
+
     worldsList = overlay.querySelector("#savedWorldsGrid");
     detailsPanel = overlay.querySelector("#worldDetailsPanel");
     createPanel = overlay.querySelector("#worldCreateModal");
@@ -222,47 +225,59 @@ function setOverlayVisible(visible) {
     overlay.setAttribute("aria-hidden", visible ? "false" : "true");
 }
 
-function showLoadingProgress(percent, text = "Loading saved worlds…") {
-    if (!worldsList) return;
-    const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
-    let wrap = worldsList.querySelector("#savedWorldsProgressWrap");
-    if (!wrap) {
-        worldsList.innerHTML = `<div id="savedWorldsLoading"><div id="savedWorldsProgressWrap"><div id="savedWorldsProgressTrack"><div id="savedWorldsProgressBar"></div></div><div id="savedWorldsProgressText"></div><div id="savedWorldsProgressPercent">0%</div></div></div>`;
-        wrap = worldsList.querySelector("#savedWorldsProgressWrap");
+function cacheWorldsForUser(user, worlds) {
+    try {
+        localStorage.setItem(`${CACHE_KEY}:${user.uid}`, JSON.stringify(worlds.map(world => ({
+            id: world.id,
+            name: world.name,
+            seed: world.seed,
+            createdAt: typeof world.createdAt === "string" ? world.createdAt : null,
+            updatedAt: typeof world.updatedAt === "string" ? world.updatedAt : null
+        }))));
+    } catch {}
+}
+
+function getCachedWorlds(user) {
+    try {
+        const raw = localStorage.getItem(`${CACHE_KEY}:${user.uid}`);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
     }
-    wrap.querySelector("#savedWorldsProgressBar").style.width = `${safePercent}%`;
-    wrap.querySelector("#savedWorldsProgressText").textContent = text;
-    wrap.querySelector("#savedWorldsProgressPercent").textContent = `${Math.round(safePercent)}%`;
 }
 
 function showStatus(text, error = false) {
     if (!worldsList) return;
-    worldsList.innerHTML = `<div id="${error ? "savedWorldsError" : "savedWorldsLoading"}">${text}</div>`;
+    worldsList.innerHTML = `<div id="${error ? "savedWorldsError" : "savedWorldsEmpty"}"><h2>${escapeHtml(text)}</h2></div>`;
 }
 
-async function loadWorlds() {
+async function loadWorlds(forceRefresh = false) {
     if (!worldsList) return;
-    const user = await waitForAuthState();
+    const requestId = ++loadRequest;
+    const user = currentUser || await waitForAuthState();
     if (!user) {
-        worldsList.innerHTML = `<div id="savedWorldsEmpty"><h2>Log in to save worlds</h2><p>Your saved worlds are connected to your player account, so they can follow you across devices.</p></div>`;
+        showStatus("Log in to save worlds");
         overlay.querySelector("#savedWorldsCount").textContent = "Account required";
         return;
     }
-    showLoadingProgress(72, "Loading your saved worlds…");
+    currentUser = user;
+
+    if (!forceRefresh && !worldsCache.length) worldsCache = getCachedWorlds(user);
+    if (worldsCache.length) renderWorlds(worldsCache);
+
     try {
         const snapshot = await db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).orderBy("updatedAt", "desc").get();
-        showLoadingProgress(92, "Finishing…");
-        const worlds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderWorlds(worlds);
+        if (requestId !== loadRequest) return;
+        worldsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        cacheWorldsForUser(user, worldsCache);
+        renderWorlds(worldsCache);
     } catch (error) {
         console.error("Could not load saved worlds:", error);
-        worldsList.innerHTML = `<div id="savedWorldsError">Could not load saved worlds.<br><small>${escapeHtml(error?.message || "Check your Firestore setup and rules.")}</small></div>`;
-        overlay.querySelector("#savedWorldsCount").textContent = "Error";
+        if (!worldsCache.length) {
+            worldsList.innerHTML = `<div id="savedWorldsError">Could not load saved worlds.<br><small>${escapeHtml(error?.message || "Check your Firestore setup and rules.")}</small></div>`;
+            overlay.querySelector("#savedWorldsCount").textContent = "Error";
+        }
     }
-}
-
-function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[char]));
 }
 
 function renderWorlds(worlds) {
@@ -318,10 +333,15 @@ async function copyText(text) {
     try { await navigator.clipboard.writeText(text); return true; }
     catch {
         const helper = document.createElement("textarea");
-        helper.value = text; helper.style.position = "fixed"; helper.style.opacity = "0";
-        document.body.appendChild(helper); helper.select();
-        let ok = false; try { ok = document.execCommand("copy"); } catch {}
-        helper.remove(); return ok;
+        helper.value = text;
+        helper.style.position = "fixed";
+        helper.style.opacity = "0";
+        document.body.appendChild(helper);
+        helper.select();
+        let ok = false;
+        try { ok = document.execCommand("copy"); } catch {}
+        helper.remove();
+        return ok;
     }
 }
 
@@ -338,18 +358,20 @@ function playSelectedWorld() {
 }
 
 async function saveUpdatedTime(world) {
-    if (!currentUser || !world?.id) return;
+    if (!currentUser || !world?.id || !db) return;
     await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).doc(world.id).set({ updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
 }
 
 async function deleteSelectedWorld() {
-    if (!selectedWorld || !currentUser) return;
+    if (!selectedWorld || !currentUser || !db) return;
     const name = selectedWorld.name || "this world";
     if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
     try {
         await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).doc(selectedWorld.id).delete();
+        worldsCache = worldsCache.filter(world => world.id !== selectedWorld.id);
+        cacheWorldsForUser(currentUser, worldsCache);
         closeDetails();
-        await loadWorlds();
+        renderWorlds(worldsCache);
     } catch (error) {
         overlay.querySelector("#worldDetailsMessage").textContent = error?.message || "Could not delete this world.";
     }
@@ -373,25 +395,36 @@ function closeCreateWorld() {
 }
 
 async function createNewWorld() {
-    const user = await waitForAuthState();
+    const user = currentUser || await waitForAuthState();
     if (!user) return;
     currentUser = user;
+
     const input = overlay.querySelector("#worldNameInput");
-    const message = overlay.querySelector("#worldCreateMessage");
     const button = overlay.querySelector("#worldCreateConfirm");
     const name = input.value.trim() || "New World";
+    const seed = makeSeed();
+    const id = db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc().id;
+    const world = { id, name, seed, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+
+    button.disabled = true;
+    closeCreateWorld();
+    closeWorldMenu();
+
+    worldsCache = [world, ...worldsCache.filter(item => item.id !== id)];
+    cacheWorldsForUser(user, worldsCache);
+
+    // Start the game immediately; Firestore save continues in the background.
+    openWorldCallback?.(seed);
+
     try {
-        button.disabled = true;
-        message.textContent = "Saving world…";
-        const seed = makeSeed();
-        const ref = db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc();
-        await ref.set({ name, seed, createdAt: window.firebase.firestore.FieldValue.serverTimestamp(), updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() });
-        closeCreateWorld();
-        closeWorldMenu();
-        openWorldCallback?.(seed);
+        await db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc(id).set({
+            name,
+            seed,
+            createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+        });
     } catch (error) {
-        console.error("Could not create world:", error);
-        message.textContent = error?.message || "Could not save the world.";
+        console.error("Could not save world:", error);
     } finally {
         button.disabled = false;
     }
@@ -404,29 +437,34 @@ function closeWorldMenu() {
     const mainMenu = document.getElementById("mainMenu");
     if (mainMenu) mainMenu.style.display = "flex";
     const seedMenu = document.getElementById("seedMenu");
-    if (seedMenu) { seedMenu.style.display = "none"; seedMenu.setAttribute("aria-hidden", "true"); }
+    if (seedMenu) {
+        seedMenu.style.display = "none";
+        seedMenu.setAttribute("aria-hidden", "true");
+    }
 }
 
 async function openWorldMenu() {
     buildUi();
     setOverlayVisible(true);
-    showLoadingProgress(10, "Connecting to saved worlds…");
     document.exitPointerLock?.();
+
     const mainMenu = document.getElementById("mainMenu");
     if (mainMenu) mainMenu.style.display = "none";
     const seedMenu = document.getElementById("seedMenu");
-    if (seedMenu) { seedMenu.style.display = "none"; seedMenu.setAttribute("aria-hidden", "true"); }
-    try {
-        showLoadingProgress(35, "Preparing account service…");
-        await waitForAuthState();
-        showLoadingProgress(55, "Checking your account…");
-        currentUser = auth.currentUser || null;
-        if (currentUser) showLoadingProgress(65, "Finding your worlds…");
-        await loadWorlds();
-    } catch (error) {
-        console.error("Saved worlds setup failed:", error);
-        showStatus("Could not connect to saved worlds. Check Firebase Firestore setup.", true);
+    if (seedMenu) {
+        seedMenu.style.display = "none";
+        seedMenu.setAttribute("aria-hidden", "true");
     }
+
+    // Show cached worlds immediately; network refresh happens silently.
+    const user = await waitForAuthState();
+    currentUser = user || null;
+    if (currentUser && !worldsCache.length) {
+        worldsCache = getCachedWorlds(currentUser);
+        if (worldsCache.length) renderWorlds(worldsCache);
+    }
+    if (currentUser) loadWorlds(true);
+    else showStatus("Log in to save worlds");
 }
 
 export function initSavedWorlds({ onOpenWorld } = {}) {
@@ -434,6 +472,7 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
     initialized = true;
     openWorldCallback = onOpenWorld;
     buildUi();
+
     const playButton = document.getElementById("playButton");
     if (playButton) {
         playButton.addEventListener("click", event => {
@@ -442,6 +481,7 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
             openWorldMenu();
         }, true);
     }
+
     window.addEventListener("keydown", event => {
         if (event.code === "Escape" && overlay?.style.display === "block") {
             if (detailsPanel?.classList.contains("open")) closeDetails();
@@ -449,5 +489,6 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
             else closeWorldMenu();
         }
     });
+
     ensureFirebase().catch(error => console.warn("Saved worlds auth setup waiting:", error));
 }
