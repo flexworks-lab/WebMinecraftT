@@ -13,7 +13,7 @@ const MAX_MESSAGE_SIZE = 16 * 1024;
 const rooms = new Map();
 
 function createRoom(id) {
-    return { id, players: new Map(), worldSeed: Math.floor(Math.random() * 4294967296) >>> 0, createdAt: Date.now() };
+    return { id, players: new Map(), worldSeed: Math.floor(Math.random() * 4294967296) >>> 0, blockChanges: new Map(), createdAt: Date.now() };
 }
 
 function getOrCreateRoom(id) {
@@ -293,6 +293,7 @@ function handleMessage(ws, raw, state) {
             room: room.id,
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
+            worldChanges: [...room.blockChanges.values()],
             players: [...room.players.values()].map(publicPlayer),
         });
 
@@ -302,6 +303,24 @@ function handleMessage(ws, raw, state) {
 
     const player = state.player;
     if (!state.joined || !player) return;
+
+    if (message.type === "block_change") {
+        const x = Math.floor(numberOr(message.x, NaN));
+        const y = Math.floor(numberOr(message.y, NaN));
+        const z = Math.floor(numberOr(message.z, NaN));
+        const type = Math.floor(numberOr(message.blockType, NaN));
+        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 15) return;
+        const room = rooms.get(player.room);
+        if (!room) return;
+        const key = `${x},${y},${z}`;
+        room.blockChanges.set(key, { x, y, z, type });
+        if (room.blockChanges.size > 50000) {
+            const oldest = room.blockChanges.keys().next().value;
+            if (oldest) room.blockChanges.delete(oldest);
+        }
+        broadcast(room, { type: "block_change", x, y, z, type }, player.id);
+        return;
+    }
 
     if (message.type === "player_state") {
         const now = Date.now();

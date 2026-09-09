@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getBlockAt } from "./world.js";
-import { getRemotePlayers, isMultiplayerActive, sendPlayerState } from "./multiplayerClient.js";
+import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";
 
 let velocityX = 0;
 let velocityY = 0;
@@ -355,6 +355,12 @@ function createMultiplayerNameplate(name) {
     return sprite;
 }
 
+function createNameplate(name) {
+    const canvas=document.createElement("canvas"); canvas.width=384; canvas.height=72; const ctx=canvas.getContext("2d");
+    const text=String(name||"Player").slice(0,16); ctx.clearRect(0,0,384,72); ctx.font="bold 32px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineWidth=9; ctx.strokeStyle="rgba(0,0,0,.9)"; ctx.fillStyle="white"; ctx.strokeText(text,192,36); ctx.fillText(text,192,36);
+    const texture=new THREE.CanvasTexture(canvas); texture.colorSpace=THREE.SRGBColorSpace; const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false})); sprite.scale.set(Math.max(1.1,Math.min(2.8,.8+text.length*.13)),.36,1); sprite.position.y=2; return sprite;
+}
+
 function updateMultiplayerAvatars(scene) {
     if (!isMultiplayerActive()) {
         for (const avatar of avatarDots.values()) scene.remove(avatar);
@@ -427,4 +433,5 @@ export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     camera.rotation.x = pitch;
     syncMultiplayerState(camera);
     updateMultiplayerAvatars(scene);
+    syncWorldChanges();
 }

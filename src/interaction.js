@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
+import { sendBlockChange } from "./multiplayerClient.js";
 
 const raycaster = new THREE.Raycaster();
 let selectedSlot = 0;
@@ -81,7 +82,7 @@ function performAction(scene, camera, BLOCK, materials, action) {
         const x = Math.floor(point.x + 0.5);
         const y = Math.floor(point.y + 0.5);
         const z = Math.floor(point.z + 0.5);
-        if (getBlockAt(x, y, z)) setBlockAt(x, y, z, BLOCK.AIR);
+        if (getBlockAt(x, y, z) && setBlockAt(x, y, z, BLOCK.AIR)) sendBlockChange(x, y, z, BLOCK.AIR);
         return;
     }
 
@@ -92,7 +93,7 @@ function performAction(scene, camera, BLOCK, materials, action) {
 
     if (getBlockAt(x, y, z)) return;
     if (playerOverlapsBlock({ x, y, z }, camera)) return;
-    setBlockAt(x, y, z, materials[selectedSlot]);
+    if (setBlockAt(x, y, z, materials[selectedSlot])) sendBlockChange(x, y, z, materials[selectedSlot]);
 }
 
 function playerOverlapsBlock(position, camera) {

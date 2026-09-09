@@ -1,10 +1,23 @@
+import { setBlockAt } from "./world.js";
+
 let overlay = null;
 let socket = null;
 let localPlayerId = null;
 let remotePlayers = new Map();
+const pendingWorldChanges = new Map();
 
 const PRODUCTION_SERVER_URL = "wss://webminecraft-server.onrender.com/multiplayer";
 const PRODUCTION_API_URL = "https://webminecraft-server.onrender.com";
+
+
+function queueWorldChange(change) {
+    const x=Math.floor(Number(change?.x)), y=Math.floor(Number(change?.y)), z=Math.floor(Number(change?.z)), type=Math.floor(Number(change?.type));
+    if (![x,y,z,type].every(Number.isFinite)) return;
+    pendingWorldChanges.set(`${x},${y},${z}`, {x,y,z,type});
+}
+function applyPendingWorldChanges() {
+    for (const [key,c] of pendingWorldChanges) if (setBlockAt(c.x,c.y,c.z,c.type)) pendingWorldChanges.delete(key);
+}
 
 function makeStyle() {
     if (document.getElementById("multiplayerMenuStyles")) return;
@@ -72,6 +85,7 @@ function startSharedWorld(worldSeed) {
         overlay.setAttribute("aria-hidden", "true");
     }
     openWorldButton.click();
+    requestAnimationFrame(applyPendingWorldChanges);
 }
 
 function ensureMenu() {
@@ -312,9 +326,13 @@ function ensureMenu() {
             } else if (message.type === "joined") {
                 localPlayerId = message.playerId || null;
                 remotePlayers = new Map((message.players || []).filter(player => player.id !== localPlayerId).map(player => [player.id, player]));
+                pendingWorldChanges.clear();
+                for (const change of message.worldChanges || []) queueWorldChange(change);
                 setStatus(`Joined room "${message.room}". Players: ${message.players?.length || 1}.`);
                 joinButton.textContent = "Connected";
                 startSharedWorld(Number(message.worldSeed) || 0);
+            } else if (message.type === "block_change") {
+                queueWorldChange(message);
             } else if (message.type === "player_joined") {
                 if (message.player?.id && message.player.id !== localPlayerId) remotePlayers.set(message.player.id, message.player);
             } else if (message.type === "player_left") {
