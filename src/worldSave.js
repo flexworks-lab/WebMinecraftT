@@ -49,9 +49,13 @@ async function waitForUser() {
     });
 }
 
+function normalizeSeed(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? (Math.floor(Math.abs(number)) >>> 0) : null;
+}
+
 function getSeedFromUrl() {
-    const value = Number(new URLSearchParams(window.location.search).get("seed"));
-    return Number.isFinite(value) ? (Math.floor(Math.abs(value)) >>> 0) : null;
+    return normalizeSeed(new URLSearchParams(window.location.search).get("seed"));
 }
 
 async function findWorldBySeed(seed) {
@@ -147,6 +151,28 @@ window.addEventListener("webminecraft:blockchange", event => {
     queueBlockSave({ x, y, z, type }).catch(error => console.warn("Could not queue world block save:", error));
 });
 
+export async function setWorldSeedForPersistence(seed) {
+    const normalizedSeed = normalizeSeed(seed);
+    if (normalizedSeed === null) return null;
+
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    pendingChanges.clear();
+    activeBlocks = {};
+    activeWorld = null;
+    activeWorldPromise = null;
+
+    try {
+        await waitForUser();
+        const world = await resolveActiveWorld(normalizedSeed);
+        await loadSavedBlocks(normalizedSeed);
+        return world;
+    } catch (error) {
+        console.warn("Could not switch saved world persistence:", error);
+        return null;
+    }
+}
+
 async function initialize() {
     const seed = getSeedFromUrl();
     if (seed === null) return;
@@ -154,4 +180,5 @@ async function initialize() {
     await loadSavedBlocks(seed);
 }
 
+window.webMinecraftWorldSave = { setWorldSeedForPersistence };
 initialize().catch(error => console.warn("Saved world persistence setup failed:", error));
