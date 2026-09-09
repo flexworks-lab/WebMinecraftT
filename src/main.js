@@ -3,6 +3,7 @@ import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, ge
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
+import { initSavedWorlds } from "./worlds.js";
 import "./auth.js";
 
 const scene = new THREE.Scene();
@@ -249,13 +250,9 @@ function startWorldWithSeed(seed) {
     setMenuUiVisible(false);
     requestPointerLock();
 }
-if (playButton && mainMenu) {
-    playButton.addEventListener("click", event => {
-        event.preventDefault(); event.stopPropagation();
-        if (gameStarted) return;
-        openSeedMenu("create");
-    });
-}
+
+initSavedWorlds({ onOpenWorld: startWorldWithSeed });
+
 if (multiplayerButton) multiplayerButton.addEventListener("click", async event => {
     event.preventDefault(); event.stopPropagation();
     try {
