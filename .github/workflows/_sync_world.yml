@@ -1,0 +1,69 @@
+name: Sync multiplayer world
+on:
+  push:
+    branches: ["main"]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: "${{ !startsWith(github.event.head_commit.message, 'AUTO: Sync multiplayer world') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('server/server.js'); s=p.read_text()
+          s=s.replace('return { id, players: new Map(), worldSeed: Math.floor(Math.random() * 4294967296) >>> 0, createdAt: Date.now() };','return { id, players: new Map(), worldSeed: Math.floor(Math.random() * 4294967296) >>> 0, blockChanges: new Map(), createdAt: Date.now() };',1)
+          if 'worldChanges: [...room.blockChanges.values()]' not in s:
+              s=s.replace('            worldSeed: room.worldSeed,\n            maxPlayers: MAX_PLAYERS_PER_SERVER,','            worldSeed: room.worldSeed,\n            maxPlayers: MAX_PLAYERS_PER_SERVER,\n            worldChanges: [...room.blockChanges.values()],',1)
+          if 'message.type === "block_change"' not in s:
+              h='''    if (message.type === "block_change") {\n        const x = Math.floor(numberOr(message.x, NaN));\n        const y = Math.floor(numberOr(message.y, NaN));\n        const z = Math.floor(numberOr(message.z, NaN));\n        const type = Math.floor(numberOr(message.blockType, NaN));\n        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 15) return;\n        const room = rooms.get(player.room);\n        if (!room) return;\n        const key = `${x},${y},${z}`;\n        room.blockChanges.set(key, { x, y, z, type });\n        if (room.blockChanges.size > 50000) {\n            const oldest = room.blockChanges.keys().next().value;\n            if (oldest) room.blockChanges.delete(oldest);\n        }\n        broadcast(room, { type: "block_change", x, y, z, type }, player.id);\n        return;\n    }\n\n'''
+              s=s.replace('    if (message.type === "player_state") {',h+'    if (message.type === "player_state") {',1)
+          p.write_text(s)
+
+          p=Path('src/multiplayerClient.js'); s=p.read_text()
+          if 'import { setBlockAt } from "./world.js";' not in s: s='import { setBlockAt } from "./world.js";\n\n'+s
+          if 'const pendingWorldChanges = new Map();' not in s: s=s.replace('let remotePlayers = new Map();','let remotePlayers = new Map();\nconst pendingWorldChanges = new Map();',1)
+          if 'function queueWorldChange(' not in s:
+              h='''\nfunction queueWorldChange(change) {\n    const x=Math.floor(Number(change?.x)), y=Math.floor(Number(change?.y)), z=Math.floor(Number(change?.z)), type=Math.floor(Number(change?.type));\n    if (![x,y,z,type].every(Number.isFinite)) return;\n    pendingWorldChanges.set(`${x},${y},${z}`, {x,y,z,type});\n}\nfunction applyPendingWorldChanges() {\n    for (const [key,c] of pendingWorldChanges) if (setBlockAt(c.x,c.y,c.z,c.type)) pendingWorldChanges.delete(key);\n}\n'''
+              s=s.replace('function makeStyle() {',h+'\nfunction makeStyle() {',1)
+          s=s.replace('    openWorldButton.click();\n}', '    openWorldButton.click();\n    requestAnimationFrame(applyPendingWorldChanges);\n}',1)
+          if 'for (const change of message.worldChanges || []) queueWorldChange(change);' not in s:
+              s=s.replace('                remotePlayers = new Map((message.players || []).filter(player => player.id !== localPlayerId).map(player => [player.id, player]));','                remotePlayers = new Map((message.players || []).filter(player => player.id !== localPlayerId).map(player => [player.id, player]));\n                pendingWorldChanges.clear();\n                for (const change of message.worldChanges || []) queueWorldChange(change);',1)
+          if 'message.type === "block_change"' not in s: s=s.replace('            } else if (message.type === "player_joined") {','            } else if (message.type === "block_change") {\n                queueWorldChange(message);\n            } else if (message.type === "player_joined") {',1)
+          if 'export function sendBlockChange(' not in s:
+              s=s.replace('export function getRemotePlayers() { return remotePlayers; }','export function sendBlockChange(x,y,z,blockType) { if (!isMultiplayerActive()) return; socket.send(JSON.stringify({type:"block_change",x:Math.floor(x),y:Math.floor(y),z:Math.floor(z),blockType:Math.floor(blockType)})); }\nexport function syncWorldChanges() { if (isMultiplayerActive()) applyPendingWorldChanges(); }\nexport function getRemotePlayers() { return remotePlayers; }',1)
+          p.write_text(s)
+
+          p=Path('src/interaction.js'); s=p.read_text()
+          if 'import { sendBlockChange } from "./multiplayerClient.js";' not in s: s=s.replace('import { touchInput } from "./controls.js";','import { touchInput } from "./controls.js";\nimport { sendBlockChange } from "./multiplayerClient.js";',1)
+          s=s.replace('        if (getBlockAt(x, y, z)) setBlockAt(x, y, z, BLOCK.AIR);','        if (getBlockAt(x, y, z) && setBlockAt(x, y, z, BLOCK.AIR)) sendBlockChange(x, y, z, BLOCK.AIR);',1)
+          s=s.replace('    setBlockAt(x, y, z, materials[selectedSlot]);','    if (setBlockAt(x, y, z, materials[selectedSlot])) sendBlockChange(x, y, z, materials[selectedSlot]);',1)
+          p.write_text(s)
+
+          p=Path('src/player.js'); s=p.read_text()
+          s=s.replace('import { getRemotePlayers, isMultiplayerActive, sendPlayerState } from "./multiplayerClient.js";','import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";',1)
+          if 'syncWorldChanges();' not in s: s=s.replace('    updateMultiplayerAvatars(scene);\n}', '    updateMultiplayerAvatars(scene);\n    syncWorldChanges();\n}',1)
+          if 'function createNameplate(' not in s:
+              h='''function createNameplate(name) {\n    const canvas=document.createElement("canvas"); canvas.width=384; canvas.height=72; const ctx=canvas.getContext("2d");\n    const text=String(name||"Player").slice(0,16); ctx.clearRect(0,0,384,72); ctx.font="bold 32px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineWidth=9; ctx.strokeStyle="rgba(0,0,0,.9)"; ctx.fillStyle="white"; ctx.strokeText(text,192,36); ctx.fillText(text,192,36);\n    const texture=new THREE.CanvasTexture(canvas); texture.colorSpace=THREE.SRGBColorSpace; const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false})); sprite.scale.set(Math.max(1.1,Math.min(2.8,.8+text.length*.13)),.36,1); sprite.position.y=2; return sprite;\n}\n\n'''
+              s=s.replace('function updateMultiplayerAvatars(scene) {',h+'function updateMultiplayerAvatars(scene) {',1)
+          old='''        let dot = avatarDots.get(id);\n        if (!dot) {\n            dot = new THREE.Mesh(\n                new THREE.SphereGeometry(0.18, 8, 6),\n                new THREE.MeshBasicMaterial({ color: avatarColor(id) }),\n            );\n            dot.userData.multiplayerAvatar = true;\n            scene.add(dot);\n            avatarDots.set(id, dot);\n        }\n        dot.position.set(\n            Number(player.position.x) || 0,\n            (Number(player.position.y) || 0) - PLAYER_HEIGHT + 0.18,\n            Number(player.position.z) || 0,\n        );'''
+          new='''        let avatar = avatarDots.get(id);\n        if (!avatar) {\n            avatar = new THREE.Group();\n            const dot = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), new THREE.MeshBasicMaterial({ color: avatarColor(id) }));\n            dot.userData.multiplayerAvatar = true; avatar.add(dot); avatar.add(createNameplate(player.name)); scene.add(avatar); avatarDots.set(id, avatar);\n        }\n        avatar.position.set(Number(player.position.x) || 0,(Number(player.position.y) || 0) - PLAYER_HEIGHT + 0.18,Number(player.position.z) || 0);'''
+          if old in s: s=s.replace(old,new,1)
+          oldc='''        if (!players.has(id)) {\n            scene.remove(dot);\n            dot.geometry.dispose();\n            dot.material.dispose();\n            avatarDots.delete(id);\n        }'''
+          newc='''        if (!players.has(id)) { scene.remove(avatar); avatar.traverse(child => { if (child.geometry) child.geometry.dispose(); if (child.material) { if (child.material.map) child.material.map.dispose(); child.material.dispose(); } }); avatarDots.delete(id); }'''
+          if oldc in s: s=s.replace(oldc,newc,1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add server/server.js src/multiplayerClient.js src/interaction.js src/player.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "AUTO: Sync multiplayer world"
+          git push
