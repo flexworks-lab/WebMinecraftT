@@ -105,6 +105,7 @@ const mobileModeButton = document.getElementById("mobileModeButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsMenu = document.getElementById("settingsMenu");
 const closeSettings = document.getElementById("closeSettings");
+const settingsCloseTop = document.getElementById("settingsCloseTop");
 const crosshair = document.getElementById("crosshair");
 const hotbar = document.getElementById("hotbar");
 function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); } }
@@ -122,7 +123,6 @@ function setMenuUiVisible(visible) {
 function findRandomSpawn() {
     const types = getBlockTypes();
 
-    // Try random points first so the play button never has to scan the whole world.
     for (let attempt = 0; attempt < 700; attempt++) {
         const x = Math.floor(Math.random() * 97) - 48;
         const z = Math.floor(Math.random() * 97) - 48;
@@ -148,7 +148,6 @@ function findRandomSpawn() {
         }
     }
 
-    // Small deterministic fallback search.
     for (let x = -16; x <= 16; x++) {
         for (let z = -16; z <= 16; z++) {
             for (let y = 60; y >= -31; y--) {
@@ -159,7 +158,6 @@ function findRandomSpawn() {
         }
     }
 
-    // Last resort: start above the world and let gravity find the terrain.
     return { x: 0.5, y: 80, z: 0.5 };
 }
 
@@ -190,8 +188,19 @@ if (playButton && mainMenu) {
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
 if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
-if (closeSettings) closeSettings.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-document.addEventListener("keydown", event => { if (event.code === "Escape" && gameStarted) setTimeout(openSettings, 0); });
+if (closeSettings) {
+    closeSettings.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
+    closeSettings.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
+}
+if (settingsCloseTop) {
+    settingsCloseTop.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
+    settingsCloseTop.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
+}
+document.addEventListener("keydown", event => {
+    if (event.code !== "Escape") return;
+    if (settingsMenu?.style.display === "flex") closeSettingsMenu();
+    else if (gameStarted) setTimeout(openSettings, 0);
+});
 if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
 
 const shadowsToggle = document.getElementById("shadowsToggle");
