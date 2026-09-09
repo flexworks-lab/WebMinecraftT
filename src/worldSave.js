@@ -104,8 +104,14 @@ async function loadSavedBlocks(seed) {
     }
 }
 
-function queueBlockSave(change) {
-    if (!activeWorld || !currentUser) return;
+async function queueBlockSave(change) {
+    if (!currentUser) return;
+    const seed = getSeedFromUrl();
+    if (seed === null) return;
+
+    const world = activeWorld || await resolveActiveWorld(seed);
+    if (!world || world.seed !== seed) return;
+
     const key = `${change.x},${change.y},${change.z}`;
     pendingChanges.set(key, change);
     clearTimeout(saveTimer);
@@ -149,7 +155,7 @@ window.addEventListener("webminecraft:blockchange", event => {
     const z = Math.floor(Number(detail.z));
     const type = Math.floor(Number(detail.type));
     if (![x, y, z, type].every(Number.isFinite)) return;
-    queueBlockSave({ x, y, z, type });
+    queueBlockSave({ x, y, z, type }).catch(error => console.warn("Could not queue world block save:", error));
 });
 
 async function initialize() {
