@@ -1,13 +1,13 @@
 import { setBlockAt } from "./world.js";
 
 const WORLDS_COLLECTION = "worlds";
-const BLOCKS_COLLECTION = "blocks";
 const WAIT_MS = 50;
 
 let firebaseReadyPromise = null;
 let currentUser = null;
 let activeWorld = null;
 let activeWorldPromise = null;
+let activeBlocks = {};
 let saveTimer = null;
 const pendingChanges = new Map();
 
@@ -56,8 +56,8 @@ function getSeedFromUrl() {
 
 async function findWorldBySeed(seed) {
     if (!currentUser || seed === null) return null;
-    const db = window.firebase.firestore();
-    const snapshot = await db.collection("users")
+    const snapshot = await window.firebase.firestore()
+        .collection("users")
         .doc(currentUser.uid)
         .collection(WORLDS_COLLECTION)
         .where("seed", "==", seed)
@@ -89,13 +89,13 @@ async function loadSavedBlocks(seed) {
         const world = await resolveActiveWorld(seed);
         if (!world) return;
 
-        const snapshot = await world.ref.collection(BLOCKS_COLLECTION).get();
-        if (snapshot.empty) return;
+        const data = world.data || (await world.ref.get()).data() || {};
+        activeBlocks = data.blocks && typeof data.blocks === "object" ? { ...data.blocks } : {};
 
-        for (const doc of snapshot.docs) {
-            const parts = doc.id.split(",").map(Number);
-            if (parts.length !== 3 || parts.some(value => !Number.isFinite(value))) continue;
-            const type = Number(doc.data()?.type);
+        for (const [key, value] of Object.entries(activeBlocks)) {
+            const parts = key.split(",").map(Number);
+            if (parts.length !== 3 || parts.some(number => !Number.isFinite(number))) continue;
+            const type = Number(value);
             if (!Number.isFinite(type)) continue;
             setBlockAt(parts[0], parts[1], parts[2], type);
         }
@@ -113,6 +113,7 @@ async function queueBlockSave(change) {
     if (!world || world.seed !== seed) return;
 
     const key = `${change.x},${change.y},${change.z}`;
+    activeBlocks[key] = change.type;
     pendingChanges.set(key, change);
     clearTimeout(saveTimer);
     saveTimer = setTimeout(flushBlockSaves, 500);
@@ -122,27 +123,15 @@ async function flushBlockSaves() {
     saveTimer = null;
     if (!activeWorld || !currentUser || pendingChanges.size === 0) return;
 
-    const changes = Array.from(pendingChanges.values());
     pendingChanges.clear();
 
     try {
-        const batch = window.firebase.firestore().batch();
-        for (const change of changes) {
-            const blockRef = activeWorld.ref.collection(BLOCKS_COLLECTION).doc(`${change.x},${change.y},${change.z}`);
-            batch.set(blockRef, {
-                type: change.type,
-                updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-        }
-        batch.set(activeWorld.ref, {
+        await activeWorld.ref.set({
+            blocks: activeBlocks,
             updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
-        await batch.commit();
     } catch (error) {
         console.warn("Could not save world blocks:", error);
-        for (const change of changes) {
-            pendingChanges.set(`${change.x},${change.y},${change.z}`, change);
-        }
         clearTimeout(saveTimer);
         saveTimer = setTimeout(flushBlockSaves, 1500);
     }
