@@ -142,6 +142,15 @@
             text-shadow:2px 2px 0 #222;
             z-index:2;
         }
+        /* Menu update panel */
+        #menuUpdates{position:fixed;left:24px;top:50%;transform:translateY(-50%);width:250px;padding:14px;color:#fff;text-align:left;background:rgba(25,25,25,.88);border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:4px 4px 0 rgba(0,0,0,.55),inset 2px 2px 0 rgba(255,255,255,.08);z-index:3}
+        #menuUpdatesTitle{margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid #111;font-family:"MinecraftFont",monospace;font-size:18px;text-shadow:2px 2px 0 #000}
+        .menuUpdate{margin:8px 0;padding:9px 10px;background:rgba(65,65,65,.8);border:2px solid #171717;border-top-color:#777;border-left-color:#777}
+        .menuUpdateVersion{color:#8fca68;font-family:"MinecraftFont",monospace;font-size:12px;text-shadow:1px 1px 0 #111}
+        .menuUpdateText{margin-top:4px;color:#ddd;font-size:11px;line-height:1.35}
+        @media(max-width:1050px){#menuUpdates{left:12px;width:210px}}
+        @media(max-width:760px){#menuUpdates{display:none}}
+
         #menuCopyright {
             position:fixed;
             right:9px;
@@ -481,6 +490,13 @@
             </div>
         </div>
     </div>
+
+    <aside id="menuUpdates" aria-label="Latest updates">
+        <h2 id="menuUpdatesTitle">Latest Updates</h2>
+        <article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • World</div><div class="menuUpdateText">Randomized terrain, biomes, trees, caves, and improved water.</div></article>
+        <article class="menuUpdate"><div class="menuUpdateVersion">v1.0 • Mobile</div><div class="menuUpdateText">Minecraft-style touch controls and automatic device detection.</div></article>
+        <article class="menuUpdate"><div class="menuUpdateVersion">Latest</div><div class="menuUpdateText">Settings now save automatically with a quick “Saved” notification.</div></article>
+    </aside>
 
     <div id="menuFooter">WebMinecraftT<br>v1.0</div>
     <div id="menuCopyright">WebMinecraftT</div>
