@@ -5,7 +5,8 @@ const NOTICE_TEXT = "dev:flexworks deleted this message";
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 
 let firebaseReady = null;
-let started = false;
+let devStarted = false;
+let warningStarted = false;
 const unsubscribers = [];
 
 function waitForFirebase(timeout = 15000) {
@@ -46,7 +47,8 @@ function isDev(user) {
 async function announceDeletedMessage(firebase, channel, doc) {
     const data = doc.data() || {};
     const targetUid = String(data.uid || "").trim();
-    if (!targetUid) return;
+    const devUser = firebase?.auth?.()?.currentUser || null;
+    if (!targetUid || !isDev(devUser)) return;
 
     const db = getDb(firebase);
     if (!db) return;
@@ -56,7 +58,7 @@ async function announceDeletedMessage(firebase, channel, doc) {
 
     try {
         await db.collection(COLLECTION).doc("chat").collection("messages").doc(noticeId).set({
-            uid: firebase.auth().currentUser.uid,
+            uid: devUser.uid,
             name: "dev:flexworks",
             text: NOTICE_TEXT,
             moderation: true,
@@ -101,54 +103,53 @@ function watchChannel(firebase, channel) {
     }
 }
 
-async function initModeration() {
-    if (started) return;
-    started = true;
-
-    const firebase = await waitForFirebase();
-    const user = firebase?.auth?.()?.currentUser || null;
-    if (!isDev(user)) return;
-
+function startDevModeration(firebase) {
+    if (devStarted) return;
+    devStarted = true;
     CHANNELS.forEach(channel => watchChannel(firebase, channel));
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initModeration, { once: true });
-} else {
-    initModeration();
+function startPlayerWarnings(firebase, user) {
+    if (warningStarted || !user) return;
+    warningStarted = true;
+
+    const db = getDb(firebase);
+    if (!db) return;
+
+    try {
+        const ref = db.collection(COLLECTION).doc("chat").collection("messages")
+            .orderBy("createdAt", "desc")
+            .limit(100);
+
+        ref.onSnapshot(snapshot => {
+            snapshot.docChanges().forEach(change => {
+                if (change.type !== "added") return;
+                const data = change.doc.data() || {};
+                if (data.moderation !== true || data.targetUid !== user.uid) return;
+
+                const key = `webminecraft-moderation-warning:${change.doc.id}`;
+                try {
+                    if (sessionStorage.getItem(key)) return;
+                    sessionStorage.setItem(key, "1");
+                } catch {}
+
+                alert("Warning: your message was deleted by dev:flexworks. Please keep the chat respectful.");
+            });
+        }, () => {});
+    } catch {}
 }
 
-// Warn the affected player when a developer moderation notice appears in chat.
-function initPlayerWarnings() {
-    waitForFirebase().then(firebase => {
-        const user = firebase?.auth?.()?.currentUser || null;
-        if (!user) return;
+async function init() {
+    const firebase = await waitForFirebase();
+    if (!firebase) return;
 
-        const db = getDb(firebase);
-        if (!db) return;
+    const auth = firebase.auth?.();
+    if (!auth?.onAuthStateChanged) return;
 
-        try {
-            const ref = db.collection(COLLECTION).doc("chat").collection("messages")
-                .orderBy("createdAt", "desc")
-                .limit(100);
-
-            ref.onSnapshot(snapshot => {
-                snapshot.docChanges().forEach(change => {
-                    if (change.type !== "added") return;
-                    const data = change.doc.data() || {};
-                    if (data.moderation !== true || data.targetUid !== user.uid) return;
-
-                    const key = `webminecraft-moderation-warning:${change.doc.id}`;
-                    try {
-                        if (sessionStorage.getItem(key)) return;
-                        sessionStorage.setItem(key, "1");
-                    } catch {}
-
-                    alert("Warning: your message was deleted by dev:flexworks. Please keep the chat respectful.");
-                });
-            }, () => {});
-        } catch {}
+    auth.onAuthStateChanged(user => {
+        if (isDev(user)) startDevModeration(firebase);
+        if (user) startPlayerWarnings(firebase, user);
     });
 }
 
-initPlayerWarnings();
+init();
