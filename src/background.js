@@ -1,6 +1,7 @@
 import "./welcome.js";
 import "./playerList.js";
 import { touchInput } from "./controls.js";
+import "./uiFixes.js";
 
 function applyDirtBackgrounds() {
     if (document.getElementById("webMinecraftDirtBackgrounds")) return;
