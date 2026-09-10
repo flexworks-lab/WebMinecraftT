@@ -17,8 +17,10 @@ export function isFirebaseConfigured() {
     return Object.values(firebaseConfig).every(Boolean);
 }
 
-// These modules are loaded globally so the player list, Discussions, and
-// owner-only developer controls are available from the home screen.
+// These modules are loaded globally so the player list, Discussions,
+// moderation warnings, and owner-only developer controls are available from
+// the home screen.
 import("./playerList.js").catch(error => console.warn("Player list UI failed to load:", error));
 import("./discussion.js").catch(error => console.warn("Discussion UI failed to load:", error));
+import("./moderation.js").catch(error => console.warn("Moderation system failed to load:", error));
 import("./devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
