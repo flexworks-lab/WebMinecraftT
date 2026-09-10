@@ -14,3 +14,7 @@ export const firebaseConfig = {
 export function isFirebaseConfigured() {
     return Object.values(firebaseConfig).every(Boolean);
 }
+
+// This module is imported by the account system on every page, so load the
+// multiplayer player-count/list UI without changing the existing entrypoint.
+import("./playerList.js").catch(error => console.warn("Player list UI failed to load:", error));
