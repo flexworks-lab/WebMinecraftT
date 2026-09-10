@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { getRemotePlayers, isMultiplayerActive } from "./multiplayerClient.js";
 
 const avatars = new Map();
+let animationStarted = false;
 
 const SKIN_COLORS = [0xf3d2b6, 0xe6b892, 0xd39a72, 0xb87752, 0x965d43, 0x714331];
 const HAIR_COLORS = [0x17110d, 0x2a1a12, 0x4a2d1c, 0x6b4125, 0x7a4a2b, 0xa36b3d];
@@ -54,24 +55,20 @@ function makeCanvasTexture(draw) {
 
 function makeFaceTexture(seed, skinHex, hairHex) {
     const rng = makeRng(seed ^ 0xF00DBAAD);
-    const skin = new THREE.Color(skinHex);
-    const skinMain = `#${skin.getHexString()}`;
+    const skinMain = `#${new THREE.Color(skinHex).getHexString()}`;
     const skinLight = shade(skinHex, 0.035);
     const skinDark = shade(skinHex, -0.055);
-    const hair = new THREE.Color(hairHex);
-    const hairMain = `#${hair.getHexString()}`;
+    const hairMain = `#${new THREE.Color(hairHex).getHexString()}`;
     const hairLight = shade(hairHex, 0.04);
     const eye = rng() > 0.5 ? "#171717" : "#2b211b";
 
     return makeCanvasTexture(ctx => {
         ctx.fillStyle = skinMain;
         ctx.fillRect(0, 0, 16, 16);
-
         ctx.fillStyle = skinDark;
         ctx.fillRect(0, 4, 2, 9);
         ctx.fillRect(14, 4, 2, 9);
         ctx.fillRect(2, 13, 12, 3);
-
         ctx.fillStyle = skinLight;
         ctx.fillRect(3, 5, 10, 7);
 
@@ -79,10 +76,7 @@ function makeFaceTexture(seed, skinHex, hairHex) {
         ctx.fillRect(0, 0, 16, 4);
         ctx.fillRect(1, 3, 14, 2);
         for (let x = 1; x < 15; x++) {
-            if (rng() > 0.38) {
-                const fringe = 4 + Math.floor(rng() * 2);
-                ctx.fillRect(x, fringe, 1, 1);
-            }
+            if (rng() > 0.38) ctx.fillRect(x, 4 + Math.floor(rng() * 2), 1, 1);
         }
         if (rng() > 0.55) ctx.fillRect(0, 2, 2, 4);
         if (rng() > 0.55) ctx.fillRect(14, 2, 2, 4);
@@ -99,7 +93,6 @@ function makeFaceTexture(seed, skinHex, hairHex) {
         ctx.fillStyle = skinDark;
         ctx.fillRect(7, 9, 2, 1);
         ctx.fillRect(8, 10, 1, 1);
-
         ctx.fillStyle = rng() > 0.5 ? "#7c3f3d" : "#6b3431";
         ctx.fillRect(6, 12, 4, 1);
         if (rng() > 0.55) ctx.fillRect(7, 13, 2, 1);
@@ -109,8 +102,6 @@ function makeFaceTexture(seed, skinHex, hairHex) {
             ctx.fillRect(3, 10, 2, 1);
             ctx.fillRect(11, 10, 2, 1);
         }
-
-        // A few one-pixel details keep every face slightly different.
         ctx.fillStyle = hairLight;
         if (rng() > 0.6) ctx.fillRect(4, 1, 2, 1);
         if (rng() > 0.6) ctx.fillRect(10, 2, 2, 1);
@@ -127,7 +118,6 @@ function makeClothTexture(seed, baseHex, variant) {
     return makeCanvasTexture(ctx => {
         ctx.fillStyle = baseHex;
         ctx.fillRect(0, 0, 16, 16);
-
         for (let y = 0; y < 16; y++) {
             for (let x = 0; x < 16; x++) {
                 const roll = rng();
@@ -140,7 +130,6 @@ function makeClothTexture(seed, baseHex, variant) {
                 }
             }
         }
-
         ctx.fillStyle = dark;
         if (pattern === 0) {
             for (let x = 2; x < 16; x += 4) ctx.fillRect(x, 0, 1, 16);
@@ -152,7 +141,6 @@ function makeClothTexture(seed, baseHex, variant) {
             ctx.fillRect(0, 6, 16, 2);
             ctx.fillRect(6, 0, 2, 16);
         }
-
         ctx.fillStyle = accent;
         if (pattern === 3) {
             ctx.fillRect(2, 2, 2, 2);
@@ -170,9 +158,7 @@ function makeClothTexture(seed, baseHex, variant) {
 }
 
 function makeMaterial(textureOrColor, options = {}) {
-    if (textureOrColor instanceof THREE.Texture) {
-        return new THREE.MeshLambertMaterial({ map: textureOrColor, ...options });
-    }
+    if (textureOrColor instanceof THREE.Texture) return new THREE.MeshLambertMaterial({ map: textureOrColor, ...options });
     return new THREE.MeshLambertMaterial({ color: textureOrColor, ...options });
 }
 
@@ -199,7 +185,6 @@ function createAvatar(id, name) {
 
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [skin, skin, skin, skin, skin, face]);
     head.position.y = 1.8;
-
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt);
     torso.position.y = 1.1;
 
@@ -248,14 +233,12 @@ function createAvatar(id, name) {
     nameSprite.position.y = 2.28;
     group.add(nameSprite);
 
-    group.userData.disposables = [faceTexture, shirtTexture, pantsTexture, nameTexture];
     group.traverse(child => {
         if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
         }
     });
-
     return group;
 }
 
@@ -276,9 +259,9 @@ function disposeAvatar(group) {
 
 export function updateMultiplayerAvatars(scene) {
     if (!isMultiplayerActive()) {
-        for (const avatar of avatars.values()) {
-            scene.remove(avatar.group);
-            disposeAvatar(avatar.group);
+        for (const entry of avatars.values()) {
+            scene.remove(entry.group);
+            disposeAvatar(entry.group);
         }
         avatars.clear();
         return;
@@ -287,7 +270,6 @@ export function updateMultiplayerAvatars(scene) {
     const players = getRemotePlayers();
     for (const [id, player] of players) {
         if (!player?.position) continue;
-
         let entry = avatars.get(id);
         if (!entry) {
             const group = createAvatar(id, player.name);
@@ -295,14 +277,8 @@ export function updateMultiplayerAvatars(scene) {
             entry = { group, target: new THREE.Vector3() };
             avatars.set(id, entry);
         }
-
-        entry.target.set(
-            Number(player.position.x) || 0,
-            (Number(player.position.y) || 0) - 1.8,
-            Number(player.position.z) || 0,
-        );
+        entry.target.set(Number(player.position.x) || 0, (Number(player.position.y) || 0) - 1.8, Number(player.position.z) || 0);
         entry.group.position.lerp(entry.target, 0.32);
-
         const targetYaw = Number(player.rotation?.y) || 0;
         entry.group.rotation.y = THREE.MathUtils.lerp(entry.group.rotation.y, targetYaw, 0.35);
     }
@@ -314,4 +290,14 @@ export function updateMultiplayerAvatars(scene) {
             avatars.delete(id);
         }
     }
+}
+
+export function initMultiplayerAvatars(scene) {
+    if (animationStarted) return;
+    animationStarted = true;
+    const tick = () => {
+        updateMultiplayerAvatars(scene);
+        requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
 }
