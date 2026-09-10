@@ -409,16 +409,40 @@ async function deleteSelectedWorld() {
     if (!selectedWorld) return;
     const name = selectedWorld.name || "this world";
     const seed = Number(selectedWorld.seed);
+    if (!Number.isFinite(seed)) return;
     if (!window.confirm(`Delete \"${name}\"? This cannot be undone.`)) return;
+
+    const deleteButton = overlay.querySelector("#worldDetailsDelete");
+    const message = overlay.querySelector("#worldDetailsMessage");
+    if (deleteButton) { deleteButton.disabled = true; deleteButton.textContent = "Deleting..."; }
+
     try {
+        // Mark first so a reload/sync cannot resurrect this seed.
         rememberDeletedSeed(seed);
         await deleteWorldRecord(seed);
+
+        // Remove it from every local representation immediately.
+        worldsCache = worldsCache.filter(world => Number(world.seed) !== seed);
+        cacheWorlds(worldsCache);
         closeDetails();
-        await refreshWorlds();
+        renderWorlds(worldsCache);
+
         const cloudDelete = window.webMinecraftDeleteCloudWorld;
-        if (typeof cloudDelete === "function") await cloudDelete(seed);
+        if (typeof cloudDelete === "function") {
+            await cloudDelete(seed);
+        }
+
+        // Final local verification after cloud work completes.
+        await deleteWorldRecord(seed).catch(() => {});
+        worldsCache = worldsCache.filter(world => Number(world.seed) !== seed);
+        cacheWorlds(worldsCache);
+        renderWorlds(worldsCache);
     } catch (error) {
-        overlay.querySelector("#worldDetailsMessage").textContent = error?.message || "Could not delete this world.";
+        console.error("Could not delete world:", error);
+        message.style.color = "#d8a0a0";
+        message.textContent = error?.message || "Could not delete this world.";
+    } finally {
+        if (deleteButton) { deleteButton.disabled = false; deleteButton.textContent = "Delete World"; }
     }
 }
 
@@ -530,7 +554,8 @@ export async function deleteLocalWorld(seed) {
     const normalizedSeed = Math.floor(Math.abs(Number(seed))) >>> 0;
     rememberDeletedSeed(normalizedSeed);
     await deleteWorldRecord(normalizedSeed);
-    cacheWorlds(await getAllWorldRecords());
+    worldsCache = worldsCache.filter(world => Number(world.seed) !== normalizedSeed);
+    cacheWorlds(worldsCache);
 }
 
 export async function initSavedWorldStorage() {
