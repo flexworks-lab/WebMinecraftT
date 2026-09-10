@@ -230,9 +230,10 @@ async function cleanupExpired() {
 }
 
 async function sendMessage() {
-    const text = input?.value.trim() || "";
+    const rawText = input?.value || "";
+    const text = rawText.trim();
     if (!text) return setStatus("Write a message first.", true);
-    if (text.length > MAX_TEXT) return setStatus(`Messages are limited to ${MAX_TEXT} characters.`, true);
+    if (rawText.length > MAX_TEXT) return setStatus(`Messages are limited to ${MAX_TEXT} characters.`, true);
 
     const firebase = await waitForFirebase();
     const user = firebase?.auth?.()?.currentUser || null;
@@ -252,7 +253,7 @@ async function sendMessage() {
         await ref.add({
             uid: user.uid,
             name: currentDisplayName(user),
-            text,
+            text: rawText,
             createdAt,
             expiresAt
         });
