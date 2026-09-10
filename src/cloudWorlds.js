@@ -81,9 +81,14 @@ function rememberDeletedSeed(seed) {
     try { localStorage.setItem(DELETED_KEY, JSON.stringify([...deleted])); } catch {}
 }
 
+function clearDeletedSeed(seed) {
+    const deleted = getDeletedSeeds();
+    deleted.delete(Number(seed));
+    try { localStorage.setItem(DELETED_KEY, JSON.stringify([...deleted])); } catch {}
+}
+
 function firestore() { return window.firebase.firestore(); }
 function worldRef(uid, seed) { return firestore().collection("users").doc(uid).collection("worlds").doc(String(seed)); }
-function deletedRef(uid, seed) { return firestore().collection("users").doc(uid).collection("deletedWorlds").doc(String(seed)); }
 
 async function getUser() {
     const auth = await waitForFirebase();
@@ -115,7 +120,8 @@ async function uploadWorld(world) {
         name: String(world.name || `World ${world.seed}`),
         seed: Number(world.seed),
         createdAt: world.createdAt || new Date().toISOString(),
-        updatedAt: world.updatedAt || new Date().toISOString()
+        updatedAt: world.updatedAt || new Date().toISOString(),
+        deleted: false
     }, { merge: true });
 
     const chunks = splitBlocksIntoChunks(world.blocks || {});
@@ -141,16 +147,15 @@ export async function loadCloudWorld(seed, localWorld = null) {
         if (getDeletedSeeds().has(numberSeed)) return null;
         const user = await getUser();
         if (!user) return localWorld;
-        const deletedSnap = await deletedRef(user.uid, numberSeed).get();
-        if (deletedSnap.exists) {
+        const ref = worldRef(user.uid, numberSeed);
+        const metaSnap = await ref.get();
+        if (!metaSnap.exists) return localWorld;
+        const meta = metaSnap.data() || {};
+        if (meta.deleted === true) {
             await deleteLocalWorld(numberSeed);
             rememberDeletedSeed(numberSeed);
             return null;
         }
-        const ref = worldRef(user.uid, seed);
-        const metaSnap = await ref.get();
-        if (!metaSnap.exists) return localWorld;
-        const meta = metaSnap.data() || {};
         const cloudTime = new Date(meta.updatedAt || 0).getTime();
         const localTime = new Date(localWorld?.updatedAt || 0).getTime();
         if (localWorld && localTime > cloudTime) {
@@ -183,28 +188,31 @@ export async function syncCloudWorlds() {
     try {
         const user = await getUser();
         if (!user) return false;
-        const userRef = firestore().collection("users").doc(user.uid);
-        const worldsRef = userRef.collection("worlds");
-        const deletedSnapshot = await userRef.collection("deletedWorlds").get();
-        const cloudDeleted = new Set(deletedSnapshot.docs.map(doc => Number(doc.id)).filter(Number.isFinite));
+        const worldsRef = firestore().collection("users").doc(user.uid).collection("worlds");
+        const snapshot = await worldsRef.get();
         const localDeleted = getDeletedSeeds();
 
         for (const seed of localDeleted) {
-            if (!cloudDeleted.has(seed)) {
-                await deleteCloudWorld(seed, false);
-                cloudDeleted.add(seed);
+            const existing = snapshot.docs.find(doc => Number(doc.id) === seed);
+            if (!existing || existing.data()?.deleted !== true) {
+                await markCloudWorldDeleted(seed, false);
             }
             await deleteLocalWorld(seed).catch(() => {});
         }
 
-        const snapshot = await worldsRef.get();
         for (const doc of snapshot.docs) {
             const meta = doc.data() || {};
             const seed = Number(meta.seed ?? doc.id);
-            if (!Number.isFinite(seed) || cloudDeleted.has(seed)) {
-                if (cloudDeleted.has(seed)) await deleteCloudWorld(seed, false).catch(() => {});
+            if (!Number.isFinite(seed)) continue;
+
+            if (meta.deleted === true) {
+                rememberDeletedSeed(seed);
+                await deleteLocalWorld(seed).catch(() => {});
                 continue;
             }
+
+            if (localDeleted.has(seed)) continue;
+
             const local = await getLocalWorld(seed).catch(() => null);
             const cloudTime = new Date(meta.updatedAt || 0).getTime();
             const localTime = new Date(local?.updatedAt || 0).getTime();
@@ -227,27 +235,48 @@ export async function syncCloudWorlds() {
     }
 }
 
+async function markCloudWorldDeleted(seed, remember = true) {
+    const numberSeed = Number(seed);
+    const user = await getUser();
+    if (!user) return false;
+    if (remember) rememberDeletedSeed(numberSeed);
+    const ref = worldRef(user.uid, numberSeed);
+
+    try {
+        const data = await ref.collection("data").get();
+        for (const doc of data.docs) await doc.ref.delete();
+        await ref.set({
+            seed: numberSeed,
+            deleted: true,
+            deletedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
+        return true;
+    } catch (error) {
+        console.warn("Cloud world deletion sync unavailable:", error);
+        return false;
+    }
+}
+
 export async function deleteCloudWorld(seed, remember = true) {
     try {
         const numberSeed = Number(seed);
-        const user = await getUser();
-        if (!user) return false;
         if (remember) rememberDeletedSeed(numberSeed);
         await deleteLocalWorld(numberSeed).catch(() => {});
-        const ref = worldRef(user.uid, numberSeed);
-        const data = await ref.collection("data").get();
-        for (const doc of data.docs) await doc.ref.delete();
-        await ref.delete();
-        await deletedRef(user.uid, numberSeed).set({ deletedAt: new Date().toISOString(), seed: numberSeed });
-        return true;
+        return await markCloudWorldDeleted(numberSeed, false);
     } catch (error) {
         console.warn("Cloud world delete failed:", error);
         return false;
     }
 }
 
+export function clearCloudWorldDeletion(seed) {
+    clearDeletedSeed(seed);
+}
+
 window.webMinecraftCloudSync = syncCloudWorlds;
 window.webMinecraftDeleteCloudWorld = deleteCloudWorld;
+window.webMinecraftClearCloudWorldDeletion = clearCloudWorldDeletion;
 
 function watchAuth() {
     waitForFirebase().then(auth => {
