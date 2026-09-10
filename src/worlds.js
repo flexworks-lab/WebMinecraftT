@@ -2,6 +2,7 @@ const DB_NAME = "webminecraft-local-worlds";
 const DB_VERSION = 1;
 const STORE_NAME = "worlds";
 const CACHE_KEY = "webminecraft_saved_worlds";
+const DELETED_KEY = "webminecraft_deleted_worlds";
 
 let dbPromise = null;
 let overlay = null;
@@ -84,14 +85,38 @@ async function deleteWorldRecord(seed) {
     });
 }
 
+function getDeletedSeeds() {
+    try {
+        const values = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]");
+        return new Set(Array.isArray(values) ? values.map(Number).filter(Number.isFinite) : []);
+    } catch {
+        return new Set();
+    }
+}
+
+function rememberDeletedSeed(seed) {
+    const deleted = getDeletedSeeds();
+    deleted.add(Number(seed));
+    try { localStorage.setItem(DELETED_KEY, JSON.stringify([...deleted])); } catch {}
+}
+
+function forgetDeletedSeed(seed) {
+    const deleted = getDeletedSeeds();
+    deleted.delete(Number(seed));
+    try { localStorage.setItem(DELETED_KEY, JSON.stringify([...deleted])); } catch {}
+}
+
 function cacheWorlds(worlds) {
     try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(worlds.map(world => ({
-            name: world.name,
-            seed: world.seed,
-            createdAt: world.createdAt,
-            updatedAt: world.updatedAt
-        }))));
+        const deleted = getDeletedSeeds();
+        localStorage.setItem(CACHE_KEY, JSON.stringify(worlds
+            .filter(world => !deleted.has(Number(world.seed)))
+            .map(world => ({
+                name: world.name,
+                seed: world.seed,
+                createdAt: world.createdAt,
+                updatedAt: world.updatedAt
+            }))));
     } catch {}
 }
 
@@ -108,6 +133,7 @@ function normalizeWorld(world, index = 0) {
     const seed = Number(world?.seed);
     if (!Number.isFinite(seed)) return null;
     const normalizedSeed = Math.floor(Math.abs(seed)) >>> 0;
+    if (getDeletedSeeds().has(normalizedSeed)) return null;
     return {
         seed: normalizedSeed,
         name: String(world?.name || `World ${index + 1}`).trim() || `World ${index + 1}`,
@@ -145,6 +171,7 @@ function addStyles() {
 .savedWorldButton:disabled{opacity:.55;cursor:default;filter:none}
 #savedWorldNew{background:linear-gradient(#789b56,#5d7d42)}
 #savedWorldBack{background:#3d3d3d}
+#savedWorldReload{background:#3d3d3d}
 #savedWorldsBody{position:relative;flex:1;min-height:0;overflow:auto;padding:28px;box-sizing:border-box}
 #savedWorldsGrid{width:min(1180px,100%);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}
 .savedWorldCard{position:relative;min-height:172px;padding:18px;background:linear-gradient(145deg,#414141,#292929);border:1px solid #101010;border-radius:9px;box-shadow:0 8px 22px rgba(0,0,0,.24);display:flex;flex-direction:column;box-sizing:border-box;transition:transform .14s ease,box-shadow .14s ease}
@@ -199,6 +226,7 @@ function buildUi() {
         <div id="savedWorldsShell">
             <header id="savedWorldsHeader">
                 <div id="savedWorldsTitleWrap"><h1 id="savedWorldsTitle">Worlds</h1><span id="savedWorldsCount"></span></div>
+                <button id="savedWorldReload" class="savedWorldButton" type="button">↻ Reload</button>
                 <button id="savedWorldNew" class="savedWorldButton" type="button">+ New World</button>
                 <button id="savedWorldBack" class="savedWorldButton" type="button">← Back</button>
             </header>
@@ -236,6 +264,7 @@ function buildUi() {
     worldsList = overlay.querySelector("#savedWorldsGrid");
     detailsPanel = overlay.querySelector("#worldDetailsPanel");
     createPanel = overlay.querySelector("#worldCreateModal");
+    overlay.querySelector("#savedWorldReload").addEventListener("click", reloadWorlds);
     overlay.querySelector("#savedWorldBack").addEventListener("click", closeWorldMenu);
     overlay.querySelector("#savedWorldNew").addEventListener("click", openCreateWorld);
     overlay.querySelector("#worldDetailsClose").addEventListener("click", closeDetails);
@@ -284,8 +313,25 @@ async function refreshWorlds() {
     renderWorlds(worldsCache);
 }
 
+async function reloadWorlds() {
+    const button = overlay?.querySelector("#savedWorldReload");
+    if (button) { button.disabled = true; button.textContent = "↻ Reloading..."; }
+    try {
+        closeDetails();
+        await refreshWorlds();
+        const cloud = window.webMinecraftCloudSync;
+        if (typeof cloud === "function") await cloud();
+        await refreshWorlds();
+    } catch (error) {
+        console.error("Could not reload worlds:", error);
+        showStatus("Could not reload saved worlds.", true);
+    } finally {
+        if (button) { button.disabled = false; button.textContent = "↻ Reload"; }
+    }
+}
+
 function renderWorlds(worlds) {
-    const validWorlds = worlds.filter(world => Number.isFinite(Number(world.seed)));
+    const validWorlds = worlds.filter(world => Number.isFinite(Number(world.seed)) && !getDeletedSeeds().has(Number(world.seed)));
     const count = overlay.querySelector("#savedWorldsCount");
     count.textContent = `${validWorlds.length} saved world${validWorlds.length === 1 ? "" : "s"}`;
     if (!validWorlds.length) {
@@ -359,11 +405,15 @@ async function touchWorld(seed) {
 async function deleteSelectedWorld() {
     if (!selectedWorld) return;
     const name = selectedWorld.name || "this world";
+    const seed = Number(selectedWorld.seed);
     if (!window.confirm(`Delete \"${name}\"? This cannot be undone.`)) return;
     try {
-        await deleteWorldRecord(Number(selectedWorld.seed));
+        rememberDeletedSeed(seed);
+        await deleteWorldRecord(seed);
         closeDetails();
         await refreshWorlds();
+        const cloudDelete = window.webMinecraftDeleteCloudWorld;
+        if (typeof cloudDelete === "function") await cloudDelete(seed);
     } catch (error) {
         overlay.querySelector("#worldDetailsMessage").textContent = error?.message || "Could not delete this world.";
     }
@@ -392,6 +442,7 @@ async function createNewWorld() {
     const name = input.value.trim() || `World ${worldsCache.length + 1}`;
     let seed = pendingWorldSeed ?? makeSeed();
     while (await getWorldRecord(seed).catch(() => null)) seed = makeSeed();
+    forgetDeletedSeed(seed);
     const now = new Date().toISOString();
     const world = { seed, name, createdAt: now, updatedAt: now, blocks: {} };
 
@@ -450,6 +501,7 @@ async function ensureWorldExists(seed) {
     const numberSeed = Number(seed);
     if (!Number.isFinite(numberSeed)) return null;
     const normalizedSeed = Math.floor(Math.abs(numberSeed)) >>> 0;
+    if (getDeletedSeeds().has(normalizedSeed)) return null;
     const existing = await getWorldRecord(normalizedSeed).catch(() => null);
     if (existing) return existing;
     const now = new Date().toISOString();
@@ -458,7 +510,9 @@ async function ensureWorldExists(seed) {
 }
 
 export async function getLocalWorld(seed) {
-    return getWorldRecord(Math.floor(Math.abs(Number(seed))) >>> 0).catch(() => null);
+    const normalizedSeed = Math.floor(Math.abs(Number(seed))) >>> 0;
+    if (getDeletedSeeds().has(normalizedSeed)) return null;
+    return getWorldRecord(normalizedSeed).catch(() => null);
 }
 
 export async function saveLocalWorld(world) {
@@ -470,7 +524,9 @@ export async function saveLocalWorld(world) {
 }
 
 export async function deleteLocalWorld(seed) {
-    await deleteWorldRecord(Math.floor(Math.abs(Number(seed))) >>> 0);
+    const normalizedSeed = Math.floor(Math.abs(Number(seed))) >>> 0;
+    rememberDeletedSeed(normalizedSeed);
+    await deleteWorldRecord(normalizedSeed);
     cacheWorlds(await getAllWorldRecords());
 }
 
