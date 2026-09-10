@@ -6,6 +6,7 @@ const COMMANDS = [
     { command: "/coords", description: "Show your current X, Y, Z coordinates." },
     { command: "/seed", description: "Show the current world seed." },
     { command: "/players", description: "Show how many players are in the room." },
+    { command: "/tp", description: "Teleport to coordinates: /tp X Y Z." },
     { command: "/clear", description: "Clear the chat messages." }
 ];
 
@@ -82,7 +83,9 @@ export function runLocalCommand(rawText, context = {}) {
     const text = String(rawText || "").trim();
     if (!text.startsWith("/")) return false;
 
-    const [name] = text.slice(1).toLowerCase().split(/\s+/);
+    const parts = text.slice(1).trim().split(/\s+/);
+    const name = (parts.shift() || "").toLowerCase();
+    const args = parts;
     const addMessage = typeof context.addMessage === "function" ? context.addMessage : () => {};
 
     switch (name) {
@@ -104,6 +107,28 @@ export function runLocalCommand(rawText, context = {}) {
         case "players": {
             const count = Number(context.getPlayerCount?.() ?? 0);
             addMessage(`Players in room: ${Number.isFinite(count) ? count : 0}`, true);
+            return true;
+        }
+        case "tp": {
+            const camera = context.camera;
+            if (!camera?.position) {
+                addMessage("Teleport is unavailable.", true);
+                return true;
+            }
+            if (args.length !== 3) {
+                addMessage("Usage: /tp X Y Z", true);
+                return true;
+            }
+
+            const [x, y, z] = args.map(Number);
+            if (![x, y, z].every(Number.isFinite)) {
+                addMessage("Usage: /tp X Y Z", true);
+                return true;
+            }
+
+            camera.position.set(x, y, z);
+            addMessage(`Teleported to ${Math.floor(x)} ${Math.floor(y)} ${Math.floor(z)}`, true);
+            context.syncPlayer?.();
             return true;
         }
         case "clear":
