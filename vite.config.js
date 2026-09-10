@@ -40,7 +40,92 @@ const worldTerrainPlugin = {
     }
 };
 
+const gameplayUiPlugin = {
+    name: "webminecraft-gameplay-ui-fixes",
+    transform(code, id) {
+        if (id.endsWith("/src/interaction.js")) {
+            code = code.replace(
+                "const punch = mobile && !!touchInput.punchPressed;",
+                "const punch = mobile && !!touchInput.breakPressed;"
+            );
+            return { code, map: null };
+        }
+
+        if (id.endsWith("/src/playerList.js")) {
+            code = code.replace(
+                "if (!mainMenuVisible && !active) {",
+                "if (!mainMenuVisible) {"
+            );
+            return { code, map: null };
+        }
+
+        if (id.endsWith("/src/main.js")) {
+            code = code.replace(
+                'const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };',
+                'const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1, showCoordinates: false };'
+            );
+
+            const anchor = 'const hotbar = document.getElementById("hotbar");';
+            const injected = `${anchor}
+
+const coordinatesHud = document.createElement("div");
+coordinatesHud.id = "coordinatesHud";
+coordinatesHud.setAttribute("aria-live", "polite");
+coordinatesHud.textContent = "X: 0  Y: 0  Z: 0";
+document.body.appendChild(coordinatesHud);
+
+function updateCoordinatesHud() {
+    const visible = gameStarted && settings.showCoordinates === true && settingsMenu?.style.display !== "flex";
+    coordinatesHud.style.display = visible ? "block" : "none";
+    if (visible) {
+        coordinatesHud.textContent = \`X: \${Math.floor(camera.position.x)}  Y: \${Math.floor(camera.position.y)}  Z: \${Math.floor(camera.position.z)}\`;
+    }
+}
+
+const showCoordinatesToggle = document.getElementById("showCoordinatesToggle");
+if (showCoordinatesToggle) {
+    showCoordinatesToggle.checked = settings.showCoordinates === true;
+    showCoordinatesToggle.addEventListener("change", () => {
+        settings.showCoordinates = showCoordinatesToggle.checked;
+        saveSettings();
+        updateCoordinatesHud();
+    });
+}
+
+setInterval(updateCoordinatesHud, 100);`;
+            if (!code.includes('id = "coordinatesHud"')) code = code.replace(anchor, injected);
+
+            code = code.replace(
+                'if (performanceHud) performanceHud.style.display = display;\n}',
+                'if (performanceHud) performanceHud.style.display = display;\n    updateCoordinatesHud();\n}'
+            );
+            return { code, map: null };
+        }
+
+        return null;
+    }
+};
+
+const gameplayHtmlPlugin = {
+    name: "webminecraft-gameplay-html-fixes",
+    transform(code, id) {
+        if (!id.endsWith("/index.html")) return null;
+
+        code = code.replace(
+            "</style>",
+            `#coordinatesHud{position:fixed;left:20px;top:20px;z-index:70;display:none;padding:8px 12px;background:rgba(0,0,0,.58);border:2px solid rgba(255,255,255,.22);color:#fff;font-family:"MinecraftFont",monospace;font-size:12px;line-height:1.3;text-shadow:2px 2px 0 #000;pointer-events:none}\nbody.mobile-mode #coordinatesHud{left:max(12px,env(safe-area-inset-left));top:max(74px,calc(env(safe-area-inset-top) + 62px))}\n</style>`,
+            1
+        );
+
+        const settingsBottomAnchor = '<div id="settingsBottom">';
+        const settingRow = `<div class="setting" id="coordinatesSetting"><div><label for="showCoordinatesToggle">Show Coordinates</label><small>Show your X, Y, and Z position while playing.</small></div><div class="settingControl"><input id="showCoordinatesToggle" type="checkbox"></div></div>`;
+        if (!code.includes('id="showCoordinatesToggle"')) code = code.replace(settingsBottomAnchor, `${settingRow}\n${settingsBottomAnchor}`);
+
+        return { code, map: null };
+    }
+};
+
 export default defineConfig({
     base: "/WebMinecraftT/",
-    plugins: [worldTerrainPlugin]
+    plugins: [worldTerrainPlugin, gameplayUiPlugin, gameplayHtmlPlugin]
 });
