@@ -9,5 +9,9 @@ service cloud.firestore {
         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
+
+    match /users/{userId}/deletedWorlds/{worldId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    }
   }
 }
