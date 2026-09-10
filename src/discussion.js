@@ -134,11 +134,14 @@ function createUi() {
     modal.querySelectorAll(".discussionTab").forEach(tab => tab.addEventListener("click", () => selectChannel(tab.dataset.channel)));
     sendButton.addEventListener("click", sendMessage);
     input.addEventListener("keydown", event => {
+        event.stopPropagation();
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
             sendMessage();
         }
     });
+    input.addEventListener("keyup", event => event.stopPropagation());
+    input.addEventListener("keypress", event => event.stopPropagation());
 }
 
 async function getUser() {
