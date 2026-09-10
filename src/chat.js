@@ -22,7 +22,6 @@ function runCommand(raw) {
 
     const parts = input.slice(1).trim().split(/\s+/);
     const command = (parts.shift() || "").toLowerCase();
-    const args = parts.join(" ");
 
     switch (command) {
         case "help":
@@ -94,7 +93,8 @@ function createMobileChatButton() {
     display:none;
     position:fixed;
     right:18px;
-    bottom:152px;
+    top:18px;
+    bottom:auto;
     width:74px;
     min-height:44px;
     padding:8px 10px;
@@ -154,7 +154,6 @@ function init() {
             closeChat();
         }
 
-        // Do not let the old Enter/T chat shortcut open the chat anymore.
         if (event.key === "Enter" || event.key.toLowerCase() === "t") {
             event.preventDefault();
             event.stopImmediatePropagation();
