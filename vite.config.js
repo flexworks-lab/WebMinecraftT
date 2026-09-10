@@ -113,7 +113,7 @@ const gameplayHtmlPlugin = {
 
         code = code.replace(
             "</style>",
-            `#coordinatesHud{position:fixed;left:20px;top:20px;z-index:70;display:none;padding:8px 12px;background:rgba(0,0,0,.58);border:2px solid rgba(255,255,255,.22);color:#fff;font-family:"MinecraftFont",monospace;font-size:12px;line-height:1.3;text-shadow:2px 2px 0 #000;pointer-events:none}\nbody.mobile-mode #coordinatesHud{left:max(12px,env(safe-area-inset-left));top:max(74px,calc(env(safe-area-inset-top) + 62px))}\n</style>`,
+            `#coordinatesHud{position:fixed;left:20px;top:20px;z-index:70;display:none;padding:8px 12px;background:rgba(0,0,0,.58);border:2px solid rgba(255,255,255,.22);color:#fff;font-family:"MinecraftFont",monospace;font-size:12px;line-height:1.3;text-shadow:2px 2px 0 #000;pointer-events:none}\nbody.mobile-mode #coordinatesHud{left:max(12px,env(safe-area-inset-left));top:max(160px,calc(env(safe-area-inset-top) + 148px))}\n</style>`,
             1
         );
 
