@@ -123,7 +123,9 @@ function cacheWorlds(worlds) {
 function getCachedWorlds() {
     try {
         const worlds = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
-        return Array.isArray(worlds) ? worlds : [];
+        if (!Array.isArray(worlds)) return [];
+        const deleted = getDeletedSeeds();
+        return worlds.filter(world => !deleted.has(Number(world?.seed)));
     } catch {
         return [];
     }
@@ -152,6 +154,7 @@ async function migrateCachedWorlds() {
         const existing = await getWorldRecord(world.seed).catch(() => null);
         if (!existing) await putWorldRecord(world);
     }
+    cacheWorlds(cached);
 }
 
 function addStyles() {
