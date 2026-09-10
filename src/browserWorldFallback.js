@@ -13,8 +13,8 @@ const GUARD_KEY = "__webMinecraftWorldFallbackInstalled";
 if (!window[GUARD_KEY]) {
     window[GUARD_KEY] = true;
 
-    const nativeIndexedDB = window.indexedDB;
-    const nativeOpen = nativeIndexedDB?.open?.bind(nativeIndexedDB);
+    const factory = window.indexedDB;
+    const nativeOpen = factory?.open?.bind(factory);
     let dataPromise = null;
     let writeQueue = Promise.resolve();
 
@@ -52,16 +52,12 @@ if (!window[GUARD_KEY]) {
         const values = [...map.values()].map(clone);
         writeQueue = writeQueue.then(async () => {
             let saved = false;
-
             try {
                 if (window.caches) {
                     const cache = await caches.open(CACHE_NAME);
-                    await cache.put(
-                        CACHE_URL,
-                        new Response(JSON.stringify(values), {
-                            headers: { "Content-Type": "application/json" }
-                        })
-                    );
+                    await cache.put(CACHE_URL, new Response(JSON.stringify(values), {
+                        headers: { "Content-Type": "application/json" }
+                    }));
                     saved = true;
                 }
             } catch {}
@@ -72,22 +68,13 @@ if (!window[GUARD_KEY]) {
                     saved = true;
                 } catch {}
             }
-
-            // Keep the in-memory copy even if the browser has no writable storage.
             return saved;
         }).catch(() => false);
-
         return writeQueue;
     }
 
     function makeRequest(operation) {
-        const request = {
-            result: undefined,
-            error: null,
-            onsuccess: null,
-            onerror: null
-        };
-
+        const request = { result: undefined, error: null, onsuccess: null, onerror: null };
         Promise.resolve().then(async () => {
             try {
                 request.result = await operation();
@@ -97,7 +84,6 @@ if (!window[GUARD_KEY]) {
                 request.onerror?.({ target: request });
             }
         });
-
         return request;
     }
 
@@ -105,20 +91,16 @@ if (!window[GUARD_KEY]) {
         let completeHandler = null;
         let errorHandler = null;
         let aborted = false;
-        let pending = [];
+        const pending = [];
 
         const tx = {
             mode,
             error: null,
             objectStore() {
                 return {
-                    getAll() {
-                        return makeRequest(() => [...map.values()].map(clone));
-                    },
-                    get(seed) {
-                        return makeRequest(() => clone(map.get(String(seed))));
-                    },
-                    put(value) {
+                    getAll: () => makeRequest(() => [...map.values()].map(clone)),
+                    get: seed => makeRequest(() => clone(map.get(String(seed)))),
+                    put: value => {
                         const request = makeRequest(async () => {
                             map.set(String(value.seed), clone(value));
                             await persistData(map);
@@ -127,11 +109,10 @@ if (!window[GUARD_KEY]) {
                         pending.push(request);
                         return request;
                     },
-                    delete(seed) {
+                    delete: seed => {
                         const request = makeRequest(async () => {
                             map.delete(String(seed));
                             await persistData(map);
-                            return undefined;
                         });
                         pending.push(request);
                         return request;
@@ -177,36 +158,25 @@ if (!window[GUARD_KEY]) {
         return {
             name: DB_NAME,
             version: 1,
-            objectStoreNames: {
-                contains(name) { return name === STORE_NAME; }
-            },
-            transaction(_storeName, mode) {
-                return makeTransaction(map, mode);
-            },
+            objectStoreNames: { contains: name => name === STORE_NAME },
+            transaction: (_storeName, mode) => makeTransaction(map, mode),
             close() {}
         };
     }
 
     function fallbackOpen() {
-        let upgradeHandler = null;
         let successHandler = null;
         let errorHandler = null;
-        const request = {
-            result: null,
-            error: null,
-            source: null,
-            transaction: null
-        };
+        const request = { result: null, error: null, source: null, transaction: null };
 
         Object.defineProperties(request, {
-            onupgradeneeded: { get: () => upgradeHandler, set: value => { upgradeHandler = value; } },
+            onupgradeneeded: { get: () => null, set: () => {} },
             onsuccess: { get: () => successHandler, set: value => { successHandler = value; } },
             onerror: { get: () => errorHandler, set: value => { errorHandler = value; } }
         });
 
         loadData().then(map => {
             request.result = makeDatabase(map);
-            // Run after callers have assigned event handlers.
             Promise.resolve().then(() => successHandler?.({ target: request }));
         }).catch(error => {
             request.error = error;
@@ -216,13 +186,34 @@ if (!window[GUARD_KEY]) {
         return request;
     }
 
-    // Only replace the game's world database. Other IndexedDB users, including
-    // Firebase Auth, continue using the browser's native IndexedDB implementation.
-    window.indexedDB = {
-        ...nativeIndexedDB,
-        open(name, version) {
-            if (name === DB_NAME) return fallbackOpen();
-            return nativeOpen(name, version);
+    // Patch only IDBFactory.open. Firebase Auth and every other IndexedDB
+    // database continue using the browser's normal implementation.
+    try {
+        const originalDescriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(factory), "open");
+        const originalOpen = nativeOpen;
+        if (originalDescriptor?.get || typeof originalDescriptor?.value === "function") {
+            Object.defineProperty(Object.getPrototypeOf(factory), "open", {
+                configurable: originalDescriptor.configurable,
+                enumerable: originalDescriptor.enumerable,
+                writable: true,
+                value(name, version) {
+                    if (name === DB_NAME) return fallbackOpen();
+                    return originalOpen(name, version);
+                }
+            });
+        } else if (nativeOpen) {
+            // Some browsers expose open directly on the factory object.
+            Object.defineProperty(factory, "open", {
+                configurable: true,
+                writable: true,
+                value(name, version) {
+                    if (name === DB_NAME) return fallbackOpen();
+                    return nativeOpen(name, version);
+                }
+            });
         }
-    };
+    } catch {
+        // If the browser prevents patching IndexedDB, fail silently rather
+        // than creating another console-error loop.
+    }
 }
