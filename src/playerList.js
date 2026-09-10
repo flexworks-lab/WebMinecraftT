@@ -10,7 +10,12 @@ const roomPlayers = new Map();
 let localPlayerName = localStorage.getItem("webminecraft-player-name") || "Player";
 
 function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>\"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",\"":"&quot;",\"'\":\"&#039;\"}[char]));
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function isMainMenuVisible() {
@@ -82,9 +87,7 @@ function syncPlayerListFromSocket(message) {
         localPlayerName = localStorage.getItem("webminecraft-player-name") || "Player";
         roomPlayers.clear();
         for (const player of message.players || []) {
-            if (player?.id && player?.name) {
-                roomPlayers.set(String(player.id), { name: String(player.name), room: String(message.room || "World") });
-            }
+            if (player?.id && player?.name) roomPlayers.set(String(player.id), { name: String(player.name), room: String(message.room || "World") });
         }
     } else if (message.type === "player_joined" && message.player?.id) {
         roomPlayers.set(String(message.player.id), { name: String(message.player.name || "Player"), room: "World" });
@@ -152,7 +155,7 @@ function renderPlayers(total) {
     const names = getNames();
     listEl.innerHTML = names.length
         ? names.map(player => `<div class="globalPlayerRow"><span class="globalPlayerDot"></span><span class="globalPlayerName${player.me ? " globalPlayerMe" : ""}">${escapeHtml(player.name)}${player.me ? " (You)" : ""}</span><span class="globalPlayerRoom">${escapeHtml(player.room)}</span></div>`).join("")
-        : `<div class="globalPlayerEmpty">${total ? "Player names will appear after they connect to a world." : "No players are online."}</div>`;
+        : `<div class="globalPlayerEmpty">${total ? "Player names are only available after they connect to a world." : "No players are online."}</div>`;
 }
 
 async function refresh() {
