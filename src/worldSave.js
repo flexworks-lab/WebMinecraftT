@@ -16,7 +16,6 @@ let worldSwitchId = 0;
 const pendingChanges = new Map();
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
 function openDatabase() {
     if (dbPromise) return dbPromise;
     dbPromise = new Promise((resolve, reject) => {
@@ -33,20 +32,17 @@ function openDatabase() {
     }).catch(error => { dbPromise = null; throw error; });
     return dbPromise;
 }
-
 function idbRequest(request) {
     return new Promise((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error || new Error("Browser world storage request failed."));
     });
 }
-
 async function getWorld(seed) {
     const db = await openDatabase();
     const tx = db.transaction(STORE_NAME, "readonly");
     return idbRequest(tx.objectStore(STORE_NAME).get(seed));
 }
-
 async function putWorld(world) {
     const db = await openDatabase();
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -57,29 +53,19 @@ async function putWorld(world) {
         tx.onabort = () => reject(tx.error || new Error("Could not save world in browser storage."));
     });
 }
-
 function normalizeSeed(value) {
     const number = Number(value);
     return Number.isFinite(number) ? (Math.floor(Math.abs(number)) >>> 0) : null;
 }
-
 function getSeedFromUrl() { return normalizeSeed(new URLSearchParams(window.location.search).get("seed")); }
 
-async function ensureWorld(seed) {
-    const normalizedSeed = normalizeSeed(seed);
-    if (normalizedSeed === null) return null;
-    let world = await getWorld(normalizedSeed).catch(() => null);
-    if (world) return world;
-    const now = new Date().toISOString();
-    world = { seed: normalizedSeed, name: `World ${normalizedSeed}`, createdAt: now, updatedAt: now, blocks: {} };
-    try { await putWorld(world); return world; } catch { return null; }
-}
-
+// Never create a saved world just because a seed was opened.
 async function resolveActiveWorld(seed, switchId) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return null;
     if (activeWorld && activeWorld.seed === normalizedSeed && activeWorldSeed === normalizedSeed) return activeWorld;
-    const world = await ensureWorld(normalizedSeed);
+    const world = await getWorld(normalizedSeed).catch(() => null);
+    if (!world) return null;
     if (switchId === worldSwitchId) { activeWorld = world; activeWorldSeed = normalizedSeed; }
     return world;
 }
@@ -103,9 +89,7 @@ async function loadSavedBlocks(seed, switchId) {
             if (!Number.isFinite(type)) continue;
             setBlockAt(parts[0], parts[1], parts[2], type);
         }
-    } catch (error) {
-        console.warn("Could not load saved world blocks:", error);
-    }
+    } catch (error) { console.warn("Could not load saved world blocks:", error); }
 }
 
 async function queueBlockSave(change) {
@@ -119,12 +103,10 @@ async function queueBlockSave(change) {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(flushBlockSaves, 500);
 }
-
 function scheduleCloudSave(world) {
     clearTimeout(cloudSaveTimer);
     cloudSaveTimer = setTimeout(() => saveCloudWorld(world), 2500);
 }
-
 async function flushBlockSaves() {
     saveTimer = null;
     if (!activeWorld || pendingChanges.size === 0) return;
@@ -169,11 +151,10 @@ export async function setWorldSeedForPersistence(seed) {
     activeWorld = null;
     activeWorldSeed = normalizedSeed;
     try {
-        const world = await resolveActiveWorld(normalizedSeed, switchId);
         await loadSavedBlocks(normalizedSeed, switchId);
         if (switchId !== worldSwitchId) return null;
         if (activeWorld) await saveCloudWorld({ ...activeWorld, blocks: activeWorld.blocks || {} });
-        return activeWorld || world;
+        return activeWorld;
     } catch (error) {
         console.warn("Could not switch saved world persistence:", error);
         return null;
