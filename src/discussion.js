@@ -26,8 +26,11 @@ function waitForFirebase(timeout = 15000) {
             try {
                 const firebase = window.firebase;
                 if (firebase && typeof firebase.auth === "function" && typeof firebase.firestore === "function") {
-                    resolve(firebase);
-                    return;
+                    const db = firebase.firestore();
+                    if (db && typeof db.collection === "function") {
+                        resolve(firebase);
+                        return;
+                    }
                 }
             } catch {}
             if (Date.now() - started >= timeout) { resolve(null); return; }
@@ -38,16 +41,13 @@ function waitForFirebase(timeout = 15000) {
     return authReady;
 }
 
-async function getFirebase() {
-    return await waitForFirebase();
-}
-
 function firestore(firebase) {
-    return firebase?.firestore?.();
+    try { return firebase?.firestore?.(); } catch { return null; }
 }
 
 function channelRef(firebase, channel) {
-    return firestore(firebase).collection(COLLECTION).doc(channel).collection("messages");
+    const db = firestore(firebase);
+    return db?.collection(COLLECTION).doc(channel).collection("messages") || null;
 }
 
 function escapeHtml(value) {
@@ -140,7 +140,7 @@ function createUi() {
 }
 
 async function getUser() {
-    const firebase = await getFirebase();
+    const firebase = await waitForFirebase();
     return firebase?.auth?.()?.currentUser || null;
 }
 
@@ -181,15 +181,18 @@ async function subscribe() {
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     if (!list) return;
     list.innerHTML = `<div id="discussionEmpty">Loading…</div>`;
-    const firebase = await getFirebase();
+    const firebase = await waitForFirebase();
     if (!firebase) {
         list.innerHTML = `<div id="discussionEmpty">Could not connect to discussions.</div>`;
         setStatus("Firebase is not ready.", true);
         return;
     }
     try {
-        unsubscribe = channelRef(firebase, activeChannel)
-            .where("expiresAt", ">", firebase.firestore.Timestamp.fromMillis(Date.now()))
+        const ref = channelRef(firebase, activeChannel);
+        const db = firestore(firebase);
+        if (!ref || !db) throw new Error("Firestore is not available.");
+        unsubscribe = ref
+            .where("expiresAt", ">", new Date())
             .orderBy("expiresAt", "asc")
             .onSnapshot(renderSnapshot, error => {
                 console.error("Discussion load failed:", error);
@@ -204,13 +207,16 @@ async function subscribe() {
 }
 
 async function cleanupExpired() {
-    const firebase = await getFirebase();
+    const firebase = await waitForFirebase();
     if (!firebase) return;
     try {
-        const db = firebase.firestore();
-        const now = firebase.firestore.Timestamp.fromMillis(Date.now());
+        const db = firestore(firebase);
+        if (!db) return;
+        const now = new Date();
         for (const channel of Object.keys(CHANNELS)) {
-            const snapshot = await channelRef(firebase, channel).where("expiresAt", "<=", now).limit(50).get();
+            const ref = channelRef(firebase, channel);
+            if (!ref) continue;
+            const snapshot = await ref.where("expiresAt", "<=", now).limit(50).get();
             if (snapshot.empty) continue;
             const batch = db.batch();
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
@@ -226,9 +232,10 @@ async function sendMessage() {
     if (!text) return setStatus("Write a message first.", true);
     if (text.length > MAX_TEXT) return setStatus(`Messages are limited to ${MAX_TEXT} characters.`, true);
 
-    const firebase = await getFirebase();
+    const firebase = await waitForFirebase();
     const user = firebase?.auth?.()?.currentUser || null;
-    if (!firebase || !user) {
+    const db = firestore(firebase);
+    if (!firebase || !user || !db) {
         setStatus("Log in to post a message.", true);
         return;
     }
@@ -236,15 +243,16 @@ async function sendMessage() {
     try {
         sendButton.disabled = true;
         setStatus("Sending...");
-        const db = firebase.firestore();
-        const now = db.Timestamp.now();
-        const expires = db.Timestamp.fromMillis(Date.now() + TWO_DAYS_MS);
-        await channelRef(firebase, activeChannel).add({
+        const createdAt = new Date();
+        const expiresAt = new Date(Date.now() + TWO_DAYS_MS);
+        const ref = channelRef(firebase, activeChannel);
+        if (!ref) throw new Error("Firestore is not available.");
+        await ref.add({
             uid: user.uid,
             name: currentDisplayName(user),
             text,
-            createdAt: now,
-            expiresAt: expires
+            createdAt,
+            expiresAt
         });
         input.value = "";
         setStatus("Sent!");
@@ -271,7 +279,7 @@ async function openDiscussions() {
     modal.style.display = "flex";
     document.exitPointerLock?.();
     modal.querySelector("#discussionSubtitle").textContent = CHANNELS[activeChannel].subtitle;
-    const firebase = await getFirebase();
+    const firebase = await waitForFirebase();
     const user = firebase?.auth?.()?.currentUser || null;
     if (!user) setStatus("Log in to send a message. You can still view the discussions.", true);
     await subscribe();
