@@ -1,5 +1,6 @@
 import "./welcome.js";
 import "./playerList.js";
+import "./worldSync.js";
 import { touchInput } from "./controls.js";
 import "./uiFixes.js";
 
@@ -39,7 +40,6 @@ function setupMenuAndMobileUi() {
 #mobileModeButton.mobileOn:hover,#mobileModeButton.mobileOn:focus-visible{background:linear-gradient(#7da65a,#5f8145) !important}
 #mobileModeButton::before{content:"▣ "}
 
-/* Gameplay UI never appears before a world is actually running. */
 body:not(.webminecraft-in-world) #crosshair,
 body:not(.webminecraft-in-world) #hotbar,
 body:not(.webminecraft-in-world) #performanceHud,
@@ -48,11 +48,8 @@ body:not(.webminecraft-in-world) #touchAimKnob,
 body:not(.webminecraft-in-world) #touchHint{display:none !important}
 body.webminecraft-in-world #accountButton{display:none !important}
 #settingsVersion{display:none !important}
-
-/* Keep the old version picker hidden without watching the whole page for mutations. */
 #gameVersionButton,#gameVersionPicker{display:none !important}
 
-/* Hybrid D-pad + joystick: the four D-pad keys stay usable while the center becomes draggable. */
 #touchMovePad{overflow:visible}
 #touchHybridJoystick{
     position:absolute;
