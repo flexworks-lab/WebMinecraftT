@@ -28,12 +28,12 @@ function ensureUi() {
     const style = document.createElement("style");
     style.id = "globalPlayerListStyles";
     style.textContent = `
-#globalPlayerCount{position:fixed;left:18px;bottom:42px;z-index:96;display:none;width:184px;min-height:54px;padding:7px 13px;text-align:left;background:linear-gradient(180deg,#3b3b3b,#292929);border:2px solid #111;border-top-color:#8c8c8c;border-left-color:#8c8c8c;color:#fff;font-family:"MinecraftFont",monospace;cursor:pointer;text-shadow:2px 2px 0 #111;box-shadow:4px 4px 0 rgba(0,0,0,.5),inset 1px 1px 0 rgba(255,255,255,.09)}
+#globalPlayerCount{position:fixed;left:auto;right:28px;bottom:28px;z-index:96;display:none;width:142px;min-height:48px;padding:7px 13px;text-align:center;background:linear-gradient(180deg,#3b3b3b,#292929);border:2px solid #111;border-top-color:#8c8c8c;border-left-color:#8c8c8c;color:#fff;font-family:"MinecraftFont",monospace;cursor:pointer;text-shadow:2px 2px 0 #111;box-shadow:4px 4px 0 rgba(0,0,0,.5),inset 1px 1px 0 rgba(255,255,255,.09)}
 #globalPlayerCount:hover{filter:brightness(1.12);transform:translateY(-1px)}
 #globalPlayerCount:active{transform:translateY(1px);filter:brightness(.95)}
 #globalPlayerCount strong{font-size:16px;line-height:1}
 #globalPlayerCount span{display:block;margin-top:5px;color:#b7b7b7;font:10px Arial,sans-serif}
-#globalPlayerPanel{position:fixed;left:18px;bottom:104px;z-index:97;width:min(330px,calc(100vw - 36px));max-height:min(440px,calc(100vh - 130px));display:none;overflow:hidden;background:#202020;color:#fff;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:6px 6px 0 rgba(0,0,0,.55);font-family:Arial,sans-serif}
+#globalPlayerPanel{position:fixed;left:auto;right:28px;bottom:88px;z-index:97;width:min(330px,calc(100vw - 56px));max-height:min(440px,calc(100vh - 116px));display:none;overflow:hidden;background:#202020;color:#fff;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:6px 6px 0 rgba(0,0,0,.55);font-family:Arial,sans-serif}
 #globalPlayerHeader{padding:14px 16px;background:#2b2b2b;border-bottom:2px solid #111;display:flex;align-items:center;justify-content:space-between;gap:10px}
 #globalPlayerTitle{font:17px "MinecraftFont",monospace;text-shadow:2px 2px 0 #000}
 #globalPlayerTotal{color:#9fce72;font-size:11px}
@@ -44,7 +44,7 @@ function ensureUi() {
 .globalPlayerMe{color:#9fce72}
 .globalPlayerRoom{margin-left:auto;color:#888;font-size:10px;white-space:nowrap}
 .globalPlayerEmpty{padding:14px;color:#999;text-align:center;font-size:11px;line-height:1.45}
-@media(max-width:600px){#globalPlayerCount{left:12px;bottom:40px;width:170px}#globalPlayerPanel{left:12px;bottom:102px;width:calc(100vw - 24px)}}
+@media(max-width:600px){#globalPlayerCount{right:12px;bottom:40px;width:170px}#globalPlayerPanel{right:12px;bottom:102px;width:calc(100vw - 24px)}}
 `;
     document.head.appendChild(style);
 
@@ -56,7 +56,7 @@ function ensureUi() {
 
     panel = document.createElement("div");
     panel.id = "globalPlayerPanel";
-    panel.innerHTML = `<div id="globalPlayerHeader"><div id="globalPlayerTitle">Players Online</div><div id="globalPlayerTotal">0 online</div></div><div id="globalPlayerList"><div class="globalPlayerEmpty">No player names available yet.</div></div>`;
+    panel.innerHTML = `<div id="globalPlayerHeader"><div id="globalPlayerTitle">Players Online</div><div id="globalPlayerTotal">0 online</div></div><div id="globalPlayerList"><div class="globalPlayerEmpty">No players are online.</div></div>`;
     document.body.appendChild(panel);
     listEl = panel.querySelector("#globalPlayerList");
 
@@ -141,8 +141,11 @@ function getNames() {
         seen.add(key);
         names.push({ name: clean, room: room || "World", me });
     };
-    if (localPlayerName) add(localPlayerName, "World", true);
-    for (const player of roomPlayers.values()) add(player?.name, player?.room, false);
+    const active = Boolean(window.__webminecraftMultiplayerActive);
+    if (active) {
+        add(localPlayerName, "World", true);
+        for (const player of roomPlayers.values()) add(player?.name, player?.room, false);
+    }
     return names;
 }
 
@@ -155,7 +158,7 @@ function renderPlayers(total) {
     const names = getNames();
     listEl.innerHTML = names.length
         ? names.map(player => `<div class="globalPlayerRow"><span class="globalPlayerDot"></span><span class="globalPlayerName${player.me ? " globalPlayerMe" : ""}">${escapeHtml(player.name)}${player.me ? " (You)" : ""}</span><span class="globalPlayerRoom">${escapeHtml(player.room)}</span></div>`).join("")
-        : `<div class="globalPlayerEmpty">${total ? "Player names are only available after they connect to a world." : "No players are online."}</div>`;
+        : `<div class="globalPlayerEmpty">${total ? "Player names are available while they are connected to a world." : "No players are online."}</div>`;
 }
 
 async function refresh() {
@@ -174,9 +177,9 @@ async function refresh() {
         const response = await fetch(SERVER_HEALTH_URL, { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        renderPlayers(Math.max(getNames().length, Number(data.players) || 0));
+        renderPlayers(Number(data.players) || 0);
     } catch {
-        renderPlayers(getNames().length);
+        renderPlayers(active ? getNames().length : 0);
     }
 }
 
