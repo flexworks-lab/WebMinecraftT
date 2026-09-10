@@ -1,4 +1,5 @@
 import { setBlockAt } from "./world.js";
+import { loadCloudWorld, saveCloudWorld } from "./cloudWorlds.js";
 
 const DB_NAME = "webminecraft-local-worlds";
 const DB_VERSION = 1;
@@ -10,12 +11,11 @@ let activeWorld = null;
 let activeWorldSeed = null;
 let activeBlocks = {};
 let saveTimer = null;
+let cloudSaveTimer = null;
 let worldSwitchId = 0;
 const pendingChanges = new Map();
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
 function openDatabase() {
     if (dbPromise) return dbPromise;
@@ -30,10 +30,7 @@ function openDatabase() {
         };
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error || new Error("Could not open browser world storage."));
-    }).catch(error => {
-        dbPromise = null;
-        throw error;
-    });
+    }).catch(error => { dbPromise = null; throw error; });
     return dbPromise;
 }
 
@@ -66,9 +63,7 @@ function normalizeSeed(value) {
     return Number.isFinite(number) ? (Math.floor(Math.abs(number)) >>> 0) : null;
 }
 
-function getSeedFromUrl() {
-    return normalizeSeed(new URLSearchParams(window.location.search).get("seed"));
-}
+function getSeedFromUrl() { return normalizeSeed(new URLSearchParams(window.location.search).get("seed")); }
 
 async function ensureWorld(seed) {
     const normalizedSeed = normalizeSeed(seed);
@@ -76,19 +71,8 @@ async function ensureWorld(seed) {
     let world = await getWorld(normalizedSeed).catch(() => null);
     if (world) return world;
     const now = new Date().toISOString();
-    world = {
-        seed: normalizedSeed,
-        name: `World ${normalizedSeed}`,
-        createdAt: now,
-        updatedAt: now,
-        blocks: {}
-    };
-    try {
-        await putWorld(world);
-        return world;
-    } catch {
-        return null;
-    }
+    world = { seed: normalizedSeed, name: `World ${normalizedSeed}`, createdAt: now, updatedAt: now, blocks: {} };
+    try { await putWorld(world); return world; } catch { return null; }
 }
 
 async function resolveActiveWorld(seed, switchId) {
@@ -96,10 +80,7 @@ async function resolveActiveWorld(seed, switchId) {
     if (normalizedSeed === null) return null;
     if (activeWorld && activeWorld.seed === normalizedSeed && activeWorldSeed === normalizedSeed) return activeWorld;
     const world = await ensureWorld(normalizedSeed);
-    if (switchId === worldSwitchId) {
-        activeWorld = world;
-        activeWorldSeed = normalizedSeed;
-    }
+    if (switchId === worldSwitchId) { activeWorld = world; activeWorldSeed = normalizedSeed; }
     return world;
 }
 
@@ -107,9 +88,12 @@ async function loadSavedBlocks(seed, switchId) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return;
     try {
-        const world = await resolveActiveWorld(normalizedSeed, switchId);
+        let world = await resolveActiveWorld(normalizedSeed, switchId);
         if (!world || switchId !== worldSwitchId || activeWorld?.seed !== normalizedSeed) return;
-
+        world = await loadCloudWorld(normalizedSeed, world);
+        if (switchId !== worldSwitchId || !world) return;
+        activeWorld = world;
+        activeWorldSeed = normalizedSeed;
         activeBlocks = world.blocks && typeof world.blocks === "object" ? { ...world.blocks } : {};
         for (const [key, value] of Object.entries(activeBlocks)) {
             if (switchId !== worldSwitchId || activeWorld?.seed !== normalizedSeed) return;
@@ -120,19 +104,15 @@ async function loadSavedBlocks(seed, switchId) {
             setBlockAt(parts[0], parts[1], parts[2], type);
         }
     } catch (error) {
-        console.warn("Could not load saved world blocks from browser storage:", error);
+        console.warn("Could not load saved world blocks:", error);
     }
 }
 
 async function queueBlockSave(change) {
     const seed = getSeedFromUrl();
     if (seed === null) return;
-
-    const world = activeWorld && activeWorld.seed === seed
-        ? activeWorld
-        : await resolveActiveWorld(seed, worldSwitchId);
+    const world = activeWorld && activeWorld.seed === seed ? activeWorld : await resolveActiveWorld(seed, worldSwitchId);
     if (!world || world.seed !== seed || activeWorld?.seed !== seed) return;
-
     const key = `${change.x},${change.y},${change.z}`;
     activeBlocks[key] = change.type;
     pendingChanges.set(key, change);
@@ -140,19 +120,23 @@ async function queueBlockSave(change) {
     saveTimer = setTimeout(flushBlockSaves, 500);
 }
 
+function scheduleCloudSave(world) {
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(() => saveCloudWorld(world), 2500);
+}
+
 async function flushBlockSaves() {
     saveTimer = null;
     if (!activeWorld || pendingChanges.size === 0) return;
-
     const worldToSave = activeWorld;
     const seedToSave = activeWorld.seed;
     const blocksToSave = { ...activeBlocks };
     pendingChanges.clear();
-
     try {
         worldToSave.blocks = blocksToSave;
         worldToSave.updatedAt = new Date().toISOString();
         await putWorld(worldToSave);
+        scheduleCloudSave(worldToSave);
     } catch (error) {
         console.warn(`Could not save world blocks for seed ${seedToSave}:`, error);
         if (activeWorld === worldToSave && activeWorld.seed === seedToSave) {
@@ -175,22 +159,23 @@ window.addEventListener("webminecraft:blockchange", event => {
 export async function setWorldSeedForPersistence(seed) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return null;
-
     const switchId = ++worldSwitchId;
     clearTimeout(saveTimer);
+    clearTimeout(cloudSaveTimer);
     saveTimer = null;
+    cloudSaveTimer = null;
     pendingChanges.clear();
     activeBlocks = {};
     activeWorld = null;
     activeWorldSeed = normalizedSeed;
-
     try {
         const world = await resolveActiveWorld(normalizedSeed, switchId);
         await loadSavedBlocks(normalizedSeed, switchId);
         if (switchId !== worldSwitchId) return null;
-        return world;
+        if (activeWorld) await saveCloudWorld({ ...activeWorld, blocks: activeWorld.blocks || {} });
+        return activeWorld || world;
     } catch (error) {
-        console.warn("Could not switch browser saved world persistence:", error);
+        console.warn("Could not switch saved world persistence:", error);
         return null;
     }
 }
@@ -198,10 +183,10 @@ export async function setWorldSeedForPersistence(seed) {
 async function initialize() {
     const seed = getSeedFromUrl();
     if (seed === null) return;
-    await sleep(0);
+    await sleep(WAIT_MS);
     const switchId = worldSwitchId;
     await loadSavedBlocks(seed, switchId);
 }
 
 window.webMinecraftWorldSave = { setWorldSeedForPersistence };
-initialize().catch(error => console.warn("Browser world persistence setup failed:", error));
+initialize().catch(error => console.warn("World persistence setup failed:", error));
