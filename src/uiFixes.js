@@ -177,9 +177,41 @@ function setupWorldManagement() {
     if (grid) observer.observe(grid, { childList:true, subtree:true });
 }
 
+function setupMobileForwardBackFix() {
+    const attach = () => {
+        const forward = document.getElementById("moveForward");
+        const back = document.getElementById("moveBack");
+        if (!forward || !back || !window.__webMinecraftTouchForwardFix) return;
+        const state = window.__webMinecraftTouchForwardFix;
+        if (state.installed) return;
+        state.installed = true;
+        state.forward = false;
+        state.back = false;
+        const update = () => {
+            if (!state.forward && !state.back) return;
+            if (state.forward && !state.back) window.__webMinecraftTouchInputRef.moveZ = Math.abs(window.__webMinecraftTouchInputRef.moveZ);
+            else if (state.back && !state.forward) window.__webMinecraftTouchInputRef.moveZ = -Math.abs(window.__webMinecraftTouchInputRef.moveZ);
+        };
+        const hook = (button, key, active) => {
+            button.addEventListener("pointerdown", () => { state[key] = active; update(); });
+            const release = () => { state[key] = false; };
+            button.addEventListener("pointerup", release);
+            button.addEventListener("pointercancel", release);
+            button.addEventListener("lostpointercapture", release);
+        };
+        hook(forward, "forward", true);
+        hook(back, "back", true);
+        state.timer = window.setInterval(update, 16);
+    };
+    attach();
+    const observer = new MutationObserver(() => attach());
+    observer.observe(document.body, { childList:true, subtree:true });
+}
+
 function init() {
     addGameplayLayoutStyles();
     setupWorldManagement();
+    setupMobileForwardBackFix();
     const observer = new MutationObserver(() => setupWorldManagement());
     observer.observe(document.body, { childList:true, subtree:true });
 }
