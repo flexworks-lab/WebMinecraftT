@@ -1,7 +1,6 @@
 const DB_NAME = "webminecraft-local-worlds";
 const STORE_NAME = "worlds";
 const KNOWN_SEEDS_KEY = "webminecraft-known-world-seeds";
-const SYNC_ROOT = "webminecraftWorldSync";
 const POLL_MS = 4000;
 
 let started = false;
@@ -83,20 +82,25 @@ function deleteLocalSeed(seed) {
     });
 }
 
+// Keep deletion-sync storage under the same Firestore path that the rules allow:
+// /users/{uid}/deletedWorlds/{seed}
 function syncCollection(db, uid) {
-    return db.collection(SYNC_ROOT).doc(uid).collection("deleted");
+    return db.collection("users").doc(uid).collection("deletedWorlds");
 }
 
 async function pushDeletedSeeds(db, uid, currentSeeds) {
     const known = readKnownSeeds();
     const deleted = [...known].filter(seed => !currentSeeds.has(seed));
     if (!deleted.length) return;
+
     const batch = db.batch();
     const collection = syncCollection(db, uid);
     const now = Date.now();
+
     for (const seed of deleted) {
         batch.set(collection.doc(String(seed)), { seed, deletedAt: now });
     }
+
     await batch.commit();
 
     for (const seed of deleted) known.delete(seed);
@@ -109,6 +113,7 @@ async function pullDeletedSeeds(db, uid, currentSeeds) {
 
     let changed = false;
     const nextSeeds = new Set(currentSeeds);
+
     for (const doc of snapshot.docs) {
         const seed = normalizedSeed(doc.data()?.seed ?? doc.id);
         if (seed === null || !nextSeeds.has(seed)) continue;
@@ -116,16 +121,19 @@ async function pullDeletedSeeds(db, uid, currentSeeds) {
         nextSeeds.delete(seed);
         changed = true;
     }
+
     if (changed) {
         lastLocalSeeds = nextSeeds;
         writeKnownSeeds(nextSeeds);
         window.dispatchEvent(new CustomEvent("webminecraft-worlds-changed"));
     }
+
     return nextSeeds;
 }
 
 async function syncOnce() {
     if (syncBusy) return;
+
     const user = getUser();
     const db = getFirestore();
     if (!user || !db) return;
