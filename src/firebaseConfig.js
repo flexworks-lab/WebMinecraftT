@@ -15,6 +15,7 @@ export function isFirebaseConfigured() {
     return Object.values(firebaseConfig).every(Boolean);
 }
 
-// This module is imported by the account system on every page, so load the
-// multiplayer player-count/list UI without changing the existing entrypoint.
+// These modules are loaded globally so the player list and Discussions are
+// available from the home screen without changing the main entrypoint.
 import("./playerList.js").catch(error => console.warn("Player list UI failed to load:", error));
+import("./discussion.js").catch(error => console.warn("Discussion UI failed to load:", error));
