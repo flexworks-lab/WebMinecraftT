@@ -1,15 +1,9 @@
-import { firebaseConfig, isFirebaseConfigured } from "./firebaseConfig.js";
-import { saveNewWorldToDrive, loadWorldsFromDrive, restoreDriveWorldToFirestore } from "./drive.js";
-
-const FIREBASE_VERSION = "12.18.0";
-const WORLDS_COLLECTION = "worlds";
+const DB_NAME = "webminecraft-local-worlds";
+const DB_VERSION = 1;
+const STORE_NAME = "worlds";
 const CACHE_KEY = "webminecraft_saved_worlds";
 
-let db = null;
-let auth = null;
-let currentUser = null;
-let authReadyPromise = null;
-let authReadyResolve = null;
+let dbPromise = null;
 let overlay = null;
 let worldsList = null;
 let detailsPanel = null;
@@ -19,8 +13,6 @@ let pendingWorldSeed = null;
 let initialized = false;
 let openWorldCallback = null;
 let worldsCache = [];
-let worldsCacheUid = null;
-let loadRequest = 0;
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -31,56 +23,109 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
-function loadScript(src) {
+function openDatabase() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                const store = db.createObjectStore(STORE_NAME, { keyPath: "seed" });
+                store.createIndex("updatedAt", "updatedAt", { unique: false });
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Could not open browser world storage."));
+    }).catch(error => {
+        dbPromise = null;
+        throw error;
+    });
+    return dbPromise;
+}
+
+function idbRequest(request) {
     return new Promise((resolve, reject) => {
-        const existing = document.querySelector(`script[src="${src}"]`);
-        if (existing) {
-            if (src.includes("firebase-app-compat") && window.firebase) return resolve();
-            if (src.includes("firebase-auth-compat") && window.firebase?.auth) return resolve();
-            if (src.includes("firebase-firestore-compat") && window.firebase?.firestore) return resolve();
-            const cleanup = () => { existing.removeEventListener("load", onLoad); existing.removeEventListener("error", onError); };
-            const onLoad = () => { cleanup(); resolve(); };
-            const onError = () => { cleanup(); reject(new Error(`Could not load ${src}`)); };
-            existing.addEventListener("load", onLoad, { once: true });
-            existing.addEventListener("error", onError, { once: true });
-            return;
-        }
-        const script = document.createElement("script");
-        script.src = src;
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error(`Could not load ${src}`));
-        document.head.appendChild(script);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Browser world storage request failed."));
     });
 }
 
-async function ensureFirebase() {
-    if (!isFirebaseConfigured()) throw new Error("Firebase is not configured.");
-    if (!window.firebase) await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app-compat.js`);
-    const app = window.firebase.apps?.length ? window.firebase.apps[0] : window.firebase.initializeApp(firebaseConfig);
-    await Promise.all([
-        window.firebase.auth ? Promise.resolve() : loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth-compat.js`),
-        window.firebase.firestore ? Promise.resolve() : loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore-compat.js`)
-    ]);
-    auth = window.firebase.auth(app);
-    db = window.firebase.firestore(app);
-    if (!authReadyPromise) {
-        authReadyPromise = new Promise(resolve => { authReadyResolve = resolve; });
-        try { await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL); } catch {}
-        auth.onAuthStateChanged(user => {
-            currentUser = user || null;
-            if (!user) { worldsCache = []; worldsCacheUid = null; }
-            authReadyResolve?.(currentUser);
-            if (overlay?.style.display === "block" && currentUser) loadWorlds(true);
-        });
-    }
-    return true;
+async function getAllWorldRecords() {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    return idbRequest(tx.objectStore(STORE_NAME).getAll());
 }
 
-async function waitForAuthState() {
-    await ensureFirebase();
-    if (auth?.currentUser) { currentUser = auth.currentUser; return currentUser; }
-    return authReadyPromise || null;
+async function getWorldRecord(seed) {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    return idbRequest(tx.objectStore(STORE_NAME).get(seed));
+}
+
+async function putWorldRecord(world) {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(world);
+    return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve(world);
+        tx.onerror = () => reject(tx.error || new Error("Could not save world in browser storage."));
+        tx.onabort = () => reject(tx.error || new Error("Could not save world in browser storage."));
+    });
+}
+
+async function deleteWorldRecord(seed) {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).delete(seed);
+    return new Promise((resolve, reject) => {
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error("Could not delete world from browser storage."));
+        tx.onabort = () => reject(tx.error || new Error("Could not delete world from browser storage."));
+    });
+}
+
+function cacheWorlds(worlds) {
+    try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(worlds.map(world => ({
+            name: world.name,
+            seed: world.seed,
+            createdAt: world.createdAt,
+            updatedAt: world.updatedAt
+        }))));
+    } catch {}
+}
+
+function getCachedWorlds() {
+    try {
+        const worlds = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
+        return Array.isArray(worlds) ? worlds : [];
+    } catch {
+        return [];
+    }
+}
+
+function normalizeWorld(world, index = 0) {
+    const seed = Number(world?.seed);
+    if (!Number.isFinite(seed)) return null;
+    const normalizedSeed = Math.floor(Math.abs(seed)) >>> 0;
+    return {
+        seed: normalizedSeed,
+        name: String(world?.name || `World ${index + 1}`).trim() || `World ${index + 1}`,
+        createdAt: world?.createdAt || new Date().toISOString(),
+        updatedAt: world?.updatedAt || world?.createdAt || new Date().toISOString(),
+        blocks: world?.blocks && typeof world.blocks === "object" ? world.blocks : {}
+    };
+}
+
+async function migrateCachedWorlds() {
+    const cached = getCachedWorlds();
+    if (!cached.length) return;
+    for (const [index, cachedWorld] of cached.entries()) {
+        const world = normalizeWorld(cachedWorld, index);
+        if (!world) continue;
+        const existing = await getWorldRecord(world.seed).catch(() => null);
+        if (!existing) await putWorldRecord(world);
+    }
 }
 
 function addStyles() {
@@ -161,7 +206,7 @@ function buildUi() {
                     <div id="worldDetailsContent">
                         <p class="worldDetailLabel">World seed</p>
                         <div id="worldDetailsSeed" class="worldDetailSeed">—</div>
-                        <p id="worldDetailsHint">The seed is shown here so you can copy or view it whenever you need it.</p>
+                        <p id="worldDetailsHint">This world is saved in this browser. Clearing browser site data can remove local worlds.</p>
                         <button id="worldDetailsCopy" class="savedWorldButton worldDetailAction" type="button">Copy Seed</button>
                         <button id="worldDetailsPlay" class="savedWorldButton worldDetailAction" type="button">Play World</button>
                         <button id="worldDetailsDelete" class="savedWorldButton worldDetailAction" type="button">Delete World</button>
@@ -213,16 +258,8 @@ function makeSeed() {
     }
 }
 
-function timestampToCacheValue(timestamp) {
-    if (!timestamp) return null;
-    if (typeof timestamp === "string") return timestamp;
-    if (timestamp.toDate) return timestamp.toDate().toISOString();
-    if (timestamp.seconds) return new Date(timestamp.seconds * 1000).toISOString();
-    return null;
-}
-
-function formatDate(timestamp) {
-    const date = timestamp?.toDate ? timestamp.toDate() : timestamp ? new Date(timestamp) : null;
+function formatDate(value) {
+    const date = value ? new Date(value) : null;
     if (!date || Number.isNaN(date.getTime())) return "Just created";
     return `Last saved ${date.toLocaleDateString()}`;
 }
@@ -233,124 +270,15 @@ function setOverlayVisible(visible) {
     overlay.setAttribute("aria-hidden", visible ? "false" : "true");
 }
 
-function cacheWorldsForUser(user, worlds) {
-    if (!user) return;
-    try {
-        localStorage.setItem(`${CACHE_KEY}:${user.uid}`, JSON.stringify(worlds.map(world => ({
-            id: world.id,
-            name: world.name,
-            seed: world.seed,
-            createdAt: timestampToCacheValue(world.createdAt),
-            updatedAt: timestampToCacheValue(world.updatedAt),
-            driveFileId: world.driveFileId || null
-        }))));
-    } catch {}
-}
-
-function getCachedWorlds(user) {
-    if (!user) return [];
-    try { return JSON.parse(localStorage.getItem(`${CACHE_KEY}:${user.uid}`) || "[]"); } catch { return []; }
-}
-
-function showStatus(text, error = false) {
-    if (!worldsList) return;
-    worldsList.innerHTML = `<div id="${error ? "savedWorldsError" : "savedWorldsEmpty"}"><h2>${escapeHtml(text)}</h2></div>`;
-}
-
-async function mergeDriveWorlds(user, driveWorlds) {
-    if (!Array.isArray(driveWorlds) || !driveWorlds.length) return;
-    for (const driveWorld of driveWorlds) {
-        const existing = worldsCache.find(world =>
-            (world.driveFileId && world.driveFileId === driveWorld.driveFileId) ||
-            (Number.isFinite(Number(world.seed)) && Number(world.seed) === Number(driveWorld.seed))
-        );
-        if (existing) {
-            existing.name = String(driveWorld.name || existing.name || "World").trim() || "World";
-            existing.seed = driveWorld.seed;
-            existing.createdAt = driveWorld.createdAt || existing.createdAt;
-            existing.updatedAt = driveWorld.updatedAt || existing.updatedAt;
-            existing.driveFileId = driveWorld.driveFileId || existing.driveFileId || null;
-            continue;
-        }
-        try {
-            const restored = await restoreDriveWorldToFirestore(driveWorld);
-            worldsCache.unshift({
-                id: restored.id,
-                name: restored.name,
-                seed: restored.seed,
-                createdAt: restored.createdAt,
-                updatedAt: restored.updatedAt,
-                driveFileId: restored.driveFileId
-            });
-        } catch (error) {
-            console.warn("Could not restore Drive world:", error);
-        }
-    }
-    worldsCache = worldsCache.filter(world => Number.isFinite(Number(world.seed)));
-    worldsCache.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime());
-    cacheWorldsForUser(user, worldsCache);
+async function refreshWorlds() {
+    await migrateCachedWorlds();
+    const records = await getAllWorldRecords();
+    worldsCache = records
+        .map((world, index) => normalizeWorld(world, index))
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
+    cacheWorlds(worldsCache);
     renderWorlds(worldsCache);
-}
-
-async function checkGoogleDrive(user) {
-    try {
-        const driveWorlds = await loadWorldsFromDrive();
-        await mergeDriveWorlds(user, driveWorlds);
-    } catch (error) {
-        const message = String(error?.message || "");
-        if (!message.includes("Google Account") && !message.includes("log in")) console.warn("Drive world check skipped:", error);
-    }
-}
-
-async function loadWorlds(forceRefresh = false) {
-    if (!worldsList) return;
-    const requestId = ++loadRequest;
-    const user = currentUser || await waitForAuthState();
-    if (!user) {
-        worldsCache = [];
-        worldsCacheUid = null;
-        showStatus("Log in to save worlds");
-        overlay.querySelector("#savedWorldsCount").textContent = "Account required";
-        return;
-    }
-    currentUser = user;
-    if (worldsCacheUid !== user.uid) {
-        worldsCacheUid = user.uid;
-        worldsCache = getCachedWorlds(user);
-        renderWorlds(worldsCache);
-    } else if (!forceRefresh && worldsCache.length) {
-        renderWorlds(worldsCache);
-    }
-    try {
-        const snapshot = await db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).get();
-        if (requestId !== loadRequest) return;
-        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(world => Number.isFinite(Number(world.seed)));
-        worldsCache = docs.map((world, index) => ({
-            ...world,
-            name: String(world.name || `World ${index + 1}`).trim() || `World ${index + 1}`
-        }));
-        worldsCache.sort((a, b) => {
-            const getMs = value => value?.toMillis ? value.toMillis() : value ? new Date(value).getTime() : 0;
-            return getMs(b.updatedAt || b.createdAt) - getMs(a.updatedAt || a.createdAt);
-        });
-        worldsCacheUid = user.uid;
-        cacheWorldsForUser(user, worldsCache);
-        renderWorlds(worldsCache);
-
-        const missingNameWrites = worldsCache.map(world => {
-            const original = docs.find(item => item.id === world.id);
-            return original?.name ? null : db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc(world.id)
-                .set({ name: world.name }, { merge: true }).catch(() => {});
-        }).filter(Boolean);
-        await Promise.all(missingNameWrites);
-    } catch (error) {
-        console.error("Could not load saved worlds:", error);
-        if (!worldsCache.length) {
-            showStatus("Could not load saved worlds.", true);
-            overlay.querySelector("#savedWorldsCount").textContent = "Error";
-        }
-    }
-    await checkGoogleDrive(user);
 }
 
 function renderWorlds(worlds) {
@@ -358,7 +286,7 @@ function renderWorlds(worlds) {
     const count = overlay.querySelector("#savedWorldsCount");
     count.textContent = `${validWorlds.length} world${validWorlds.length === 1 ? "" : "s"}`;
     if (!validWorlds.length) {
-        worldsList.innerHTML = `<div id="savedWorldsEmpty"><h2>No worlds found</h2><p>This account has no saved worlds yet.</p><button id="emptyCreateWorld" class="savedWorldButton" type="button">+ Create New World</button></div>`;
+        worldsList.innerHTML = `<div id="savedWorldsEmpty"><h2>No worlds found</h2><p>This browser has no saved worlds yet.</p><button id="emptyCreateWorld" class="savedWorldButton" type="button">+ Create New World</button></div>`;
         worldsList.querySelector("#emptyCreateWorld").addEventListener("click", openCreateWorld);
         return;
     }
@@ -389,14 +317,6 @@ function closeDetails() {
     selectedWorld = null;
 }
 
-async function copySelectedSeed() {
-    if (!selectedWorld) return;
-    const ok = await copyText(String(selectedWorld.seed));
-    const message = overlay.querySelector("#worldDetailsMessage");
-    message.style.color = ok ? "#8fca68" : "#d8a0a0";
-    message.textContent = ok ? "Seed copied!" : "Could not copy the seed automatically.";
-}
-
 async function copyText(text) {
     try { await navigator.clipboard.writeText(text); return true; }
     catch {
@@ -408,46 +328,46 @@ async function copyText(text) {
     }
 }
 
+async function copySelectedSeed() {
+    if (!selectedWorld) return;
+    const ok = await copyText(String(selectedWorld.seed));
+    const message = overlay.querySelector("#worldDetailsMessage");
+    message.style.color = ok ? "#8fca68" : "#d8a0a0";
+    message.textContent = ok ? "Seed copied!" : "Could not copy the seed automatically.";
+}
+
 function playWorld(world) {
     if (!world || !openWorldCallback) return;
     closeDetails();
     closeWorldMenu();
     openWorldCallback(Number(world.seed));
-    saveUpdatedTime(world).catch(() => {});
+    void touchWorld(world.seed);
 }
 
 function playSelectedWorld() { if (selectedWorld) playWorld(selectedWorld); }
 
-async function saveUpdatedTime(world) {
-    if (!currentUser || !world?.id || world.id.startsWith("drive-") || !db) return;
-    const updatedAt = new Date().toISOString();
-    try {
-        await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).doc(world.id).set({ updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-        const cachedWorld = worldsCache.find(item => item.id === world.id);
-        if (cachedWorld) { cachedWorld.updatedAt = updatedAt; cacheWorldsForUser(currentUser, worldsCache); }
-    } catch {}
+async function touchWorld(seed) {
+    const world = await getWorldRecord(seed).catch(() => null);
+    if (!world) return;
+    world.updatedAt = new Date().toISOString();
+    await putWorldRecord(world).catch(() => {});
+    await refreshWorlds().catch(() => {});
 }
 
 async function deleteSelectedWorld() {
-    if (!selectedWorld || !currentUser || !db || selectedWorld.id.startsWith("drive-")) return;
+    if (!selectedWorld) return;
     const name = selectedWorld.name || "this world";
     if (!window.confirm(`Delete \"${name}\"? This cannot be undone.`)) return;
     try {
-        await db.collection("users").doc(currentUser.uid).collection(WORLDS_COLLECTION).doc(selectedWorld.id).delete();
-        worldsCache = worldsCache.filter(world => world.id !== selectedWorld.id);
-        cacheWorldsForUser(currentUser, worldsCache);
+        await deleteWorldRecord(Number(selectedWorld.seed));
         closeDetails();
-        renderWorlds(worldsCache);
+        await refreshWorlds();
     } catch (error) {
         overlay.querySelector("#worldDetailsMessage").textContent = error?.message || "Could not delete this world.";
     }
 }
 
 function openCreateWorld() {
-    if (!currentUser) {
-        showStatus("Log in with your Account first to save worlds.", true);
-        return;
-    }
     pendingWorldSeed = makeSeed();
     overlay.querySelector("#worldNameInput").value = "";
     overlay.querySelector("#worldCreateSeed").textContent = String(pendingWorldSeed);
@@ -464,38 +384,31 @@ function closeCreateWorld() {
 }
 
 async function createNewWorld() {
-    const user = currentUser || await waitForAuthState();
-    if (!user) return;
-    currentUser = user;
     const input = overlay.querySelector("#worldNameInput");
     const message = overlay.querySelector("#worldCreateMessage");
     const button = overlay.querySelector("#worldCreateConfirm");
     const name = input.value.trim() || `World ${worldsCache.length + 1}`;
-    const seed = pendingWorldSeed ?? makeSeed();
+    let seed = pendingWorldSeed ?? makeSeed();
+    while (await getWorldRecord(seed).catch(() => null)) seed = makeSeed();
+    const now = new Date().toISOString();
+    const world = { seed, name, createdAt: now, updatedAt: now, blocks: {} };
+
     button.disabled = true;
     message.style.color = "#d8d8d8";
     message.textContent = "Saving world...";
     try {
-        const ref = db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc();
-        const now = new Date();
-        await ref.set({ name, seed, createdAt: window.firebase.firestore.Timestamp.fromDate(now), updatedAt: window.firebase.firestore.Timestamp.fromDate(now) });
-        const created = { id: ref.id, name, seed, createdAt: now.toISOString(), updatedAt: now.toISOString() };
-        worldsCache = [created, ...worldsCache.filter(world => Number(world.seed) !== seed)];
-        worldsCacheUid = user.uid;
-        cacheWorldsForUser(user, worldsCache);
+        await putWorldRecord(world);
+        worldsCache = [world, ...worldsCache.filter(item => Number(item.seed) !== seed)];
+        cacheWorlds(worldsCache);
         renderWorlds(worldsCache);
 
         closeCreateWorld();
         closeWorldMenu();
         openWorldCallback?.(seed);
-
-        void saveNewWorldToDrive(name, seed).catch(error => {
-            console.warn("Background Drive backup skipped:", error);
-        });
     } catch (error) {
-        console.error("Could not create world:", error);
+        console.error("Could not create local world:", error);
         message.style.color = "#d8a0a0";
-        message.textContent = error?.message || "Could not create the world.";
+        message.textContent = error?.message || "Could not create the world in this browser.";
     } finally {
         button.disabled = false;
     }
@@ -519,15 +432,49 @@ async function openWorldMenu() {
     if (mainMenu) mainMenu.style.display = "none";
     const seedMenu = document.getElementById("seedMenu");
     if (seedMenu) { seedMenu.style.display = "none"; seedMenu.setAttribute("aria-hidden", "true"); }
-    if (currentUser && worldsCacheUid === currentUser.uid) renderWorlds(worldsCache);
     try {
-        await waitForAuthState();
-        currentUser = auth.currentUser || currentUser || null;
-        await loadWorlds(true);
+        await refreshWorlds();
     } catch (error) {
-        console.error("Saved worlds setup failed:", error);
-        if (!worldsCache.length) showStatus("Could not connect to saved worlds.", true);
+        console.error("Could not load browser worlds:", error);
+        showStatus("Could not load saved worlds.", true);
     }
+}
+
+function showStatus(text, error = false) {
+    worldsList.innerHTML = `<div id="${error ? "savedWorldsError" : "savedWorldsEmpty"}"><h2>${escapeHtml(text)}</h2></div>`;
+}
+
+async function ensureWorldExists(seed) {
+    const normalizedSeed = Math.floor(Math.abs(Number(seed))) >>> 0;
+    if (!Number.isFinite(normalizedSeed)) return null;
+    const existing = await getWorldRecord(normalizedSeed).catch(() => null);
+    if (existing) return existing;
+    const now = new Date().toISOString();
+    const world = { seed: normalizedSeed, name: `World ${normalizedSeed}`, createdAt: now, updatedAt: now, blocks: {} };
+    try { return await putWorldRecord(world); } catch { return null; }
+}
+
+export async function getLocalWorld(seed) {
+    return getWorldRecord(Math.floor(Math.abs(Number(seed))) >>> 0).catch(() => null);
+}
+
+export async function saveLocalWorld(world) {
+    const normalized = normalizeWorld(world);
+    if (!normalized) return null;
+    await putWorldRecord(normalized);
+    cacheWorlds(await getAllWorldRecords());
+    return normalized;
+}
+
+export async function deleteLocalWorld(seed) {
+    await deleteWorldRecord(Math.floor(Math.abs(Number(seed))) >>> 0);
+    cacheWorlds(await getAllWorldRecords());
+}
+
+export async function initSavedWorldStorage() {
+    await openDatabase();
+    await migrateCachedWorlds();
+    return true;
 }
 
 export function initSavedWorlds({ onOpenWorld } = {}) {
@@ -543,5 +490,6 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
         else if (createPanel?.style.display === "flex") closeCreateWorld();
         else closeWorldMenu();
     });
-    ensureFirebase().catch(error => console.warn("Saved worlds auth setup waiting:", error));
+    initSavedWorldStorage().catch(error => console.warn("Browser world storage setup failed:", error));
+    window.webMinecraftWorldStorage = { getLocalWorld, saveLocalWorld, deleteLocalWorld, ensureWorldExists };
 }
