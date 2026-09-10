@@ -251,6 +251,7 @@ export async function syncCloudWorlds() {
         }
         return true;
     } catch (error) {
+        console.warn("Cloud world sync failed:", error);
         return false;
     }
 }
@@ -263,20 +264,30 @@ async function markCloudWorldDeleted(seed, remember = true) {
 
     const now = new Date().toISOString();
     try {
-        // Permanent tombstone: it survives browser/cache resets and stops the world from being recreated.
+        // Write the tombstone first. Even if old chunk cleanup is denied, the world stays deleted.
         await cloudDeletedRef(user.uid, numberSeed).set({ seed: numberSeed, deletedAt: now });
 
         const ref = worldRef(user.uid, numberSeed);
-        const data = await ref.collection("data").get();
-        for (const doc of data.docs) await doc.ref.delete();
-        await ref.set({
-            seed: numberSeed,
-            deleted: true,
-            deletedAt: now,
-            updatedAt: now
-        }, { merge: true });
+        try {
+            const data = await ref.collection("data").get();
+            for (const doc of data.docs) await doc.ref.delete();
+        } catch (error) {
+            console.warn("Could not remove old world chunks; deletion tombstone is still active:", error);
+        }
+
+        try {
+            await ref.set({
+                seed: numberSeed,
+                deleted: true,
+                deletedAt: now,
+                updatedAt: now
+            }, { merge: true });
+        } catch (error) {
+            console.warn("Could not mark world metadata deleted; tombstone is still active:", error);
+        }
         return true;
-    } catch {
+    } catch (error) {
+        console.warn("Could not create world deletion tombstone:", error);
         return false;
     }
 }
