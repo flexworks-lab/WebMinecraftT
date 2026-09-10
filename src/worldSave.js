@@ -1,5 +1,6 @@
 import { setBlockAt } from "./world.js";
 import { loadCloudWorld, saveCloudWorld } from "./cloudWorlds.js";
+import { isWorldDeleted } from "./worlds.js";
 
 const WAIT_MS = 50;
 
@@ -34,15 +35,15 @@ async function waitForStorage(timeout = 10000) {
 
 async function resolveActiveWorld(seed, switchId) {
     const normalizedSeed = normalizeSeed(seed);
-    if (normalizedSeed === null) return null;
+    if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
     if (activeWorld && activeWorld.seed === normalizedSeed && activeWorldSeed === normalizedSeed) return activeWorld;
 
     const storage = await waitForStorage();
-    if (!storage) return null;
+    if (!storage || isWorldDeleted(normalizedSeed)) return null;
     const world = await storage.getLocalWorld(normalizedSeed).catch(() => null);
-    if (!world) return null;
+    if (!world || isWorldDeleted(normalizedSeed)) return null;
 
-    if (switchId === worldSwitchId) {
+    if (switchId === worldSwitchId && !isWorldDeleted(normalizedSeed)) {
         activeWorld = { ...world, seed: normalizedSeed };
         activeWorldSeed = normalizedSeed;
     }
@@ -51,14 +52,14 @@ async function resolveActiveWorld(seed, switchId) {
 
 async function loadSavedBlocks(seed, switchId) {
     const normalizedSeed = normalizeSeed(seed);
-    if (normalizedSeed === null) return null;
+    if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
 
     try {
         let world = await resolveActiveWorld(normalizedSeed, switchId);
-        if (switchId !== worldSwitchId) return null;
+        if (switchId !== worldSwitchId || isWorldDeleted(normalizedSeed)) return null;
 
         world = await loadCloudWorld(normalizedSeed, world);
-        if (switchId !== worldSwitchId || !world) return null;
+        if (switchId !== worldSwitchId || !world || isWorldDeleted(normalizedSeed)) return null;
 
         activeWorld = {
             ...world,
@@ -69,10 +70,11 @@ async function loadSavedBlocks(seed, switchId) {
         activeBlocks = { ...activeWorld.blocks };
 
         const storage = await waitForStorage();
-        if (storage?.saveLocalWorld) await storage.saveLocalWorld(activeWorld).catch(() => {});
+        if (!storage || isWorldDeleted(normalizedSeed) || switchId !== worldSwitchId) return null;
+        if (storage.saveLocalWorld) await storage.saveLocalWorld(activeWorld).catch(() => {});
 
         for (const [key, value] of Object.entries(activeBlocks)) {
-            if (switchId !== worldSwitchId || activeWorldSeed !== normalizedSeed) return null;
+            if (switchId !== worldSwitchId || activeWorldSeed !== normalizedSeed || isWorldDeleted(normalizedSeed)) return null;
             const parts = key.split(",").map(Number);
             if (parts.length !== 3 || parts.some(number => !Number.isFinite(number))) continue;
             const type = Number(value);
@@ -89,12 +91,12 @@ async function loadSavedBlocks(seed, switchId) {
 
 async function queueBlockSave(change) {
     const seed = getSeedFromUrl();
-    if (seed === null || activeWorldSeed !== seed) return;
+    if (seed === null || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
 
     const world = activeWorld?.seed === seed
         ? activeWorld
         : await resolveActiveWorld(seed, worldSwitchId);
-    if (!world || world.seed !== seed || activeWorldSeed !== seed) return;
+    if (!world || world.seed !== seed || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
 
     const key = `${change.x},${change.y},${change.z}`;
     activeBlocks[key] = change.type;
@@ -103,10 +105,12 @@ async function queueBlockSave(change) {
     saveTimer = setTimeout(flushBlockSaves, 350);
 }
 
-function scheduleCloudSave(world) {
+function scheduleCloudSave(world, switchId = worldSwitchId) {
     clearTimeout(cloudSaveTimer);
+    if (!world || isWorldDeleted(world.seed)) return;
     cloudSaveTimer = setTimeout(async () => {
         cloudSaveTimer = null;
+        if (switchId !== worldSwitchId || isWorldDeleted(world.seed) || activeWorldSeed !== world.seed) return;
         try { await saveCloudWorld(world); }
         catch (error) { console.warn("Cloud world save failed:", error); }
     }, 1500);
@@ -118,26 +122,33 @@ async function flushBlockSaves() {
 
     const worldToSave = activeWorld;
     const seedToSave = worldToSave.seed;
+    const saveSwitchId = worldSwitchId;
+    if (isWorldDeleted(seedToSave)) {
+        pendingChanges.clear();
+        return;
+    }
+
     const blocksToSave = { ...activeBlocks };
     pendingChanges.clear();
 
     const storage = await waitForStorage();
-    if (!storage?.saveLocalWorld) {
-        if (activeWorld === worldToSave && activeWorldSeed === seedToSave) saveTimer = setTimeout(flushBlockSaves, 1000);
+    if (!storage?.saveLocalWorld || saveSwitchId !== worldSwitchId || activeWorld !== worldToSave || isWorldDeleted(seedToSave)) {
+        if (activeWorld === worldToSave && activeWorldSeed === seedToSave && saveSwitchId === worldSwitchId && !isWorldDeleted(seedToSave)) saveTimer = setTimeout(flushBlockSaves, 1000);
         return;
     }
 
     try {
         worldToSave.blocks = blocksToSave;
         worldToSave.updatedAt = new Date().toISOString();
+        if (isWorldDeleted(seedToSave) || saveSwitchId !== worldSwitchId) return;
         const saved = await storage.saveLocalWorld(worldToSave);
-        if (saved && activeWorld === worldToSave && activeWorldSeed === seedToSave) {
+        if (saved && activeWorld === worldToSave && activeWorldSeed === seedToSave && saveSwitchId === worldSwitchId && !isWorldDeleted(seedToSave)) {
             activeWorld = saved;
-            scheduleCloudSave(saved);
+            scheduleCloudSave(saved, saveSwitchId);
         }
     } catch (error) {
         console.warn(`Could not save world blocks for seed ${seedToSave}:`, error);
-        if (activeWorld === worldToSave && activeWorldSeed === seedToSave) saveTimer = setTimeout(flushBlockSaves, 1000);
+        if (activeWorld === worldToSave && activeWorldSeed === seedToSave && saveSwitchId === worldSwitchId && !isWorldDeleted(seedToSave)) saveTimer = setTimeout(flushBlockSaves, 1000);
     }
 }
 
@@ -165,9 +176,14 @@ export async function setWorldSeedForPersistence(seed) {
     activeWorld = null;
     activeWorldSeed = normalizedSeed;
 
+    if (isWorldDeleted(normalizedSeed)) {
+        activeWorldSeed = null;
+        return null;
+    }
+
     try {
         const world = await loadSavedBlocks(normalizedSeed, switchId);
-        if (switchId !== worldSwitchId) return null;
+        if (switchId !== worldSwitchId || isWorldDeleted(normalizedSeed)) return null;
         return world;
     } catch (error) {
         console.warn("Could not switch world persistence:", error);
@@ -176,11 +192,11 @@ export async function setWorldSeedForPersistence(seed) {
 }
 
 export async function saveCurrentWorld() {
-    if (!activeWorld) return null;
+    if (!activeWorld || isWorldDeleted(activeWorld.seed)) return null;
     clearTimeout(saveTimer);
     saveTimer = null;
     if (pendingChanges.size > 0) await flushBlockSaves();
-    if (activeWorld) scheduleCloudSave(activeWorld);
+    if (activeWorld && !isWorldDeleted(activeWorld.seed)) scheduleCloudSave(activeWorld, worldSwitchId);
     return activeWorld;
 }
 
@@ -188,22 +204,32 @@ export async function deleteCurrentWorld(seed) {
     const normalizedSeed = normalizeSeed(seed ?? activeWorldSeed);
     if (normalizedSeed === null) return false;
 
-    const storage = await waitForStorage();
-    if (!storage?.deleteLocalWorld) return false;
-
+    // Invalidate every in-flight load/save first. The storage layer then writes
+    // the tombstone before deleting the actual browser data.
+    ++worldSwitchId;
     clearTimeout(saveTimer);
     clearTimeout(cloudSaveTimer);
     pendingChanges.clear();
     saveTimer = null;
     cloudSaveTimer = null;
 
-    await storage.deleteLocalWorld(normalizedSeed);
-    if (activeWorldSeed === normalizedSeed) {
+    const wasActive = activeWorldSeed === normalizedSeed;
+    if (wasActive) {
         activeWorld = null;
         activeWorldSeed = null;
         activeBlocks = {};
     }
-    return true;
+
+    const storage = await waitForStorage();
+    if (!storage?.deleteLocalWorld) return false;
+
+    try {
+        await storage.deleteLocalWorld(normalizedSeed);
+        return true;
+    } catch (error) {
+        console.warn(`Could not delete world ${normalizedSeed}:`, error);
+        return false;
+    }
 }
 
 async function initialize() {
@@ -218,10 +244,4 @@ window.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pagehide", () => { void saveCurrentWorld(); });
 
-window.webMinecraftWorldSave = {
-    setWorldSeedForPersistence,
-    saveCurrentWorld,
-    deleteCurrentWorld
-};
-
-initialize().catch(error => console.warn("World persistence setup failed:", error));
+initialize().catch(error => console.warn("World persistence initialization failed:", error));
