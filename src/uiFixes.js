@@ -1,3 +1,5 @@
+import { touchInput } from "./controls.js";
+
 const WORLD_DB_NAME = "webminecraft-local-worlds";
 const WORLD_STORE_NAME = "worlds";
 const WORLD_CACHE_KEY = "webminecraft_saved_worlds";
@@ -181,30 +183,34 @@ function setupMobileForwardBackFix() {
     const attach = () => {
         const forward = document.getElementById("moveForward");
         const back = document.getElementById("moveBack");
-        if (!forward || !back || !window.__webMinecraftTouchForwardFix) return;
-        const state = window.__webMinecraftTouchForwardFix;
-        if (state.installed) return;
-        state.installed = true;
-        state.forward = false;
-        state.back = false;
+        if (!forward || !back) return;
+        if (forward.dataset.directionFixInstalled) return;
+        forward.dataset.directionFixInstalled = "1";
+        back.dataset.directionFixInstalled = "1";
+
+        let forwardDown = false;
+        let backDown = false;
         const update = () => {
-            if (!state.forward && !state.back) return;
-            if (state.forward && !state.back) window.__webMinecraftTouchInputRef.moveZ = Math.abs(window.__webMinecraftTouchInputRef.moveZ);
-            else if (state.back && !state.forward) window.__webMinecraftTouchInputRef.moveZ = -Math.abs(window.__webMinecraftTouchInputRef.moveZ);
+            if (forwardDown && !backDown) touchInput.moveZ = Math.abs(touchInput.moveZ) || 1;
+            else if (backDown && !forwardDown) touchInput.moveZ = -Math.abs(touchInput.moveZ) || -1;
         };
-        const hook = (button, key, active) => {
-            button.addEventListener("pointerdown", () => { state[key] = active; update(); });
-            const release = () => { state[key] = false; };
-            button.addEventListener("pointerup", release);
-            button.addEventListener("pointercancel", release);
-            button.addEventListener("lostpointercapture", release);
-        };
-        hook(forward, "forward", true);
-        hook(back, "back", true);
-        state.timer = window.setInterval(update, 16);
+
+        forward.addEventListener("pointerdown", () => { forwardDown = true; update(); });
+        back.addEventListener("pointerdown", () => { backDown = true; update(); });
+        const releaseForward = () => { forwardDown = false; };
+        const releaseBack = () => { backDown = false; };
+        forward.addEventListener("pointerup", releaseForward);
+        forward.addEventListener("pointercancel", releaseForward);
+        forward.addEventListener("lostpointercapture", releaseForward);
+        back.addEventListener("pointerup", releaseBack);
+        back.addEventListener("pointercancel", releaseBack);
+        back.addEventListener("lostpointercapture", releaseBack);
+
+        window.setInterval(update, 16);
     };
+
     attach();
-    const observer = new MutationObserver(() => attach());
+    const observer = new MutationObserver(attach);
     observer.observe(document.body, { childList:true, subtree:true });
 }
 
