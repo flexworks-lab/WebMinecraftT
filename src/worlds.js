@@ -99,12 +99,13 @@ function addStyles() {
 .savedWorldButton:disabled{opacity:.55;cursor:default;filter:none}
 #savedWorldNew{background:linear-gradient(#6d8d4e,#526f3c)}
 #savedWorldBack{background:#4a4a4a}
-#savedWorldsBody{position:relative;flex:1;min-height:0;overflow:auto;padding:28px;box-sizing:border-box}
-#savedWorldsGrid{width:min(1120px,100%);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;align-items:start}
-.savedWorldCard{position:relative;min-height:170px;padding:18px;background:linear-gradient(180deg,#3a3a3a,#2d2d2d);border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:4px 4px 0 rgba(0,0,0,.4);display:flex;flex-direction:column;box-sizing:border-box}
-.savedWorldCard h3{margin:0 0 7px;font-family:"MinecraftFont",monospace;font-size:17px;text-shadow:2px 2px 0 #000;word-break:break-word}
-.savedWorldMeta{color:#999;font-size:12px;line-height:1.45}
-.savedWorldActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto;padding-top:16px}
+#savedWorldsBody{position:relative;flex:1;min-height:0;overflow:auto;padding:24px 28px;box-sizing:border-box}
+#savedWorldsGrid{width:min(1100px,100%);margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.savedWorldCard{position:relative;min-height:128px;padding:16px 18px;background:linear-gradient(180deg,#3a3a3a,#2d2d2d);border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:4px 4px 0 rgba(0,0,0,.4);display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:1fr auto;column-gap:18px;box-sizing:border-box}
+.savedWorldCard h3{grid-column:1;grid-row:1;margin:0 0 7px;align-self:start;font-family:"MinecraftFont",monospace;font-size:18px;text-shadow:2px 2px 0 #000;word-break:break-word}
+.savedWorldMeta{grid-column:1;grid-row:2;color:#999;font-size:12px;line-height:1.5;align-self:end}
+.savedWorldActions{grid-column:2;grid-row:1 / span 2;display:flex;align-items:center;gap:8px;min-width:220px}
+.savedWorldActions .savedWorldButton{min-width:104px}
 .savedWorldPlay{background:linear-gradient(#6d8d4e,#526f3c)}
 .savedWorldDetails{background:linear-gradient(#666,#4d4d4d)}
 #savedWorldsEmpty{width:min(620px,92vw);margin:10vh auto;text-align:center;color:#aaa}
@@ -134,7 +135,7 @@ function addStyles() {
 #worldCreateMessage{min-height:20px;margin-top:9px;color:#d8d8d8;font-size:12px}
 #worldCreateActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
 #worldCreateConfirm{background:linear-gradient(#6d8d4e,#526f3c)}
-@media(max-width:700px){#savedWorldsHeader{height:auto;min-height:76px;flex-wrap:wrap;padding:12px 14px;gap:8px}#savedWorldsTitle{font-size:21px}#savedWorldsCount{order:3;width:100%;margin:0}#savedWorldsBody{padding:16px}#savedWorldsGrid{grid-template-columns:1fr}.savedWorldCard{min-height:150px}#worldDetailsPanel{top:12px;right:12px;width:calc(100% - 24px);max-height:calc(100% - 24px)}#worldCreateCard{padding:20px}}
+@media(max-width:700px){#savedWorldsHeader{height:auto;min-height:76px;flex-wrap:wrap;padding:12px 14px;gap:8px}#savedWorldsTitle{font-size:21px}#savedWorldsCount{order:3;width:100%;margin:0}#savedWorldsBody{padding:16px}#savedWorldsGrid{gap:10px}.savedWorldCard{min-height:0;display:flex;flex-direction:column;gap:12px;padding:15px}.savedWorldCard h3,.savedWorldMeta{display:block}.savedWorldActions{min-width:0;display:grid;grid-template-columns:1fr 1fr;width:100%}.savedWorldActions .savedWorldButton{width:100%}#worldDetailsPanel{top:12px;right:12px;width:calc(100% - 24px);max-height:calc(100% - 24px)}#worldCreateCard{padding:20px}}
 `;
     document.head.appendChild(style);
 }
@@ -160,7 +161,7 @@ function buildUi() {
                     <div id="worldDetailsContent">
                         <p class="worldDetailLabel">World seed</p>
                         <div id="worldDetailsSeed" class="worldDetailSeed">—</div>
-                        <p id="worldDetailsHint">The seed is hidden from the world card. Open this panel whenever you need to copy or view it.</p>
+                        <p id="worldDetailsHint">The seed is shown here so you can copy or view it whenever you need it.</p>
                         <button id="worldDetailsCopy" class="savedWorldButton worldDetailAction" type="button">Copy Seed</button>
                         <button id="worldDetailsPlay" class="savedWorldButton worldDetailAction" type="button">Play World</button>
                         <button id="worldDetailsDelete" class="savedWorldButton worldDetailAction" type="button">Delete World</button>
@@ -252,6 +253,7 @@ function getCachedWorlds(user) {
 }
 
 function showStatus(text, error = false) {
+    if (!worldsList) return;
     worldsList.innerHTML = `<div id="${error ? "savedWorldsError" : "savedWorldsEmpty"}"><h2>${escapeHtml(text)}</h2></div>`;
 }
 
@@ -263,7 +265,7 @@ async function mergeDriveWorlds(user, driveWorlds) {
             (Number.isFinite(Number(world.seed)) && Number(world.seed) === Number(driveWorld.seed))
         );
         if (existing) {
-            existing.name = driveWorld.name || existing.name || "World";
+            existing.name = String(driveWorld.name || existing.name || "World").trim() || "World";
             existing.seed = driveWorld.seed;
             existing.createdAt = driveWorld.createdAt || existing.createdAt;
             existing.updatedAt = driveWorld.updatedAt || existing.updatedAt;
@@ -322,13 +324,25 @@ async function loadWorlds(forceRefresh = false) {
     try {
         const snapshot = await db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).get();
         if (requestId !== loadRequest) return;
-        worldsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(world => Number.isFinite(Number(world.seed))).sort((a, b) => {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(world => Number.isFinite(Number(world.seed)));
+        worldsCache = docs.map((world, index) => ({
+            ...world,
+            name: String(world.name || `World ${index + 1}`).trim() || `World ${index + 1}`
+        }));
+        worldsCache.sort((a, b) => {
             const getMs = value => value?.toMillis ? value.toMillis() : value ? new Date(value).getTime() : 0;
             return getMs(b.updatedAt || b.createdAt) - getMs(a.updatedAt || a.createdAt);
         });
         worldsCacheUid = user.uid;
         cacheWorldsForUser(user, worldsCache);
         renderWorlds(worldsCache);
+
+        const missingNameWrites = worldsCache.map(world => {
+            const original = docs.find(item => item.id === world.id);
+            return original?.name ? null : db.collection("users").doc(user.uid).collection(WORLDS_COLLECTION).doc(world.id)
+                .set({ name: world.name }, { merge: true }).catch(() => {});
+        }).filter(Boolean);
+        await Promise.all(missingNameWrites);
     } catch (error) {
         console.error("Could not load saved worlds:", error);
         if (!worldsCache.length) {
@@ -352,7 +366,8 @@ function renderWorlds(worlds) {
     for (const world of validWorlds) {
         const card = document.createElement("article");
         card.className = "savedWorldCard";
-        card.innerHTML = `<h3>${escapeHtml(world.name || "New World")}</h3><div class="savedWorldMeta">Singleplayer<br>Seed: ${escapeHtml(String(world.seed))}<br>${escapeHtml(formatDate(world.updatedAt || world.createdAt))}</div><div class="savedWorldActions"><button class="savedWorldButton savedWorldPlay" type="button">Play</button><button class="savedWorldButton savedWorldDetails" type="button">Details →</button></div>`;
+        const name = String(world.name || "World").trim() || "World";
+        card.innerHTML = `<h3>${escapeHtml(name)}</h3><div class="savedWorldMeta">Singleplayer<br>Seed: ${escapeHtml(String(world.seed))}<br>${escapeHtml(formatDate(world.updatedAt || world.createdAt))}</div><div class="savedWorldActions"><button class="savedWorldButton savedWorldPlay" type="button">Play</button><button class="savedWorldButton savedWorldDetails" type="button">Details →</button></div>`;
         card.querySelector(".savedWorldPlay").addEventListener("click", () => playWorld(world));
         card.querySelector(".savedWorldDetails").addEventListener("click", () => openDetails(world));
         worldsList.appendChild(card);
@@ -455,7 +470,7 @@ async function createNewWorld() {
     const input = overlay.querySelector("#worldNameInput");
     const message = overlay.querySelector("#worldCreateMessage");
     const button = overlay.querySelector("#worldCreateConfirm");
-    const name = input.value.trim() || "New World";
+    const name = input.value.trim() || `World ${worldsCache.length + 1}`;
     const seed = pendingWorldSeed ?? makeSeed();
     button.disabled = true;
     message.style.color = "#d8d8d8";
@@ -470,19 +485,13 @@ async function createNewWorld() {
         cacheWorldsForUser(user, worldsCache);
         renderWorlds(worldsCache);
 
-        try {
-            message.textContent = "Saving to Google Drive...";
-            const driveWorld = await saveNewWorldToDrive(name, seed);
-            await ref.set({ driveFileId: driveWorld.id, driveFileUrl: driveWorld.webViewLink || null, driveSavedAt: window.firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            created.driveFileId = driveWorld.id;
-            cacheWorldsForUser(user, worldsCache);
-        } catch (driveError) {
-            console.warn("World created but Drive backup failed:", driveError);
-        }
-
         closeCreateWorld();
         closeWorldMenu();
         openWorldCallback?.(seed);
+
+        void saveNewWorldToDrive(name, seed).catch(error => {
+            console.warn("Background Drive backup skipped:", error);
+        });
     } catch (error) {
         console.error("Could not create world:", error);
         message.style.color = "#d8a0a0";
