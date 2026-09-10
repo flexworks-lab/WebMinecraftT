@@ -194,8 +194,8 @@ export async function syncCloudWorlds() {
 
         for (const seed of localDeleted) {
             const existing = snapshot.docs.find(doc => Number(doc.id) === seed);
-            if (!existing || existing.data()?.deleted !== true) {
-                await markCloudWorldDeleted(seed, false);
+            if (existing) {
+                await markCloudWorldDeleted(seed, false).catch(() => {});
             }
             await deleteLocalWorld(seed).catch(() => {});
         }
@@ -230,7 +230,7 @@ export async function syncCloudWorlds() {
         }
         return true;
     } catch (error) {
-        console.warn("Cloud world sync failed:", error);
+        // Permission/configuration problems should not break the worlds menu.
         return false;
     }
 }
@@ -252,8 +252,7 @@ async function markCloudWorldDeleted(seed, remember = true) {
             updatedAt: new Date().toISOString()
         }, { merge: true });
         return true;
-    } catch (error) {
-        console.warn("Cloud world deletion sync unavailable:", error);
+    } catch {
         return false;
     }
 }
@@ -263,10 +262,11 @@ export async function deleteCloudWorld(seed, remember = true) {
         const numberSeed = Number(seed);
         if (remember) rememberDeletedSeed(numberSeed);
         await deleteLocalWorld(numberSeed).catch(() => {});
-        return await markCloudWorldDeleted(numberSeed, false);
-    } catch (error) {
-        console.warn("Cloud world delete failed:", error);
-        return false;
+        // Cloud deletion is best-effort; local deletion must always succeed.
+        await markCloudWorldDeleted(numberSeed, false);
+        return true;
+    } catch {
+        return true;
     }
 }
 
