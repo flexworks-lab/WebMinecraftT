@@ -1,11 +1,10 @@
-const DB_NAME = "webminecraft-local-worlds";
-const STORE_NAME = "worlds";
 const KNOWN_SEEDS_KEY = "webminecraft-known-world-seeds";
 const POLL_MS = 4000;
 
 let started = false;
 let lastLocalSeeds = new Set();
 let syncBusy = false;
+let storageWarningShown = false;
 
 function getUser() {
     try { return window.firebase?.auth?.()?.currentUser || null; } catch { return null; }
@@ -33,57 +32,36 @@ function writeKnownSeeds(seeds) {
     try { localStorage.setItem(KNOWN_SEEDS_KEY, JSON.stringify([...seeds])); } catch {}
 }
 
-function getLocalSeeds() {
-    return new Promise((resolve, reject) => {
-        let request;
-        try { request = indexedDB.open(DB_NAME, 1); }
-        catch (error) { reject(error); return; }
-        request.onsuccess = () => {
-            const db = request.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                resolve(new Set());
-                db.close();
-                return;
-            }
-            let tx;
-            try { tx = db.transaction(STORE_NAME, "readonly"); }
-            catch (error) { db.close(); reject(error); return; }
-            const getAll = tx.objectStore(STORE_NAME).getAll();
-            getAll.onsuccess = () => {
-                const seeds = new Set((getAll.result || []).map(world => normalizedSeed(world?.seed)).filter(value => value !== null));
-                db.close();
-                resolve(seeds);
-            };
-            getAll.onerror = () => { const error = getAll.error || new Error("Could not read saved worlds."); db.close(); reject(error); };
-        };
-        request.onerror = () => reject(request.error || new Error("Could not open saved worlds."));
-    });
+async function getLocalSeeds() {
+    const storage = window.webMinecraftWorldStorage;
+    if (!storage) return new Set();
+
+    // Browser world storage is centralized in worlds.js. Never open IndexedDB
+    // directly from the 4-second cloud deletion-sync loop.
+    if (typeof storage.getLocalSeeds === "function") {
+        const seeds = await storage.getLocalSeeds();
+        return new Set([...seeds].map(normalizedSeed).filter(value => value !== null));
+    }
+
+    if (typeof window.webMinecraftBrowserWorldStorage?.getAllWorlds === "function") {
+        const worlds = await window.webMinecraftBrowserWorldStorage.getAllWorlds();
+        return new Set(worlds.map(world => normalizedSeed(world?.seed)).filter(value => value !== null));
+    }
+
+    return new Set();
 }
 
-function deleteLocalSeed(seed) {
-    return new Promise((resolve, reject) => {
-        let request;
-        try { request = indexedDB.open(DB_NAME, 1); }
-        catch (error) { reject(error); return; }
-        request.onsuccess = () => {
-            const db = request.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.close();
-                resolve();
-                return;
-            }
-            const tx = db.transaction(STORE_NAME, "readwrite");
-            tx.objectStore(STORE_NAME).delete(seed);
-            tx.oncomplete = () => { db.close(); resolve(); };
-            tx.onerror = () => { const error = tx.error || new Error("Could not delete synced world."); db.close(); reject(error); };
-            tx.onabort = () => { const error = tx.error || new Error("Could not delete synced world."); db.close(); reject(error); };
-        };
-        request.onerror = () => reject(request.error || new Error("Could not open saved worlds."));
-    });
+async function deleteLocalSeed(seed) {
+    const storage = window.webMinecraftWorldStorage;
+    if (storage?.deleteLocalWorld) {
+        await storage.deleteLocalWorld(seed);
+        return;
+    }
+    if (window.webMinecraftBrowserWorldStorage?.deleteWorld) {
+        await window.webMinecraftBrowserWorldStorage.deleteWorld(seed);
+    }
 }
 
-// Keep deletion-sync storage under the same Firestore path that the rules allow:
-// /users/{uid}/deletedWorlds/{seed}
 function syncCollection(db, uid) {
     return db.collection("users").doc(uid).collection("deletedWorlds");
 }
@@ -155,8 +133,13 @@ async function syncOnce() {
         }
 
         lastLocalSeeds = currentSeeds;
-    } catch (error) {
-        console.warn("World deletion sync unavailable:", error);
+    } catch {
+        // The browser storage layer handles its own fallback. Keep this loop
+        // silent so a broken IndexedDB cannot spam the console every 4 seconds.
+        if (!storageWarningShown) {
+            storageWarningShown = true;
+            console.warn("World sync temporarily unavailable; worlds remain stored locally.");
+        }
     } finally {
         syncBusy = false;
     }
@@ -165,7 +148,11 @@ async function syncOnce() {
 function start() {
     if (started) return;
     started = true;
-    syncOnce();
+
+    const begin = () => syncOnce();
+    if (window.webMinecraftWorldStorage) begin();
+    else window.setTimeout(begin, 250);
+
     window.setInterval(syncOnce, POLL_MS);
     window.addEventListener("webminecraft-worlds-changed", syncOnce);
 }
