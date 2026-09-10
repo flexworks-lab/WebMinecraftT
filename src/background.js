@@ -1,3 +1,5 @@
+import "./welcome.js";
+
 function applyDirtBackgrounds() {
     if (document.getElementById("webMinecraftDirtBackgrounds")) return;
     const style = document.createElement("style");
