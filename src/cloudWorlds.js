@@ -5,6 +5,8 @@ const CHUNK_SIZE = 16;
 const DELETED_KEY = "webminecraft_deleted_worlds";
 const CLOUD_DELETED_COLLECTION = "deletedWorlds";
 const WORLD_OWNER_KEY = "webminecraft_world_owners";
+const LOGOUT_CACHE_KEY = "webminecraft_logged_out_worlds";
+const CACHE_KEY = "webminecraft_saved_worlds";
 
 // Cloud world sync is optional and must never prevent local/browser world saves from working.
 let authPromise = null;
@@ -77,6 +79,16 @@ function deleteLocalWorld(seed) {
     }));
 }
 
+function clearAllLocalWorlds() {
+    return openDatabase().then(db => new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).clear();
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    }));
+}
+
 function getDeletedSeeds() {
     try {
         const values = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]");
@@ -114,28 +126,80 @@ function forgetWorldOwner(seed) {
     try { localStorage.setItem(WORLD_OWNER_KEY, JSON.stringify(owners)); } catch {}
 }
 
-function firestore() { return window.firebase.firestore(); }
-function userRoot(uid) { return firestore().collection("users").doc(uid); }
-function worldRef(uid, seed) { return userRoot(uid).collection("worlds").doc(String(seed)); }
-function cloudDeletedRef(uid, seed) { return userRoot(uid).collection(CLOUD_DELETED_COLLECTION).doc(String(seed)); }
-
-async function isCloudWorldDeleted(uid, seed) {
-    const snap = await cloudDeletedRef(uid, seed).get();
-    return snap.exists;
+function getLogoutWorldCache() {
+    try {
+        const value = JSON.parse(localStorage.getItem(LOGOUT_CACHE_KEY) || "[]");
+        return Array.isArray(value) ? value : [];
+    } catch {
+        return [];
+    }
 }
 
-async function getUser() {
-    const auth = await waitForFirebase();
-    return auth?.currentUser || null;
+function saveLogoutWorldCache(worlds) {
+    try { localStorage.setItem(LOGOUT_CACHE_KEY, JSON.stringify(worlds)); } catch {}
 }
 
-function closeWorldsForLogout() {
+async function archiveWorldsForLogout() {
+    const worlds = await getAllLocalWorlds().catch(() => []);
+    if (!worlds.length) {
+        try { localStorage.removeItem(CACHE_KEY); } catch {}
+        return;
+    }
+
+    const owners = getWorldOwners();
+    const archived = worlds.map(world => ({
+        world,
+        ownerUid: owners[String(Number(world?.seed))] || world?.ownerUid || null
+    }));
+    saveLogoutWorldCache(archived);
+    await clearAllLocalWorlds().catch(() => {});
+    try { localStorage.removeItem(CACHE_KEY); } catch {}
+}
+
+async function restoreWorldsForUser(uid) {
+    if (!uid) return;
+    const archived = getLogoutWorldCache();
+    if (!archived.length) return;
+
+    const remaining = [];
+    for (const entry of archived) {
+        const ownerUid = String(entry?.ownerUid || entry?.world?.ownerUid || "");
+        const world = entry?.world;
+        const seed = Number(world?.seed);
+        if (!world || !Number.isFinite(seed)) continue;
+        if (ownerUid === String(uid)) {
+            if (!getDeletedSeeds().has(seed)) {
+                setWorldOwner(seed, uid);
+                await putLocalWorld({ ...world, seed, ownerUid: uid }).catch(() => {});
+            }
+        } else {
+            remaining.push(entry);
+        }
+    }
+    saveLogoutWorldCache(remaining);
+}
+
+function clearWorldsUiForLogout() {
+    const overlay = document.getElementById("savedWorlds");
+    if (!overlay) return;
+    const grid = overlay.querySelector("#savedWorldsGrid");
+    if (grid) {
+        grid.innerHTML = `<div id="savedWorldsEmpty"><h2>Log in to see your worlds</h2><p>Your worlds are kept safe and will return when you sign back into this account.</p></div>`;
+    }
+    const count = overlay.querySelector("#savedWorldsCount");
+    if (count) count.textContent = "";
+}
+
+async function closeWorldsForLogout() {
+    await archiveWorldsForLogout();
     const overlay = document.getElementById("savedWorlds");
     if (!overlay) return;
     overlay.style.display = "none";
     overlay.setAttribute("aria-hidden", "true");
     overlay.querySelector("#worldDetailsPanel")?.classList.remove("open");
-    overlay.querySelector("#worldCreateModal")?.style && (overlay.querySelector("#worldCreateModal").style.display = "none");
+    const createPanel = overlay.querySelector("#worldCreateModal");
+    if (createPanel) createPanel.style.display = "none";
+    clearWorldsUiForLogout();
     const mainMenu = document.getElementById("mainMenu");
     if (mainMenu) mainMenu.style.display = "flex";
 }
@@ -236,6 +300,7 @@ export async function loadCloudWorld(seed, localWorld = null) {
             name: String(meta.name || localWorld?.name || `World ${seed}`),
             createdAt: meta.createdAt || localWorld?.createdAt || new Date().toISOString(),
             updatedAt: meta.updatedAt || localWorld?.updatedAt || new Date().toISOString(),
+            ownerUid: user.uid,
             blocks
         };
         setWorldOwner(numberSeed, user.uid);
@@ -251,9 +316,12 @@ export async function syncCloudWorlds() {
     try {
         const user = await getUser();
         if (!user) {
-            closeWorldsForLogout();
+            await closeWorldsForLogout();
             return false;
         }
+
+        await restoreWorldsForUser(user.uid);
+
         const root = userRoot(user.uid);
         const worldsRef = root.collection("worlds");
         const snapshot = await worldsRef.get();
@@ -266,33 +334,26 @@ export async function syncCloudWorlds() {
 
         const localDeleted = getDeletedSeeds();
         const owners = getWorldOwners();
-        const currentCloudSeeds = new Set();
 
         for (const doc of snapshot.docs) {
             const meta = doc.data() || {};
             const seed = Number(meta.seed ?? doc.id);
             if (!Number.isFinite(seed)) continue;
             if (meta.deleted === true || cloudDeleted.has(seed)) continue;
-            currentCloudSeeds.add(seed);
             setWorldOwner(seed, user.uid);
         }
 
-        // Worlds saved by another account stay safely in that account's cloud storage,
-        // but their local/browser copies are removed while this account is signed in.
+        // Worlds owned by another account are removed from the active browser cache.
         const localWorlds = await getAllLocalWorlds().catch(() => []);
         for (const local of localWorlds) {
             const seed = Number(local?.seed);
             if (!Number.isFinite(seed) || localDeleted.has(seed)) continue;
-            const owner = owners[String(seed)];
+            const owner = owners[String(seed)] || local?.ownerUid || null;
             if (owner && owner !== user.uid) {
                 await deleteLocalWorld(seed).catch(() => {});
                 continue;
             }
-            if (!owner) {
-                // Existing browser worlds from before account ownership was added are
-                // claimed by the first signed-in account that sees them.
-                setWorldOwner(seed, user.uid);
-            }
+            if (!owner) setWorldOwner(seed, user.uid);
         }
 
         for (const seed of localDeleted) {
@@ -314,7 +375,6 @@ export async function syncCloudWorlds() {
                 continue;
             }
 
-            currentCloudSeeds.add(seed);
             setWorldOwner(seed, user.uid);
             const local = await getLocalWorld(seed).catch(() => null);
             const cloudTime = new Date(meta.updatedAt || 0).getTime();
@@ -331,6 +391,7 @@ export async function syncCloudWorlds() {
                     name: String(meta.name || `World ${seed}`),
                     createdAt: meta.createdAt || new Date().toISOString(),
                     updatedAt: meta.updatedAt || new Date().toISOString(),
+                    ownerUid: user.uid,
                     blocks
                 });
             } else if (localTime > cloudTime && !cloudDeleted.has(seed)) {
@@ -415,7 +476,7 @@ function watchAuth() {
         auth.onAuthStateChanged(user => {
             if (syncTimer) clearTimeout(syncTimer);
             if (!user) {
-                closeWorldsForLogout();
+                void closeWorldsForLogout();
                 return;
             }
             syncTimer = setTimeout(() => syncCloudWorlds(), 50);
