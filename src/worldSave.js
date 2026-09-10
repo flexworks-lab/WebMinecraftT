@@ -35,16 +35,13 @@ async function waitForStorage(timeout = 10000) {
 async function resolveActiveWorld(seed, switchId) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return null;
-
-    if (activeWorld && activeWorld.seed === normalizedSeed && activeWorldSeed === normalizedSeed) {
-        return activeWorld;
-    }
+    if (activeWorld && activeWorld.seed === normalizedSeed && activeWorldSeed === normalizedSeed) return activeWorld;
 
     const storage = await waitForStorage();
     if (!storage) return null;
-
     const world = await storage.getLocalWorld(normalizedSeed).catch(() => null);
     if (!world) return null;
+
     if (switchId === worldSwitchId) {
         activeWorld = { ...world, seed: normalizedSeed };
         activeWorldSeed = normalizedSeed;
@@ -72,9 +69,7 @@ async function loadSavedBlocks(seed, switchId) {
         activeBlocks = { ...activeWorld.blocks };
 
         const storage = await waitForStorage();
-        if (storage && typeof storage.saveLocalWorld === "function") {
-            await storage.saveLocalWorld(activeWorld).catch(() => {});
-        }
+        if (storage?.saveLocalWorld) await storage.saveLocalWorld(activeWorld).catch(() => {});
 
         for (const [key, value] of Object.entries(activeBlocks)) {
             if (switchId !== worldSwitchId || activeWorldSeed !== normalizedSeed) return null;
@@ -96,7 +91,7 @@ async function queueBlockSave(change) {
     const seed = getSeedFromUrl();
     if (seed === null || activeWorldSeed !== seed) return;
 
-    const world = activeWorld && activeWorld.seed === seed
+    const world = activeWorld?.seed === seed
         ? activeWorld
         : await resolveActiveWorld(seed, worldSwitchId);
     if (!world || world.seed !== seed || activeWorldSeed !== seed) return;
@@ -104,7 +99,6 @@ async function queueBlockSave(change) {
     const key = `${change.x},${change.y},${change.z}`;
     activeBlocks[key] = change.type;
     pendingChanges.set(key, change);
-
     clearTimeout(saveTimer);
     saveTimer = setTimeout(flushBlockSaves, 350);
 }
@@ -128,10 +122,8 @@ async function flushBlockSaves() {
     pendingChanges.clear();
 
     const storage = await waitForStorage();
-    if (!storage || typeof storage.saveLocalWorld !== "function") {
-        if (activeWorld === worldToSave && activeWorldSeed === seedToSave) {
-            saveTimer = setTimeout(flushBlockSaves, 1000);
-        }
+    if (!storage?.saveLocalWorld) {
+        if (activeWorld === worldToSave && activeWorldSeed === seedToSave) saveTimer = setTimeout(flushBlockSaves, 1000);
         return;
     }
 
@@ -145,9 +137,7 @@ async function flushBlockSaves() {
         }
     } catch (error) {
         console.warn(`Could not save world blocks for seed ${seedToSave}:`, error);
-        if (activeWorld === worldToSave && activeWorldSeed === seedToSave) {
-            saveTimer = setTimeout(flushBlockSaves, 1000);
-        }
+        if (activeWorld === worldToSave && activeWorldSeed === seedToSave) saveTimer = setTimeout(flushBlockSaves, 1000);
     }
 }
 
@@ -190,6 +180,7 @@ export async function saveCurrentWorld() {
     clearTimeout(saveTimer);
     saveTimer = null;
     if (pendingChanges.size > 0) await flushBlockSaves();
+    if (activeWorld) scheduleCloudSave(activeWorld);
     return activeWorld;
 }
 
@@ -198,7 +189,7 @@ export async function deleteCurrentWorld(seed) {
     if (normalizedSeed === null) return false;
 
     const storage = await waitForStorage();
-    if (!storage || typeof storage.deleteLocalWorld !== "function") return false;
+    if (!storage?.deleteLocalWorld) return false;
 
     clearTimeout(saveTimer);
     clearTimeout(cloudSaveTimer);
@@ -221,6 +212,11 @@ async function initialize() {
     await sleep(WAIT_MS);
     await setWorldSeedForPersistence(seed);
 }
+
+window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") void saveCurrentWorld();
+});
+window.addEventListener("pagehide", () => { void saveCurrentWorld(); });
 
 window.webMinecraftWorldSave = {
     setWorldSeedForPersistence,
