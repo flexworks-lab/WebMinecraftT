@@ -10,11 +10,12 @@ const roomPlayers = new Map();
 let localPlayerName = localStorage.getItem("webminecraft-player-name") || "Player";
 
 function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>\"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[char]));
+    return String(value ?? "").replace(/[&<>\"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",\"":"&quot;",\"'\":\"&#039;\"}[char]));
 }
 
-function isActive() {
-    return Boolean(window.__webminecraftMultiplayerActive);
+function isMainMenuVisible() {
+    const menu = document.getElementById("mainMenu");
+    return Boolean(menu && getComputedStyle(menu).display !== "none");
 }
 
 function ensureUi() {
@@ -22,64 +23,76 @@ function ensureUi() {
     const style = document.createElement("style");
     style.id = "globalPlayerListStyles";
     style.textContent = `
-#globalPlayerCount{position:fixed;top:78px;right:20px;z-index:89;display:none;min-width:48px;padding:8px 11px;background:rgba(0,0,0,.68);border:1px solid rgba(255,255,255,.25);color:#fff;font:12px Arial,sans-serif;text-align:center;cursor:pointer;text-shadow:1px 1px 2px #000;box-shadow:0 2px 0 rgba(0,0,0,.5)}
-#globalPlayerCount strong{display:block;font-size:15px;font-family:"MinecraftFont",monospace}
-#globalPlayerCount span{display:block;color:#bbb;margin-top:2px}
-#globalPlayerPanel{position:fixed;top:20px;right:78px;width:min(300px,calc(100vw - 96px));max-height:min(430px,calc(100vh - 40px));z-index:91;display:none;overflow:hidden;background:#202020;color:#fff;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:5px 5px 0 rgba(0,0,0,.55);font-family:Arial,sans-serif}
-#globalPlayerHeader{padding:14px 16px;background:#2b2b2b;border-bottom:2px solid #111;display:flex;align-items:center;justify-content:space-between;gap:8px}
-#globalPlayerTitle{font:16px "MinecraftFont",monospace;text-shadow:2px 2px 0 #000}
+#globalPlayerCount{position:fixed;left:18px;bottom:42px;z-index:96;display:none;width:184px;min-height:54px;padding:7px 13px;text-align:left;background:linear-gradient(180deg,#3b3b3b,#292929);border:2px solid #111;border-top-color:#8c8c8c;border-left-color:#8c8c8c;color:#fff;font-family:"MinecraftFont",monospace;cursor:pointer;text-shadow:2px 2px 0 #111;box-shadow:4px 4px 0 rgba(0,0,0,.5),inset 1px 1px 0 rgba(255,255,255,.09)}
+#globalPlayerCount:hover{filter:brightness(1.12);transform:translateY(-1px)}
+#globalPlayerCount:active{transform:translateY(1px);filter:brightness(.95)}
+#globalPlayerCount strong{font-size:16px;line-height:1}
+#globalPlayerCount span{display:block;margin-top:5px;color:#b7b7b7;font:10px Arial,sans-serif}
+#globalPlayerPanel{position:fixed;left:18px;bottom:104px;z-index:97;width:min(330px,calc(100vw - 36px));max-height:min(440px,calc(100vh - 130px));display:none;overflow:hidden;background:#202020;color:#fff;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:6px 6px 0 rgba(0,0,0,.55);font-family:Arial,sans-serif}
+#globalPlayerHeader{padding:14px 16px;background:#2b2b2b;border-bottom:2px solid #111;display:flex;align-items:center;justify-content:space-between;gap:10px}
+#globalPlayerTitle{font:17px "MinecraftFont",monospace;text-shadow:2px 2px 0 #000}
 #globalPlayerTotal{color:#9fce72;font-size:11px}
 #globalPlayerList{overflow:auto;padding:10px;max-height:350px}
-.globalPlayerRow{display:flex;align-items:center;gap:9px;padding:9px 10px;margin:4px 0;background:#333;border:1px solid #555;font-size:12px}
+.globalPlayerRow{display:flex;align-items:center;gap:9px;padding:9px 10px;margin:4px 0;background:#343434;border:1px solid #555;font-size:12px}
 .globalPlayerDot{width:8px;height:8px;flex:0 0 8px;background:#83b95f;box-shadow:0 0 4px rgba(131,185,95,.5)}
 .globalPlayerName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .globalPlayerMe{color:#9fce72}
 .globalPlayerRoom{margin-left:auto;color:#888;font-size:10px;white-space:nowrap}
-.globalPlayerEmpty{padding:12px;color:#999;text-align:center;font-size:11px}
-@media(max-width:600px){#globalPlayerCount{top:76px;right:12px}#globalPlayerPanel{top:12px;right:12px;width:min(300px,calc(100vw - 24px))}}
+.globalPlayerEmpty{padding:14px;color:#999;text-align:center;font-size:11px;line-height:1.45}
+@media(max-width:600px){#globalPlayerCount{left:12px;bottom:40px;width:170px}#globalPlayerPanel{left:12px;bottom:102px;width:calc(100vw - 24px)}}
 `;
     document.head.appendChild(style);
 
     countEl = document.createElement("button");
     countEl.type = "button";
     countEl.id = "globalPlayerCount";
-    countEl.innerHTML = `<strong>0</strong><span>Players</span>`;
+    countEl.innerHTML = `<strong>0 Players</strong><span>View players online</span>`;
     document.body.appendChild(countEl);
 
     panel = document.createElement("div");
     panel.id = "globalPlayerPanel";
-    panel.innerHTML = `<div id="globalPlayerHeader"><div id="globalPlayerTitle">Players Online</div><div id="globalPlayerTotal">0 online</div></div><div id="globalPlayerList"><div class="globalPlayerEmpty">No players online.</div></div>`;
+    panel.innerHTML = `<div id="globalPlayerHeader"><div id="globalPlayerTitle">Players Online</div><div id="globalPlayerTotal">0 online</div></div><div id="globalPlayerList"><div class="globalPlayerEmpty">No player names available yet.</div></div>`;
     document.body.appendChild(panel);
     listEl = panel.querySelector("#globalPlayerList");
 
-    countEl.addEventListener("click", () => {
+    countEl.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
         open = !open;
         panel.style.display = open ? "block" : "none";
     });
 
+    document.addEventListener("click", event => {
+        if (!open || event.target === countEl || panel.contains(event.target)) return;
+        open = false;
+        panel.style.display = "none";
+    });
+
     document.addEventListener("keydown", event => {
-        if (event.key !== "Tab" || !isActive()) return;
-        if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
-        event.preventDefault();
-        open = !open;
-        panel.style.display = open ? "block" : "none";
+        if (event.key === "Escape" && open) {
+            open = false;
+            panel.style.display = "none";
+        }
     });
 }
 
 function syncPlayerListFromSocket(message) {
     if (!message || typeof message !== "object") return;
     if (message.type === "joined") {
+        localPlayerName = localStorage.getItem("webminecraft-player-name") || "Player";
         roomPlayers.clear();
         for (const player of message.players || []) {
-            if (player?.id && player?.name) roomPlayers.set(String(player.id), { name: String(player.name), room: String(message.room || "this world") });
+            if (player?.id && player?.name) {
+                roomPlayers.set(String(player.id), { name: String(player.name), room: String(message.room || "World") });
+            }
         }
     } else if (message.type === "player_joined" && message.player?.id) {
-        roomPlayers.set(String(message.player.id), { name: String(message.player.name || "Player"), room: "this world" });
+        roomPlayers.set(String(message.player.id), { name: String(message.player.name || "Player"), room: "World" });
     } else if (message.type === "player_left" && message.playerId) {
         roomPlayers.delete(String(message.playerId));
     } else if (message.type === "player_states") {
         for (const player of message.players || []) {
-            if (player?.id && player?.name) roomPlayers.set(String(player.id), { name: String(player.name), room: "this world" });
+            if (player?.id && player?.name) roomPlayers.set(String(player.id), { name: String(player.name), room: "World" });
         }
     }
 }
@@ -105,7 +118,6 @@ function installSocketObserver() {
         ws.addEventListener("message", event => {
             try { syncPlayerListFromSocket(JSON.parse(event.data)); } catch {}
         });
-        ws.addEventListener("close", () => roomPlayers.clear());
         return ws;
     }
 
@@ -124,28 +136,30 @@ function getNames() {
         const key = clean.toLowerCase();
         if (seen.has(key)) return;
         seen.add(key);
-        names.push({ name: clean, room: room || "this world", me });
+        names.push({ name: clean, room: room || "World", me });
     };
-    add(localPlayerName, "this world", true);
+    if (localPlayerName) add(localPlayerName, "World", true);
     for (const player of roomPlayers.values()) add(player?.name, player?.room, false);
     return names;
 }
 
 function renderPlayers(total) {
     ensureUi();
-    countEl.querySelector("strong").textContent = String(total);
-    countEl.querySelector("span").textContent = total === 1 ? "Player" : "Players";
+    countEl.querySelector("strong").textContent = `${total} ${total === 1 ? "Player" : "Players"}`;
+    countEl.querySelector("span").textContent = isMainMenuVisible() ? "View players online" : "View player list";
     panel.querySelector("#globalPlayerTotal").textContent = `${total} online`;
 
     const names = getNames();
     listEl.innerHTML = names.length
         ? names.map(player => `<div class="globalPlayerRow"><span class="globalPlayerDot"></span><span class="globalPlayerName${player.me ? " globalPlayerMe" : ""}">${escapeHtml(player.name)}${player.me ? " (You)" : ""}</span><span class="globalPlayerRoom">${escapeHtml(player.room)}</span></div>`).join("")
-        : `<div class="globalPlayerEmpty">No players online.</div>`;
+        : `<div class="globalPlayerEmpty">${total ? "Player names will appear after they connect to a world." : "No players are online."}</div>`;
 }
 
 async function refresh() {
     ensureUi();
-    if (!isActive()) {
+    const mainMenuVisible = isMainMenuVisible();
+    const active = Boolean(window.__webminecraftMultiplayerActive);
+    if (!mainMenuVisible && !active) {
         countEl.style.display = "none";
         panel.style.display = "none";
         open = false;
