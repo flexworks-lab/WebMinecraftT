@@ -1,4 +1,4 @@
-import { setBlockAt } from "./world.js";
+import { setBlockAt, setWorldSeed } from "./world.js";
 
 let overlay = null;
 let socket = null;
@@ -10,13 +10,19 @@ const PRODUCTION_SERVER_URL = "wss://webminecraft-server.onrender.com/multiplaye
 const PRODUCTION_API_URL = "https://webminecraft-server.onrender.com";
 
 function queueWorldChange(change) {
-    const x=Math.floor(Number(change?.x)), y=Math.floor(Number(change?.y)), z=Math.floor(Number(change?.z)), type=Math.floor(Number(change?.type));
-    if (![x,y,z,type].every(Number.isFinite)) return;
-    pendingWorldChanges.set(`${x},${y},${z}`, {x,y,z,type});
+    const x = Math.floor(Number(change?.x));
+    const y = Math.floor(Number(change?.y));
+    const z = Math.floor(Number(change?.z));
+    const rawType = change?.blockType ?? change?.type;
+    const type = Math.floor(Number(rawType));
+    if (![x, y, z, type].every(Number.isFinite)) return;
+    pendingWorldChanges.set(`${x},${y},${z}`, { x, y, z, type });
 }
 
 function applyPendingWorldChanges() {
-    for (const [key,c] of pendingWorldChanges) if (setBlockAt(c.x,c.y,c.z,c.type)) pendingWorldChanges.delete(key);
+    for (const [key, change] of pendingWorldChanges) {
+        if (setBlockAt(change.x, change.y, change.z, change.type)) pendingWorldChanges.delete(key);
+    }
 }
 
 function ensureChatUI() {
@@ -154,8 +160,11 @@ function serverApiUrl(address) {
 function startSharedWorld(worldSeed) {
     const seedInput = document.getElementById("seedInput");
     const openWorldButton = document.getElementById("openWorldButton");
-    if (!seedInput || !openWorldButton) return;
-    seedInput.value = String(worldSeed >>> 0);
+    const numericSeed = Number(worldSeed);
+    if (!seedInput || !openWorldButton || !Number.isFinite(numericSeed)) return;
+    const sharedSeed = Math.floor(Math.abs(numericSeed)) >>> 0;
+    setWorldSeed(sharedSeed);
+    seedInput.value = String(sharedSeed);
     window.__webminecraftMultiplayerActive = true;
     window.__webminecraftMultiplayerPlayerId = localPlayerId;
     ensureChatUI();
@@ -272,23 +281,21 @@ function ensureMenu() {
             const full = Number(room.players) >= Number(room.maxPlayers || server.maxPlayers || 10);
             const card = document.createElement("button");
             card.type = "button";
-            card.className = "multiplayerCard";
-            card.disabled = full;
+            card.className = "multiplayerCard" + (room.id === roomInput.value ? " selected" : "");
             card.innerHTML = `
                 <div class="multiplayerCardTop">
-                    <div class="multiplayerCardName">${escapeHtml(room.id)}</div>
-                    <div class="${room.isPrivate ? "multiplayerOffline" : (full ? "multiplayerOffline" : "multiplayerOnline")}">${room.isPrivate ? "PRIVATE" : (full ? "FULL" : "OPEN")}</div>
+                    <div class="multiplayerCardName">${escapeHtml(room.name || room.id)}</div>
+                    <div class="multiplayer${full ? "Offline" : "Online"}">${full ? "FULL" : `${Number(room.players) || 0}/${Number(room.maxPlayers) || 10}`}</div>
                 </div>
-                <div class="multiplayerMeta">${Number(room.players) || 0} / ${Number(room.maxPlayers || server.maxPlayers || 10)} players</div>
+                <div class="multiplayerMeta">Owner: ${escapeHtml(room.owner || "Player")} · Seed: ${escapeHtml(room.worldSeed ?? "?")}</div>
             `;
+            card.disabled = full;
             card.addEventListener("click", () => {
                 roomInput.value = room.id;
-                localStorage.setItem("webminecraft-room", room.id);
-                setServerType(Boolean(room.isPrivate));
-                [...roomList.querySelectorAll(".multiplayerCard")].forEach(item => item.classList.remove("selected"));
+                document.querySelectorAll(".multiplayerCard").forEach(other => other.classList.remove("selected"));
                 card.classList.add("selected");
                 joinButton.disabled = false;
-                setStatus(room.isPrivate ? `Private room "${room.id}" selected. Enter the private code to join.` : `Ready to join room "${room.id}".`);
+                setStatus(`Room selected: ${room.id}`);
             });
             roomList.appendChild(card);
         }
@@ -296,36 +303,27 @@ function ensureMenu() {
 
     const selectServer = server => {
         selectedServer = server;
+        selectedInfo.innerHTML = `<strong>${escapeHtml(server.name || "Server")}</strong><br>${Number(server.players) || 0}/${Number(server.maxPlayers) || 10} players`;
         serverView.style.display = "none";
         roomView.style.display = "block";
-        serverInput.value = server.websocket || defaultServerUrl();
-        privateCodeInput.value = "";
-        selectedInfo.innerHTML = `<strong>${escapeHtml(server.name || "Server")}</strong><br><span class="multiplayerMeta">${server.online === false ? "Offline" : `${Number(server.players) || 0} / ${Number(server.maxPlayers) || 10} players online`} · ${(server.rooms || []).length || 1} room${(server.rooms || []).length === 1 ? "" : "s"}</span>`;
+        joinButton.disabled = false;
         renderRoomList(server);
-        const defaultRoom = (server.rooms || []).find(room => room.id === (roomInput.value || "default")) || (server.rooms || [])[0];
-        if (defaultRoom) {
-            roomInput.value = defaultRoom.id;
-            setServerType(Boolean(defaultRoom.isPrivate));
-            joinButton.disabled = Number(defaultRoom.players) >= Number(defaultRoom.maxPlayers || server.maxPlayers || 10);
-        } else {
-            roomInput.value = localStorage.getItem("webminecraft-room") || "default";
-            joinButton.disabled = false;
-        }
-        setStatus(joinButton.disabled ? "That room is full." : "Select a room or enter a new room name.");
+        setStatus("Select a room or type a room name.");
+        backButton.textContent = "Back to Servers";
     };
 
     const renderServers = servers => {
         serverData = servers;
         serverList.innerHTML = "";
         if (!servers.length) {
-            serverList.innerHTML = '<div class="multiplayerEmpty">No multiplayer servers are available.</div>';
+            serverList.innerHTML = '<div class="multiplayerEmpty">No servers are available.</div>';
             return;
         }
         for (const server of servers) {
+            const online = server.online !== false;
             const card = document.createElement("button");
             card.type = "button";
             card.className = "multiplayerCard";
-            const online = server.online !== false;
             card.innerHTML = `
                 <div class="multiplayerCardTop">
                     <div class="multiplayerCardName">${escapeHtml(server.name || "WebMinecraft Server")}</div>
@@ -461,6 +459,7 @@ function ensureMenu() {
                 if (Number.isFinite(Number(message.worldSeed))) {
                     const currentSeed = Number(message.worldSeed) >>> 0;
                     if (currentSeed !== 0) {
+                        setWorldSeed(currentSeed);
                         const seedInput = document.getElementById("seedInput");
                         if (seedInput && Number(seedInput.value) !== currentSeed) seedInput.value = String(currentSeed);
                     }
@@ -551,12 +550,12 @@ export function sendPlayerState(position, rotation) {
     }));
 }
 
-export function sendBlockChange(x,y,z,blockType) {
+export function sendBlockChange(x, y, z, blockType) {
     if (!isMultiplayerActive()) return;
     socket.send(JSON.stringify({
-        type:"block_change",
-        x:Math.floor(x), y:Math.floor(y), z:Math.floor(z),
-        blockType:Math.floor(blockType),
+        type: "block_change",
+        x: Math.floor(x), y: Math.floor(y), z: Math.floor(z),
+        blockType: Math.floor(blockType),
     }));
 }
 
