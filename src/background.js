@@ -48,6 +48,9 @@ body:not(.webminecraft-in-world) #touchHint{display:none !important}
 body.webminecraft-in-world #accountButton{display:none !important}
 #settingsVersion{display:none !important}
 
+/* Remove the legacy bottom-right version picker. */
+#gameVersionButton,#gameVersionPicker{display:none !important}
+
 /* Hybrid D-pad + joystick: the four D-pad keys stay usable while the center becomes draggable. */
 #touchMovePad{overflow:visible}
 #touchHybridJoystick{
@@ -115,11 +118,19 @@ body.webminecraft-in-world #accountButton{display:none !important}
     syncState();
     syncMobileButton();
 
+    const removeVersionPicker = () => {
+        document.getElementById("gameVersionButton")?.remove();
+        document.getElementById("gameVersionPicker")?.remove();
+    };
+    removeVersionPicker();
+
     const observer = new MutationObserver(() => {
         syncState();
         syncMobileButton();
+        removeVersionPicker();
     });
     observer.observe(mainMenu, { attributes:true, attributeFilter:["style","class"] });
+    observer.observe(document.body, { childList:true, subtree:true });
     if (settingsButton) observer.observe(settingsButton, { attributes:true, attributeFilter:["style","class"] });
 
     const attachHybridJoystick = () => {
