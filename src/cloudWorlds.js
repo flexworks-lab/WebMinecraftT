@@ -126,6 +126,22 @@ function forgetWorldOwner(seed) {
     try { localStorage.setItem(WORLD_OWNER_KEY, JSON.stringify(owners)); } catch {}
 }
 
+// Firebase helpers used by cloud save/load/sync.
+function firestore() { return window.firebase.firestore(); }
+function userRoot(uid) { return firestore().collection("users").doc(uid); }
+function worldRef(uid, seed) { return userRoot(uid).collection("worlds").doc(String(seed)); }
+function cloudDeletedRef(uid, seed) { return userRoot(uid).collection(CLOUD_DELETED_COLLECTION).doc(String(seed)); }
+
+async function isCloudWorldDeleted(uid, seed) {
+    const snap = await cloudDeletedRef(uid, seed).get();
+    return snap.exists;
+}
+
+async function getUser() {
+    const auth = await waitForFirebase();
+    return auth?.currentUser || null;
+}
+
 function getLogoutWorldCache() {
     try {
         const value = JSON.parse(localStorage.getItem(LOGOUT_CACHE_KEY) || "[]");
@@ -343,7 +359,6 @@ export async function syncCloudWorlds() {
             setWorldOwner(seed, user.uid);
         }
 
-        // Worlds owned by another account are removed from the active browser cache.
         const localWorlds = await getAllLocalWorlds().catch(() => []);
         for (const local of localWorlds) {
             const seed = Number(local?.seed);
