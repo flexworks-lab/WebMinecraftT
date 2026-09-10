@@ -18,14 +18,15 @@ let unsubscribe = null;
 let cleanupTimer = null;
 let initialized = false;
 
-function waitForAuth(timeout = 10000) {
+function waitForFirebase(timeout = 15000) {
     if (authReady) return authReady;
     authReady = new Promise(resolve => {
         const started = Date.now();
         const check = () => {
             try {
-                if (window.firebase?.auth && window.firebase?.firestore) {
-                    resolve(window.firebase.auth());
+                const firebase = window.firebase;
+                if (firebase && typeof firebase.auth === "function" && typeof firebase.firestore === "function") {
+                    resolve(firebase);
                     return;
                 }
             } catch {}
@@ -37,12 +38,16 @@ function waitForAuth(timeout = 10000) {
     return authReady;
 }
 
-function firestore() {
-    return window.firebase.firestore();
+async function getFirebase() {
+    return await waitForFirebase();
 }
 
-function channelRef(channel) {
-    return firestore().collection(COLLECTION).doc(channel).collection("messages");
+function firestore(firebase) {
+    return firebase?.firestore?.();
+}
+
+function channelRef(firebase, channel) {
+    return firestore(firebase).collection(COLLECTION).doc(channel).collection("messages");
 }
 
 function escapeHtml(value) {
@@ -135,8 +140,8 @@ function createUi() {
 }
 
 async function getUser() {
-    const auth = await waitForAuth();
-    return auth?.currentUser || null;
+    const firebase = await getFirebase();
+    return firebase?.auth?.()?.currentUser || null;
 }
 
 function currentDisplayName(user) {
@@ -172,32 +177,42 @@ function renderSnapshot(snapshot) {
     list.scrollTop = list.scrollHeight;
 }
 
-function subscribe() {
+async function subscribe() {
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     if (!list) return;
     list.innerHTML = `<div id="discussionEmpty">Loading…</div>`;
+    const firebase = await getFirebase();
+    if (!firebase) {
+        list.innerHTML = `<div id="discussionEmpty">Could not connect to discussions.</div>`;
+        setStatus("Firebase is not ready.", true);
+        return;
+    }
     try {
-        unsubscribe = channelRef(activeChannel)
-            .where("expiresAt", ">", new Date())
+        unsubscribe = channelRef(firebase, activeChannel)
+            .where("expiresAt", ">", firebase.firestore.Timestamp.fromMillis(Date.now()))
             .orderBy("expiresAt", "asc")
             .onSnapshot(renderSnapshot, error => {
                 console.error("Discussion load failed:", error);
                 list.innerHTML = `<div id="discussionEmpty">Could not load discussions.</div>`;
-                setStatus("Check your account/Firebase setup.", true);
+                setStatus("Could not load discussions. Check your Firebase rules.", true);
             });
     } catch (error) {
         console.error("Could not subscribe to discussions:", error);
         list.innerHTML = `<div id="discussionEmpty">Could not load discussions.</div>`;
+        setStatus("Could not load discussions.", true);
     }
 }
 
 async function cleanupExpired() {
+    const firebase = await getFirebase();
+    if (!firebase) return;
     try {
-        const now = new Date();
+        const db = firebase.firestore();
+        const now = firebase.firestore.Timestamp.fromMillis(Date.now());
         for (const channel of Object.keys(CHANNELS)) {
-            const snapshot = await channelRef(channel).where("expiresAt", "<=", now).limit(50).get();
+            const snapshot = await channelRef(firebase, channel).where("expiresAt", "<=", now).limit(50).get();
             if (snapshot.empty) continue;
-            const batch = firestore().batch();
+            const batch = db.batch();
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
             await batch.commit();
         }
@@ -211,8 +226,9 @@ async function sendMessage() {
     if (!text) return setStatus("Write a message first.", true);
     if (text.length > MAX_TEXT) return setStatus(`Messages are limited to ${MAX_TEXT} characters.`, true);
 
-    const user = await getUser();
-    if (!user) {
+    const firebase = await getFirebase();
+    const user = firebase?.auth?.()?.currentUser || null;
+    if (!firebase || !user) {
         setStatus("Log in to post a message.", true);
         return;
     }
@@ -220,9 +236,10 @@ async function sendMessage() {
     try {
         sendButton.disabled = true;
         setStatus("Sending...");
-        const now = window.firebase.firestore.Timestamp.now();
-        const expires = window.firebase.firestore.Timestamp.fromMillis(Date.now() + TWO_DAYS_MS);
-        await channelRef(activeChannel).add({
+        const db = firebase.firestore();
+        const now = db.Timestamp.now();
+        const expires = db.Timestamp.fromMillis(Date.now() + TWO_DAYS_MS);
+        await channelRef(firebase, activeChannel).add({
             uid: user.uid,
             name: currentDisplayName(user),
             text,
@@ -254,9 +271,10 @@ async function openDiscussions() {
     modal.style.display = "flex";
     document.exitPointerLock?.();
     modal.querySelector("#discussionSubtitle").textContent = CHANNELS[activeChannel].subtitle;
-    const user = await getUser();
-    if (!user) setStatus("Log in to send messages. You can still view the discussions.", true);
-    subscribe();
+    const firebase = await getFirebase();
+    const user = firebase?.auth?.()?.currentUser || null;
+    if (!user) setStatus("Log in to send a message. You can still view the discussions.", true);
+    await subscribe();
     await cleanupExpired();
 }
 
@@ -266,11 +284,11 @@ function closeDiscussions() {
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
 }
 
-function init() {
+async function init() {
     if (initialized) return;
     initialized = true;
     createUi();
-    cleanupExpired();
+    await cleanupExpired();
     clearInterval(cleanupTimer);
     cleanupTimer = setInterval(cleanupExpired, 10 * 60 * 1000);
     window.webMinecraftDiscussion = { open: openDiscussions, close: closeDiscussions };
