@@ -24,8 +24,50 @@ function applyDirtBackgrounds() {
     document.head.appendChild(style);
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", applyDirtBackgrounds, { once:true });
-} else {
+function setupMenuAndMobileUi() {
+    const style = document.createElement("style");
+    style.id = "webMinecraftMenuUiFixes";
+    style.textContent = `
+#newsButton {
+    position:fixed !important;
+    left:28px !important;
+    bottom:28px !important;
+    width:118px !important;
+    margin:0 !important;
+    z-index:97 !important;
+}
+`;
+    document.head.appendChild(style);
+
+    const settingsButton = document.getElementById("settingsButton");
+    const mainMenu = document.getElementById("mainMenu");
+    if (!settingsButton || !mainMenu) return;
+
+    const isMobileMode = () => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("mobile") === "1" || params.get("mode") === "mobile";
+    };
+
+    const syncSettingsVisibility = () => {
+        const menuVisible = getComputedStyle(mainMenu).display !== "none";
+        const gameRunning = !menuVisible;
+        settingsButton.style.display = menuVisible || (gameRunning && isMobileMode()) ? "block" : "none";
+    };
+
+    syncSettingsVisibility();
+
+    const observer = new MutationObserver(syncSettingsVisibility);
+    observer.observe(mainMenu, { attributes:true, attributeFilter:["style", "class"] });
+    observer.observe(settingsButton, { attributes:true, attributeFilter:["style", "class"] });
+};
+
+function init() {
     applyDirtBackgrounds();
+    setupMenuAndMobileUi();
+};
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once:true });
+} else {
+    init();
 }
