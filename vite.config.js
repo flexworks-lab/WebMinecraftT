@@ -62,37 +62,15 @@ const gameplayUiPlugin = {
                 "const scene = new THREE.Scene();\ninitMultiplayerAvatars(scene);"
             );
             code = code.replace(
+                'const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 180);',
+                'const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 180);\nwindow.__webminecraftCamera = camera;'
+            );
+            code = code.replace(
                 'const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };',
                 'const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1, showCoordinates: false };'
             );
             const anchor = 'const hotbar = document.getElementById("hotbar");';
-            const injected = `${anchor}
-
-const coordinatesHud = document.createElement("div");
-coordinatesHud.id = "coordinatesHud";
-coordinatesHud.setAttribute("aria-live", "polite");
-coordinatesHud.textContent = "X: 0  Y: 0  Z: 0";
-document.body.appendChild(coordinatesHud);
-
-function updateCoordinatesHud() {
-    const visible = gameStarted && settings.showCoordinates === true && settingsMenu?.style.display !== "flex";
-    coordinatesHud.style.display = visible ? "block" : "none";
-    if (visible) {
-        coordinatesHud.textContent = \`X: \${Math.floor(camera.position.x)}  Y: \${Math.floor(camera.position.y)}  Z: \${Math.floor(camera.position.z)}\`;
-    }
-}
-
-const showCoordinatesToggle = document.getElementById("showCoordinatesToggle");
-if (showCoordinatesToggle) {
-    showCoordinatesToggle.checked = settings.showCoordinates === true;
-    showCoordinatesToggle.addEventListener("change", () => {
-        settings.showCoordinates = showCoordinatesToggle.checked;
-        saveSettings();
-        updateCoordinatesHud();
-    });
-}
-
-setInterval(updateCoordinatesHud, 100);`;
+            const injected = `${anchor}\n\nconst coordinatesHud = document.createElement("div");\ncoordinatesHud.id = "coordinatesHud";\ncoordinatesHud.setAttribute("aria-live", "polite");\ncoordinatesHud.textContent = "X: 0  Y: 0  Z: 0";\ndocument.body.appendChild(coordinatesHud);\n\nfunction updateCoordinatesHud() {\n    const visible = gameStarted && settings.showCoordinates === true && settingsMenu?.style.display !== "flex";\n    coordinatesHud.style.display = visible ? "block" : "none";\n    if (visible) {\n        coordinatesHud.textContent = \`X: \${Math.floor(camera.position.x)}  Y: \${Math.floor(camera.position.y)}  Z: \${Math.floor(camera.position.z)}\`;\n    }\n}\n\nconst showCoordinatesToggle = document.getElementById("showCoordinatesToggle");\nif (showCoordinatesToggle) {\n    showCoordinatesToggle.checked = settings.showCoordinates === true;\n    showCoordinatesToggle.addEventListener("change", () => {\n        settings.showCoordinates = showCoordinatesToggle.checked;\n        saveSettings();\n        updateCoordinatesHud();\n    });\n}\n\nsetInterval(updateCoordinatesHud, 100);`;
             if (!code.includes('id = "coordinatesHud"')) code = code.replace(anchor, injected);
             code = code.replace(
                 'if (performanceHud) performanceHud.style.display = display;\n}',
@@ -105,6 +83,26 @@ setInterval(updateCoordinatesHud, 100);`;
             code = code.replace(
                 /function updateMultiplayerAvatars\(scene\) \{[\s\S]*?\n\}\n\nfunction syncMultiplayerState/,
                 'function updateMultiplayerAvatars(scene) {}\n\nfunction syncMultiplayerState'
+            );
+            return { code, map: null };
+        }
+
+        if (id.endsWith("/src/multiplayerClient.js")) {
+            code = code.replace(
+                'import { setBlockAt, setWorldSeed } from "./world.js";',
+                'import { setBlockAt, setWorldSeed, getWorldSeed } from "./world.js";\nimport { makeCommandsButton, runLocalCommand } from "./multiplayerCommands.js";'
+            );
+            code = code.replace(
+                'const chat = document.createElement("div");\n    chat.id = "multiplayerChat";\n    chat.innerHTML = `\n        <div id="multiplayerChatFeed" aria-live="polite"></div>\n        <input id="multiplayerChatInput" maxlength="120" autocomplete="off" placeholder="Press Enter to chat...">\n    `;',
+                'const chat = document.createElement("div");\n    chat.id = "multiplayerChat";\n    chat.innerHTML = `\n        <div id="multiplayerChatFeed" aria-live="polite"></div>\n        <input id="multiplayerChatInput" maxlength="120" autocomplete="off" placeholder="Press Enter to chat...">\n    `;\n    chat.appendChild(makeCommandsButton());'
+            );
+            code = code.replace(
+                'const feed = chat.querySelector("#multiplayerChatFeed");\n    const input = chat.querySelector("#multiplayerChatInput");',
+                'const feed = chat.querySelector("#multiplayerChatFeed");\n    const input = chat.querySelector("#multiplayerChatInput");\n    const clearChat = () => { feed.innerHTML = ""; };'
+            );
+            code = code.replace(
+                'if (text && isMultiplayerActive()) {\n                try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}\n            }',
+                'if (text) {\n                const handled = runLocalCommand(text, {\n                    camera: window.__webminecraftCamera,\n                    getWorldSeed,\n                    getPlayerCount: () => remotePlayers.size + 1,\n                    addMessage: (message) => window.__webminecraftChatAdd?.(message, true),\n                    clearChat\n                });\n                if (!handled && isMultiplayerActive()) {\n                    try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}\n                }\n            }'
             );
             return { code, map: null };
         }
