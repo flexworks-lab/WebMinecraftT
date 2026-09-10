@@ -183,8 +183,9 @@ export async function syncCloudWorlds() {
     try {
         const user = await getUser();
         if (!user) return false;
-        const worldsRef = firestore().collection("users").doc(user.uid).collection("worlds");
-        const deletedSnapshot = await firestore().collection("users").doc(user.uid).collection("deletedWorlds").get();
+        const userRef = firestore().collection("users").doc(user.uid);
+        const worldsRef = userRef.collection("worlds");
+        const deletedSnapshot = await userRef.collection("deletedWorlds").get();
         const cloudDeleted = new Set(deletedSnapshot.docs.map(doc => Number(doc.id)).filter(Number.isFinite));
         const localDeleted = getDeletedSeeds();
 
@@ -244,6 +245,9 @@ export async function deleteCloudWorld(seed, remember = true) {
         return false;
     }
 }
+
+window.webMinecraftCloudSync = syncCloudWorlds;
+window.webMinecraftDeleteCloudWorld = deleteCloudWorld;
 
 function watchAuth() {
     waitForFirebase().then(auth => {
