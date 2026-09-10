@@ -1,12 +1,12 @@
 import { setBlockAt } from "./world.js";
 
-const WORLDS_COLLECTION = "worlds";
+const DB_NAME = "webminecraft-local-worlds";
+const DB_VERSION = 1;
+const STORE_NAME = "worlds";
 const WAIT_MS = 50;
 
-let firebaseReadyPromise = null;
-let currentUser = null;
+let dbPromise = null;
 let activeWorld = null;
-let activeWorldPromise = null;
 let activeWorldSeed = null;
 let activeBlocks = {};
 let saveTimer = null;
@@ -17,37 +17,47 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function waitForFirebase() {
-    if (firebaseReadyPromise) return firebaseReadyPromise;
-    firebaseReadyPromise = (async () => {
-        for (let i = 0; i < 240; i++) {
-            if (window.firebase?.auth && window.firebase?.firestore) return true;
-            await sleep(WAIT_MS);
-        }
-        throw new Error("Firebase is not ready.");
-    })().catch(error => {
-        firebaseReadyPromise = null;
+function openDatabase() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                const store = db.createObjectStore(STORE_NAME, { keyPath: "seed" });
+                store.createIndex("updatedAt", "updatedAt", { unique: false });
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Could not open browser world storage."));
+    }).catch(error => {
+        dbPromise = null;
         throw error;
     });
-    return firebaseReadyPromise;
+    return dbPromise;
 }
 
-async function waitForUser() {
-    await waitForFirebase();
-    const auth = window.firebase.auth();
-    if (auth.currentUser) {
-        currentUser = auth.currentUser;
-        return currentUser;
-    }
-    return new Promise(resolve => {
-        let settled = false;
-        const unsubscribe = auth.onAuthStateChanged(user => {
-            if (settled) return;
-            settled = true;
-            unsubscribe();
-            currentUser = user || null;
-            resolve(currentUser);
-        });
+function idbRequest(request) {
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Browser world storage request failed."));
+    });
+}
+
+async function getWorld(seed) {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    return idbRequest(tx.objectStore(STORE_NAME).get(seed));
+}
+
+async function putWorld(world) {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(world);
+    return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve(world);
+        tx.onerror = () => reject(tx.error || new Error("Could not save world in browser storage."));
+        tx.onabort = () => reject(tx.error || new Error("Could not save world in browser storage."));
     });
 }
 
@@ -60,60 +70,49 @@ function getSeedFromUrl() {
     return normalizeSeed(new URLSearchParams(window.location.search).get("seed"));
 }
 
-async function findWorldBySeed(seed) {
-    if (!currentUser || seed === null) return null;
-    const snapshot = await window.firebase.firestore()
-        .collection("users")
-        .doc(currentUser.uid)
-        .collection(WORLDS_COLLECTION)
-        .where("seed", "==", seed)
-        .limit(1)
-        .get();
-    if (snapshot.empty) return null;
-    const doc = snapshot.docs[0];
-    return { id: doc.id, ref: doc.ref, seed, data: doc.data() };
-}
-
-async function resolveActiveWorld(seed, switchId = worldSwitchId) {
-    if (activeWorld && activeWorld.seed === seed && activeWorldSeed === seed) return activeWorld;
-
-    if (activeWorldPromise && activeWorldSeed === seed) return activeWorldPromise;
-
-    const promise = (async () => {
-        const user = await waitForUser();
-        if (!user) return null;
-        const world = await findWorldBySeed(seed);
-        if (switchId === worldSwitchId) {
-            activeWorld = world;
-            activeWorldSeed = seed;
-        }
-        return world;
-    })();
-
-    activeWorldSeed = seed;
-    activeWorldPromise = promise.finally(() => {
-        if (activeWorldPromise === promise || activeWorldSeed === seed) {
-            activeWorldPromise = null;
-        }
-    });
-
-    return promise;
-}
-
-async function loadSavedBlocks(seed, switchId = worldSwitchId) {
-    if (seed === null) return;
+async function ensureWorld(seed) {
+    const normalizedSeed = normalizeSeed(seed);
+    if (normalizedSeed === null) return null;
+    let world = await getWorld(normalizedSeed).catch(() => null);
+    if (world) return world;
+    const now = new Date().toISOString();
+    world = {
+        seed: normalizedSeed,
+        name: `World ${normalizedSeed}`,
+        createdAt: now,
+        updatedAt: now,
+        blocks: {}
+    };
     try {
-        const world = await resolveActiveWorld(seed, switchId);
-        if (!world) return;
-        if (switchId !== worldSwitchId || activeWorld?.seed !== seed) return;
+        await putWorld(world);
+        return world;
+    } catch {
+        return null;
+    }
+}
 
-        const data = world.data || (await world.ref.get()).data() || {};
-        if (switchId !== worldSwitchId || activeWorld?.seed !== seed) return;
+async function resolveActiveWorld(seed, switchId) {
+    const normalizedSeed = normalizeSeed(seed);
+    if (normalizedSeed === null) return null;
+    if (activeWorld && activeWorld.seed === normalizedSeed && activeWorldSeed === normalizedSeed) return activeWorld;
+    const world = await ensureWorld(normalizedSeed);
+    if (switchId === worldSwitchId) {
+        activeWorld = world;
+        activeWorldSeed = normalizedSeed;
+    }
+    return world;
+}
 
-        activeBlocks = data.blocks && typeof data.blocks === "object" ? { ...data.blocks } : {};
+async function loadSavedBlocks(seed, switchId) {
+    const normalizedSeed = normalizeSeed(seed);
+    if (normalizedSeed === null) return;
+    try {
+        const world = await resolveActiveWorld(normalizedSeed, switchId);
+        if (!world || switchId !== worldSwitchId || activeWorld?.seed !== normalizedSeed) return;
 
+        activeBlocks = world.blocks && typeof world.blocks === "object" ? { ...world.blocks } : {};
         for (const [key, value] of Object.entries(activeBlocks)) {
-            if (switchId !== worldSwitchId || activeWorld?.seed !== seed) return;
+            if (switchId !== worldSwitchId || activeWorld?.seed !== normalizedSeed) return;
             const parts = key.split(",").map(Number);
             if (parts.length !== 3 || parts.some(number => !Number.isFinite(number))) continue;
             const type = Number(value);
@@ -121,12 +120,11 @@ async function loadSavedBlocks(seed, switchId = worldSwitchId) {
             setBlockAt(parts[0], parts[1], parts[2], type);
         }
     } catch (error) {
-        console.warn("Could not load saved world blocks:", error);
+        console.warn("Could not load saved world blocks from browser storage:", error);
     }
 }
 
 async function queueBlockSave(change) {
-    if (!currentUser) return;
     const seed = getSeedFromUrl();
     if (seed === null) return;
 
@@ -144,7 +142,7 @@ async function queueBlockSave(change) {
 
 async function flushBlockSaves() {
     saveTimer = null;
-    if (!activeWorld || !currentUser || pendingChanges.size === 0) return;
+    if (!activeWorld || pendingChanges.size === 0) return;
 
     const worldToSave = activeWorld;
     const seedToSave = activeWorld.seed;
@@ -152,10 +150,9 @@ async function flushBlockSaves() {
     pendingChanges.clear();
 
     try {
-        await worldToSave.ref.set({
-            blocks: blocksToSave,
-            updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        worldToSave.blocks = blocksToSave;
+        worldToSave.updatedAt = new Date().toISOString();
+        await putWorld(worldToSave);
     } catch (error) {
         console.warn(`Could not save world blocks for seed ${seedToSave}:`, error);
         if (activeWorld === worldToSave && activeWorld.seed === seedToSave) {
@@ -172,7 +169,7 @@ window.addEventListener("webminecraft:blockchange", event => {
     const z = Math.floor(Number(detail.z));
     const type = Math.floor(Number(detail.type));
     if (![x, y, z, type].every(Number.isFinite)) return;
-    queueBlockSave({ x, y, z, type }).catch(error => console.warn("Could not queue world block save:", error));
+    queueBlockSave({ x, y, z, type }).catch(error => console.warn("Could not queue browser world block save:", error));
 });
 
 export async function setWorldSeedForPersistence(seed) {
@@ -186,16 +183,14 @@ export async function setWorldSeedForPersistence(seed) {
     activeBlocks = {};
     activeWorld = null;
     activeWorldSeed = normalizedSeed;
-    activeWorldPromise = null;
 
     try {
-        await waitForUser();
         const world = await resolveActiveWorld(normalizedSeed, switchId);
         await loadSavedBlocks(normalizedSeed, switchId);
         if (switchId !== worldSwitchId) return null;
         return world;
     } catch (error) {
-        console.warn("Could not switch saved world persistence:", error);
+        console.warn("Could not switch browser saved world persistence:", error);
         return null;
     }
 }
@@ -209,4 +204,4 @@ async function initialize() {
 }
 
 window.webMinecraftWorldSave = { setWorldSeedForPersistence };
-initialize().catch(error => console.warn("Saved world persistence setup failed:", error));
+initialize().catch(error => console.warn("Browser world persistence setup failed:", error));
