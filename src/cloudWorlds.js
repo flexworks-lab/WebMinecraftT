@@ -4,6 +4,7 @@ const STORE_NAME = "worlds";
 const CHUNK_SIZE = 16;
 const DELETED_KEY = "webminecraft_deleted_worlds";
 
+// Cloud world sync is optional and must never prevent local/browser world saves from working.
 let authPromise = null;
 let syncTimer = null;
 
