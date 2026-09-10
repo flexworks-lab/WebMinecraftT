@@ -75,6 +75,7 @@ function addStyles() {
 .discussionTab{height:50px;border:0;border-right:1px solid #111;background:#333;color:#aaa;font-family:MinecraftFont,monospace;font-size:12px;cursor:pointer}
 .discussionTab.active{background:#5c7b43;color:#fff;box-shadow:inset 0 -3px 0 #89aa69}
 #discussionSubtitle{margin:12px 18px 4px;color:#aaa;font-size:12px}
+#discussionWarning{margin:8px 18px 0;padding:9px 11px;background:#4a3920;border:1px solid #80652f;color:#f3dca5;font-size:11px;line-height:1.4}
 #discussionMessages{flex:1;min-height:0;overflow:auto;padding:12px 18px 18px;display:flex;flex-direction:column;gap:9px}
 .discussionMessage{padding:10px 12px;background:#222;border:1px solid #3f3f3f;border-radius:4px}
 .discussionMessageHead{display:flex;align-items:center;gap:9px;margin-bottom:5px}
@@ -115,6 +116,7 @@ function createUi() {
         <button class="discussionTab active" data-channel="chat" type="button">Universal Chat</button>
     </div>
     <div id="discussionSubtitle"></div>
+    <div id="discussionWarning">⚠ Please be respectful. Do not post bad, hateful, threatening, or inappropriate content. Keep the chat friendly for everyone.</div>
     <div id="discussionMessages"><div id="discussionEmpty">Loading…</div></div>
     <div id="discussionComposer">
         <textarea id="discussionInput" maxlength="1000" placeholder="Write a message..."></textarea>
@@ -236,7 +238,7 @@ async function sendMessage() {
     const user = firebase?.auth?.()?.currentUser || null;
     const db = firestore(firebase);
     if (!firebase || !user || !db) {
-        setStatus("Log in to post a message.", true);
+        setStatus("You need to log in to post in Discussions.", true);
         return;
     }
 
@@ -276,12 +278,20 @@ function selectChannel(channel) {
 
 async function openDiscussions() {
     createUi();
+    const firebase = await waitForFirebase();
+    const user = firebase?.auth?.()?.currentUser || null;
+
+    // Discussions are login-only.
+    if (!user) {
+        closeDiscussions();
+        setTimeout(() => alert("You need to log in to use Discussions."), 0);
+        return;
+    }
+
     modal.style.display = "flex";
     document.exitPointerLock?.();
     modal.querySelector("#discussionSubtitle").textContent = CHANNELS[activeChannel].subtitle;
-    const firebase = await waitForFirebase();
-    const user = firebase?.auth?.()?.currentUser || null;
-    if (!user) setStatus("Log in to send a message. You can still view the discussions.", true);
+    setStatus("Please keep the chat respectful.");
     await subscribe();
     await cleanupExpired();
 }
