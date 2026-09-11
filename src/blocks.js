@@ -26,11 +26,23 @@ function createTexture(baseColor, colors, density = 45, seed = 1) {
     return texture;
 }
 
-function loadTexture(path) {
-    const texture = new THREE.TextureLoader().load(path);
+function loadTexture(path, label = path) {
+    const texture = new THREE.TextureLoader().load(
+        path,
+        loaded => {
+            loaded.needsUpdate = true;
+        },
+        undefined,
+        error => {
+            console.error(`[WebMinecraftT] Failed to load texture: ${label}`, error);
+        }
+    );
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
     return texture;
 }
 
@@ -52,13 +64,11 @@ const ironTexture = createTexture("#706d68", ["#a7a39d", "#595650", "#908b84", "
 const oakPlankTexture = createTexture("#80582f", ["#6d4828", "#98663a", "#5e3d23", "#aa7645"], 34, 24);
 const leavesTexture = loadTexture(texturePath("oak-leaves-normal-original-default.png"));
 const snowTexture = createTexture("#cbd6da", ["#c0ccd1", "#e3e9eb", "#adbcc2", "#d6e1e5"], 34, 25);
-const tntBottomTexture = loadTexture(texturePath("tnt_bottom.png"));
-const tntSideTexture = loadTexture(texturePath("tnt_side.png"));
-const tntTopTexture = loadTexture(texturePath("tnt_top.png"));
+const tntBottomTexture = loadTexture(texturePath("tnt_bottom.png"), "TNT bottom");
+const tntSideTexture = loadTexture(texturePath("tnt_side.png"), "TNT side");
+const tntTopTexture = loadTexture(texturePath("tnt_top.png"), "TNT top");
 const waterTexture = createTexture("#2b78aa", ["#1e628f", "#3f91c0", "#6bb9dc", "#245f86"], 30, 26);
 
-// Keep blocks at their normal texture brightness outside of water.
-// Underwater darkening is handled by the water/underwater rendering instead.
 const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true, color: 0xffffff });
 const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true, color: 0xffffff });
 const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture, vertexColors: true, color: 0xffffff });
@@ -90,7 +100,19 @@ const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexCol
 const tntSideMaterial = new THREE.MeshLambertMaterial({ map: tntSideTexture, vertexColors: true, color: 0xffffff });
 const tntTopMaterial = new THREE.MeshLambertMaterial({ map: tntTopTexture, vertexColors: true, color: 0xffffff });
 const tntBottomMaterial = new THREE.MeshLambertMaterial({ map: tntBottomTexture, vertexColors: true, color: 0xffffff });
-const tntMaterial = [tntSideMaterial, tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntSideMaterial, tntSideMaterial];
+
+// BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z.
+// TNT uses the side texture on the four vertical faces, its own top on +Y,
+// and its own bottom on -Y.
+const tntMaterial = [
+    tntSideMaterial,
+    tntSideMaterial,
+    tntTopMaterial,
+    tntBottomMaterial,
+    tntSideMaterial,
+    tntSideMaterial
+];
+
 const waterMaterial = new THREE.MeshLambertMaterial({
     map: waterTexture,
     transparent: true,
