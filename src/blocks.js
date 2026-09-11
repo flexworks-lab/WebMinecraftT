@@ -29,13 +29,9 @@ function createTexture(baseColor, colors, density = 45, seed = 1) {
 function loadTexture(path, label = path) {
     const texture = new THREE.TextureLoader().load(
         path,
-        loaded => {
-            loaded.needsUpdate = true;
-        },
+        loaded => { loaded.needsUpdate = true; },
         undefined,
-        error => {
-            console.error(`[WebMinecraftT] Failed to load texture: ${label}`, error);
-        }
+        error => { console.error(`[WebMinecraftT] Failed to load texture: ${label}`, error); }
     );
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
@@ -85,44 +81,20 @@ const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, verte
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true, color: 0xffffff });
 
 const leavesMaterial = new THREE.MeshLambertMaterial({
-    map: leavesTexture,
-    transparent: false,
-    opacity: 1,
-    alphaTest: 0.1,
-    depthWrite: true,
-    depthTest: true,
-    side: THREE.DoubleSide,
-    vertexColors: true,
-    color: 0xffffff
+    map: leavesTexture, transparent: false, opacity: 1, alphaTest: 0.1,
+    depthWrite: true, depthTest: true, side: THREE.DoubleSide,
+    vertexColors: true, color: 0xffffff
 });
 
 const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true, color: 0xffffff });
 const tntSideMaterial = new THREE.MeshLambertMaterial({ map: tntSideTexture, vertexColors: true, color: 0xffffff });
 const tntTopMaterial = new THREE.MeshLambertMaterial({ map: tntTopTexture, vertexColors: true, color: 0xffffff });
 const tntBottomMaterial = new THREE.MeshLambertMaterial({ map: tntBottomTexture, vertexColors: true, color: 0xffffff });
-
-// BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z.
-// TNT uses the side texture on the four vertical faces, its own top on +Y,
-// and its own bottom on -Y.
-const tntMaterial = [
-    tntSideMaterial,
-    tntSideMaterial,
-    tntTopMaterial,
-    tntBottomMaterial,
-    tntSideMaterial,
-    tntSideMaterial
-];
-
-const waterMaterial = new THREE.MeshLambertMaterial({
-    map: waterTexture,
-    transparent: true,
-    opacity: 0.58,
-    depthWrite: false,
-    side: THREE.DoubleSide
-});
+const waterMaterial = new THREE.MeshLambertMaterial({ map: waterTexture, transparent: true, opacity: 0.58, depthWrite: false, side: THREE.DoubleSide });
 
 const grassMaterial = [grassSideMaterial, grassSideMaterial, grassTopMaterial, dirtMaterial, grassSideMaterial, grassSideMaterial];
 const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTopMaterial, oakSideMaterial, oakSideMaterial];
+const tntMaterial = [tntSideMaterial, tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntSideMaterial, tntSideMaterial];
 
 function createBlock(scene, x, y, z, material) {
     const block = new THREE.Mesh(blockGeometry, material);
@@ -134,5 +106,6 @@ export {
     blockGeometry, grassMaterial, dirtMaterial, stoneMaterial, cobblestoneMaterial,
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial, coalMaterial,
     ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,
-    tntMaterial, waterMaterial, waterTexture, createBlock
+    tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntMaterial,
+    waterMaterial, waterTexture, createBlock
 };
