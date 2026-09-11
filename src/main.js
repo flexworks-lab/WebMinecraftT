@@ -5,6 +5,7 @@ import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
 import { initSavedWorlds } from "./worlds.js";
 import { setWorldSeedForPersistence } from "./worldSave.js";
+import { setupWorldClouds, setWorldCloudSeed } from "./worldClouds.js";
 import "./background.js";
 import "./auth.js";
 
@@ -67,6 +68,8 @@ function makeNewSeed() {
 const urlSeed = normalizeSeed(params.get("seed"));
 if (urlSeed !== null) setWorldSeed(urlSeed);
 createWorld(scene);
+setupWorldClouds(scene, camera);
+setWorldCloudSeed(getWorldSeed());
 const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobile";
 if (mobileMode) document.body.classList.add("mobile-mode");
 
@@ -244,6 +247,7 @@ async function copyText(text) {
 async function startWorldWithSeed(seed) {
     setWorldSeed(seed);
     createWorld(scene);
+    setWorldCloudSeed(seed);
     setWorldUrl(seed);
     spawnPlayer();
     gameStarted = true;
