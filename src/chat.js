@@ -4,17 +4,16 @@ function isMultiplayerActive() {
     return Boolean(window.__webminecraftMultiplayerActive);
 }
 
+function inWorld() {
+    return document.body.classList.contains("webminecraft-in-world");
+}
+
 function chatIsOpen() {
     return document.body.classList.contains(CHAT_CLASS);
 }
 
-function getChatFeed() {
-    return document.getElementById("multiplayerChatFeed");
-}
-
-function addSystem(text) {
-    window.__webminecraftChatAdd?.(String(text), true);
-}
+function getChatFeed() { return document.getElementById("multiplayerChatFeed"); }
+function addSystem(text) { window.__webminecraftChatAdd?.(String(text), true); }
 
 function runCommand(raw) {
     const input = String(raw || "").trim();
@@ -31,15 +30,14 @@ function runCommand(raw) {
 }
 
 function openChat() {
-    if (!isMultiplayerActive()) return;
+    if (!inWorld()) return;
     document.body.classList.add(CHAT_CLASS);
     if (typeof window.__webminecraftOpenChatInput === "function") {
         window.__webminecraftOpenChatInput();
         return;
     }
     window.__webminecraftChatShow?.();
-    const input = document.getElementById("multiplayerChatInput");
-    input?.focus();
+    document.getElementById("multiplayerChatInput")?.focus();
 }
 
 function closeChat() {
@@ -66,8 +64,7 @@ function installChatGuard() {
 
 function watchChatCreation() {
     installChatGuard();
-    const observer = new MutationObserver(() => installChatGuard());
-    observer.observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(() => installChatGuard()).observe(document.body, { childList: true, subtree: true });
 }
 
 function createMobileChatButton() {
@@ -97,8 +94,9 @@ function init() {
     createMobileChatButton();
     watchChatCreation();
     document.addEventListener("keydown", event => {
-        if (!isMultiplayerActive() || ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
+        if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
         if (event.key === "/") {
+            if (!inWorld()) return;
             event.preventDefault();
             event.stopImmediatePropagation();
             openChat();
@@ -110,15 +108,14 @@ function init() {
             closeChat();
             return;
         }
-        if (event.key === "Enter" || event.key.toLowerCase() === "t") {
+        if ((event.key === "Enter" || event.key.toLowerCase() === "t") && isMultiplayerActive()) {
             event.preventDefault();
             event.stopImmediatePropagation();
         }
     }, true);
-    const observer = new MutationObserver(() => {
+    new MutationObserver(() => {
         if (!isMultiplayerActive() && chatIsOpen()) closeChat();
-    });
-    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
