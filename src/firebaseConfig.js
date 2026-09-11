@@ -17,6 +17,11 @@ export function isFirebaseConfigured() {
     return Object.values(firebaseConfig).every(Boolean);
 }
 
+// Load the cloud world module before the fast delete hook so the delete
+// button gets the faster implementation while keeping the existing world
+// sync/save system intact.
+import("./fastCloudDelete.js").catch(error => console.warn("Fast cloud delete failed to load:", error));
+
 // These modules are loaded globally so the player list, Discussions,
 // moderation warnings, and owner-only developer controls are available from
 // the home screen.
