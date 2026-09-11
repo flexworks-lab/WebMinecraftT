@@ -108,17 +108,12 @@ function processBlockChangeForPhysics(scene, detail) {
     const { x, y, z, type } = detail;
     const BLOCK = getBlockTypes();
 
-    if (type === BLOCK.TNT) {
-        tryTrackTNTAt(scene, x, y, z);
-        return;
-    }
     if (type === BLOCK.SAND) {
         tryTrackSandAt(scene, x, y, z);
         return;
     }
     if (type === BLOCK.AIR) {
         for (let offset = 1; offset <= 4; offset++) {
-            tryTrackTNTAt(scene, x, y + offset, z);
             tryTrackSandAt(scene, x, y + offset, z);
         }
     }
@@ -282,19 +277,15 @@ function startFuse(scene, x, y, z) {
         const flashInterval = THREE.MathUtils.lerp(150, 55, progress);
         const flashState = Math.floor(age / flashInterval) % 2 === 0;
 
-        // Ignited TNT only gets gravity while it is flashing white.
-        if (flashState) {
-            velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);
-            const nextY = currentY - velocityY * frameDelta;
-            const landingY = getLandingY(x, currentY, nextY, z, BLOCK);
-            if (landingY !== null && landingY <= currentY) {
-                currentY = landingY;
-                velocityY = 0;
-            } else {
-                currentY = nextY;
-            }
-        } else {
+        // Once TNT is ignited, gravity stays active for the entire fuse.
+        velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);
+        const nextY = currentY - velocityY * frameDelta;
+        const landingY = getLandingY(x, currentY, nextY, z, BLOCK);
+        if (landingY !== null && landingY <= currentY) {
+            currentY = landingY;
             velocityY = 0;
+        } else {
+            currentY = nextY;
         }
 
         mesh.position.y = currentY;

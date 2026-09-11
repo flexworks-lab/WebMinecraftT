@@ -168,7 +168,7 @@ function init() {
     renderer.domElement.id = "heldBlock3DCanvas";
     Object.assign(renderer.domElement.style, {
         position: "fixed", left: "0", top: "0", width: "100vw", height: "100vh",
-        pointerEvents: "none", zIndex: "79", display: "none"
+        pointerEvents: "none", zIndex: "35", display: "none"
     });
     document.body.appendChild(renderer.domElement);
 
