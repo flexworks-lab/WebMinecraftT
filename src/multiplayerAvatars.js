@@ -67,13 +67,16 @@ function makeFaceTexture(seed, skinHex, hairHex) {
         ctx.fillStyle = skinLight; ctx.fillRect(3, 5, 10, 7);
         ctx.fillStyle = hairMain; ctx.fillRect(0, 0, 16, 4); ctx.fillRect(1, 3, 14, 2);
         for (let x = 1; x < 15; x++) if (rng() > 0.38) ctx.fillRect(x, 4 + Math.floor(rng() * 2), 1, 1);
-        if (rng() > 0.55) ctx.fillRect(0, 2, 2, 4); if (rng() > 0.55) ctx.fillRect(14, 2, 2, 4);
+        if (rng() > 0.55) ctx.fillRect(0, 2, 2, 4);
+        if (rng() > 0.55) ctx.fillRect(14, 2, 2, 4);
         ctx.fillStyle = eye; ctx.fillRect(4, 7, 2, 2); ctx.fillRect(10, 7, 2, 2);
         if (rng() > 0.68) { ctx.fillStyle = "#6d8794"; ctx.fillRect(5, 7, 1, 1); ctx.fillRect(10, 7, 1, 1); }
         ctx.fillStyle = skinDark; ctx.fillRect(7, 9, 2, 1); ctx.fillRect(8, 10, 1, 1);
         ctx.fillStyle = rng() > 0.5 ? "#7c3f3d" : "#6b3431"; ctx.fillRect(6, 12, 4, 1);
         if (rng() > 0.55) { ctx.fillStyle = shade(skinHex, -0.025); ctx.fillRect(3, 10, 2, 1); ctx.fillRect(11, 10, 2, 1); }
-        ctx.fillStyle = hairLight; if (rng() > 0.6) ctx.fillRect(4, 1, 2, 1); if (rng() > 0.6) ctx.fillRect(10, 2, 2, 1);
+        ctx.fillStyle = hairLight;
+        if (rng() > 0.6) ctx.fillRect(4, 1, 2, 1);
+        if (rng() > 0.6) ctx.fillRect(10, 2, 2, 1);
     });
 }
 
@@ -85,6 +88,19 @@ function makeHeadTexture(seed, skinHex, hairHex, variant) {
     const hair = `#${new THREE.Color(hairHex).getHexString()}`;
     const hairLight = shade(hairHex, 0.06);
     return makeCanvasTexture(ctx => {
+        if (variant === 2) {
+            // Top of the head: solid hair coverage so the cube never has a bald spot.
+            ctx.fillStyle = hair;
+            ctx.fillRect(0, 0, 16, 16);
+            ctx.fillStyle = hairLight;
+            for (let y = 1; y < 15; y += 3) {
+                for (let x = (y % 2) + 1; x < 16; x += 4) ctx.fillRect(x, y, 2, 1);
+            }
+            ctx.fillStyle = shade(hairHex, -0.055);
+            for (let x = 1; x < 16; x += 4) ctx.fillRect(x, 12, 2, 1);
+            return;
+        }
+
         ctx.fillStyle = base;
         ctx.fillRect(0, 0, 16, 16);
         ctx.fillStyle = light;
@@ -92,15 +108,17 @@ function makeHeadTexture(seed, skinHex, hairHex, variant) {
         ctx.fillStyle = dark;
         for (let i = 0; i < 8; i++) ctx.fillRect(Math.floor(rng() * 14) + 1, Math.floor(rng() * 13) + 2, 1, 1);
         ctx.fillStyle = hair;
+
         if (variant === 0) {
-            ctx.fillRect(0, 0, 16, 4); ctx.fillRect(1, 3, 14, 3);
+            ctx.fillRect(0, 0, 16, 4);
+            ctx.fillRect(1, 3, 14, 3);
             for (let x = 0; x < 16; x += 3) ctx.fillRect(x, 4, 1, 2);
-        } else if (variant === 1) {
-            ctx.fillRect(0, 0, 16, 3); ctx.fillRect(0, 2, 5, 6); ctx.fillRect(11, 2, 5, 6);
         } else {
-            ctx.fillRect(0, 0, 16, 5);
-            ctx.fillRect(0, 0, 3, 16); ctx.fillRect(13, 0, 3, 16);
+            ctx.fillRect(0, 0, 16, 3);
+            ctx.fillRect(0, 2, 5, 6);
+            ctx.fillRect(11, 2, 5, 6);
         }
+
         ctx.fillStyle = hairLight;
         for (let i = 0; i < 5; i++) ctx.fillRect(Math.floor(rng() * 13) + 1, Math.floor(rng() * 5), 1, 1);
     });
@@ -123,8 +141,11 @@ function makeClothTexture(seed, baseHex, variant) {
         else if (pattern === 2) for (let i = -16; i < 32; i += 4) ctx.fillRect(i, 0, 1, 16);
         else { ctx.fillRect(0, 6, 16, 2); ctx.fillRect(6, 0, 2, 16); }
         ctx.fillStyle = accent;
-        if (pattern === 3) { ctx.fillRect(2, 2, 2, 2); ctx.fillRect(12, 3, 2, 2); ctx.fillRect(4, 12, 2, 2); ctx.fillRect(11, 11, 2, 2); }
-        else for (let i = 0; i < 5; i++) ctx.fillRect(Math.floor(rng() * 14) + 1, Math.floor(rng() * 14) + 1, 1, 1);
+        if (pattern === 3) {
+            ctx.fillRect(2, 2, 2, 2); ctx.fillRect(12, 3, 2, 2); ctx.fillRect(4, 12, 2, 2); ctx.fillRect(11, 11, 2, 2);
+        } else {
+            for (let i = 0; i < 5; i++) ctx.fillRect(Math.floor(rng() * 14) + 1, Math.floor(rng() * 14) + 1, 1, 1);
+        }
     });
 }
 
@@ -146,12 +167,26 @@ function createAvatar(id, name) {
     const headTop = makeHeadTexture(hashString(id), skinColor, hairColor, 2);
     const shirtTexture = makeClothTexture(hashString(id), `#${new THREE.Color(shirtColor).getHexString()}`, 1);
     const pantsTexture = makeClothTexture(hashString(id), `#${new THREE.Color(pantsColor).getHexString()}`, 2);
-    const skin = makeMaterial(skinColor), face = makeMaterial(faceTexture), back = makeMaterial(headBack), side = makeMaterial(headSide), top = makeMaterial(headTop), shirt = makeMaterial(shirtTexture), pants = makeMaterial(pantsTexture), shoes = makeMaterial(shoeColor);
+    const skin = makeMaterial(skinColor);
+    const face = makeMaterial(faceTexture);
+    const back = makeMaterial(headBack);
+    const side = makeMaterial(headSide);
+    const top = makeMaterial(headTop);
+    const shirt = makeMaterial(shirtTexture);
+    const pants = makeMaterial(pantsTexture);
+    const shoes = makeMaterial(shoeColor);
 
     const group = new THREE.Group();
     group.userData.multiplayerAvatar = true;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [side, side, top, skin, face, back]);
+
+    // BoxGeometry material order is +X, -X, +Y, -Y, +Z, -Z.
+    // The player's visible/front-facing side is the -Z side in this avatar setup.
+    const head = new THREE.Mesh(
+        new THREE.BoxGeometry(0.62, 0.62, 0.62),
+        [side, side, top, skin, back, face]
+    );
     head.position.y = 1.8;
+
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt); torso.position.y = 1.1;
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt); leftArm.position.set(-0.53, 1.23, 0);
     const rightArm = leftArm.clone(); rightArm.position.x = 0.53;
