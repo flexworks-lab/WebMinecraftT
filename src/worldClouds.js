@@ -4,8 +4,8 @@ import * as THREE from "three";
 const CLOUD_BLOCK_SIZE = 2;
 const CLOUD_HEIGHT = 1;
 const CLOUD_ALTITUDE = 96;
-const CLOUD_CELL_SIZE = 96;
-const CLOUD_GRID_RADIUS = 7;
+const CLOUD_CELL_SIZE = 80;
+const CLOUD_GRID_RADIUS = 9;
 const CLOUD_WRAP = 2048;
 const CLOUD_WIND_SPEED = 0.45;
 
@@ -69,32 +69,86 @@ function addRect(blocks, startX, endX, startZ, endZ) {
     }
 }
 
+function addRandomPatch(blocks, cellX, cellZ, patchIndex, width, depth) {
+    const h = (n) => seedHash(cellX, cellZ, n + patchIndex * 97);
+
+    // Pick a rectangular flat patch inside/around the cloud.
+    const patchWidth = 1 + Math.floor(h(11) * Math.max(2, Math.floor(width * 0.65)));
+    const patchDepth = 1 + Math.floor(h(13) * Math.max(2, Math.floor(depth * 0.8)));
+    const startX = -Math.floor(width / 2) + Math.floor(h(17) * Math.max(1, width - patchWidth + 1));
+    const startZ = -Math.floor(depth / 2) + Math.floor(h(19) * Math.max(1, depth - patchDepth + 1));
+
+    addRect(
+        blocks,
+        startX,
+        startX + patchWidth - 1,
+        startZ,
+        startZ + patchDepth - 1
+    );
+}
+
 function buildCloudShape(cellX, cellZ) {
     const blocks = [];
 
-    // Wide flat base. The shape is irregular, but never gets taller.
-    const width = 6 + Math.floor(seedHash(cellX, cellZ, 17) * 7); // 13-27 blocks wide
-    const depth = 2 + Math.floor(seedHash(cellX, cellZ, 23) * 4); // 5-9 blocks deep
+    // Much wider flat clouds with random proportions.
+    const width = 8 + Math.floor(seedHash(cellX, cellZ, 17) * 9); // 17-33 blocks wide
+    const depth = 3 + Math.floor(seedHash(cellX, cellZ, 23) * 6); // 7-17 blocks deep
 
-    addRect(blocks, -width, width, -depth, depth);
+    // Start with a broad irregular base made entirely on one Y layer.
+    addRect(
+        blocks,
+        -width,
+        width,
+        -depth,
+        depth
+    );
 
-    // Flat side/front/back extensions create the blocky Minecraft silhouette.
-    const leftExtra = 2 + Math.floor(seedHash(cellX, cellZ, 31) * 5);
-    const rightExtra = 2 + Math.floor(seedHash(cellX, cellZ, 37) * 5);
-    const frontExtra = Math.floor(seedHash(cellX, cellZ, 41) * 3);
-    const backExtra = Math.floor(seedHash(cellX, cellZ, 43) * 3);
+    // Cut the silhouette with deterministic missing edge sections.
+    const cuts = 5 + Math.floor(seedHash(cellX, cellZ, 29) * 6);
+    for (let i = 0; i < cuts; i++) {
+        const edge = Math.floor(seedHash(cellX, cellZ, 40 + i) * 4);
+        const cutSize = 1 + Math.floor(seedHash(cellX, cellZ, 60 + i) * 4);
 
-    addRect(blocks, -width - leftExtra, -width, -Math.max(1, depth - 1), depth - 1);
-    addRect(blocks, width, width + rightExtra, -Math.max(1, depth - 1), depth - 1);
-
-    if (frontExtra > 0) {
-        addRect(blocks, -Math.max(2, width - 2), Math.max(2, width - 2), -depth - frontExtra, -depth);
+        if (edge === 0) {
+            for (let z = -cutSize; z <= cutSize; z++) {
+                blocks.splice(blocks.length, 0);
+            }
+            // No-op here; shape irregularity is added below with visible patches.
+        }
     }
-    if (backExtra > 0) {
-        addRect(blocks, -Math.max(2, width - 2), Math.max(2, width - 2), depth, depth + backExtra);
+
+    // Layered-in flat patches make each cloud a different chunky shape without increasing height.
+    const patchCount = 8 + Math.floor(seedHash(cellX, cellZ, 83) * 8);
+    for (let i = 0; i < patchCount; i++) {
+        addRandomPatch(blocks, cellX, cellZ, i, width * 2 + 1, depth * 2 + 1);
     }
 
-    return blocks;
+    // Add a few flat protrusions around random edges for the classic blocky silhouette.
+    const protrusions = 3 + Math.floor(seedHash(cellX, cellZ, 101) * 5);
+    for (let i = 0; i < protrusions; i++) {
+        const side = Math.floor(seedHash(cellX, cellZ, 120 + i) * 4);
+        const amount = 1 + Math.floor(seedHash(cellX, cellZ, 140 + i) * 4);
+        const span = 1 + Math.floor(seedHash(cellX, cellZ, 160 + i) * 3);
+
+        if (side === 0) {
+            addRect(blocks, -width - amount, -width, -span, span);
+        } else if (side === 1) {
+            addRect(blocks, width, width + amount, -span, span);
+        } else if (side === 2) {
+            addRect(blocks, -span, span, -depth - amount, -depth);
+        } else {
+            addRect(blocks, -span, span, depth, depth + amount);
+        }
+    }
+
+    // Remove duplicate blocks so the random patches/protrusions stay visually clean.
+    const seen = new Set();
+    return blocks.filter((block) => {
+        const key = `${block.x}|${block.z}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }
 
 function makeCloud(cellX, cellZ) {
@@ -113,9 +167,9 @@ function makeCloud(cellX, cellZ) {
     mesh.receiveShadow = false;
 
     // Fixed world coordinates. Clouds no longer recenter around the player/camera.
-    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 71) - 0.5) * 40;
-    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 79) - 0.5) * 40;
-    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 83) - 0.5) * 2;
+    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 201) - 0.5) * 24;
+    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 211) - 0.5) * 24;
+    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 221) - 0.5) * 2;
 
     cloudRoot.add(mesh);
     cloudEntries.push({ mesh, baseX, baseZ, baseY });
@@ -131,10 +185,10 @@ function rebuildCloudField(seed) {
     cloudSeed = (Math.floor(Math.abs(Number(seed))) >>> 0) || 0;
     clearClouds();
 
-    // Dense field so there are many clouds across the sky.
+    // Larger area + higher spawn rate = many more clouds across the sky.
     for (let cellX = -CLOUD_GRID_RADIUS; cellX <= CLOUD_GRID_RADIUS; cellX++) {
         for (let cellZ = -CLOUD_GRID_RADIUS; cellZ <= CLOUD_GRID_RADIUS; cellZ++) {
-            if (seedHash(cellX, cellZ, 97) < 0.42) continue;
+            if (seedHash(cellX, cellZ, 97) < 0.50) continue;
             makeCloud(cellX, cellZ);
         }
     }
