@@ -50,13 +50,41 @@ function runCommand(text) {
     }
 }
 
+function installFullscreenChatStyles() {
+    if (document.getElementById("webMinecraftFullscreenChatStyles")) return;
+    const style = document.createElement("style");
+    style.id = "webMinecraftFullscreenChatStyles";
+    style.textContent = `
+#multiplayerChat{position:fixed!important;inset:0!important;top:0!important;left:0!important;width:100vw!important;height:100dvh!important;box-sizing:border-box!important;z-index:50000!important;display:none!important;pointer-events:auto!important;font-family:Arial,sans-serif;text-shadow:2px 2px 0 #000;background:rgba(0,0,0,.72)!important;padding:clamp(18px,4vw,52px)!important}
+body.webminecraft-chat-open #multiplayerChat{display:flex!important;flex-direction:column!important}
+#multiplayerChat::before{content:"CHAT";display:block;flex:0 0 auto;color:#fff;font-family:"MinecraftFont",monospace;font-size:clamp(24px,4vw,38px);font-weight:700;letter-spacing:1px;text-shadow:3px 3px 0 #000;margin:0 0 14px 0}
+#multiplayerChatFeed{box-sizing:border-box!important;width:100%!important;max-width:1100px!important;flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;padding:16px 18px!important;background:rgba(0,0,0,.34)!important;border:2px solid rgba(255,255,255,.18)!important;scrollbar-width:thin!important;margin:0 auto!important}
+.multiplayerChatLine{font-size:clamp(15px,2vw,19px)!important;line-height:1.55!important;color:#fff!important;overflow-wrap:anywhere!important;margin:4px 0!important;text-shadow:2px 2px 0 #000!important}
+.multiplayerChatSystem{color:#cfcfcf!important;font-style:italic!important}
+.multiplayerChatName{font-weight:700!important;color:#fff!important}
+#multiplayerChatInput{box-sizing:border-box!important;width:100%!important;max-width:1100px!important;height:52px!important;flex:0 0 52px!important;margin:14px auto 0!important;padding:9px 13px!important;background:rgba(0,0,0,.82)!important;color:#fff!important;border:2px solid #777!important;border-top-color:#aaa!important;border-left-color:#aaa!important;outline:none!important;pointer-events:auto!important;font:18px Arial,sans-serif!important;text-shadow:1px 1px 0 #000!important}
+#multiplayerChatInput:focus{border-color:#fff!important}
+#multiplayerChatInput::placeholder{color:#aaa!important}
+body.webminecraft-chat-open #touchChatButton{display:none!important}
+@media(max-width:700px){
+ #multiplayerChat{padding:14px!important;background:rgba(0,0,0,.78)!important}
+ #multiplayerChat::before{font-size:25px!important;margin-bottom:10px!important}
+ #multiplayerChatFeed{padding:11px 12px!important}
+ .multiplayerChatLine{font-size:15px!important;line-height:1.5!important;margin:3px 0!important}
+ #multiplayerChatInput{height:50px!important;flex-basis:50px!important;margin-top:10px!important;font-size:16px!important}
+}
+`;
+    document.head.appendChild(style);
+}
+
 function showChat(prefill = "") {
     const chat = chatElement();
     if (!chat) return false;
 
     clearTimeout(chatHideTimer);
+    installFullscreenChatStyles();
     document.body.classList.add(CHAT_CLASS);
-    chat.style.display = "block";
+    chat.style.display = "flex";
 
     const input = chatInput();
     if (input) {
@@ -119,10 +147,10 @@ function wrapIncomingChat() {
 
     const wrapped = function (...args) {
         const result = add.apply(this, args);
-        // Every incoming chat/system message makes the chat visible.
         if (chatElement()) {
+            installFullscreenChatStyles();
             document.body.classList.add(CHAT_CLASS);
-            chatElement().style.display = "block";
+            chatElement().style.display = "flex";
             clearTimeout(chatHideTimer);
             chatHideTimer = setTimeout(() => hideChat(), CHAT_HIDE_DELAY);
         }
@@ -158,7 +186,6 @@ function installChatInput() {
                 return;
             }
 
-            // Let multiplayerClient.js handle normal message sending.
             keepChatOpenAfterSend();
         }
 
@@ -172,18 +199,17 @@ function installChatInput() {
 }
 
 function watchChatCreation() {
+    installFullscreenChatStyles();
     installChatInput();
     wrapIncomingChat();
 
     const observer = new MutationObserver(() => {
         installChatInput();
         wrapIncomingChat();
+        if (chatElement()) installFullscreenChatStyles();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // multiplayerClient.js assigns its chat API while creating the UI.
-    // Keep checking briefly so incoming messages are hooked even when the
-    // chat element already existed before this module ran.
     let checks = 0;
     const timer = setInterval(() => {
         wrapIncomingChat();
@@ -211,8 +237,6 @@ body.mobile-mode.webminecraft-in-world #touchChatButton{display:block}
 body.mobile-mode.webminecraft-in-world.webminecraft-chat-open #touchChatButton{background:linear-gradient(#6d8d4e,#526f3c)}
 body:not(.webminecraft-in-world) #touchChatButton{display:none!important}
 body:not(.mobile-mode) #touchChatButton{display:none!important}
-#multiplayerChat{display:none!important}
-body.webminecraft-chat-open #multiplayerChat{display:block!important}
 `;
     document.head.appendChild(style);
 }
@@ -270,6 +294,7 @@ function exposeChatAPI() {
 }
 
 function init() {
+    installFullscreenChatStyles();
     watchChatCreation();
     createMobileChatButton();
     installKeyboardChat();
