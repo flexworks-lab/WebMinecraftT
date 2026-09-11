@@ -38,10 +38,6 @@ function addServerStyles() {
     document.head.appendChild(style);
 }
 
-function getSection() {
-    return document.getElementById("devServerSection");
-}
-
 function install() {
     if (installed || !isDev()) return;
     const body = document.getElementById("devControlsBody");
@@ -71,20 +67,47 @@ function isServerChatInputActive() {
     return active instanceof HTMLInputElement && active.classList.contains("devServerChatInput");
 }
 
+function updateChatFeeds(servers) {
+    for (const server of servers) {
+        const card = document.querySelector(`.devServerCard[data-server-id="${CSS.escape(String(server.id))}"]`);
+        if (!card) continue;
+        const feed = card.querySelector(".devServerChatFeed");
+        if (!feed) continue;
+        const chat = server.chat || [];
+        const oldKey = feed.dataset.chatKey || "";
+        const newKey = chat.map(message => `${message.time || ""}|${message.name || ""}|${message.text || ""}`).join("\n");
+        if (oldKey === newKey) continue;
+        feed.dataset.chatKey = newKey;
+        feed.replaceChildren();
+        if (!chat.length) {
+            feed.innerHTML = '<div class="devHint">No chat yet.</div>';
+        } else {
+            chat.slice(-100).forEach(message => {
+                const line = document.createElement("div");
+                line.className = "devServerChatLine";
+                const time = message.time ? new Date(message.time).toLocaleTimeString() : "";
+                line.innerHTML = `<strong>${escapeHtml(message.name || "Player")}:</strong> ${escapeHtml(message.text || "")} <span style="color:#666">${escapeHtml(time)}</span>`;
+                feed.appendChild(line);
+            });
+            feed.scrollTop = feed.scrollHeight;
+        }
+    }
+}
+
 async function refreshServers() {
     if (!isDev()) return;
-    // Never rebuild the server cards while the developer is typing.
-    // Rebuilding replaces the input element and used to erase the text mid-message.
-    if (isServerChatInputActive()) return;
     const list = document.getElementById("devServerList");
     if (!list) return;
     try {
         const data = await adminRequest("/admin/servers");
-        // The input may have received focus while the request was in progress.
-        if (isServerChatInputActive()) return;
-        renderServers(data.servers || []);
+        const servers = data.servers || [];
+        if (isServerChatInputActive()) {
+            updateChatFeeds(servers);
+            return;
+        }
+        renderServers(servers);
     } catch (error) {
-        list.innerHTML = `<div class="devServerEmpty">${escapeHtml(error.message)}</div>`;
+        if (!isServerChatInputActive()) list.innerHTML = `<div class="devServerEmpty">${escapeHtml(error.message)}</div>`;
     }
 }
 
@@ -100,6 +123,7 @@ function renderServers(servers) {
     for (const server of servers) {
         const card = document.createElement("div");
         card.className = "devServerCard";
+        card.dataset.serverId = String(server.id);
         const players = server.players || [];
         const chat = server.chat || [];
         card.innerHTML = `
@@ -117,6 +141,8 @@ function renderServers(servers) {
             playersEl.appendChild(row);
         });
         const feed = card.querySelector(".devServerChatFeed");
+        const chatKey = chat.map(message => `${message.time || ""}|${message.name || ""}|${message.text || ""}`).join("\n");
+        feed.dataset.chatKey = chatKey;
         if (!chat.length) feed.innerHTML = '<div class="devHint">No chat yet.</div>';
         else chat.slice(-100).forEach(message => {
             const line = document.createElement("div");
@@ -150,9 +176,7 @@ async function runAction(body) {
     const data = await adminRequest("/admin/action", { method: "POST", body: JSON.stringify(body) });
     const status = document.getElementById("devControlsStatus");
     if (status) { status.textContent = data.message || "Done."; status.style.color = "#9fce72"; }
-    // Do not refresh immediately if the chat input is focused. This prevents the
-    // newly rendered input from stealing focus while the developer is typing.
-    if (!isServerChatInputActive()) await refreshServers();
+    await refreshServers();
 }
 
 async function kickPlayer(serverId, playerId, name) {
