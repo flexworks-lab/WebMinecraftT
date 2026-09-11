@@ -1,4 +1,4 @@
-name: Fix live client sync
+name: Wire TNT gameplay
 on:
   push:
     paths:
@@ -10,23 +10,68 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Patch client
+      - name: Patch TNT support
         shell: python
         run: |
           from pathlib import Path
-          p = Path('src/multiplayerClient.js')
-          s = p.read_text()
-          old = '''            } else if (message.type === "block_change") {\n                queueWorldChange(message);\n            } else if (message.type === "player_joined") {'''
-          new = '''            } else if (message.type === "block_change") {\n                queueWorldChange(message);\n                applyPendingWorldChanges();\n            } else if (message.type === "player_joined") {'''
-          if old not in s:
-              raise SystemExit('block_change handler pattern not found')
-          p.write_text(s.replace(old, new, 1))
-      - name: Commit client fix and remove workflow
+
+          def patch(path, replacements):
+              p = Path(path)
+              s = p.read_text()
+              for old, new in replacements:
+                  if old not in s:
+                      raise SystemExit(f'Pattern not found in {path}: {old[:120]!r}')
+                  s = s.replace(old, new, 1)
+              p.write_text(s)
+
+          patch('src/blocks.js', [
+              ('const snowTexture = createTexture("#cbd6da", ["#c0ccd1", "#e3e9eb", "#adbcc2", "#d6e1e5"], 34, 25);\nconst waterTexture', 'const snowTexture = createTexture("#cbd6da", ["#c0ccd1", "#e3e9eb", "#adbcc2", "#d6e1e5"], 34, 25);\nconst tntBottomTexture = loadTexture(texturePath("tnt_bottom.png"));\nconst tntSideTexture = loadTexture(texturePath("tnt_side.png"));\nconst tntTopTexture = loadTexture(texturePath("tnt_top.png"));\nconst waterTexture'),
+              ('const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true, color: 0xffffff });\nconst waterMaterial', 'const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true, color: 0xffffff });\nconst tntSideMaterial = new THREE.MeshLambertMaterial({ map: tntSideTexture, vertexColors: true, color: 0xffffff });\nconst tntTopMaterial = new THREE.MeshLambertMaterial({ map: tntTopTexture, vertexColors: true, color: 0xffffff });\nconst tntBottomMaterial = new THREE.MeshLambertMaterial({ map: tntBottomTexture, vertexColors: true, color: 0xffffff });\nconst tntMaterial = [tntSideMaterial, tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntSideMaterial, tntSideMaterial];\nconst waterMaterial'),
+              ('ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,\n    waterMaterial', 'ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial, tntMaterial,\n    waterMaterial')
+          ])
+
+          patch('src/world.js', [
+              ('leavesMaterial, snowMaterial\n} from "./blocks.js";', 'leavesMaterial, snowMaterial, tntMaterial\n} from "./blocks.js";'),
+              ('OAK_PLANKS: 13, SNOW: 14\n};', 'OAK_PLANKS: 13, SNOW: 14, TNT: 15\n};'),
+              ('coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial\n];', 'coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial, tntMaterial\n];'),
+              ('case BLOCK.SNOW: return 15;\n        default:', 'case BLOCK.SNOW: return 15;\n        case BLOCK.TNT: return 16;\n        default:')
+          ])
+
+          patch('src/inventory.js', [
+              ('{ id: 6, name: "Leaves", texture: "oak-leaves-normal-original-default.png" },\n    { id: 7, name: "Cobblestone", texture: "stone.png" },', '{ id: 6, name: "Leaves", texture: "oak-leaves-normal-original-default.png" },\n    { id: 15, name: "TNT", texture: "tnt_side.png" },\n    { id: 16, name: "Flint and Steel", texture: "Flint_and_Steel_JE4_BE2.png" },\n    { id: 7, name: "Cobblestone", texture: "stone.png" },'),
+              ('function loadInventory() {\n    try {\n        const saved = JSON.parse(localStorage.getItem("webminecraft_inventory"));\n        if (Array.isArray(saved) && saved.length === INVENTORY_SIZE) inventory = saved;\n        else ensureInitialItems();\n    } catch { ensureInitialItems(); }\n}', '''function loadInventory() {
+    let freshInventory = false;
+    try {
+        const saved = JSON.parse(localStorage.getItem("webminecraft_inventory"));
+        if (Array.isArray(saved) && saved.length === INVENTORY_SIZE) inventory = saved;
+        else { ensureInitialItems(); freshInventory = true; }
+    } catch { ensureInitialItems(); freshInventory = true; }
+
+    const migrationKey = "webminecraft_tnt_items_v1";
+    if (localStorage.getItem(migrationKey) !== "1") {
+        if (!freshInventory) {
+            addItem(15, 64);
+            addItem(16, 64);
+        }
+        try { localStorage.setItem(migrationKey, "1"); } catch {}
+        saveInventory();
+    }
+}''')
+          ])
+
+          patch('src/interaction.js', [
+              ('import { setupInventory, giveBrokenBlock, getSelectedItemId, consumeSelected } from "./inventory.js";\n', 'import { setupInventory, giveBrokenBlock, getSelectedItemId, consumeSelected } from "./inventory.js";\nimport { tryIgniteTNT } from "./tnt.js";\n'),
+              ('"oak_log_top.png", "oak-leaves-normal-original-default.png",\n        "Grass_Block_(top_texture)_JE2.png", "dirt.png", "stone.png"', '"oak_log_top.png", "oak-leaves-normal-original-default.png",\n        "tnt_side.png", "Flint_and_Steel_JE4_BE2.png", "stone.png"'),
+              ('    function placeBlock() {\n        const itemId = getSelectedItemId(selectedSlot);\n        if (!itemId) return;\n        const target = getTargetBlock(scene, camera, BLOCK);', '    function placeBlock() {\n        const itemId = getSelectedItemId(selectedSlot);\n        if (!itemId) return;\n        if (tryIgniteTNT(scene, camera, itemId)) {\n            if (consumeSelected(selectedSlot)) sendPlayerAction("place");\n            return;\n        }\n        const target = getTargetBlock(scene, camera, BLOCK);'),
+              ('    if (blockType === BLOCK.BEDROCK) return 0x3e3e3e;\n    return 0xb0b0b0;', '    if (blockType === BLOCK.BEDROCK) return 0x3e3e3e;\n    if (blockType === BLOCK.TNT) return 0xd33a2c;\n    return 0xb0b0b0;')
+          ])
+
+      - name: Commit TNT integration and remove patch workflow
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f .github/workflows/_live_world_sync.yml .github/workflows/_fix_live_client.yml
-          git add src/multiplayerClient.js .github/workflows
-          git commit -m "FIX: Live multiplayer world sync"
+          rm -f .github/workflows/_fix_live_client.yml
+          git add src/blocks.js src/world.js src/inventory.js src/interaction.js .github/workflows
+          git commit -m "Add TNT block and Flint and Steel gameplay"
           git push
