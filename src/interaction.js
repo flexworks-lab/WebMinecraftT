@@ -3,6 +3,7 @@ import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
 import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, giveBrokenBlock, getSelectedItemId, consumeSelected } from "./inventory.js";
+import { tryIgniteTNT } from "./tnt.js";
 import "./worldSave.js";
 import "./heldBlock3D.js";
 
@@ -29,7 +30,7 @@ function setupTexturedHotbar() {
     const textures = [
         "Grass_Block_(top_texture)_JE2.png", "dirt.png", "stone.png", "sand.png",
         "oak_log_top.png", "oak-leaves-normal-original-default.png",
-        "Grass_Block_(top_texture)_JE2.png", "dirt.png", "stone.png"
+        "tnt_side.png", "Flint_and_Steel_JE4_BE2.png", "stone.png"
     ];
     while (hotbar.querySelectorAll(".slot").length < 9) {
         const slot = document.createElement("div");
@@ -127,6 +128,10 @@ export function setupInteraction(scene, camera) {
     function placeBlock() {
         const itemId = getSelectedItemId(selectedSlot);
         if (!itemId) return;
+        if (tryIgniteTNT(scene, camera, itemId)) {
+            if (consumeSelected(selectedSlot)) sendPlayerAction("place");
+            return;
+        }
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) return;
         const point = target.hit.point.clone().add(target.normal.clone().multiplyScalar(0.51));
@@ -218,6 +223,7 @@ function getParticleColor(blockType, BLOCK) {
     if (blockType === BLOCK.IRON_ORE) return 0x9a8d84;
     if (blockType === BLOCK.SNOW) return 0xe9f1f5;
     if (blockType === BLOCK.BEDROCK) return 0x3e3e3e;
+    if (blockType === BLOCK.TNT) return 0xd33a2c;
     return 0xb0b0b0;
 }
 

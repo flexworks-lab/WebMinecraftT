@@ -3,7 +3,7 @@ import {
     grassMaterial, dirtMaterial, stoneMaterial, cobblestoneMaterial,
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial,
     coalMaterial, ironMaterial, oakLogMaterial, oakPlankMaterial,
-    leavesMaterial, snowMaterial
+    leavesMaterial, snowMaterial, tntMaterial
 } from "./blocks.js";
 
 export const CHUNK_SIZE = 19;
@@ -18,7 +18,7 @@ const BLOCK = {
     AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, SAND: 4,
     OAK: 5, LEAVES: 6, COBBLESTONE: 7, GRAVEL: 8,
     SANDSTONE: 9, BEDROCK: 10, COAL_ORE: 11, IRON_ORE: 12,
-    OAK_PLANKS: 13, SNOW: 14
+    OAK_PLANKS: 13, SNOW: 14, TNT: 15
 };
 
 function makeWorldSeed() {
@@ -60,7 +60,7 @@ const chunkMaterials = [
     grassMaterial[0], grassMaterial[2], dirtMaterial, stoneMaterial,
     sandMaterial, oakLogMaterial[0], oakLogMaterial[2], leavesMaterial,
     cobblestoneMaterial, gravelMaterial, sandstoneMaterial, bedrockMaterial,
-    coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial
+    coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial, tntMaterial
 ];
 
 const waterMaterial = new THREE.MeshPhongMaterial({
@@ -507,6 +507,7 @@ function materialIndexFor(type, faceIndex) {
         case BLOCK.IRON_ORE: return 13;
         case BLOCK.OAK_PLANKS: return 14;
         case BLOCK.SNOW: return 15;
+        case BLOCK.TNT: return 16;
         default: return 0;
     }
 }
