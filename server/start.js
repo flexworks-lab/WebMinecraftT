@@ -28,6 +28,10 @@ try {
         '        blockChanges: new Map(),\n        adminChat: [],\n        createdAt: Date.now(),'
     );
     fixed = fixed.replace(
+        '        broadcast(room, { type: "chat_message", playerId: player.id, name: player.name, text });',
+        '        room.adminChat ||= [];\n        room.adminChat.push({ name: player.name, text, system: false, time: Date.now() });\n        while (room.adminChat.length > 100) room.adminChat.shift();\n        broadcast(room, { type: "chat_message", playerId: player.id, name: player.name, text });'
+    );
+    fixed = fixed.replace(
         'const httpServer = http.createServer((request, response) => {',
         'const httpServer = http.createServer(async (request, response) => {\n    if (request.url?.startsWith("/admin/")) {\n        const handled = await __webMinecraftHandleAdmin(request, response, rooms, cleanRoom);\n        if (handled) return;\n    }'
     );
