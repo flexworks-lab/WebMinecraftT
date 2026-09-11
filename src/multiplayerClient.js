@@ -90,12 +90,15 @@ function ensureChatUI() {
     });
 }
 
-function openChatInput() {
+function openChatInput(initialText = "") {
     if (!isMultiplayerActive()) return;
     ensureChatUI();
     window.__webminecraftChatShow?.();
     const input = document.getElementById("multiplayerChatInput");
-    input?.focus();
+    if (!input) return;
+    input.value = initialText;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
 }
 
 function makeStyle() {
@@ -499,13 +502,22 @@ function ensureMenu() {
     });
 
     window.addEventListener("keydown", event => {
-        if ((event.key === "Enter" || event.key.toLowerCase() === "t") && !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) {
-            if (isMultiplayerActive()) {
-                event.preventDefault();
-                openChatInput();
-            }
+        if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
+        if (!isMultiplayerActive()) return;
+
+        if (event.key === "/") {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            openChatInput("/");
+            return;
         }
-    });
+
+        if (event.key === "Enter" || event.key.toLowerCase() === "t") {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            openChatInput();
+        }
+    }, true);
 
     window.addEventListener("beforeunload", () => {
         if (socket) {
