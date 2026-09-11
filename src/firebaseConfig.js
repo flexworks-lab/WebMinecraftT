@@ -1,6 +1,6 @@
 // Firebase web configuration for WebMinecraftT.
 // This config is safe to include in the browser. Firebase Authentication and
-// your Firebase security rules control access to your project's data.
+a// your Firebase security rules control access to your project's data.
 import "./browserWorldFallback.js";
 
 export const firebaseConfig = {
@@ -17,17 +17,11 @@ export function isFirebaseConfigured() {
     return Object.values(firebaseConfig).every(Boolean);
 }
 
-// Load the cloud world module before the fast delete hook so the delete
-// button gets the faster implementation while keeping the existing world
-// sync/save system intact.
 import("./fastCloudDelete.js").catch(error => console.warn("Fast cloud delete failed to load:", error));
-
-// These modules are loaded globally so the player list, Discussions,
-// moderation warnings, owner-only developer controls, and website
-// announcements are available from the home screen.
 import("./playerList.js").catch(error => console.warn("Player list UI failed to load:", error));
 import("./discussion.js").catch(error => console.warn("Discussion UI failed to load:", error));
 import("./moderation.js").catch(error => console.warn("Moderation system failed to load:", error));
 import("./devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
+import("./accountDevControls.js").catch(error => console.warn("Account developer controls failed to load:", error));
 import("./announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
 import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
