@@ -66,12 +66,22 @@ function escapeHtml(value) {
     return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
+function isServerChatInputActive() {
+    const active = document.activeElement;
+    return active instanceof HTMLInputElement && active.classList.contains("devServerChatInput");
+}
+
 async function refreshServers() {
     if (!isDev()) return;
+    // Never rebuild the server cards while the developer is typing.
+    // Rebuilding replaces the input element and used to erase the text mid-message.
+    if (isServerChatInputActive()) return;
     const list = document.getElementById("devServerList");
     if (!list) return;
     try {
         const data = await adminRequest("/admin/servers");
+        // The input may have received focus while the request was in progress.
+        if (isServerChatInputActive()) return;
         renderServers(data.servers || []);
     } catch (error) {
         list.innerHTML = `<div class="devServerEmpty">${escapeHtml(error.message)}</div>`;
@@ -96,7 +106,7 @@ function renderServers(servers) {
             <div class="devServerHead"><span class="devServerName">${escapeHtml(server.name || server.id)}</span><span class="devServerCount">${players.length} player${players.length === 1 ? "" : "s"}</span></div>
             <div class="devServerPlayers"></div>
             <div class="devServerActions"><button class="devButton danger devShutdown" type="button">Shut Down</button><button class="devButton danger devDelete" type="button">Delete Server</button></div>
-            <div class="devServerChat"><div class="devServerChatFeed"></div><div class="devServerChatInputRow"><input class="devServerChatInput" maxlength="120" placeholder="Talk in this server..." /><button class="devButton devServerChatSend" type="button">Send</button></div></div>`;
+            <div class="devServerChat"><div class="devServerChatFeed"></div><div class="devServerChatInputRow"><input class="devServerChatInput" maxlength="120" placeholder="Talk in this server..." autocomplete="off" /><button class="devButton devServerChatSend" type="button">Send</button></div></div>`;
         const playersEl = card.querySelector(".devServerPlayers");
         if (!players.length) playersEl.innerHTML = '<span class="devHint">No players.</span>';
         else players.forEach(player => {
@@ -119,9 +129,19 @@ function renderServers(servers) {
         card.querySelector(".devShutdown").addEventListener("click", () => shutdownServer(server.id, server.name));
         card.querySelector(".devDelete").addEventListener("click", () => deleteServer(server.id, server.name));
         const input = card.querySelector(".devServerChatInput");
-        const send = () => { const text = input.value.trim(); if (!text) return; input.value = ""; sendServerChat(server.id, text); };
+        const send = () => {
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = "";
+            sendServerChat(server.id, text);
+        };
         card.querySelector(".devServerChatSend").addEventListener("click", send);
-        input.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); send(); } });
+        input.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                send();
+            }
+        });
         list.appendChild(card);
     }
 }
@@ -130,7 +150,9 @@ async function runAction(body) {
     const data = await adminRequest("/admin/action", { method: "POST", body: JSON.stringify(body) });
     const status = document.getElementById("devControlsStatus");
     if (status) { status.textContent = data.message || "Done."; status.style.color = "#9fce72"; }
-    await refreshServers();
+    // Do not refresh immediately if the chat input is focused. This prevents the
+    // newly rendered input from stealing focus while the developer is typing.
+    if (!isServerChatInputActive()) await refreshServers();
 }
 
 async function kickPlayer(serverId, playerId, name) {
