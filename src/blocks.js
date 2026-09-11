@@ -69,13 +69,13 @@ const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, ver
 const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true });
 
-// Leaves keep their texture visible but are translucent so blocks behind them can be seen.
+// Leaves use alpha cutout while remaining fully opaque.
 const leavesMaterial = new THREE.MeshLambertMaterial({
     map: leavesTexture,
-    transparent: true,
-    opacity: 0.78,
-    alphaTest: 0.08,
-    depthWrite: false,
+    transparent: false,
+    opacity: 1,
+    alphaTest: 0.1,
+    depthWrite: true,
     depthTest: true,
     side: THREE.DoubleSide,
     vertexColors: true
