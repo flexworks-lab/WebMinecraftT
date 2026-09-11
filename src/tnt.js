@@ -16,6 +16,8 @@ const primed = new Set();
 const fallingTNT = new Map();
 let suppressPhysicsBlockEvent = false;
 let lastScene = null;
+let physicsLoopStarted = false;
+let lastPhysicsTime = performance.now();
 
 function makeKey(x, y, z) {
     return `${x},${y},${z}`;
@@ -45,22 +47,6 @@ function setBlockFromPhysics(x, y, z, type) {
 
 function cloneTNTMaterials() {
     return tntMaterial.map(material => material.clone());
-}
-
-function setTNTFlash(mesh, white) {
-    if (!Array.isArray(mesh.material)) return;
-    for (const material of mesh.material) {
-        if (!material?.color) continue;
-        material.color.setHex(white ? 0xffffff : 0xffffff);
-        if (material.emissive) {
-            material.emissive.setHex(white ? 0xffffff : 0x000000);
-            material.emissiveIntensity = white ? 1.2 : 0;
-        }
-    }
-    mesh.material.forEach((material, index) => {
-        const original = mesh.userData.originalColors?.[index];
-        if (!white && original !== undefined && material?.color) material.color.copy(original);
-    });
 }
 
 function createDynamicTNT(scene, x, y, z) {
@@ -96,13 +82,7 @@ function activateFallingTNT(scene, x, y, z) {
     if (isSolidBlock(below, BLOCK)) return false;
 
     const mesh = createDynamicTNT(scene, x, y, z);
-    fallingTNT.set(key, {
-        x,
-        z,
-        y,
-        velocity: 0,
-        mesh
-    });
+    fallingTNT.set(key, { x, z, y, velocity: 0, mesh });
 
     if (!setBlockFromPhysics(x, y, z, BLOCK.AIR)) {
         removeFallingTNT(key);
@@ -130,13 +110,6 @@ function processBlockChangeForTNT(scene, detail) {
     if (type === BLOCK.AIR) {
         tryTrackTNTAt(scene, x, y + 1, z);
         tryTrackTNTAt(scene, x, y + 2, z);
-
-        for (const [key, entity] of fallingTNT) {
-            if (entity.x === x && entity.z === z && entity.y <= y + 1) {
-                const current = getBlockAt(entity.x, Math.floor(entity.y + 0.5), entity.z);
-                if (current !== BLOCK.TNT) removeFallingTNT(key);
-            }
-        }
     }
 }
 
@@ -180,7 +153,30 @@ function updateFallingTNT(deltaTime) {
 
         entity.y = nextY;
         entity.mesh.position.y = nextY;
+
+        if (nextY < -60) {
+            fallingTNT.delete(key);
+            entity.mesh.parent.remove(entity.mesh);
+            if (Array.isArray(entity.mesh.material)) {
+                for (const material of entity.mesh.material) material.dispose();
+            }
+        }
     }
+}
+
+function startPhysicsLoop() {
+    if (physicsLoopStarted) return;
+    physicsLoopStarted = true;
+
+    const loop = time => {
+        const deltaTime = Math.min((time - lastPhysicsTime) / 1000, 0.05);
+        lastPhysicsTime = time;
+        updateFallingTNT(deltaTime);
+        requestAnimationFrame(loop);
+    };
+
+    lastPhysicsTime = performance.now();
+    requestAnimationFrame(loop);
 }
 
 function getTarget(scene, camera) {
@@ -395,6 +391,7 @@ window.addEventListener("webminecraft:blockchange", event => {
 
 export function tryIgniteTNT(scene, camera, itemId) {
     lastScene = scene;
+    startPhysicsLoop();
     if (itemId !== FLINT_AND_STEEL_ITEM_ID) return false;
     const BLOCK = getBlockTypes();
     const target = getTarget(scene, camera);
@@ -409,4 +406,5 @@ export function updateTNTPhysics(scene, deltaTime) {
 
 export function registerTNTPhysicsScene(scene) {
     lastScene = scene;
+    startPhysicsLoop();
 }
