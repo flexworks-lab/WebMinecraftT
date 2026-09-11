@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
-// Minecraft-style world clouds: wide, flat, blocky sheets.
+// Minecraft-style clouds + sky + daylight. The daylight shadow frustum follows
+// the player camera so shadows do not end at a fixed square in the world.
 const CLOUD_BLOCK_SIZE = 2;
 const CLOUD_HEIGHT = 1;
 const CLOUD_ALTITUDE = 96;
@@ -8,9 +9,11 @@ const CLOUD_CELL_SIZE = 80;
 const CLOUD_GRID_RADIUS = 9;
 const CLOUD_WRAP = 2048;
 const CLOUD_WIND_SPEED = 0.45;
-// Keep the sun inside the camera's normal far clipping range, while moving it with
-// the camera every frame so it can never actually be reached.
 const SUN_DISTANCE = 500;
+const SUN_DIRECTION = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
+const SHADOW_HALF_SIZE = 180;
+const SHADOW_NEAR = 1;
+const SHADOW_FAR = 520;
 
 let cloudRoot = null;
 let cloudScene = null;
@@ -25,8 +28,8 @@ let sunGlowMeshes = [];
 let cloudCamera = null;
 let skyDome = null;
 let undergroundAmbient = null;
-let legacyDepthLightNeutralized = false;
-let outdoorLights = [];
+let daylightSun = null;
+let skyLight = null;
 
 const cloudMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -37,9 +40,7 @@ const cloudMaterial = new THREE.MeshBasicMaterial({
     fog: false,
     toneMapped: false
 });
-
 const cloudGeometry = new THREE.BoxGeometry(CLOUD_BLOCK_SIZE, CLOUD_HEIGHT, CLOUD_BLOCK_SIZE);
-
 const sunGeometry = new THREE.PlaneGeometry(10, 10);
 const sunMaterial = new THREE.MeshBasicMaterial({
     color: 0xffe87a,
@@ -51,7 +52,6 @@ const sunMaterial = new THREE.MeshBasicMaterial({
     fog: false,
     toneMapped: false
 });
-
 const sunGlowGeometry = new THREE.PlaneGeometry(1, 1);
 const sunGlowColors = [0xfff6a8, 0xffef88, 0xffe36a];
 const sunGlowSizes = [15, 20, 27];
@@ -72,10 +72,7 @@ function ensureStyles() {
     if (document.getElementById("webMinecraftWorldCloudFixes")) return;
     const style = document.createElement("style");
     style.id = "webMinecraftWorldCloudFixes";
-    style.textContent = `
-body.webminecraft-in-world #devControlsButton,
-body.webminecraft-in-world #discussionButton{display:none !important}
-`;
+    style.textContent = `body.webminecraft-in-world #devControlsButton, body.webminecraft-in-world #discussionButton{display:none !important}`;
     document.head.appendChild(style);
 }
 
@@ -88,14 +85,12 @@ function buildCloudShape(cellX, cellZ) {
     const seen = new Set();
     const halfWidth = 8 + Math.floor(seedHash(cellX, cellZ, 17) * 10);
     const halfDepth = 3 + Math.floor(seedHash(cellX, cellZ, 23) * 6);
-
     for (let z = -halfDepth; z <= halfDepth; z++) {
         const rowRandom = seedHash(cellX, cellZ, 30 + z + halfDepth);
         const rowWidth = Math.max(2, Math.floor(halfWidth * (0.48 + rowRandom * 0.52)));
         const rowOffset = Math.floor((seedHash(cellX, cellZ, 70 + z + halfDepth) - 0.5) * halfWidth * 0.5);
         for (let x = -rowWidth + rowOffset; x <= rowWidth + rowOffset; x++) addBlock(blocks, x, z);
     }
-
     const edgeCuts = 7 + Math.floor(seedHash(cellX, cellZ, 140) * 8);
     for (let i = 0; i < edgeCuts; i++) {
         const cutZ = -halfDepth + Math.floor(seedHash(cellX, cellZ, 150 + i) * (halfDepth * 2 + 1));
@@ -108,7 +103,6 @@ function buildCloudShape(cellX, cellZ) {
         const cutEnd = side > 0 ? rowWidth + rowOffset : -rowWidth + rowOffset + cutSize - 1;
         for (let x = cutStart; x <= cutEnd; x++) seen.add(`${x}|${cutZ}`);
     }
-
     const protrusions = 4 + Math.floor(seedHash(cellX, cellZ, 320) * 6);
     for (let i = 0; i < protrusions; i++) {
         const side = Math.floor(seedHash(cellX, cellZ, 330 + i) * 4);
@@ -118,19 +112,14 @@ function buildCloudShape(cellX, cellZ) {
             const zCenter = -halfDepth + Math.floor(seedHash(cellX, cellZ, 390 + i) * (halfDepth * 2 + 1));
             const startX = side === 0 ? -halfWidth - amount : halfWidth;
             const endX = side === 0 ? -halfWidth - 1 : halfWidth + amount - 1;
-            for (let x = startX; x <= endX; x++) {
-                for (let z = zCenter - span; z <= zCenter + span; z++) addBlock(blocks, x, z);
-            }
+            for (let x = startX; x <= endX; x++) for (let z = zCenter - span; z <= zCenter + span; z++) addBlock(blocks, x, z);
         } else {
             const xCenter = -halfWidth + Math.floor(seedHash(cellX, cellZ, 430 + i) * (halfWidth * 2 + 1));
             const startZ = side === 2 ? -halfDepth - amount : halfDepth;
             const endZ = side === 2 ? -halfDepth - 1 : halfDepth + amount - 1;
-            for (let z = startZ; z <= endZ; z++) {
-                for (let x = xCenter - span; x <= xCenter + span; x++) addBlock(blocks, x, z);
-            }
+            for (let z = startZ; z <= endZ; z++) for (let x = xCenter - span; x <= xCenter + span; x++) addBlock(blocks, x, z);
         }
     }
-
     const unique = new Map();
     for (const block of blocks) {
         const key = `${block.x}|${block.z}`;
@@ -153,49 +142,22 @@ function makeCloud(cellX, cellZ) {
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     mesh.renderOrder = 10;
-
     const randomX = seedHash(cellX, cellZ, 500);
     const randomZ = seedHash(cellX, cellZ, 510);
     const baseX = (cellX + randomX - 0.5) * CLOUD_CELL_SIZE;
     const baseZ = (cellZ + randomZ - 0.5) * CLOUD_CELL_SIZE;
-    const baseY = CLOUD_ALTITUDE;
     cloudRoot.add(mesh);
-    cloudEntries.push({ mesh, baseX, baseZ, baseY });
+    cloudEntries.push({ mesh, baseX, baseZ, baseY: CLOUD_ALTITUDE });
 }
 
 function createSkyDome(scene) {
     if (skyDome) return;
     const geometry = new THREE.SphereGeometry(1000, 32, 16);
     const material = new THREE.ShaderMaterial({
-        uniforms: {
-            topColor: { value: new THREE.Color(0x3f9fe8) },
-            horizonColor: { value: new THREE.Color(0x9fddff) },
-            bottomColor: { value: new THREE.Color(0x72bde7) }
-        },
-        vertexShader: `
-            varying float vSkyHeight;
-            void main() {
-                vec3 worldDirection = normalize((modelMatrix * vec4(position, 0.0)).xyz);
-                vSkyHeight = clamp(worldDirection.y * 0.5 + 0.5, 0.0, 1.0);
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-        `,
-        fragmentShader: `
-            varying float vSkyHeight;
-            uniform vec3 topColor;
-            uniform vec3 horizonColor;
-            uniform vec3 bottomColor;
-            void main() {
-                vec3 sky;
-                if (vSkyHeight < 0.5) sky = mix(bottomColor, horizonColor, vSkyHeight * 2.0);
-                else sky = mix(horizonColor, topColor, (vSkyHeight - 0.5) * 2.0);
-                gl_FragColor = vec4(sky, 1.0);
-            }
-        `,
-        side: THREE.BackSide,
-        depthWrite: false,
-        depthTest: true,
-        fog: false
+        uniforms: { topColor: { value: new THREE.Color(0x3f9fe8) }, horizonColor: { value: new THREE.Color(0x9fddff) }, bottomColor: { value: new THREE.Color(0x72bde7) } },
+        vertexShader: `varying float vSkyHeight; void main(){ vec3 worldDirection=normalize((modelMatrix*vec4(position,0.0)).xyz); vSkyHeight=clamp(worldDirection.y*0.5+0.5,0.0,1.0); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+        fragmentShader: `varying float vSkyHeight; uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 bottomColor; void main(){ vec3 sky; if(vSkyHeight<0.5) sky=mix(bottomColor,horizonColor,vSkyHeight*2.0); else sky=mix(horizonColor,topColor,(vSkyHeight-0.5)*2.0); gl_FragColor=vec4(sky,1.0); }`,
+        side: THREE.BackSide, depthWrite: false, depthTest: true, fog: false
     });
     skyDome = new THREE.Mesh(geometry, material);
     skyDome.name = "MinecraftSkyDome";
@@ -204,39 +166,54 @@ function createSkyDome(scene) {
     scene.add(skyDome);
 }
 
+function findDaylight(scene) {
+    daylightSun = scene.children.find(o => o.isDirectionalLight) || null;
+    skyLight = scene.children.find(o => o.isHemisphereLight) || null;
+    if (daylightSun) {
+        daylightSun.castShadow = true;
+        const camera = daylightSun.shadow.camera;
+        camera.left = -SHADOW_HALF_SIZE;
+        camera.right = SHADOW_HALF_SIZE;
+        camera.top = SHADOW_HALF_SIZE;
+        camera.bottom = -SHADOW_HALF_SIZE;
+        camera.near = SHADOW_NEAR;
+        camera.far = SHADOW_FAR;
+        daylightSun.shadow.bias = -0.0002;
+        daylightSun.shadow.normalBias = 0.01;
+    }
+    // Hemisphere light illuminates through walls. Keep it off so daylight is
+    // blocked by solid world geometry instead of bypassing the shadow map.
+    if (skyLight) skyLight.visible = false;
+}
+
+function updateDaylightShadow() {
+    if (!cloudCamera || !daylightSun) return;
+    daylightSun.target.position.copy(cloudCamera.position);
+    daylightSun.target.updateMatrixWorld();
+    daylightSun.position.copy(cloudCamera.position).addScaledVector(SUN_DIRECTION, SUN_DISTANCE);
+    const camera = daylightSun.shadow.camera;
+    camera.left = -SHADOW_HALF_SIZE;
+    camera.right = SHADOW_HALF_SIZE;
+    camera.top = SHADOW_HALF_SIZE;
+    camera.bottom = -SHADOW_HALF_SIZE;
+    camera.near = SHADOW_NEAR;
+    camera.far = SHADOW_FAR;
+    camera.updateProjectionMatrix();
+    daylightSun.shadow.needsUpdate = true;
+    if (skyLight) skyLight.visible = false;
+}
+
 function createUndergroundLighting(scene) {
     if (undergroundAmbient) return;
-    undergroundAmbient = new THREE.AmbientLight(0x87a5b8, 0.22);
+    undergroundAmbient = new THREE.AmbientLight(0x87a5b8, 0.10);
     undergroundAmbient.name = "MinecraftUndergroundAmbient";
     scene.add(undergroundAmbient);
-
-    outdoorLights = scene.children.filter(object => object.isDirectionalLight || object.isHemisphereLight);
-
-    if (!legacyDepthLightNeutralized) {
-        for (const object of scene.children) {
-            if (!object.isPointLight) continue;
-            const hex = object.color?.getHex?.();
-            if (hex !== 0x9db6d2) continue;
-            object.intensity = 0;
-            try {
-                Object.defineProperty(object, "intensity", {
-                    configurable: true,
-                    get() { return 0; },
-                    set() {}
-                });
-            } catch {
-                object.intensity = 0;
-            }
-        }
-        legacyDepthLightNeutralized = true;
-    }
 }
 
 function removeWaterSpecularHighlights(scene) {
     scene.traverse(object => {
         const material = object.material;
-        if (!material || Array.isArray(material)) return;
-        if (!material.isMeshPhongMaterial || !material.transparent) return;
+        if (!material || Array.isArray(material) || !material.isMeshPhongMaterial || !material.transparent) return;
         material.shininess = 0;
         if (material.specular?.set) material.specular.set(0x000000);
         else material.specular = 0x000000;
@@ -250,19 +227,15 @@ function createSun() {
     sunMesh.name = "MinecraftSquareSun";
     sunMesh.renderOrder = 30;
     sunMesh.frustumCulled = false;
-    sunMesh.userData.isSun = true;
     cloudRoot.add(sunMesh);
     sunGlowMeshes = [];
     for (let i = 0; i < sunGlowSizes.length; i++) {
-        const material = new THREE.MeshBasicMaterial({
-            color: sunGlowColors[i], transparent: true, opacity: sunGlowOpacities[i],
-            blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
-            side: THREE.DoubleSide, fog: false, toneMapped: false
-        });
+        const material = new THREE.MeshBasicMaterial({ color: sunGlowColors[i], transparent: true, opacity: sunGlowOpacities[i], blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false, toneMapped: false });
         const glow = new THREE.Mesh(sunGlowGeometry, material);
         glow.name = `MinecraftSunGlow${i + 1}`;
         glow.renderOrder = 29 - i;
         glow.frustumCulled = false;
+        glow.scale.setScalar(sunGlowSizes[i]);
         cloudRoot.add(glow);
         sunGlowMeshes.push(glow);
     }
@@ -270,8 +243,7 @@ function createSun() {
 
 function updateSunPosition() {
     if (!cloudCamera || !sunMesh) return;
-    const direction = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
-    const position = cloudCamera.position.clone().addScaledVector(direction, SUN_DISTANCE);
+    const position = cloudCamera.position.clone().addScaledVector(SUN_DIRECTION, SUN_DISTANCE);
     sunMesh.position.copy(position);
     for (const glow of sunGlowMeshes) glow.position.copy(position);
 }
@@ -292,13 +264,6 @@ function updateUndergroundAmbient() {
     const y = cloudCamera.position.y;
     const underground = 1 - THREE.MathUtils.smoothstep(y, -1, 8);
     const deepDark = 1 - THREE.MathUtils.smoothstep(y, -24, -1);
-
-    // Outdoor sun/sky lights must be completely disabled below the surface.
-    // This prevents shadow-map/light leakage from making cave walls glow.
-    const outdoorVisible = y >= 8;
-    for (const light of outdoorLights) light.visible = outdoorVisible;
-
-    // Keep a small, uniform underground fill so caves are dark but still readable.
     undergroundAmbient.intensity = underground * (0.08 + (1 - deepDark) * 0.04);
 }
 
@@ -330,9 +295,8 @@ function tick(now) {
     lastFrame = now;
     windDistance += CLOUD_WIND_SPEED * delta;
     if (windDistance > CLOUD_WRAP) windDistance -= CLOUD_WRAP;
-    if (cloudRoot?.visible) {
-        for (const entry of cloudEntries) entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
-    }
+    if (cloudRoot?.visible) for (const entry of cloudEntries) entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
+    updateDaylightShadow();
     updateSunPosition();
     updateSunFacing();
     updateSkyPosition();
@@ -345,6 +309,7 @@ export function setupWorldClouds(scene, camera = null) {
     cloudCamera = camera;
     cloudScene = scene;
     createSkyDome(scene);
+    findDaylight(scene);
     createUndergroundLighting(scene);
     removeWaterSpecularHighlights(scene);
     if (!cloudRoot) {
@@ -372,4 +337,5 @@ export function setWorldCloudSeed(seed) {
     if (!cloudRoot) return;
     rebuildCloudField(seed);
     for (const entry of cloudEntries) entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
+    updateDaylightShadow();
 }
