@@ -8,7 +8,9 @@ const CLOUD_CELL_SIZE = 80;
 const CLOUD_GRID_RADIUS = 9;
 const CLOUD_WRAP = 2048;
 const CLOUD_WIND_SPEED = 0.45;
-const SUN_DISTANCE = 100000;
+// Keep the sun inside the camera's normal far clipping range, while moving it with
+// the camera every frame so it can never actually be reached.
+const SUN_DISTANCE = 500;
 
 let cloudRoot = null;
 let cloudScene = null;
@@ -265,8 +267,8 @@ function createSun() {
 function updateSunPosition() {
     if (!cloudCamera || !sunMesh) return;
 
-    // Sky-only sun: always far away and follows the camera.
-    // Players can fly forever without ever reaching the visual sun.
+    // Sky-only sun: keep it within the camera clip range but always move it with the camera.
+    // That means flying toward it can never actually reach the visual sun.
     const direction = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
     const position = cloudCamera.position.clone().addScaledVector(direction, SUN_DISTANCE);
 
