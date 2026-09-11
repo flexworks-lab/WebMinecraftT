@@ -53,6 +53,13 @@ function injectStyles() {
     document.head.appendChild(style);
 }
 
+function allowNormalTyping(field) {
+    // Keep announcement fields isolated from the game's global keyboard controls.
+    field.addEventListener("keydown", event => {
+        if (event.key === " ") event.stopPropagation();
+    }, true);
+}
+
 function createAnnouncementSection() {
     if (announcementPanel) return;
     const body = document.getElementById("devControlsBody");
@@ -74,6 +81,9 @@ function createAnnouncementSection() {
 </div>`;
     body.insertBefore(section, body.querySelector("#devControlsStatus") || null);
     announcementPanel = section;
+
+    allowNormalTyping(section.querySelector("#devAnnouncementReason"));
+    allowNormalTyping(section.querySelector("#devAnnouncementMessage"));
 
     section.querySelector("#devPublishAnnouncement").addEventListener("click", publishAnnouncement);
     section.querySelector("#devClearAnnouncement").addEventListener("click", clearAnnouncement);
