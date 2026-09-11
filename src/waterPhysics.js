@@ -23,7 +23,6 @@ let lastStep = performance.now();
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const key = (x, y, z) => `${x},${y},${z}`;
-const parseKey = value => value.split(",").map(Number);
 const chunkKey = (x, z) => `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
 
 // Lambert is cheaper than Phong and still reacts to the scene lighting.
@@ -34,6 +33,9 @@ const waterMaterial = new THREE.MeshLambertMaterial({
     depthWrite: false,
     side: THREE.DoubleSide
 });
+
+// Avoid the extra back/front pass that transparent double-sided materials can use.
+waterMaterial.forceSinglePass = true;
 
 function markChunkDirty(x, z) {
     dirtyChunks.add(chunkKey(x, z));
@@ -203,6 +205,11 @@ function rebuildChunk(ck) {
     const mesh = new THREE.Mesh(geometry, waterMaterial);
     mesh.userData.isDynamicWater = true;
     mesh.userData.waterChunk = ck;
+
+    // Water chunk geometry is static between rebuilds, so skip per-frame matrix updates.
+    mesh.matrixAutoUpdate = false;
+    mesh.updateMatrix();
+
     chunkMeshes.set(ck, mesh);
     gameScene.add(mesh);
 }
