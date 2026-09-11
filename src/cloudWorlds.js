@@ -1,8 +1,10 @@
 const DELETED_KEY = "webminecraft_deleted_worlds";
 const CLOUD_DELETED_COLLECTION = "deletedWorlds";
+const PENDING_DELETE_KEY = "webminecraft_pending_cloud_deletes";
 
 let authPromise = null;
 let syncRunning = false;
+let deleteRetryRunning = false;
 
 function waitForFirebase(timeout = 12000) {
     if (authPromise) return authPromise;
@@ -58,6 +60,35 @@ function clearDeletedSeed(seed) {
     const deleted = getDeletedSeeds();
     deleted.delete(normalized);
     try { localStorage.setItem(DELETED_KEY, JSON.stringify([...deleted])); } catch {}
+}
+
+function getPendingDeletes() {
+    try {
+        const values = JSON.parse(localStorage.getItem(PENDING_DELETE_KEY) || "[]");
+        return new Set(Array.isArray(values) ? values.map(normalizeSeed).filter(v => v !== null) : []);
+    } catch {
+        return new Set();
+    }
+}
+
+function setPendingDeletes(values) {
+    try { localStorage.setItem(PENDING_DELETE_KEY, JSON.stringify([...values])); } catch {}
+}
+
+function rememberPendingDelete(seed) {
+    const s = normalizeSeed(seed);
+    if (s === null) return;
+    const pending = getPendingDeletes();
+    pending.add(s);
+    setPendingDeletes(pending);
+}
+
+function forgetPendingDelete(seed) {
+    const s = normalizeSeed(seed);
+    if (s === null) return;
+    const pending = getPendingDeletes();
+    pending.delete(s);
+    setPendingDeletes(pending);
 }
 
 async function getUser() {
@@ -192,7 +223,10 @@ export async function deleteCloudWorld(seed, permanent = true) {
     try {
         const user = await getUser();
         const db = firestore();
-        if (!user || !db) return false;
+        if (!user || !db) {
+            rememberPendingDelete(normalizedSeed);
+            return false;
+        }
 
         const ref = worldRef(user.uid, normalizedSeed);
         const chunks = await ref.collection("data").get();
@@ -208,10 +242,25 @@ export async function deleteCloudWorld(seed, permanent = true) {
             seed: normalizedSeed,
             deletedAt: window.firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
+        forgetPendingDelete(normalizedSeed);
         return true;
     } catch (error) {
-        console.warn("Cloud world delete failed:", error);
+        rememberPendingDelete(normalizedSeed);
+        console.warn("Cloud world delete failed; will retry automatically:", error);
         return false;
+    }
+}
+
+export async function retryCloudWorldDeletes() {
+    if (deleteRetryRunning) return;
+    deleteRetryRunning = true;
+    try {
+        const pending = [...getPendingDeletes()];
+        for (const seed of pending) {
+            try { await deleteCloudWorld(seed); } catch {}
+        }
+    } finally {
+        deleteRetryRunning = false;
     }
 }
 
@@ -220,6 +269,7 @@ export async function clearCloudWorldDeletion(seed) {
     if (normalizedSeed === null) return false;
 
     clearDeletedSeed(normalizedSeed);
+    forgetPendingDelete(normalizedSeed);
 
     try {
         const user = await getUser();
@@ -267,6 +317,7 @@ export async function syncCloudWorlds() {
         const user = await getUser();
         if (!user) return;
 
+        await retryCloudWorldDeletes();
         const cloudWorlds = await listCloudWorlds();
         for (const cloudWorld of cloudWorlds) {
             const seed = normalizeSeed(cloudWorld.seed ?? cloudWorld.id);
@@ -284,12 +335,22 @@ export async function syncCloudWorlds() {
 window.webMinecraftCloudSync = syncCloudWorlds;
 window.webMinecraftSaveCloudWorld = saveCloudWorld;
 window.webMinecraftDeleteCloudWorld = deleteCloudWorld;
+window.webMinecraftRetryCloudDeletes = retryCloudWorldDeletes;
 window.webMinecraftClearCloudWorldDeletion = clearCloudWorldDeletion;
 window.webMinecraftListCloudWorlds = listCloudWorlds;
 
 waitForFirebase().then(auth => {
     if (!auth?.onAuthStateChanged) return;
     auth.onAuthStateChanged(user => {
-        if (user) setTimeout(() => syncCloudWorlds().catch(() => {}), 250);
+        if (user) {
+            setTimeout(() => syncCloudWorlds().catch(() => {}), 250);
+            setTimeout(() => retryCloudWorldDeletes().catch(() => {}), 500);
+        }
     });
 });
+
+setInterval(() => {
+    if (navigator.onLine !== false) retryCloudWorldDeletes().catch(() => {});
+}, 5000);
+
+window.addEventListener("online", () => retryCloudWorldDeletes().catch(() => {}));
