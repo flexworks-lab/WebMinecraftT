@@ -184,6 +184,32 @@ export async function handleAdminRequest(request, response, rooms, cleanRoom) {
         return true;
     }
 
+    if (action === "warn") {
+        const playerIds = Array.isArray(body?.playerIds) ? body.playerIds : [body?.playerId];
+        const players = [...new Set(playerIds.map(id => String(id || "")).filter(Boolean))]
+            .map(id => room.players.get(id))
+            .filter(Boolean);
+        if (!players.length) return sendJson(response, 404, { ok: false, error: "No players selected." });
+
+        const text = String(body?.text || "Please behave appropriately and follow the server rules.")
+            .replace(/[\r\n]+/g, " ")
+            .replace(/[<>]/g, "")
+            .trim()
+            .slice(0, MAX_CHAT_LENGTH) || "Please behave appropriately and follow the server rules.";
+
+        const payload = JSON.stringify({
+            type: "chat_system",
+            text: `Developer warning: ${text}`
+        });
+        for (const player of players) {
+            try {
+                if (player.ws?.connected) player.ws.sendText(payload);
+            } catch {}
+        }
+        sendJson(response, 200, { ok: true, message: `Warning sent to ${players.length} player${players.length === 1 ? "" : "s"}.` });
+        return true;
+    }
+
     if (action === "shutdown" || action === "delete") {
         const message = action === "delete"
             ? "This server was deleted by the developer. Returning to the main menu."
