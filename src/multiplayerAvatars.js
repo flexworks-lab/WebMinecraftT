@@ -61,99 +61,41 @@ function makeFaceTexture(seed, skinHex, hairHex) {
     const hairMain = `#${new THREE.Color(hairHex).getHexString()}`;
     const hairLight = shade(hairHex, 0.04);
     const eye = rng() > 0.5 ? "#171717" : "#2b211b";
-
     return makeCanvasTexture(ctx => {
-        ctx.fillStyle = skinMain;
-        ctx.fillRect(0, 0, 16, 16);
-        ctx.fillStyle = skinDark;
-        ctx.fillRect(0, 4, 2, 9);
-        ctx.fillRect(14, 4, 2, 9);
-        ctx.fillRect(2, 13, 12, 3);
-        ctx.fillStyle = skinLight;
-        ctx.fillRect(3, 5, 10, 7);
-
-        ctx.fillStyle = hairMain;
-        ctx.fillRect(0, 0, 16, 4);
-        ctx.fillRect(1, 3, 14, 2);
-        for (let x = 1; x < 15; x++) {
-            if (rng() > 0.38) ctx.fillRect(x, 4 + Math.floor(rng() * 2), 1, 1);
-        }
-        if (rng() > 0.55) ctx.fillRect(0, 2, 2, 4);
-        if (rng() > 0.55) ctx.fillRect(14, 2, 2, 4);
-
-        ctx.fillStyle = eye;
-        ctx.fillRect(4, 7, 2, 2);
-        ctx.fillRect(10, 7, 2, 2);
-        if (rng() > 0.68) {
-            ctx.fillStyle = "#6d8794";
-            ctx.fillRect(5, 7, 1, 1);
-            ctx.fillRect(10, 7, 1, 1);
-        }
-
-        ctx.fillStyle = skinDark;
-        ctx.fillRect(7, 9, 2, 1);
-        ctx.fillRect(8, 10, 1, 1);
-        ctx.fillStyle = rng() > 0.5 ? "#7c3f3d" : "#6b3431";
-        ctx.fillRect(6, 12, 4, 1);
-        if (rng() > 0.55) ctx.fillRect(7, 13, 2, 1);
-
-        if (rng() > 0.5) {
-            ctx.fillStyle = shade(skinHex, -0.025);
-            ctx.fillRect(3, 10, 2, 1);
-            ctx.fillRect(11, 10, 2, 1);
-        }
-        ctx.fillStyle = hairLight;
-        if (rng() > 0.6) ctx.fillRect(4, 1, 2, 1);
-        if (rng() > 0.6) ctx.fillRect(10, 2, 2, 1);
+        ctx.fillStyle = skinMain; ctx.fillRect(0, 0, 16, 16);
+        ctx.fillStyle = skinDark; ctx.fillRect(0, 4, 2, 9); ctx.fillRect(14, 4, 2, 9); ctx.fillRect(2, 13, 12, 3);
+        ctx.fillStyle = skinLight; ctx.fillRect(3, 5, 10, 7);
+        ctx.fillStyle = hairMain; ctx.fillRect(0, 0, 16, 4); ctx.fillRect(1, 3, 14, 2);
+        for (let x = 1; x < 15; x++) if (rng() > 0.38) ctx.fillRect(x, 4 + Math.floor(rng() * 2), 1, 1);
+        if (rng() > 0.55) ctx.fillRect(0, 2, 2, 4); if (rng() > 0.55) ctx.fillRect(14, 2, 2, 4);
+        ctx.fillStyle = eye; ctx.fillRect(4, 7, 2, 2); ctx.fillRect(10, 7, 2, 2);
+        if (rng() > 0.68) { ctx.fillStyle = "#6d8794"; ctx.fillRect(5, 7, 1, 1); ctx.fillRect(10, 7, 1, 1); }
+        ctx.fillStyle = skinDark; ctx.fillRect(7, 9, 2, 1); ctx.fillRect(8, 10, 1, 1);
+        ctx.fillStyle = rng() > 0.5 ? "#7c3f3d" : "#6b3431"; ctx.fillRect(6, 12, 4, 1);
+        if (rng() > 0.55) { ctx.fillStyle = shade(skinHex, -0.025); ctx.fillRect(3, 10, 2, 1); ctx.fillRect(11, 10, 2, 1); }
+        ctx.fillStyle = hairLight; if (rng() > 0.6) ctx.fillRect(4, 1, 2, 1); if (rng() > 0.6) ctx.fillRect(10, 2, 2, 1);
     });
 }
 
 function makeClothTexture(seed, baseHex, variant) {
     const rng = makeRng(seed ^ (variant * 0x45D9F3B));
-    const dark = shade(baseHex, -0.08);
-    const light = shade(baseHex, 0.07);
-    const accent = shade(baseHex, rng() > 0.5 ? 0.13 : -0.13);
+    const dark = shade(baseHex, -0.08), light = shade(baseHex, 0.07), accent = shade(baseHex, rng() > 0.5 ? 0.13 : -0.13);
     const pattern = Math.floor(rng() * 4);
-
     return makeCanvasTexture(ctx => {
-        ctx.fillStyle = baseHex;
-        ctx.fillRect(0, 0, 16, 16);
-        for (let y = 0; y < 16; y++) {
-            for (let x = 0; x < 16; x++) {
-                const roll = rng();
-                if (roll > 0.9) {
-                    ctx.fillStyle = light;
-                    ctx.fillRect(x, y, 1, 1);
-                } else if (roll < 0.08) {
-                    ctx.fillStyle = dark;
-                    ctx.fillRect(x, y, 1, 1);
-                }
-            }
+        ctx.fillStyle = baseHex; ctx.fillRect(0, 0, 16, 16);
+        for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+            const roll = rng();
+            if (roll > 0.9) { ctx.fillStyle = light; ctx.fillRect(x, y, 1, 1); }
+            else if (roll < 0.08) { ctx.fillStyle = dark; ctx.fillRect(x, y, 1, 1); }
         }
         ctx.fillStyle = dark;
-        if (pattern === 0) {
-            for (let x = 2; x < 16; x += 4) ctx.fillRect(x, 0, 1, 16);
-        } else if (pattern === 1) {
-            for (let y = 2; y < 16; y += 4) ctx.fillRect(0, y, 16, 1);
-        } else if (pattern === 2) {
-            for (let i = -16; i < 32; i += 4) ctx.fillRect(i, 0, 1, 16);
-        } else {
-            ctx.fillRect(0, 6, 16, 2);
-            ctx.fillRect(6, 0, 2, 16);
-        }
+        if (pattern === 0) for (let x = 2; x < 16; x += 4) ctx.fillRect(x, 0, 1, 16);
+        else if (pattern === 1) for (let y = 2; y < 16; y += 4) ctx.fillRect(0, y, 16, 1);
+        else if (pattern === 2) for (let i = -16; i < 32; i += 4) ctx.fillRect(i, 0, 1, 16);
+        else { ctx.fillRect(0, 6, 16, 2); ctx.fillRect(6, 0, 2, 16); }
         ctx.fillStyle = accent;
-        if (pattern === 3) {
-            ctx.fillRect(2, 2, 2, 2);
-            ctx.fillRect(12, 3, 2, 2);
-            ctx.fillRect(4, 12, 2, 2);
-            ctx.fillRect(11, 11, 2, 2);
-        } else {
-            for (let i = 0; i < 5; i++) {
-                const x = Math.floor(rng() * 14) + 1;
-                const y = Math.floor(rng() * 14) + 1;
-                ctx.fillRect(x, y, 1, 1);
-            }
-        }
+        if (pattern === 3) { ctx.fillRect(2, 2, 2, 2); ctx.fillRect(12, 3, 2, 2); ctx.fillRect(4, 12, 2, 2); ctx.fillRect(11, 11, 2, 2); }
+        else for (let i = 0; i < 5; i++) ctx.fillRect(Math.floor(rng() * 14) + 1, Math.floor(rng() * 14) + 1, 1, 1);
     });
 }
 
@@ -169,135 +111,133 @@ function createAvatar(id, name) {
     const shirtColor = SHIRT_COLORS[Math.floor(rng() * SHIRT_COLORS.length)];
     const pantsColor = PANTS_COLORS[Math.floor(rng() * PANTS_COLORS.length)];
     const shoeColor = SHOE_COLORS[Math.floor(rng() * SHOE_COLORS.length)];
-
     const faceTexture = makeFaceTexture(hashString(id), skinColor, hairColor);
     const shirtTexture = makeClothTexture(hashString(id), `#${new THREE.Color(shirtColor).getHexString()}`, 1);
     const pantsTexture = makeClothTexture(hashString(id), `#${new THREE.Color(pantsColor).getHexString()}`, 2);
-
-    const skin = makeMaterial(skinColor);
-    const face = makeMaterial(faceTexture);
-    const shirt = makeMaterial(shirtTexture);
-    const pants = makeMaterial(pantsTexture);
-    const shoes = makeMaterial(shoeColor);
+    const skin = makeMaterial(skinColor), face = makeMaterial(faceTexture), shirt = makeMaterial(shirtTexture), pants = makeMaterial(pantsTexture), shoes = makeMaterial(shoeColor);
 
     const group = new THREE.Group();
     group.userData.multiplayerAvatar = true;
-
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [skin, skin, skin, skin, skin, face]);
-    head.position.y = 1.8;
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt);
-    torso.position.y = 1.1;
-
-    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt);
-    leftArm.position.set(-0.53, 1.23, 0);
-    const rightArm = leftArm.clone();
-    rightArm.position.x = 0.53;
-
-    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), skin);
-    leftHand.position.set(-0.53, 0.86, 0);
-    const rightHand = leftHand.clone();
-    rightHand.position.x = 0.53;
-
-    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants);
-    leftLeg.position.set(-0.2, 0.35, 0);
-    const rightLeg = leftLeg.clone();
-    rightLeg.position.x = 0.2;
-
-    const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.46), shoes);
-    leftShoe.position.set(-0.2, 0.09, -0.025);
-    const rightShoe = leftShoe.clone();
-    rightShoe.position.x = 0.2;
-
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [skin, skin, skin, skin, skin, face]); head.position.y = 1.8;
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt); torso.position.y = 1.1;
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt); leftArm.position.set(-0.53, 1.23, 0);
+    const rightArm = leftArm.clone(); rightArm.position.x = 0.53;
+    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), skin); leftHand.position.set(-0.53, 0.86, 0);
+    const rightHand = leftHand.clone(); rightHand.position.x = 0.53;
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants); leftLeg.position.set(-0.2, 0.35, 0);
+    const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.2;
+    const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.46), shoes); leftShoe.position.set(-0.2, 0.09, -0.025);
+    const rightShoe = leftShoe.clone(); rightShoe.position.x = 0.2;
     group.add(head, torso, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe);
 
-    const nameCanvas = document.createElement("canvas");
-    nameCanvas.width = 384;
-    nameCanvas.height = 72;
-    const ctx = nameCanvas.getContext("2d");
-    const text = String(name || "Player").slice(0, 16);
-    ctx.clearRect(0, 0, 384, 72);
-    ctx.font = "bold 30px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = "rgba(0,0,0,.9)";
-    ctx.fillStyle = "#fff";
-    ctx.strokeText(text, 192, 36);
-    ctx.fillText(text, 192, 36);
-    const nameTexture = new THREE.CanvasTexture(nameCanvas);
-    nameTexture.colorSpace = THREE.SRGBColorSpace;
-    nameTexture.minFilter = THREE.LinearFilter;
-    nameTexture.magFilter = THREE.LinearFilter;
-    const nameSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTexture, transparent: true, depthTest: false }));
-    nameSprite.scale.set(Math.max(1.1, Math.min(2.8, 0.8 + text.length * 0.13)), 0.36, 1);
-    nameSprite.position.y = 2.28;
-    group.add(nameSprite);
+    const nameCanvas = document.createElement("canvas"); nameCanvas.width = 384; nameCanvas.height = 72;
+    const ctx = nameCanvas.getContext("2d"); const text = String(name || "Player").slice(0, 16);
+    ctx.clearRect(0, 0, 384, 72); ctx.font = "bold 30px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 8; ctx.strokeStyle = "rgba(0,0,0,.9)"; ctx.fillStyle = "#fff"; ctx.strokeText(text, 192, 36); ctx.fillText(text, 192, 36);
+    const nameTexture = new THREE.CanvasTexture(nameCanvas); nameTexture.colorSpace = THREE.SRGBColorSpace; nameTexture.minFilter = THREE.LinearFilter; nameTexture.magFilter = THREE.LinearFilter;
+    const nameSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTexture, transparent: true, depthTest: false })); nameSprite.scale.set(Math.max(1.1, Math.min(2.8, 0.8 + text.length * 0.13)), 0.36, 1); nameSprite.position.y = 2.28; group.add(nameSprite);
+    group.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
 
-    group.traverse(child => {
-        if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-        }
-    });
-    return group;
+    return { group, parts: { head, torso, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe } };
 }
 
 function disposeAvatar(group) {
     const materials = new Set();
     group.traverse(child => {
         if (child.geometry) child.geometry.dispose();
-        if (child.material) {
-            const list = Array.isArray(child.material) ? child.material : [child.material];
-            for (const material of list) materials.add(material);
-        }
+        if (child.material) for (const material of (Array.isArray(child.material) ? child.material : [child.material])) materials.add(material);
     });
-    for (const material of materials) {
-        if (material.map) material.map.dispose();
-        material.dispose();
+    for (const material of materials) { if (material.map) material.map.dispose(); material.dispose(); }
+}
+
+function animateAvatar(entry, player, time) {
+    const parts = entry.parts;
+    const previous = entry.lastPosition;
+    const current = entry.group.position;
+    const dx = current.x - previous.x;
+    const dz = current.z - previous.z;
+    const speed = Math.hypot(dx, dz) / Math.max(entry.lastTimeDelta, 1 / 60);
+    entry.lastPosition.copy(current);
+    entry.lastTimeDelta = Math.max((time - entry.lastTime) / 1000, 1 / 60);
+    entry.lastTime = time;
+
+    const moving = String(player.action || "") === "walk" || speed > 0.35;
+    const phase = time * 0.014 + entry.walkPhase;
+    const swing = moving ? Math.sin(phase) * Math.min(0.72, 0.28 + speed * 0.08) : 0;
+    const bob = moving ? Math.abs(Math.sin(phase * 2)) * 0.045 : 0;
+
+    parts.leftLeg.rotation.x = THREE.MathUtils.lerp(parts.leftLeg.rotation.x, swing, 0.35);
+    parts.rightLeg.rotation.x = THREE.MathUtils.lerp(parts.rightLeg.rotation.x, -swing, 0.35);
+    parts.leftArm.rotation.x = THREE.MathUtils.lerp(parts.leftArm.rotation.x, -swing * 0.8, 0.35);
+    parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, swing * 0.8, 0.35);
+    parts.leftHand.rotation.x = THREE.MathUtils.lerp(parts.leftHand.rotation.x, -swing * 0.35, 0.35);
+    parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, swing * 0.35, 0.35);
+    parts.torso.position.y = THREE.MathUtils.lerp(parts.torso.position.y, 1.1 + bob, 0.3);
+    parts.head.position.y = THREE.MathUtils.lerp(parts.head.position.y, 1.8 + bob * 0.7, 0.3);
+
+    const action = String(player.action || "idle");
+    if (action === "mine") {
+        const pulse = Math.sin((time - entry.actionStarted) * 0.035);
+        const target = -1.05 - Math.max(0, pulse) * 0.65;
+        parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, target, 0.5);
+        parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, target * 0.55, 0.5);
+        parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, -0.08, 0.25);
+    } else if (action === "place") {
+        const pulse = Math.sin((time - entry.actionStarted) * 0.028);
+        const target = -0.35 + Math.max(0, pulse) * 0.9;
+        parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, target, 0.45);
+        parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, target * 0.7, 0.45);
+    } else {
+        parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, 0, 0.2);
     }
 }
 
 export function updateMultiplayerAvatars(scene) {
     if (!isMultiplayerActive()) {
-        for (const entry of avatars.values()) {
-            scene.remove(entry.group);
-            disposeAvatar(entry.group);
-        }
+        for (const entry of avatars.values()) { scene.remove(entry.group); disposeAvatar(entry.group); }
         avatars.clear();
         return;
     }
 
     const players = getRemotePlayers();
+    const now = performance.now();
     for (const [id, player] of players) {
         if (!player?.position) continue;
         let entry = avatars.get(id);
         if (!entry) {
-            const group = createAvatar(id, player.name);
-            scene.add(group);
-            entry = { group, target: new THREE.Vector3() };
+            const avatar = createAvatar(id, player.name);
+            scene.add(avatar.group);
+            entry = {
+                ...avatar,
+                target: new THREE.Vector3(),
+                lastPosition: new THREE.Vector3(Number(player.position.x) || 0, (Number(player.position.y) || 0) - 1.8, Number(player.position.z) || 0),
+                lastTime: now,
+                lastTimeDelta: 1 / 60,
+                walkPhase: hashString(id) % 1000,
+                actionStarted: now,
+                lastAction: "idle"
+            };
+            entry.group.position.copy(entry.lastPosition);
             avatars.set(id, entry);
         }
+
         entry.target.set(Number(player.position.x) || 0, (Number(player.position.y) || 0) - 1.8, Number(player.position.z) || 0);
         entry.group.position.lerp(entry.target, 0.32);
         const targetYaw = Number(player.rotation?.y) || 0;
         entry.group.rotation.y = THREE.MathUtils.lerp(entry.group.rotation.y, targetYaw, 0.35);
+
+        const action = String(player.action || "idle");
+        if (action !== entry.lastAction) { entry.lastAction = action; entry.actionStarted = now; }
+        animateAvatar(entry, player, now);
     }
 
     for (const [id, entry] of avatars) {
-        if (!players.has(id)) {
-            scene.remove(entry.group);
-            disposeAvatar(entry.group);
-            avatars.delete(id);
-        }
+        if (!players.has(id)) { scene.remove(entry.group); disposeAvatar(entry.group); avatars.delete(id); }
     }
 }
 
 export function initMultiplayerAvatars(scene) {
     if (animationStarted) return;
     animationStarted = true;
-    const tick = () => {
-        updateMultiplayerAvatars(scene);
-        requestAnimationFrame(tick);
-    };
+    const tick = () => { updateMultiplayerAvatars(scene); requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
 }
