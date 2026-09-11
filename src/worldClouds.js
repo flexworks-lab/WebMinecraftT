@@ -14,6 +14,7 @@ let cameraRef = null;
 let windDistance = 0;
 let running = false;
 let lastFrame = performance.now();
+let visibilityObserver = null;
 
 const cloudMaterial = new THREE.MeshLambertMaterial({
     color: 0xffffff,
@@ -104,20 +105,15 @@ function makeCloud(cellX, cellZ) {
 function clearClouds() {
     cloudEntries.length = 0;
     if (!cloudRoot) return;
-    while (cloudRoot.children.length) {
-        const child = cloudRoot.children.pop();
-        child.geometry?.dispose();
-    }
+    while (cloudRoot.children.length) cloudRoot.remove(cloudRoot.children[0]);
 }
 
 function rebuildCloudField(seed) {
     cloudSeed = (Math.floor(Math.abs(Number(seed))) >>> 0) || 0;
     clearClouds();
 
-    const centerX = 0;
-    const centerZ = 0;
-    for (let cellX = centerX - CLOUD_GRID_RADIUS; cellX <= centerX + CLOUD_GRID_RADIUS; cellX++) {
-        for (let cellZ = centerZ - CLOUD_GRID_RADIUS; cellZ <= centerZ + CLOUD_GRID_RADIUS; cellZ++) {
+    for (let cellX = -CLOUD_GRID_RADIUS; cellX <= CLOUD_GRID_RADIUS; cellX++) {
+        for (let cellZ = -CLOUD_GRID_RADIUS; cellZ <= CLOUD_GRID_RADIUS; cellZ++) {
             const coverage = seedHash(cellX, cellZ, 97);
             if (coverage < 0.28) continue;
             makeCloud(cellX, cellZ);
@@ -140,8 +136,8 @@ function updateCloudPositions() {
     for (const entry of cloudEntries) {
         const cellDX = entry.cellX - cameraCellX;
         const cellDZ = entry.cellZ - cameraCellZ;
-        const localBaseX = (cellDX * CLOUD_CELL_SIZE) + (entry.baseX - entry.cellX * CLOUD_CELL_SIZE) + windDistance;
-        const localBaseZ = (cellDZ * CLOUD_CELL_SIZE) + (entry.baseZ - entry.cellZ * CLOUD_CELL_SIZE);
+        const localBaseX = cellDX * CLOUD_CELL_SIZE + (entry.baseX - entry.cellX * CLOUD_CELL_SIZE) + windDistance;
+        const localBaseZ = cellDZ * CLOUD_CELL_SIZE + (entry.baseZ - entry.cellZ * CLOUD_CELL_SIZE);
         const x = cameraX + wrap(localBaseX, CLOUD_WRAP / 2);
         const z = cameraZ + wrap(localBaseZ, CLOUD_WRAP / 2);
         entry.mesh.position.set(x, entry.baseY, z);
@@ -175,10 +171,12 @@ export function setupWorldClouds(scene, camera) {
         requestAnimationFrame(tick);
     }
 
-    const visibilityObserver = new MutationObserver(() => {
-        if (cloudRoot) cloudRoot.visible = document.body.classList.contains("webminecraft-in-world");
-    });
-    visibilityObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    if (!visibilityObserver) {
+        visibilityObserver = new MutationObserver(() => {
+            if (cloudRoot) cloudRoot.visible = document.body.classList.contains("webminecraft-in-world");
+        });
+        visibilityObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    }
 
     return cloudRoot;
 }
