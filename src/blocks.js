@@ -54,20 +54,22 @@ const leavesTexture = loadTexture(texturePath("oak-leaves-normal-original-defaul
 const snowTexture = createTexture("#cbd6da", ["#c0ccd1", "#e3e9eb", "#adbcc2", "#d6e1e5"], 34, 25);
 const waterTexture = createTexture("#2b78aa", ["#1e628f", "#3f91c0", "#6bb9dc", "#245f86"], 30, 26);
 
-const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true, color: 0x858585 });
-const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true, color: 0x858585 });
-const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture, vertexColors: true, color: 0x858585 });
-const stoneMaterial = new THREE.MeshLambertMaterial({ map: stoneTexture, vertexColors: true, color: 0x858585 });
-const cobblestoneMaterial = new THREE.MeshLambertMaterial({ map: cobblestoneTexture, vertexColors: true, color: 0x858585 });
-const gravelMaterial = new THREE.MeshLambertMaterial({ map: gravelTexture, vertexColors: true, color: 0x858585 });
-const sandMaterial = new THREE.MeshLambertMaterial({ map: sandTexture, vertexColors: true, color: 0x858585 });
-const sandstoneMaterial = new THREE.MeshLambertMaterial({ map: sandstoneTexture, vertexColors: true, color: 0x858585 });
-const bedrockMaterial = new THREE.MeshLambertMaterial({ map: bedrockTexture, vertexColors: true, color: 0x858585 });
-const coalMaterial = new THREE.MeshLambertMaterial({ map: coalTexture, vertexColors: true, color: 0x858585 });
-const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture, vertexColors: true, color: 0x858585 });
-const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, vertexColors: true, color: 0x858585 });
-const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true, color: 0x858585 });
-const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true, color: 0x858585 });
+// Keep blocks at their normal texture brightness outside of water.
+// Underwater darkening is handled by the water/underwater rendering instead.
+const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true, color: 0xffffff });
+const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true, color: 0xffffff });
+const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture, vertexColors: true, color: 0xffffff });
+const stoneMaterial = new THREE.MeshLambertMaterial({ map: stoneTexture, vertexColors: true, color: 0xffffff });
+const cobblestoneMaterial = new THREE.MeshLambertMaterial({ map: cobblestoneTexture, vertexColors: true, color: 0xffffff });
+const gravelMaterial = new THREE.MeshLambertMaterial({ map: gravelTexture, vertexColors: true, color: 0xffffff });
+const sandMaterial = new THREE.MeshLambertMaterial({ map: sandTexture, vertexColors: true, color: 0xffffff });
+const sandstoneMaterial = new THREE.MeshLambertMaterial({ map: sandstoneTexture, vertexColors: true, color: 0xffffff });
+const bedrockMaterial = new THREE.MeshLambertMaterial({ map: bedrockTexture, vertexColors: true, color: 0xffffff });
+const coalMaterial = new THREE.MeshLambertMaterial({ map: coalTexture, vertexColors: true, color: 0xffffff });
+const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture, vertexColors: true, color: 0xffffff });
+const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, vertexColors: true, color: 0xffffff });
+const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true, color: 0xffffff });
+const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true, color: 0xffffff });
 
 const leavesMaterial = new THREE.MeshLambertMaterial({
     map: leavesTexture,
@@ -78,10 +80,10 @@ const leavesMaterial = new THREE.MeshLambertMaterial({
     depthTest: true,
     side: THREE.DoubleSide,
     vertexColors: true,
-    color: 0x858585
+    color: 0xffffff
 });
 
-const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true, color: 0x858585 });
+const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true, color: 0xffffff });
 const waterMaterial = new THREE.MeshLambertMaterial({
     map: waterTexture,
     transparent: true,
