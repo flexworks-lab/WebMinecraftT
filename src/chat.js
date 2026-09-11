@@ -1,6 +1,8 @@
 const CHAT_CLASS = "webminecraft-chat-open";
 const CHAT_HIDE_DELAY = 25000;
+const MOBILE_CHAT_HIDE_DELAY = 10000;
 let chatHideTimer = null;
+let chatApiWrapped = null;
 
 function isMultiplayerActive() {
     return Boolean(window.__webminecraftMultiplayerActive);
@@ -19,7 +21,7 @@ function chatIsOpen() {
 }
 
 function getChatFeed() {
-    return document.querySelector("#multiplayerChat .chat-messages, #multiplayerChat .messages, #multiplayerChat [class*=message]");
+    return document.querySelector("#multiplayerChat .chat-messages, #multiplayerChat .messages, #multiplayerChat [class*=message], #multiplayerChatFeed");
 }
 
 function addSystem(message) {
@@ -58,7 +60,7 @@ function showChat(prefill = "") {
 
     const input = chatInput();
     if (input) {
-        input.value = prefill;
+        if (input.value !== prefill) input.value = prefill;
         input.focus({ preventScroll: true });
         try { input.setSelectionRange(input.value.length, input.value.length); } catch {}
     }
@@ -83,6 +85,25 @@ function keepChatOpenAfterSend() {
     }, CHAT_HIDE_DELAY);
 }
 
+function keepMobileChatOpen() {
+    clearTimeout(chatHideTimer);
+    document.body.classList.add(CHAT_CLASS);
+
+    const check = () => {
+        const input = chatInput();
+        const typing = Boolean(input && (document.activeElement === input || input.value.trim()));
+
+        if (typing) {
+            chatHideTimer = setTimeout(check, 1000);
+            return;
+        }
+
+        hideChat();
+    };
+
+    chatHideTimer = setTimeout(check, MOBILE_CHAT_HIDE_DELAY);
+}
+
 function openChat(prefill = "") {
     if (!showChat(prefill)) return;
     try { document.exitPointerLock?.(); } catch {}
@@ -90,6 +111,26 @@ function openChat(prefill = "") {
 
 function closeChat() {
     hideChat();
+}
+
+function wrapIncomingChat() {
+    const add = window.__webminecraftChatAdd;
+    if (typeof add !== "function" || add === chatApiWrapped) return;
+
+    const wrapped = function (...args) {
+        const result = add.apply(this, args);
+        // Every incoming chat/system message makes the chat visible.
+        if (chatElement()) {
+            document.body.classList.add(CHAT_CLASS);
+            chatElement().style.display = "block";
+            clearTimeout(chatHideTimer);
+            chatHideTimer = setTimeout(() => hideChat(), CHAT_HIDE_DELAY);
+        }
+        return result;
+    };
+
+    window.__webminecraftChatAdd = wrapped;
+    chatApiWrapped = wrapped;
 }
 
 function installChatInput() {
@@ -108,7 +149,6 @@ function installChatInput() {
                 return;
             }
 
-            // Slash commands belong to the local chat command system.
             if (text.startsWith("/")) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
@@ -118,11 +158,8 @@ function installChatInput() {
                 return;
             }
 
-            // Normal multiplayer messages MUST be allowed to reach the
-            // multiplayer client's own Enter handler. Do not stop propagation,
-            // prevent the event, or clear the input here.
+            // Let multiplayerClient.js handle normal message sending.
             keepChatOpenAfterSend();
-            return;
         }
 
         if (event.key === "Escape") {
@@ -136,8 +173,23 @@ function installChatInput() {
 
 function watchChatCreation() {
     installChatInput();
-    const observer = new MutationObserver(() => installChatInput());
+    wrapIncomingChat();
+
+    const observer = new MutationObserver(() => {
+        installChatInput();
+        wrapIncomingChat();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // multiplayerClient.js assigns its chat API while creating the UI.
+    // Keep checking briefly so incoming messages are hooked even when the
+    // chat element already existed before this module ran.
+    let checks = 0;
+    const timer = setInterval(() => {
+        wrapIncomingChat();
+        installChatInput();
+        if (++checks >= 30 && chatApiWrapped) clearInterval(timer);
+    }, 250);
 }
 
 function createMobileChatButton() {
@@ -146,7 +198,10 @@ function createMobileChatButton() {
     button.id = "touchChatButton";
     button.type = "button";
     button.textContent = "CHAT";
-    button.addEventListener("click", () => openChat(""));
+    button.addEventListener("click", () => {
+        openChat("");
+        keepMobileChatOpen();
+    });
     document.body.appendChild(button);
 
     const style = document.createElement("style");
