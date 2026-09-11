@@ -22,6 +22,7 @@ import("./playerList.js").catch(error => console.warn("Player list UI failed to 
 import("./discussion.js").catch(error => console.warn("Discussion UI failed to load:", error));
 import("./moderation.js").catch(error => console.warn("Moderation system failed to load:", error));
 import("./devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
+import("./devServerControls.js").catch(error => console.warn("Developer server controls failed to load:", error));
 import("./accountDevControls.js").catch(error => console.warn("Account developer controls failed to load:", error));
 import("./announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
 import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
