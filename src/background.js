@@ -3,6 +3,7 @@ import "./playerList.js";
 import "./worldSync.js";
 import { touchInput } from "./controls.js";
 import "./uiFixes.js";
+import "./waterPhysics.js";
 
 function applyDirtBackgrounds() {
     if (document.getElementById("webMinecraftDirtBackgrounds")) return;
