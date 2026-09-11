@@ -222,17 +222,34 @@ export function updateMultiplayerAvatars(scene) {
 
         entry.target.set(Number(player.position.x) || 0, (Number(player.position.y) || 0) - 1.8, Number(player.position.z) || 0);
         entry.group.position.lerp(entry.target, 0.32);
-        const targetYaw = Number(player.rotation?.y) || 0;
-        entry.group.rotation.y = THREE.MathUtils.lerp(entry.group.rotation.y, targetYaw, 0.35);
 
-        // Remote rotation.x is the player's camera pitch. Keep the body upright and aim only the head.
+        // Body turns from movement direction only. The camera/look direction
+        // controls the head independently, so looking around never rotates the body.
+        const moveX = entry.group.position.x - entry.lastBodyPositionX ?? 0;
+        const moveZ = entry.group.position.z - entry.lastBodyPositionZ ?? 0;
+        const movedDistance = Math.hypot(moveX, moveZ);
+        if (Number.isFinite(moveX) && Number.isFinite(moveZ) && movedDistance > 0.002) {
+            const movementYaw = Math.atan2(-moveX, -moveZ);
+            const currentYaw = entry.group.rotation.y;
+            let deltaYaw = THREE.MathUtils.euclideanModulo(movementYaw - currentYaw + Math.PI, Math.PI * 2) - Math.PI;
+            if (Math.abs(deltaYaw) > 0.001) entry.group.rotation.y = currentYaw + THREE.MathUtils.clamp(deltaYaw, -0.25, 0.25);
+        }
+        entry.lastBodyPositionX = entry.group.position.x;
+        entry.lastBodyPositionZ = entry.group.position.z;
+
+        // Head follows the remote player's complete camera look direction.
+        // Yaw is local to the body so the body stays controlled by movement.
         const rawPitch = Number(player.rotation?.x) || 0;
+        const rawYaw = Number(player.rotation?.y) || 0;
         const targetPitch = THREE.MathUtils.clamp(rawPitch, -1.25, 1.25);
+        let headYaw = rawYaw - entry.group.rotation.y;
+        headYaw = THREE.MathUtils.euclideanModulo(headYaw + Math.PI, Math.PI * 2) - Math.PI;
+        headYaw = THREE.MathUtils.clamp(headYaw, -1.45, 1.45);
         const parts = entry.parts;
         parts.head.rotation.order = "YXZ";
         parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, targetPitch, 0.28);
-        parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, 0, 0.35);
-        parts.head.rotation.z = THREE.MathUtils.lerp(parts.head.rotation.z, 0, 0.35);
+        parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, headYaw, 0.28);
+        parts.head.rotation.z = 0;
 
         const action = String(player.action || "idle");
         if (action !== entry.lastAction) { entry.lastAction = action; entry.actionStarted = now; }
