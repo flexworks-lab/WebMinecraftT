@@ -1,4 +1,6 @@
 const CHAT_CLASS = "webminecraft-chat-open";
+const CHAT_HIDE_DELAY = 25000;
+let chatHideTimer = null;
 
 function isMultiplayerActive() {
     return Boolean(window.__webminecraftMultiplayerActive);
@@ -47,14 +49,35 @@ function showChat() {
 }
 
 function hideChat() {
+    if (chatHideTimer) {
+        clearTimeout(chatHideTimer);
+        chatHideTimer = null;
+    }
+
     const chat = chatElement();
     if (chat) chat.style.setProperty("display", "none", "important");
     document.body.classList.remove(CHAT_CLASS);
     window.__webminecraftChatHide?.();
 }
 
+function keepChatOpenAfterSend() {
+    showChat();
+
+    if (chatHideTimer) clearTimeout(chatHideTimer);
+
+    chatHideTimer = setTimeout(() => {
+        chatHideTimer = null;
+        if (isMultiplayerActive()) hideChat();
+    }, CHAT_HIDE_DELAY);
+}
+
 function openChat(initialText = "") {
     if (!isMultiplayerActive()) return false;
+
+    if (chatHideTimer) {
+        clearTimeout(chatHideTimer);
+        chatHideTimer = null;
+    }
 
     showChat();
     document.exitPointerLock?.();
@@ -96,10 +119,14 @@ function installChatInput() {
                 } else if (isMultiplayerActive()) {
                     try { window.__webminecraftSendChat?.(text); } catch {}
                 }
+
+                // Keep the chat visible for 25 seconds after the message is sent.
+                keepChatOpenAfterSend();
+            } else {
+                closeChat();
             }
 
             input.value = "";
-            closeChat();
             return;
         }
 
