@@ -17,6 +17,8 @@ let running = false;
 let lastFrame = performance.now();
 let visibilityObserver = null;
 let sunMesh = null;
+let sunGlowMeshes = [];
+let cloudCamera = null;
 
 // Bright, opaque white clouds so they are easy to see against the sky.
 const cloudMaterial = new THREE.MeshBasicMaterial({
@@ -36,17 +38,23 @@ const cloudGeometry = new THREE.BoxGeometry(
     CLOUD_BLOCK_SIZE
 );
 
-// Simple bright 3D sun disc made entirely from geometry.
+// Square sun with layered square glow. All geometry is generated in code.
+const sunGeometry = new THREE.PlaneGeometry(10, 10);
 const sunMaterial = new THREE.MeshBasicMaterial({
-    color: 0xfff29a,
+    color: 0xffe87a,
     transparent: false,
+    opacity: 1,
+    side: THREE.DoubleSide,
     depthWrite: false,
     depthTest: false,
     fog: false,
     toneMapped: false
 });
 
-const sunGeometry = new THREE.SphereGeometry(8, 20, 12);
+const sunGlowGeometry = new THREE.PlaneGeometry(1, 1);
+const sunGlowColors = [0xfff6a8, 0xffef88, 0xffe36a];
+const sunGlowSizes = [15, 20, 27];
+const sunGlowOpacities = [0.20, 0.10, 0.045];
 
 function seedHash(a, b, c = 0) {
     let h = Math.imul((a | 0) ^ 0x9e3779b9, 374761393);
@@ -177,13 +185,44 @@ function makeCloud(cellX, cellZ) {
 function createSun() {
     if (sunMesh || !cloudRoot) return;
 
+    const sunPosition = new THREE.Vector3(45, 85, 30);
+
     sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-    sunMesh.name = "MinecraftSun";
-    sunMesh.position.set(45, 85, 30);
-    sunMesh.renderOrder = 20;
+    sunMesh.name = "MinecraftSquareSun";
+    sunMesh.position.copy(sunPosition);
+    sunMesh.renderOrder = 30;
     sunMesh.frustumCulled = false;
     sunMesh.userData.isSun = true;
     cloudRoot.add(sunMesh);
+
+    sunGlowMeshes = [];
+    for (let i = 0; i < sunGlowSizes.length; i++) {
+        const material = new THREE.MeshBasicMaterial({
+            color: sunGlowColors[i],
+            transparent: true,
+            opacity: sunGlowOpacities[i],
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: false,
+            side: THREE.DoubleSide,
+            fog: false,
+            toneMapped: false
+        });
+        const glow = new THREE.Mesh(sunGlowGeometry, material);
+        glow.name = `MinecraftSunGlow${i + 1}`;
+        glow.position.copy(sunPosition);
+        glow.scale.setScalar(sunGlowSizes[i]);
+        glow.renderOrder = 29 - i;
+        glow.frustumCulled = false;
+        cloudRoot.add(glow);
+        sunGlowMeshes.push(glow);
+    }
+}
+
+function updateSunFacing() {
+    if (!cloudCamera || !sunMesh) return;
+    sunMesh.lookAt(cloudCamera.position);
+    for (const glow of sunGlowMeshes) glow.lookAt(cloudCamera.position);
 }
 
 function clearClouds() {
@@ -191,6 +230,7 @@ function clearClouds() {
     if (!cloudRoot) return;
     while (cloudRoot.children.length) cloudRoot.remove(cloudRoot.children[0]);
     sunMesh = null;
+    sunGlowMeshes = [];
 }
 
 function rebuildCloudField(seed) {
@@ -206,6 +246,7 @@ function rebuildCloudField(seed) {
     }
 
     createSun();
+    updateSunFacing();
 }
 
 function tick(now) {
@@ -220,11 +261,13 @@ function tick(now) {
         }
     }
 
+    updateSunFacing();
     requestAnimationFrame(tick);
 }
 
-export function setupWorldClouds(scene) {
+export function setupWorldClouds(scene, camera = null) {
     ensureStyles();
+    cloudCamera = camera;
 
     if (!cloudRoot) {
         cloudRoot = new THREE.Group();
