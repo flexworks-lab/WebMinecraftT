@@ -71,6 +71,28 @@ body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar + #inventoryButto
     }
 }
 
+function createCrosshair() {
+    let crosshair = document.getElementById("webMinecraftCrosshair");
+    if (crosshair) return crosshair;
+    crosshair = document.createElement("div");
+    crosshair.id = "webMinecraftCrosshair";
+    crosshair.setAttribute("aria-hidden", "true");
+    crosshair.innerHTML = "<span></span><span></span>";
+    crosshair.style.cssText = "position:fixed;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none;z-index:9999;";
+    const style = document.createElement("style");
+    style.id = "webMinecraftCrosshairStyles";
+    style.textContent = `
+#webMinecraftCrosshair span{position:absolute;display:block;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.8)}
+#webMinecraftCrosshair span:first-child{left:1px;right:1px;top:8px;height:2px}
+#webMinecraftCrosshair span:last-child{top:1px;bottom:1px;left:8px;width:2px}
+body.webminecraft-in-world #webMinecraftCrosshair{display:block}
+body:not(.webminecraft-in-world) #webMinecraftCrosshair{display:none}
+`;
+    document.head.appendChild(style);
+    document.body.appendChild(crosshair);
+    return crosshair;
+}
+
 export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
     registerTNTPhysicsScene(scene);
@@ -79,6 +101,7 @@ export function setupInteraction(scene, camera) {
     positionMobileInventoryButton();
     const outline = createSelectionOutline();
     scene.add(outline);
+    createCrosshair();
     const updateHotbar = () => {
         document.querySelectorAll("#hotbar .slot").forEach((slot, index) => slot.classList.toggle("selected", index === selectedSlot));
         window.dispatchEvent(new CustomEvent("webminecraft:selectedslot", { detail: { slot: selectedSlot } }));
@@ -166,7 +189,10 @@ export function setupInteraction(scene, camera) {
     function updateSelection() {
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) outline.visible = false;
-        else { outline.position.set(target.x, target.y, target.z); outline.visible = true; }
+        else {
+            updateSelectionOutline(outline, target, camera);
+            outline.visible = true;
+        }
         requestAnimationFrame(updateSelection);
     }
     updateSelection();
@@ -202,12 +228,47 @@ function getTargetBlock(scene, camera, BLOCK) {
 }
 
 function createSelectionOutline() {
-    const geometry = new THREE.BoxGeometry(1.02, 1.02, 1.02);
-    const material = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true, transparent: true, opacity: 0.95, depthTest: false });
-    const outline = new THREE.Mesh(geometry, material);
+    const outline = new THREE.LineSegments(
+        new THREE.BufferGeometry(),
+        new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.95, depthTest: false })
+    );
     outline.visible = false;
     outline.renderOrder = 1000;
     return outline;
+}
+
+function updateSelectionOutline(outline, target, camera) {
+    const center = new THREE.Vector3(target.x, target.y, target.z);
+    const toCamera = camera.position.clone().sub(center);
+    const distance = toCamera.length();
+    if (distance < 0.0001) return;
+    toCamera.multiplyScalar(1 / distance);
+
+    const min = -0.511;
+    const max = 0.511;
+    const faces = [
+        { n: new THREE.Vector3( 1, 0, 0), c: [[max,min,min],[max,max,min],[max,max,max],[max,min,max]] },
+        { n: new THREE.Vector3(-1, 0, 0), c: [[min,min,max],[min,max,max],[min,max,min],[min,min,min]] },
+        { n: new THREE.Vector3( 0, 1, 0), c: [[min,max,min],[min,max,max],[max,max,max],[max,max,min]] },
+        { n: new THREE.Vector3( 0,-1, 0), c: [[min,min,max],[min,min,min],[max,min,min],[max,min,max]] },
+        { n: new THREE.Vector3( 0, 0, 1), c: [[max,min,max],[max,max,max],[min,max,max],[min,min,max]] },
+        { n: new THREE.Vector3( 0, 0,-1), c: [[min,min,min],[min,max,min],[max,max,min],[max,min,min]] }
+    ];
+
+    const positions = [];
+    const addEdge = (a, b) => positions.push(a[0],a[1],a[2],b[0],b[1],b[2]);
+
+    for (const face of faces) {
+        if (face.n.dot(toCamera) <= 0.08) continue;
+        const c = face.c.map(v => [v[0] + center.x, v[1] + center.y, v[2] + center.z]);
+        addEdge(c[0], c[1]);
+        addEdge(c[1], c[2]);
+        addEdge(c[2], c[3]);
+        addEdge(c[3], c[0]);
+    }
+
+    outline.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    outline.geometry.computeBoundingSphere();
 }
 
 function getParticleColor(blockType, BLOCK) {
