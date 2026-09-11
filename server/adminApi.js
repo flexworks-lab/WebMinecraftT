@@ -173,26 +173,36 @@ export async function handleAdminRequest(request, response, rooms, cleanRoom) {
     if (action === "kick") {
         const player = room.players.get(String(body?.playerId || ""));
         if (!player) return sendJson(response, 404, { ok: false, error: "Player not found." });
+        try {
+            player.ws.sendText(JSON.stringify({
+                type: "player_kicked",
+                message: "You were kicked from the server by the developer."
+            }));
+        } catch {}
         try { player.ws.close(); } catch {}
         sendJson(response, 200, { ok: true, message: `${player.name} was kicked.` });
         return true;
     }
 
-    if (action === "shutdown") {
-        for (const player of [...room.players.values()]) {
-            try { player.ws.close(); } catch {}
-        }
-        rooms.delete(room.id);
-        sendJson(response, 200, { ok: true, message: `${room.name} was shut down.` });
-        return true;
-    }
+    if (action === "shutdown" || action === "delete") {
+        const message = action === "delete"
+            ? "This server was deleted by the developer. Returning to the main menu."
+            : "This server was shut down by the developer. Returning to the main menu.";
 
-    if (action === "delete") {
+        for (const player of [...room.players.values()]) {
+            try {
+                player.ws.sendText(JSON.stringify({
+                    type: "server_removed",
+                    message
+                }));
+            } catch {}
+        }
+
         for (const player of [...room.players.values()]) {
             try { player.ws.close(); } catch {}
         }
         rooms.delete(room.id);
-        sendJson(response, 200, { ok: true, message: `${room.name} was deleted.` });
+        sendJson(response, 200, { ok: true, message: `${room.name} was ${action === "delete" ? "deleted" : "shut down"}.` });
         return true;
     }
 
