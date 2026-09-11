@@ -23,9 +23,11 @@ export function isFirebaseConfigured() {
 import("./fastCloudDelete.js").catch(error => console.warn("Fast cloud delete failed to load:", error));
 
 // These modules are loaded globally so the player list, Discussions,
-// moderation warnings, and owner-only developer controls are available from
-// the home screen.
+// moderation warnings, owner-only developer controls, and website
+// announcements are available from the home screen.
 import("./playerList.js").catch(error => console.warn("Player list UI failed to load:", error));
 import("./discussion.js").catch(error => console.warn("Discussion UI failed to load:", error));
 import("./moderation.js").catch(error => console.warn("Moderation system failed to load:", error));
 import("./devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
+import("./announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
+import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
