@@ -17,6 +17,7 @@ export function isFirebaseConfigured() {
     return Object.values(firebaseConfig).every(Boolean);
 }
 
+import("./multiplayerServerEvents.js").catch(error => console.warn("Multiplayer server event bridge failed to load:", error));
 import("./fastCloudDelete.js").catch(error => console.warn("Fast cloud delete failed to load:", error));
 import("./playerList.js").catch(error => console.warn("Player list UI failed to load:", error));
 import("./discussion.js").catch(error => console.warn("Discussion UI failed to load:", error));
