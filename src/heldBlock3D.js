@@ -9,7 +9,8 @@ import {
     sandMaterial,
     sandstoneMaterial,
     oakLogMaterial,
-    leavesMaterial
+    leavesMaterial,
+    tntMaterial
 } from "./blocks.js";
 
 const ITEM_MATERIALS = {
@@ -21,19 +22,30 @@ const ITEM_MATERIALS = {
     6: leavesMaterial,
     7: cobblestoneMaterial,
     8: gravelMaterial,
-    9: sandstoneMaterial
+    9: sandstoneMaterial,
+    15: tntMaterial
 };
 
-// Larger and a little farther right, while keeping the hand/block anchored near the bottom.
 const BASE_POS = new THREE.Vector3(0.84, -0.76, -1.05);
 const BASE_ROT = new THREE.Euler(0.08, -0.18, -0.10);
 const ACTION_DURATION = 180;
+const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURIComponent(file)}`;
 
-let renderer, camera, scene, heldRoot, blockMesh;
+let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
 let visible = false;
 let selectedItemId = 1;
 let action = null;
 let actionStartedAt = 0;
+
+function loadHeldTexture(file) {
+    const texture = new THREE.TextureLoader().load(texturePath(file));
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+}
+
+const flintSteelTexture = loadHeldTexture("Flint_and_Steel_JE4_BE2.png");
 
 function makeHandTexture() {
     const canvas = document.createElement("canvas");
@@ -70,7 +82,7 @@ function isWorldVisible() {
     const main = document.getElementById("mainMenu");
     const seed = document.getElementById("seedMenu");
     const saved = document.getElementById("savedWorlds");
-    return !!ITEM_MATERIALS[selectedItemId] && inWorld
+    return (ITEM_MATERIALS[selectedItemId] || selectedItemId === 16) && inWorld
         && (!main || getComputedStyle(main).display === "none")
         && (!seed || getComputedStyle(seed).display === "none")
         && (!saved || getComputedStyle(saved).display === "none");
@@ -81,12 +93,50 @@ function updateVisibility() {
     if (renderer) renderer.domElement.style.display = visible ? "block" : "none";
 }
 
+function clearHeldMesh() {
+    if (blockMesh) {
+        blockMesh.geometry.dispose();
+        if (Array.isArray(blockMesh.material)) blockMesh.material.forEach(m => m?.dispose?.());
+        else blockMesh.material?.dispose?.();
+        heldRoot.remove(blockMesh);
+        blockMesh = null;
+    }
+    if (itemMesh) {
+        itemMesh.geometry.dispose();
+        itemMesh.material?.dispose?.();
+        heldRoot.remove(itemMesh);
+        itemMesh = null;
+    }
+}
+
 function updateBlock() {
-    if (!blockMesh) return;
-    const next = getMaterials(selectedItemId);
-    if (Array.isArray(blockMesh.material)) blockMesh.material.forEach(m => m?.dispose?.());
-    else blockMesh.material?.dispose?.();
-    blockMesh.material = next;
+    clearHeldMesh();
+
+    if (selectedItemId === 16) {
+        // Flint & Steel is a thin held item, not a cube.
+        const geometry = new THREE.PlaneGeometry(0.48, 0.72);
+        const material = new THREE.MeshBasicMaterial({
+            map: flintSteelTexture,
+            transparent: true,
+            alphaTest: 0.05,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        itemMesh = new THREE.Mesh(geometry, material);
+        itemMesh.position.set(-0.01, 0.02, -0.03);
+        itemMesh.rotation.set(0.02, 0.12, -0.12);
+        itemMesh.renderOrder = 3;
+        heldRoot.add(itemMesh);
+        return;
+    }
+
+    if (ITEM_MATERIALS[selectedItemId]) {
+        blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.64, 0.64), getMaterials(selectedItemId));
+        blockMesh.position.set(-0.04, 0.10, 0);
+        blockMesh.rotation.set(0.06, 0.32, -0.06);
+        blockMesh.renderOrder = 2;
+        heldRoot.add(blockMesh);
+    }
 }
 
 function readSelectedItem(slot) {
@@ -141,11 +191,10 @@ function init() {
     heldRoot = new THREE.Group();
     heldRoot.position.copy(BASE_POS);
     heldRoot.rotation.copy(BASE_ROT);
-    // Bigger overall viewmodel.
     heldRoot.scale.setScalar(1.08);
     scene.add(heldRoot);
 
-    const hand = new THREE.Mesh(
+    hand = new THREE.Mesh(
         new THREE.BoxGeometry(0.30, 0.76, 0.30),
         new THREE.MeshBasicMaterial({ map: makeHandTexture() })
     );
@@ -154,11 +203,6 @@ function init() {
     hand.rotation.z = -0.12;
     heldRoot.add(hand);
 
-    blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.64, 0.64), getMaterials(selectedItemId));
-    blockMesh.position.set(-0.04, 0.10, 0);
-    blockMesh.rotation.set(0.06, 0.32, -0.06);
-    blockMesh.renderOrder = 2;
-    heldRoot.add(blockMesh);
     updateBlock();
     updateVisibility();
 
@@ -200,20 +244,18 @@ function init() {
         const bob = walk ? Math.sin(now * speed) * 0.055 : Math.sin(now * speed) * 0.008;
         const sway = walk ? Math.cos(now * speed * 0.52) * 0.018 : 0;
 
-        let actionX = 0, actionY = 0, actionZ = 0, actionPX = 0, actionPZ = 0;
+        let actionX = 0, actionY = 0, actionPX = 0, actionPZ = 0;
         if (action) {
             const t = THREE.MathUtils.clamp((now - actionStartedAt) / ACTION_DURATION, 0, 1);
             const p = Math.sin(Math.PI * t);
             if (action === "mine") {
                 actionX = -0.72 * p;
                 actionY = 0.18 * p;
-                actionZ = -0.08 * p;
                 actionPX = 0.11 * p;
                 actionPZ = 0.10 * p;
             } else {
                 actionX = -0.38 * p;
                 actionY = 0.10 * p;
-                actionZ = -0.05 * p;
                 actionPX = -0.04 * p;
                 actionPZ = 0.12 * p;
             }
@@ -221,11 +263,7 @@ function init() {
         }
 
         heldRoot.position.set(BASE_POS.x + sway + actionPX, BASE_POS.y + bob - Math.abs(actionPX) * 0.2, BASE_POS.z + actionPZ);
-        heldRoot.rotation.set(
-            BASE_ROT.x + actionX,
-            BASE_ROT.y,
-            BASE_ROT.z + actionY + sway * 0.5
-        );
+        heldRoot.rotation.set(BASE_ROT.x + actionX, BASE_ROT.y, BASE_ROT.z + actionY + sway * 0.5);
         renderer.render(scene, camera);
     }
     render();
