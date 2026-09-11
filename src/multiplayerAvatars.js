@@ -77,6 +77,35 @@ function makeFaceTexture(seed, skinHex, hairHex) {
     });
 }
 
+function makeHeadTexture(seed, skinHex, hairHex, variant) {
+    const rng = makeRng(seed ^ (variant * 0x27D4EB2D));
+    const base = `#${new THREE.Color(skinHex).getHexString()}`;
+    const light = shade(skinHex, 0.025);
+    const dark = shade(skinHex, -0.075);
+    const hair = `#${new THREE.Color(hairHex).getHexString()}`;
+    const hairLight = shade(hairHex, 0.06);
+    return makeCanvasTexture(ctx => {
+        ctx.fillStyle = base;
+        ctx.fillRect(0, 0, 16, 16);
+        ctx.fillStyle = light;
+        for (let i = 0; i < 10; i++) ctx.fillRect(Math.floor(rng() * 14) + 1, Math.floor(rng() * 13) + 2, 1, 1);
+        ctx.fillStyle = dark;
+        for (let i = 0; i < 8; i++) ctx.fillRect(Math.floor(rng() * 14) + 1, Math.floor(rng() * 13) + 2, 1, 1);
+        ctx.fillStyle = hair;
+        if (variant === 0) {
+            ctx.fillRect(0, 0, 16, 4); ctx.fillRect(1, 3, 14, 3);
+            for (let x = 0; x < 16; x += 3) ctx.fillRect(x, 4, 1, 2);
+        } else if (variant === 1) {
+            ctx.fillRect(0, 0, 16, 3); ctx.fillRect(0, 2, 5, 6); ctx.fillRect(11, 2, 5, 6);
+        } else {
+            ctx.fillRect(0, 0, 16, 5);
+            ctx.fillRect(0, 0, 3, 16); ctx.fillRect(13, 0, 3, 16);
+        }
+        ctx.fillStyle = hairLight;
+        for (let i = 0; i < 5; i++) ctx.fillRect(Math.floor(rng() * 13) + 1, Math.floor(rng() * 5), 1, 1);
+    });
+}
+
 function makeClothTexture(seed, baseHex, variant) {
     const rng = makeRng(seed ^ (variant * 0x45D9F3B));
     const dark = shade(baseHex, -0.08), light = shade(baseHex, 0.07), accent = shade(baseHex, rng() > 0.5 ? 0.13 : -0.13);
@@ -112,13 +141,17 @@ function createAvatar(id, name) {
     const pantsColor = PANTS_COLORS[Math.floor(rng() * PANTS_COLORS.length)];
     const shoeColor = SHOE_COLORS[Math.floor(rng() * SHOE_COLORS.length)];
     const faceTexture = makeFaceTexture(hashString(id), skinColor, hairColor);
+    const headBack = makeHeadTexture(hashString(id), skinColor, hairColor, 0);
+    const headSide = makeHeadTexture(hashString(id), skinColor, hairColor, 1);
+    const headTop = makeHeadTexture(hashString(id), skinColor, hairColor, 2);
     const shirtTexture = makeClothTexture(hashString(id), `#${new THREE.Color(shirtColor).getHexString()}`, 1);
     const pantsTexture = makeClothTexture(hashString(id), `#${new THREE.Color(pantsColor).getHexString()}`, 2);
-    const skin = makeMaterial(skinColor), face = makeMaterial(faceTexture), shirt = makeMaterial(shirtTexture), pants = makeMaterial(pantsTexture), shoes = makeMaterial(shoeColor);
+    const skin = makeMaterial(skinColor), face = makeMaterial(faceTexture), back = makeMaterial(headBack), side = makeMaterial(headSide), top = makeMaterial(headTop), shirt = makeMaterial(shirtTexture), pants = makeMaterial(pantsTexture), shoes = makeMaterial(shoeColor);
 
     const group = new THREE.Group();
     group.userData.multiplayerAvatar = true;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [skin, skin, skin, skin, skin, face]); head.position.y = 1.8;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [side, side, top, skin, face, back]);
+    head.position.y = 1.8;
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt); torso.position.y = 1.1;
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt); leftArm.position.set(-0.53, 1.23, 0);
     const rightArm = leftArm.clone(); rightArm.position.x = 0.53;
@@ -223,33 +256,16 @@ export function updateMultiplayerAvatars(scene) {
         entry.target.set(Number(player.position.x) || 0, (Number(player.position.y) || 0) - 1.8, Number(player.position.z) || 0);
         entry.group.position.lerp(entry.target, 0.32);
 
-        // Body turns from movement direction only. The camera/look direction
-        // controls the head independently, so looking around never rotates the body.
-        const moveX = entry.group.position.x - entry.lastBodyPositionX ?? 0;
-        const moveZ = entry.group.position.z - entry.lastBodyPositionZ ?? 0;
-        const movedDistance = Math.hypot(moveX, moveZ);
-        if (Number.isFinite(moveX) && Number.isFinite(moveZ) && movedDistance > 0.002) {
-            const movementYaw = Math.atan2(-moveX, -moveZ);
-            const currentYaw = entry.group.rotation.y;
-            let deltaYaw = THREE.MathUtils.euclideanModulo(movementYaw - currentYaw + Math.PI, Math.PI * 2) - Math.PI;
-            if (Math.abs(deltaYaw) > 0.001) entry.group.rotation.y = currentYaw + THREE.MathUtils.clamp(deltaYaw, -0.25, 0.25);
-        }
-        entry.lastBodyPositionX = entry.group.position.x;
-        entry.lastBodyPositionZ = entry.group.position.z;
+        const targetYaw = Number(player.rotation?.y) || 0;
+        entry.group.rotation.y = THREE.MathUtils.lerp(entry.group.rotation.y, targetYaw, 0.35);
 
-        // Head follows the remote player's complete camera look direction.
-        // Yaw is local to the body so the body stays controlled by movement.
         const rawPitch = Number(player.rotation?.x) || 0;
-        const rawYaw = Number(player.rotation?.y) || 0;
         const targetPitch = THREE.MathUtils.clamp(rawPitch, -1.25, 1.25);
-        let headYaw = rawYaw - entry.group.rotation.y;
-        headYaw = THREE.MathUtils.euclideanModulo(headYaw + Math.PI, Math.PI * 2) - Math.PI;
-        headYaw = THREE.MathUtils.clamp(headYaw, -1.45, 1.45);
         const parts = entry.parts;
         parts.head.rotation.order = "YXZ";
         parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, targetPitch, 0.28);
-        parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, headYaw, 0.28);
-        parts.head.rotation.z = 0;
+        parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, 0, 0.35);
+        parts.head.rotation.z = THREE.MathUtils.lerp(parts.head.rotation.z, 0, 0.35);
 
         const action = String(player.action || "idle");
         if (action !== entry.lastAction) { entry.lastAction = action; entry.actionStarted = now; }
