@@ -195,3 +195,18 @@ export function notifyWaterBlockChanged(x, y, z) {
     active.add(key(x, y - 1, z));
     dirty = true;
 }
+
+// The water module is imported for side effects by background.js. Wire it to
+// the actual Three.js scene automatically so the reworked fluid system runs.
+const originalSceneAdd = THREE.Scene.prototype.add;
+THREE.Scene.prototype.add = function (...objects) {
+    const result = originalSceneAdd.apply(this, objects);
+    if (!gameScene) gameScene = this;
+    return result;
+};
+
+function waterLoop() {
+    updateWaterPhysics();
+    requestAnimationFrame(waterLoop);
+}
+requestAnimationFrame(waterLoop);
