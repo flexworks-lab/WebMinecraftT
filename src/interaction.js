@@ -76,7 +76,7 @@ body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:56px!
 export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
     setupTexturedHotbar();
-    setupInventory();
+    setupInventory(camera);
 
     const outline = createSelectionOutline();
     scene.add(outline);
