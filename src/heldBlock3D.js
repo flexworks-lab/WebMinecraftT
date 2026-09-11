@@ -58,11 +58,9 @@ function makeHandTexture() {
 function cloneMaterial(material) {
     if (!material?.clone) return material;
     const cloned = material.clone();
-    // The world materials expect a vertex-color attribute on chunk geometry.
-    // The held cube uses a plain BoxGeometry without that attribute, so leaving
-    // vertexColors enabled makes the material render black.
+    // World chunk meshes contain vertex colors, but the held cube uses plain BoxGeometry.
     cloned.vertexColors = false;
-    if ("color" in cloned && cloned.color) cloned.color.setRGB(1, 1, 1);
+    if (cloned.color) cloned.color.setRGB(1, 1, 1);
     cloned.needsUpdate = true;
     return cloned;
 }
@@ -80,7 +78,7 @@ function isWorldVisible() {
     const mainHidden = !mainMenu || getComputedStyle(mainMenu).display === "none";
     const seedHidden = !seedMenu || getComputedStyle(seedMenu).display === "none";
     const savedHidden = !savedWorlds || getComputedStyle(savedWorlds).display === "none";
-    return !!ITEM_MATERIALS[selectedItemId] && (inWorldClass || (mainHidden && seedHidden && savedHidden));
+    return !!ITEM_MATERIALS[selectedItemId] && inWorldClass && mainHidden && seedHidden && savedHidden;
 }
 
 function updateVisibility() {
@@ -139,6 +137,16 @@ function init() {
     camera.position.set(0, 0, 3);
     camera.lookAt(0, 0, 0);
 
+    // The world block materials are Lambert materials, so this little overlay scene
+    // needs its own lights. Without them the textured cube appears completely black.
+    scene.add(new THREE.AmbientLight(0xffffff, 2.8));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.5);
+    keyLight.position.set(-2, 3, 4);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    fillLight.position.set(3, 1, 2);
+    scene.add(fillLight);
+
     heldRoot = new THREE.Group();
     heldRoot.position.set(0.72, -0.38, -1.05);
     heldRoot.rotation.set(0.08, -0.18, -0.10);
@@ -157,6 +165,7 @@ function init() {
     blockMesh = new THREE.Mesh(blockGeometry, getMaterials(selectedItemId));
     blockMesh.position.set(-0.04, 0.10, 0);
     blockMesh.rotation.set(0.06, 0.32, -0.06);
+    blockMesh.renderOrder = 2;
     heldRoot.add(blockMesh);
 
     updateBlock();
