@@ -3,7 +3,7 @@ import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
 import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, giveBrokenBlock, getSelectedItemId, consumeSelected } from "./inventory.js";
-import { tryIgniteTNT } from "./tnt.js";
+import { tryIgniteTNT, registerTNTPhysicsScene } from "./tnt.js";
 import "./worldSave.js";
 import "./heldBlock3D.js";
 
@@ -73,6 +73,7 @@ body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar + #inventoryButto
 
 export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
+    registerTNTPhysicsScene(scene);
     setupTexturedHotbar();
     setupInventory(camera);
     positionMobileInventoryButton();
