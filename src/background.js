@@ -52,41 +52,13 @@ body.webminecraft-in-world #globalPlayerPanel,
 body.webminecraft-in-world #mainMenu button,
 body.webminecraft-in-world #seedMenu,
 body.webminecraft-in-world #menuUpdates{display:none !important}
+body.webminecraft-in-world #devControlsButton,
+body.webminecraft-in-world #discussionButton{display:none !important}
+body.webminecraft-in-world #webMinecraftMovingClouds{display:none !important}
 body.webminecraft-in-world #globalPlayerCount{display:none !important}
 #settingsVersion{display:none !important}
 #gameVersionButton,#gameVersionPicker{display:none !important}
-
-#webMinecraftMovingClouds{
-    position:fixed;
-    inset:0;
-    overflow:hidden;
-    pointer-events:none;
-    z-index:5;
-    opacity:.72;
-    transition:opacity .25s ease;
-}
-body.webminecraft-in-world #webMinecraftMovingClouds{opacity:.62}
-.webMinecraftCloud{
-    position:absolute;
-    width:150px;
-    height:40px;
-    border-radius:28px;
-    background:rgba(255,255,255,.88);
-    filter:blur(1.2px);
-    box-shadow:35px 5px 0 7px rgba(255,255,255,.86),72px -2px 0 12px rgba(255,255,255,.84),104px 8px 0 4px rgba(255,255,255,.86),20px -10px 0 2px rgba(255,255,255,.88);
-    will-change:transform;
-}
-.webMinecraftCloud::after{
-    content:"";
-    position:absolute;
-    left:42px;
-    top:-11px;
-    width:54px;
-    height:34px;
-    border-radius:50%;
-    background:rgba(255,255,255,.88);
-}
-body:not(.webminecraft-in-world) #webMinecraftMovingClouds{z-index:5}
+#webMinecraftMovingClouds{display:none !important}
 
 #touchMovePad{overflow:visible}
 #touchHybridJoystick{
@@ -232,43 +204,9 @@ body:not(.webminecraft-in-world) #webMinecraftMovingClouds{z-index:5}
     }
 }
 
-function setupMovingClouds() {
-    if (document.getElementById("webMinecraftMovingClouds")) return;
-    const layer = document.createElement("div");
-    layer.id = "webMinecraftMovingClouds";
-    const clouds = [];
-    const count = 8;
-    for (let i = 0; i < count; i++) {
-        const cloud = document.createElement("div");
-        cloud.className = "webMinecraftCloud";
-        const y = 8 + (i % 5) * 10 + Math.random() * 7;
-        const scale = 0.62 + Math.random() * 0.52;
-        cloud.style.top = `${y}%`;
-        cloud.style.left = `${-240 + Math.random() * 130}%;`;
-        cloud.style.transform = `scale(${scale})`;
-        layer.appendChild(cloud);
-        clouds.push({ el: cloud, x: -260 - Math.random() * 240, y, speed: 8 + Math.random() * 15, scale });
-    }
-    document.body.appendChild(layer);
-
-    let last = performance.now();
-    const tick = now => {
-        const dt = Math.min((now - last) / 1000, 0.05);
-        last = now;
-        for (const cloud of clouds) {
-            cloud.x += cloud.speed * dt;
-            if (cloud.x > 125) cloud.x = -40 - Math.random() * 30;
-            cloud.el.style.transform = `translate3d(${cloud.x}vw,0,0) scale(${cloud.scale})`;
-        }
-        requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-}
-
 function init() {
     applyDirtBackgrounds();
     setupMenuAndMobileUi();
-    setupMovingClouds();
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
