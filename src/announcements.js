@@ -33,7 +33,8 @@ function addStyles() {
 #siteAnnouncementReason{padding:16px 18px 5px;font-family:MinecraftFont,monospace;font-size:13px;color:#b8dc95}
 #siteAnnouncementMessage{padding:5px 18px 18px;font-size:15px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 #siteAnnouncementClose{display:block;margin:0 18px 18px;width:calc(100% - 36px);min-height:44px;padding:8px 12px;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#666,#4e4e4e);color:#fff;font-family:MinecraftFont,monospace;font-size:11px;cursor:pointer;text-shadow:2px 2px 0 #222}
-#siteAnnouncementClose:hover{filter:brightness(1.1)}
+#siteAnnouncementClose:disabled{opacity:.55;cursor:not-allowed;filter:none}
+#siteAnnouncementClose:hover:not(:disabled){filter:brightness(1.1)}
 `;
     document.head.appendChild(style);
 }
@@ -53,12 +54,38 @@ function showAnnouncement(data) {
     <div id="siteAnnouncementHeader">Website Announcement</div>
     <div id="siteAnnouncementReason"></div>
     <div id="siteAnnouncementMessage"></div>
-    <button id="siteAnnouncementClose" type="button">Got it</button>
+    <button id="siteAnnouncementClose" type="button" disabled>Please wait 5...</button>
 </div>`;
     overlay.querySelector("#siteAnnouncementReason").textContent = reason;
     overlay.querySelector("#siteAnnouncementMessage").textContent = message;
-    overlay.querySelector("#siteAnnouncementClose").addEventListener("click", () => overlay.remove());
-    overlay.addEventListener("click", event => { if (event.target === overlay) overlay.remove(); });
+
+    const closeButton = overlay.querySelector("#siteAnnouncementClose");
+    let seconds = 5;
+
+    const countdown = setInterval(() => {
+        seconds--;
+        if (seconds > 0) {
+            closeButton.textContent = `Please wait ${seconds}...`;
+        } else {
+            clearInterval(countdown);
+            closeButton.disabled = false;
+            closeButton.textContent = "Got it";
+        }
+    }, 1000);
+
+    closeButton.addEventListener("click", () => {
+        if (closeButton.disabled) return;
+        clearInterval(countdown);
+        overlay.remove();
+    });
+
+    overlay.addEventListener("click", event => {
+        if (event.target === overlay && !closeButton.disabled) {
+            clearInterval(countdown);
+            overlay.remove();
+        }
+    });
+
     document.body.appendChild(overlay);
 }
 
