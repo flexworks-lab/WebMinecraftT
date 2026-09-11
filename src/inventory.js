@@ -31,21 +31,18 @@ function ensureInitialItems() { ITEM_TYPES.forEach((item, index) => { if (!inven
 function getItem(itemId) { return ITEM_TYPES.find(item => item.id === itemId) || null; }
 function saveInventory() { try { localStorage.setItem("webminecraft_inventory", JSON.stringify(inventory)); } catch {} }
 function loadInventory() {
-    let freshInventory = false;
     try {
         const saved = JSON.parse(localStorage.getItem("webminecraft_inventory"));
         if (Array.isArray(saved) && saved.length === INVENTORY_SIZE) inventory = saved;
-        else { ensureInitialItems(); freshInventory = true; }
-    } catch { ensureInitialItems(); freshInventory = true; }
-    const migrationKey = "webminecraft_tnt_items_v1";
-    if (localStorage.getItem(migrationKey) !== "1") {
-        if (!freshInventory) {
-            addItem(15, 64);
-            addItem(16, 64);
-        }
-        try { localStorage.setItem(migrationKey, "1"); } catch {}
-        saveInventory();
-    }
+        else ensureInitialItems();
+    } catch { ensureInitialItems(); }
+
+    // Always repair older saved inventories so the newly added items are present.
+    const hasTnt = inventory.some(slot => slot?.itemId === 15 && slot.count > 0);
+    const hasFlintAndSteel = inventory.some(slot => slot?.itemId === 16 && slot.count > 0);
+    if (!hasTnt) addItem(15, 64);
+    if (!hasFlintAndSteel) addItem(16, 64);
+    saveInventory();
 }
 
 function addItem(itemId, amount = 1) {
