@@ -4,6 +4,7 @@ import { touchInput } from "./controls.js";
 import { sendBlockChange } from "./multiplayerClient.js";
 import { setupInventory, giveBrokenBlock, getSelectedItemId, consumeSelected } from "./inventory.js";
 import "./worldSave.js";
+import "./heldBlock3D.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
@@ -24,33 +25,28 @@ function setupTexturedHotbar() {
         }
         document.body.appendChild(hotbar);
     }
-
     const BASE = import.meta.env.BASE_URL;
     const textures = [
         "Grass_Block_(top_texture)_JE2.png", "dirt.png", "stone.png", "sand.png",
         "oak_log_top.png", "oak-leaves-normal-original-default.png",
         "Grass_Block_(top_texture)_JE2.png", "dirt.png", "stone.png"
     ];
-
     while (hotbar.querySelectorAll(".slot").length < 9) {
         const slot = document.createElement("div");
         slot.className = "slot";
         hotbar.appendChild(slot);
     }
-
     hotbar.classList.add("textured-hotbar");
     hotbar.style.removeProperty("display");
     hotbar.style.removeProperty("visibility");
     hotbar.style.removeProperty("opacity");
     hotbar.style.setProperty("pointer-events", "auto", "important");
-
     hotbar.querySelectorAll(".slot").forEach((slot, index) => {
         const texture = textures[index] || textures[0];
         slot.title = `${index + 1}`;
         slot.setAttribute("aria-label", `Hotbar slot ${index + 1}`);
         slot.innerHTML = `<span class="hotbarTexture" style="background-image:url('${BASE}textures/${encodeURIComponent(texture)}')"></span><span class="hotbarNumber">${index + 1}</span>`;
     });
-
     if (!document.getElementById("webMinecraftTexturedHotbarStyles")) {
         const style = document.createElement("style");
         style.id = "webMinecraftTexturedHotbarStyles";
@@ -77,32 +73,21 @@ export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
     setupTexturedHotbar();
     setupInventory(camera);
-
     const outline = createSelectionOutline();
     scene.add(outline);
-
     const updateHotbar = () => {
         document.querySelectorAll("#hotbar .slot").forEach((slot, index) => slot.classList.toggle("selected", index === selectedSlot));
         window.dispatchEvent(new CustomEvent("webminecraft:selectedslot", { detail: { slot: selectedSlot } }));
     };
-
     document.addEventListener("keydown", event => {
         const number = Number(event.key);
-        if (number >= 1 && number <= 9) {
-            selectedSlot = number - 1;
-            updateHotbar();
-        }
+        if (number >= 1 && number <= 9) { selectedSlot = number - 1; updateHotbar(); }
     });
-
     document.querySelectorAll("#hotbar .slot").forEach((slot, index) => {
         slot.addEventListener("pointerdown", event => {
-            event.preventDefault();
-            event.stopPropagation();
-            selectedSlot = index;
-            updateHotbar();
+            event.preventDefault(); event.stopPropagation(); selectedSlot = index; updateHotbar();
         });
     });
-
     document.addEventListener("mousedown", event => {
         if (document.body.classList.contains("mobile-mode")) return;
         if (document.pointerLockElement !== document.body) return;
@@ -110,7 +95,6 @@ export function setupInteraction(scene, camera) {
         if (event.button === 2) placeBlock();
     });
     document.addEventListener("contextmenu", event => event.preventDefault());
-
     function pollTouchActions() {
         const mobile = document.body.classList.contains("mobile-mode");
         const punch = mobile && !!touchInput.punchPressed;
@@ -122,11 +106,9 @@ export function setupInteraction(scene, camera) {
         requestAnimationFrame(pollTouchActions);
     }
     pollTouchActions();
-
     function notifyBlockChange(x, y, z, type) {
         window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type } }));
     }
-
     function breakBlock() {
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) return;
@@ -138,7 +120,6 @@ export function setupInteraction(scene, camera) {
         giveBrokenBlock(type);
         createBreakParticles(scene, new THREE.Vector3(target.x, target.y, target.z), type, BLOCK);
     }
-
     function placeBlock() {
         const itemId = getSelectedItemId(selectedSlot);
         if (!itemId) return;
@@ -151,21 +132,14 @@ export function setupInteraction(scene, camera) {
         if (getBlockAt(x, y, z) !== BLOCK.AIR) return;
         if (playerOverlapsBlock({ x, y, z }, camera)) return;
         if (!setBlockAt(x, y, z, itemId)) return;
-        if (!consumeSelected(selectedSlot)) {
-            setBlockAt(x, y, z, BLOCK.AIR);
-            return;
-        }
+        if (!consumeSelected(selectedSlot)) { setBlockAt(x, y, z, BLOCK.AIR); return; }
         sendBlockChange(x, y, z, itemId);
         notifyBlockChange(x, y, z, itemId);
     }
-
     function updateSelection() {
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) outline.visible = false;
-        else {
-            outline.position.set(target.x, target.y, target.z);
-            outline.visible = true;
-        }
+        else { outline.position.set(target.x, target.y, target.z); outline.visible = true; }
         requestAnimationFrame(updateSelection);
     }
     updateSelection();
@@ -235,11 +209,7 @@ function createBreakParticles(scene, center, blockType, BLOCK) {
         for (const particle of particles) {
             if (!particle.parent) continue;
             const age = time - particle.userData.createdAt;
-            if (age >= 500) {
-                particle.parent.remove(particle);
-                particle.material.dispose();
-                continue;
-            }
+            if (age >= 500) { particle.parent.remove(particle); particle.material.dispose(); continue; }
             alive = true;
             particle.userData.velocity.y -= 5.5 / 60;
             particle.position.addScaledVector(particle.userData.velocity, 1 / 60);
