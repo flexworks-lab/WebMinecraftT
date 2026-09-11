@@ -33,12 +33,30 @@ jobs:
               s = s.replace(old, '        case BLOCK.TNT: return faceIndex === 2 ? 17 : faceIndex === 3 ? 18 : 16;')
           p.write_text(s)
           PY
+      - name: Patch TNT and mobile hand behavior
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/tnt.js')
+          s = p.read_text()
+          s = s.replace('''    if (type === BLOCK.TNT) {\n        tryTrackTNTAt(scene, x, y, z);\n        return;\n    }\n    if (type === BLOCK.SAND) {''', '''    if (type === BLOCK.SAND) {''')
+          s = s.replace('''        for (let offset = 1; offset <= 4; offset++) {\n            tryTrackTNTAt(scene, x, y + offset, z);\n            tryTrackSandAt(scene, x, y + offset, z);\n        }''', '''        for (let offset = 1; offset <= 4; offset++) {\n            tryTrackSandAt(scene, x, y + offset, z);\n        }''')
+          old = '''        // Ignited TNT only gets gravity while it is flashing white.\n        if (flashState) {\n            velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);\n            const nextY = currentY - velocityY * frameDelta;\n            const landingY = getLandingY(x, currentY, nextY, z, BLOCK);\n            if (landingY !== null && landingY <= currentY) {\n                currentY = landingY;\n                velocityY = 0;\n            } else {\n                currentY = nextY;\n            }\n        } else {\n            velocityY = 0;\n        }'''
+          new = '''        // Once TNT is ignited, gravity stays active for the entire fuse.\n        velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);\n        const nextY = currentY - velocityY * frameDelta;\n        const landingY = getLandingY(x, currentY, nextY, z, BLOCK);\n        if (landingY !== null && landingY <= currentY) {\n            currentY = landingY;\n            velocityY = 0;\n        } else {\n            currentY = nextY;\n        }'''
+          if old in s: s = s.replace(old, new)
+          p.write_text(s)
+
+          p = Path('src/heldBlock3D.js')
+          s = p.read_text()
+          s = s.replace('zIndex: "79"', 'zIndex: "35"')
+          p.write_text(s)
+          PY
       - name: Commit fix
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/world.js
+          git add src/world.js src/tnt.js src/heldBlock3D.js
           git diff --cached --quiet && exit 0
-          git commit -m 'Fix placed TNT face textures'
+          git commit -m 'Fix sand gravity and mobile hand layering'
           git push origin main
 # TNT renderer repair workflow
