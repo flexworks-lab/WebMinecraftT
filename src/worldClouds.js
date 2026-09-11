@@ -1,16 +1,15 @@
 import * as THREE from "three";
 
-const CLOUD_BLOCK_SIZE = 3;
+const CLOUD_BLOCK_SIZE = 2;
 const CLOUD_ALTITUDE = 78;
 const CLOUD_CELL_SIZE = 64;
 const CLOUD_GRID_RADIUS = 5;
 const CLOUD_WRAP = 2048;
-const CLOUD_WIND_SPEED = 0.9;
+const CLOUD_WIND_SPEED = 0.45;
 
 let cloudRoot = null;
 let cloudSeed = 0;
 let cloudEntries = [];
-let cameraRef = null;
 let windDistance = 0;
 let running = false;
 let lastFrame = performance.now();
@@ -44,7 +43,8 @@ function ensureStyles() {
     const style = document.createElement("style");
     style.id = "webMinecraftWorldCloudFixes";
     style.textContent = `
-#webMinecraftMovingClouds{display:none !important}
+#webMinecraftMovingClouds,
+#webMinecraftVoxelClouds{display:none !important}
 body.webminecraft-in-world #devControlsButton,
 body.webminecraft-in-world #discussionButton{display:none !important}
 `;
@@ -61,23 +61,22 @@ function addRect(blocks, startX, endX, startZ, endZ, y) {
 
 function buildCloudShape(cellX, cellZ) {
     const blocks = [];
-    const width = 7 + Math.floor(seedHash(cellX, cellZ, 17) * 7);
-    const depth = 3 + Math.floor(seedHash(cellX, cellZ, 23) * 4);
+    // Keep every cloud inside a clear maximum size so none become enormous.
+    const width = 5 + Math.floor(seedHash(cellX, cellZ, 17) * 5);   // 11-19 blocks wide
+    const depth = 2 + Math.floor(seedHash(cellX, cellZ, 23) * 3);   // 5-9 blocks deep
 
-    // Large rectangular Minecraft-style cloud base.
     addRect(blocks, -width, width, -depth, depth, 0);
 
-    // Chunky rectangular upper sections make the cloud feel built from blocks.
-    const leftWidth = 2 + Math.floor(seedHash(cellX, cellZ, 31) * 4);
-    const middleWidth = 3 + Math.floor(seedHash(cellX, cellZ, 37) * 5);
-    const rightWidth = 2 + Math.floor(seedHash(cellX, cellZ, 43) * 4);
+    // Small stepped rectangular sections give the clouds a Minecraft-like shape.
+    const capWidth = Math.min(width - 2, 3 + Math.floor(seedHash(cellX, cellZ, 31) * 3));
+    const sideWidth = Math.min(width - 1, 2 + Math.floor(seedHash(cellX, cellZ, 37) * 3));
 
-    addRect(blocks, -width + 1, -width + leftWidth, -depth + 1, depth - 1, 1);
-    addRect(blocks, -middleWidth, middleWidth, -Math.max(1, depth - 2), Math.max(1, depth - 2), 1);
-    addRect(blocks, width - rightWidth, width - 1, -depth + 1, depth - 1, 1);
+    addRect(blocks, -capWidth, capWidth, -Math.max(1, depth - 2), Math.max(1, depth - 2), 1);
+    addRect(blocks, -width + 1, -width + sideWidth, -depth + 1, depth - 1, 1);
+    addRect(blocks, width - sideWidth, width - 1, -depth + 1, depth - 1, 1);
 
-    if (seedHash(cellX, cellZ, 53) > 0.35) {
-        addRect(blocks, -Math.max(2, middleWidth - 2), Math.max(2, middleWidth - 2), -1, 1, 2);
+    if (seedHash(cellX, cellZ, 53) > 0.55) {
+        addRect(blocks, -2, 2, -1, 1, 2);
     }
 
     return blocks;
@@ -98,12 +97,13 @@ function makeCloud(cellX, cellZ) {
     mesh.castShadow = false;
     mesh.receiveShadow = false;
 
-    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 71) - 0.5) * 28;
-    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 79) - 0.5) * 28;
-    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 83) - 0.5) * 5;
+    // Fixed world coordinates. Clouds no longer recenter around the player/camera.
+    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 71) - 0.5) * 24;
+    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 79) - 0.5) * 24;
+    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 83) - 0.5) * 4;
 
     cloudRoot.add(mesh);
-    cloudEntries.push({ mesh, cellX, cellZ, baseX, baseZ, baseY });
+    cloudEntries.push({ mesh, baseX, baseZ, baseY });
 }
 
 function clearClouds() {
@@ -118,33 +118,9 @@ function rebuildCloudField(seed) {
 
     for (let cellX = -CLOUD_GRID_RADIUS; cellX <= CLOUD_GRID_RADIUS; cellX++) {
         for (let cellZ = -CLOUD_GRID_RADIUS; cellZ <= CLOUD_GRID_RADIUS; cellZ++) {
-            const coverage = seedHash(cellX, cellZ, 97);
-            if (coverage < 0.28) continue;
+            if (seedHash(cellX, cellZ, 97) < 0.35) continue;
             makeCloud(cellX, cellZ);
         }
-    }
-}
-
-function wrap(value, half) {
-    return ((value + half) % (half * 2) + (half * 2)) % (half * 2) - half;
-}
-
-function updateCloudPositions() {
-    if (!cameraRef || !cloudRoot || !cloudRoot.visible) return;
-
-    const cameraX = cameraRef.position.x;
-    const cameraZ = cameraRef.position.z;
-    const cameraCellX = Math.floor(cameraX / CLOUD_CELL_SIZE);
-    const cameraCellZ = Math.floor(cameraZ / CLOUD_CELL_SIZE);
-
-    for (const entry of cloudEntries) {
-        const cellDX = entry.cellX - cameraCellX;
-        const cellDZ = entry.cellZ - cameraCellZ;
-        const localBaseX = cellDX * CLOUD_CELL_SIZE + (entry.baseX - entry.cellX * CLOUD_CELL_SIZE) + windDistance;
-        const localBaseZ = cellDZ * CLOUD_CELL_SIZE + (entry.baseZ - entry.cellZ * CLOUD_CELL_SIZE);
-        const x = cameraX + wrap(localBaseX, CLOUD_WRAP / 2);
-        const z = cameraZ + wrap(localBaseZ, CLOUD_WRAP / 2);
-        entry.mesh.position.set(x, entry.baseY, z);
     }
 }
 
@@ -153,13 +129,19 @@ function tick(now) {
     lastFrame = now;
     windDistance += CLOUD_WIND_SPEED * delta;
     if (windDistance > CLOUD_WRAP) windDistance -= CLOUD_WRAP;
-    updateCloudPositions();
+
+    if (cloudRoot?.visible) {
+        for (const entry of cloudEntries) {
+            const x = entry.baseX + windDistance;
+            entry.mesh.position.set(x, entry.baseY, entry.baseZ);
+        }
+    }
+
     requestAnimationFrame(tick);
 }
 
-export function setupWorldClouds(scene, camera) {
+export function setupWorldClouds(scene) {
     ensureStyles();
-    cameraRef = camera;
 
     if (!cloudRoot) {
         cloudRoot = new THREE.Group();
@@ -188,5 +170,7 @@ export function setupWorldClouds(scene, camera) {
 export function setWorldCloudSeed(seed) {
     if (!cloudRoot) return;
     rebuildCloudField(seed);
-    updateCloudPositions();
+    for (const entry of cloudEntries) {
+        entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
+    }
 }
