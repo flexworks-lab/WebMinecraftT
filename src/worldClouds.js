@@ -37,11 +37,7 @@ const cloudMaterial = new THREE.MeshBasicMaterial({
     toneMapped: false
 });
 
-const cloudGeometry = new THREE.BoxGeometry(
-    CLOUD_BLOCK_SIZE,
-    CLOUD_HEIGHT,
-    CLOUD_BLOCK_SIZE
-);
+const cloudGeometry = new THREE.BoxGeometry(CLOUD_BLOCK_SIZE, CLOUD_HEIGHT, CLOUD_BLOCK_SIZE);
 
 const sunGeometry = new THREE.PlaneGeometry(10, 10);
 const sunMaterial = new THREE.MeshBasicMaterial({
@@ -117,7 +113,6 @@ function buildCloudShape(cellX, cellZ) {
         const side = Math.floor(seedHash(cellX, cellZ, 330 + i) * 4);
         const amount = 1 + Math.floor(seedHash(cellX, cellZ, 350 + i) * 5);
         const span = 1 + Math.floor(seedHash(cellX, cellZ, 370 + i) * 3);
-
         if (side === 0 || side === 1) {
             const zCenter = -halfDepth + Math.floor(seedHash(cellX, cellZ, 390 + i) * (halfDepth * 2 + 1));
             const startX = side === 0 ? -halfWidth - amount : halfWidth;
@@ -147,7 +142,6 @@ function makeCloud(cellX, cellZ) {
     const blocks = buildCloudShape(cellX, cellZ);
     const mesh = new THREE.InstancedMesh(cloudGeometry, cloudMaterial, blocks.length);
     const matrix = new THREE.Matrix4();
-
     for (let i = 0; i < blocks.length; i++) {
         matrix.makeTranslation(blocks[i].x, blocks[i].y, blocks[i].z);
         mesh.setMatrixAt(i, matrix);
@@ -164,14 +158,12 @@ function makeCloud(cellX, cellZ) {
     const baseX = (cellX + randomX - 0.5) * CLOUD_CELL_SIZE;
     const baseZ = (cellZ + randomZ - 0.5) * CLOUD_CELL_SIZE;
     const baseY = CLOUD_ALTITUDE;
-
     cloudRoot.add(mesh);
     cloudEntries.push({ mesh, baseX, baseZ, baseY });
 }
 
 function createSkyDome(scene) {
     if (skyDome) return;
-
     const geometry = new THREE.SphereGeometry(1000, 32, 16);
     const material = new THREE.ShaderMaterial({
         uniforms: {
@@ -194,11 +186,8 @@ function createSkyDome(scene) {
             uniform vec3 bottomColor;
             void main() {
                 vec3 sky;
-                if (vSkyHeight < 0.5) {
-                    sky = mix(bottomColor, horizonColor, vSkyHeight * 2.0);
-                } else {
-                    sky = mix(horizonColor, topColor, (vSkyHeight - 0.5) * 2.0);
-                }
+                if (vSkyHeight < 0.5) sky = mix(bottomColor, horizonColor, vSkyHeight * 2.0);
+                else sky = mix(horizonColor, topColor, (vSkyHeight - 0.5) * 2.0);
                 gl_FragColor = vec4(sky, 1.0);
             }
         `,
@@ -207,7 +196,6 @@ function createSkyDome(scene) {
         depthTest: true,
         fog: false
     });
-
     skyDome = new THREE.Mesh(geometry, material);
     skyDome.name = "MinecraftSkyDome";
     skyDome.frustumCulled = false;
@@ -217,15 +205,10 @@ function createSkyDome(scene) {
 
 function createUndergroundLighting(scene) {
     if (undergroundAmbient) return;
-
-    // Ambient fill prevents enclosed spaces from going almost black without creating
-    // the localized light beam caused by a point light sitting on the camera.
     undergroundAmbient = new THREE.AmbientLight(0x87a5b8, 0.22);
     undergroundAmbient.name = "MinecraftUndergroundAmbient";
     scene.add(undergroundAmbient);
 
-    // Older builds used a camera-following PointLight for underground brightness.
-    // Disable that light so illumination cannot leak through walls or make bright seams.
     if (!legacyDepthLightNeutralized) {
         for (const object of scene.children) {
             if (!object.isPointLight) continue;
@@ -246,28 +229,32 @@ function createUndergroundLighting(scene) {
     }
 }
 
+function removeWaterSpecularHighlights(scene) {
+    scene.traverse(object => {
+        const material = object.material;
+        if (!material || Array.isArray(material)) return;
+        if (!material.isMeshPhongMaterial || !material.transparent) return;
+        material.shininess = 0;
+        if (material.specular?.set) material.specular.set(0x000000);
+        else material.specular = 0x000000;
+        material.needsUpdate = true;
+    });
+}
+
 function createSun() {
     if (sunMesh || !cloudRoot) return;
-
     sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
     sunMesh.name = "MinecraftSquareSun";
     sunMesh.renderOrder = 30;
     sunMesh.frustumCulled = false;
     sunMesh.userData.isSun = true;
     cloudRoot.add(sunMesh);
-
     sunGlowMeshes = [];
     for (let i = 0; i < sunGlowSizes.length; i++) {
         const material = new THREE.MeshBasicMaterial({
-            color: sunGlowColors[i],
-            transparent: true,
-            opacity: sunGlowOpacities[i],
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            depthTest: false,
-            side: THREE.DoubleSide,
-            fog: false,
-            toneMapped: false
+            color: sunGlowColors[i], transparent: true, opacity: sunGlowOpacities[i],
+            blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
+            side: THREE.DoubleSide, fog: false, toneMapped: false
         });
         const glow = new THREE.Mesh(sunGlowGeometry, material);
         glow.name = `MinecraftSunGlow${i + 1}`;
@@ -316,14 +303,12 @@ function clearClouds() {
 function rebuildCloudField(seed) {
     cloudSeed = (Math.floor(Math.abs(Number(seed))) >>> 0) || 0;
     clearClouds();
-
     for (let cellX = -CLOUD_GRID_RADIUS; cellX <= CLOUD_GRID_RADIUS; cellX++) {
         for (let cellZ = -CLOUD_GRID_RADIUS; cellZ <= CLOUD_GRID_RADIUS; cellZ++) {
             if (seedHash(cellX, cellZ, 97) < 0.32) continue;
             makeCloud(cellX, cellZ);
         }
     }
-
     createSun();
     updateSunPosition();
     updateSunFacing();
@@ -335,13 +320,9 @@ function tick(now) {
     lastFrame = now;
     windDistance += CLOUD_WIND_SPEED * delta;
     if (windDistance > CLOUD_WRAP) windDistance -= CLOUD_WRAP;
-
     if (cloudRoot?.visible) {
-        for (const entry of cloudEntries) {
-            entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
-        }
+        for (const entry of cloudEntries) entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
     }
-
     updateSunPosition();
     updateSunFacing();
     updateSkyPosition();
@@ -355,7 +336,7 @@ export function setupWorldClouds(scene, camera = null) {
     cloudScene = scene;
     createSkyDome(scene);
     createUndergroundLighting(scene);
-
+    removeWaterSpecularHighlights(scene);
     if (!cloudRoot) {
         cloudRoot = new THREE.Group();
         cloudRoot.name = "MinecraftWorldClouds";
@@ -363,27 +344,22 @@ export function setupWorldClouds(scene, camera = null) {
         cloudRoot.visible = document.body.classList.contains("webminecraft-in-world");
         scene.add(cloudRoot);
     }
-
     if (!running) {
         running = true;
         lastFrame = performance.now();
         requestAnimationFrame(tick);
     }
-
     if (!visibilityObserver) {
         visibilityObserver = new MutationObserver(() => {
             if (cloudRoot) cloudRoot.visible = document.body.classList.contains("webminecraft-in-world");
         });
         visibilityObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     }
-
     return cloudRoot;
 }
 
 export function setWorldCloudSeed(seed) {
     if (!cloudRoot) return;
     rebuildCloudField(seed);
-    for (const entry of cloudEntries) {
-        entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
-    }
+    for (const entry of cloudEntries) entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
 }
