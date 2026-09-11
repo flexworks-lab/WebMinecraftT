@@ -103,8 +103,9 @@ function createInventoryUI() {
 .inventoryCount{position:absolute;right:3px;bottom:1px;color:#fff;font:bold 15px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none}
 .inventoryNumber{position:absolute;left:3px;top:1px;color:#fff;font:bold 11px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none}
 #inventoryHint{padding:9px 3px 1px;color:#aaa;font-size:11px;text-align:center}
-#inventoryMobileButton{display:none;position:fixed;right:18px;bottom:84px;width:54px;height:54px;z-index:90;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#555;color:#fff;font-size:27px;box-shadow:0 3px 0 #171717;touch-action:manipulation}
-body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block}
+#inventoryMobileButton{display:none;position:fixed;right:18px;bottom:84px;width:54px;height:54px;z-index:10001;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#555;color:#fff;font-size:27px;box-shadow:0 3px 0 #171717;touch-action:manipulation}
+body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block;left:calc(50% - min(252px, 45vw) - 66px);right:auto;bottom:8px;z-index:10001}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{z-index:10000!important;bottom:8px!important}
 #heldBlock{display:none!important;pointer-events:none}
 `;
     document.head.appendChild(style);
