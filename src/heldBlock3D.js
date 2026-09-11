@@ -56,7 +56,15 @@ function makeHandTexture() {
 }
 
 function cloneMaterial(material) {
-    return material?.clone ? material.clone() : material;
+    if (!material?.clone) return material;
+    const cloned = material.clone();
+    // The world materials expect a vertex-color attribute on chunk geometry.
+    // The held cube uses a plain BoxGeometry without that attribute, so leaving
+    // vertexColors enabled makes the material render black.
+    cloned.vertexColors = false;
+    if ("color" in cloned && cloned.color) cloned.color.setRGB(1, 1, 1);
+    cloned.needsUpdate = true;
+    return cloned;
 }
 
 function getMaterials(itemId) {
