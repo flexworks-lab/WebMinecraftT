@@ -222,15 +222,13 @@ export function updateMultiplayerAvatars(scene) {
 
         entry.target.set(Number(player.position.x) || 0, (Number(player.position.y) || 0) - 1.8, Number(player.position.z) || 0);
         entry.group.position.lerp(entry.target, 0.32);
-
         const targetYaw = Number(player.rotation?.y) || 0;
         entry.group.rotation.y = THREE.MathUtils.lerp(entry.group.rotation.y, targetYaw, 0.35);
 
-        // The networked rotation.x is the remote player's camera pitch.
-        // Apply it only to the head so the body keeps its normal upright pose.
+        // Remote rotation.x is the player's camera pitch. Keep the body upright and aim only the head.
         const rawPitch = Number(player.rotation?.x) || 0;
         const targetPitch = THREE.MathUtils.clamp(rawPitch, -1.25, 1.25);
-        parts = entry.parts;
+        const parts = entry.parts;
         parts.head.rotation.order = "YXZ";
         parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, targetPitch, 0.28);
         parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, 0, 0.35);
