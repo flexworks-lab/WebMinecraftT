@@ -8,9 +8,6 @@ const CLOUD_CELL_SIZE = 80;
 const CLOUD_GRID_RADIUS = 9;
 const CLOUD_WRAP = 2048;
 const CLOUD_WIND_SPEED = 0.45;
-// Keep the sun inside the camera's normal far clipping range, while moving it with
-// the camera every frame so it can never actually be reached.
-const SUN_DISTANCE = 500;
 
 let cloudRoot = null;
 let cloudScene = null;
@@ -20,8 +17,6 @@ let windDistance = 0;
 let running = false;
 let lastFrame = performance.now();
 let visibilityObserver = null;
-let sunMesh = null;
-let sunGlowMeshes = [];
 let cloudCamera = null;
 let skyDome = null;
 let undergroundAmbient = null;
@@ -37,25 +32,12 @@ const cloudMaterial = new THREE.MeshBasicMaterial({
     fog: false,
     toneMapped: false
 });
-
 const cloudGeometry = new THREE.BoxGeometry(CLOUD_BLOCK_SIZE, CLOUD_HEIGHT, CLOUD_BLOCK_SIZE);
 
-const sunGeometry = new THREE.PlaneGeometry(10, 10);
-const sunMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffe87a,
-    transparent: false,
-    opacity: 1,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    depthTest: false,
-    fog: false,
-    toneMapped: false
-});
-
-const sunGlowGeometry = new THREE.PlaneGeometry(1, 1);
-const sunGlowColors = [0xfff6a8, 0xffef88, 0xffe36a];
-const sunGlowSizes = [15, 20, 27];
-const sunGlowOpacities = [0.20, 0.10, 0.045];
+// The sky and square sun are rendered together on a camera-centered sphere.
+// This makes them behave like a real skybox and avoids the sun being clipped by
+// the normal camera far plane.
+const SKY_SUN_DIRECTION = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
 
 function seedHash(a, b, c = 0) {
     let h = Math.imul((a | 0) ^ 0x9e3779b9, 374761393);
@@ -158,9 +140,8 @@ function makeCloud(cellX, cellZ) {
     const randomZ = seedHash(cellX, cellZ, 510);
     const baseX = (cellX + randomX - 0.5) * CLOUD_CELL_SIZE;
     const baseZ = (cellZ + randomZ - 0.5) * CLOUD_CELL_SIZE;
-    const baseY = CLOUD_ALTITUDE;
     cloudRoot.add(mesh);
-    cloudEntries.push({ mesh, baseX, baseZ, baseY });
+    cloudEntries.push({ mesh, baseX, baseZ, baseY: CLOUD_ALTITUDE });
 }
 
 function createSkyDome(scene) {
@@ -170,35 +151,51 @@ function createSkyDome(scene) {
         uniforms: {
             topColor: { value: new THREE.Color(0x3f9fe8) },
             horizonColor: { value: new THREE.Color(0x9fddff) },
-            bottomColor: { value: new THREE.Color(0x72bde7) }
+            bottomColor: { value: new THREE.Color(0x72bde7) },
+            sunDirection: { value: SKY_SUN_DIRECTION.clone() }
         },
         vertexShader: `
-            varying float vSkyHeight;
+            varying vec3 vSkyDirection;
             void main() {
-                vec3 worldDirection = normalize((modelMatrix * vec4(position, 0.0)).xyz);
-                vSkyHeight = clamp(worldDirection.y * 0.5 + 0.5, 0.0, 1.0);
+                vSkyDirection = normalize(position);
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
         `,
         fragmentShader: `
-            varying float vSkyHeight;
+            varying vec3 vSkyDirection;
             uniform vec3 topColor;
             uniform vec3 horizonColor;
             uniform vec3 bottomColor;
+            uniform vec3 sunDirection;
             void main() {
-                vec3 sky;
-                if (vSkyHeight < 0.5) sky = mix(bottomColor, horizonColor, vSkyHeight * 2.0);
-                else sky = mix(horizonColor, topColor, (vSkyHeight - 0.5) * 2.0);
+                vec3 dir = normalize(vSkyDirection);
+                float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+                vec3 sky = h < 0.5
+                    ? mix(bottomColor, horizonColor, h * 2.0)
+                    : mix(horizonColor, topColor, (h - 0.5) * 2.0);
+
+                vec3 upAxis = abs(sunDirection.y) > 0.95 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+                vec3 sunRight = normalize(cross(sunDirection, upAxis));
+                vec3 sunUp = normalize(cross(sunRight, sunDirection));
+                float sx = dot(dir, sunRight);
+                float sy = dot(dir, sunUp);
+                float squareDistance = max(abs(sx), abs(sy));
+                float sunMask = 1.0 - smoothstep(0.012, 0.014, squareDistance);
+                float glow = 1.0 - smoothstep(0.018, 0.085, squareDistance);
+                vec3 sunColor = vec3(1.0, 0.86, 0.36);
+                sky += sunColor * glow * 0.18;
+                sky = mix(sky, sunColor, sunMask);
                 gl_FragColor = vec4(sky, 1.0);
             }
         `,
         side: THREE.BackSide,
         depthWrite: false,
-        depthTest: true,
-        fog: false
+        depthTest: false,
+        fog: false,
+        toneMapped: false
     });
     skyDome = new THREE.Mesh(geometry, material);
-    skyDome.name = "MinecraftSkyDome";
+    skyDome.name = "MinecraftSkybox";
     skyDome.frustumCulled = false;
     skyDome.renderOrder = -100;
     scene.add(skyDome);
@@ -209,14 +206,12 @@ function createUndergroundLighting(scene) {
     undergroundAmbient = new THREE.AmbientLight(0x87a5b8, 0.22);
     undergroundAmbient.name = "MinecraftUndergroundAmbient";
     scene.add(undergroundAmbient);
-
     outdoorLights = scene.children.filter(object => object.isDirectionalLight || object.isHemisphereLight);
 
     if (!legacyDepthLightNeutralized) {
         for (const object of scene.children) {
             if (!object.isPointLight) continue;
-            const hex = object.color?.getHex?.();
-            if (hex !== 0x9db6d2) continue;
+            if (object.color?.getHex?.() !== 0x9db6d2) continue;
             object.intensity = 0;
             try {
                 Object.defineProperty(object, "intensity", {
@@ -244,47 +239,8 @@ function removeWaterSpecularHighlights(scene) {
     });
 }
 
-function createSun() {
-    if (sunMesh || !cloudRoot) return;
-    sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-    sunMesh.name = "MinecraftSquareSun";
-    sunMesh.renderOrder = 30;
-    sunMesh.frustumCulled = false;
-    sunMesh.userData.isSun = true;
-    cloudRoot.add(sunMesh);
-    sunGlowMeshes = [];
-    for (let i = 0; i < sunGlowSizes.length; i++) {
-        const material = new THREE.MeshBasicMaterial({
-            color: sunGlowColors[i], transparent: true, opacity: sunGlowOpacities[i],
-            blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
-            side: THREE.DoubleSide, fog: false, toneMapped: false
-        });
-        const glow = new THREE.Mesh(sunGlowGeometry, material);
-        glow.name = `MinecraftSunGlow${i + 1}`;
-        glow.renderOrder = 29 - i;
-        glow.frustumCulled = false;
-        cloudRoot.add(glow);
-        sunGlowMeshes.push(glow);
-    }
-}
-
-function updateSunPosition() {
-    if (!cloudCamera || !sunMesh) return;
-    const direction = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
-    const position = cloudCamera.position.clone().addScaledVector(direction, SUN_DISTANCE);
-    sunMesh.position.copy(position);
-    for (const glow of sunGlowMeshes) glow.position.copy(position);
-}
-
-function updateSunFacing() {
-    if (!cloudCamera || !sunMesh) return;
-    sunMesh.lookAt(cloudCamera.position);
-    for (const glow of sunGlowMeshes) glow.lookAt(cloudCamera.position);
-}
-
 function updateSkyPosition() {
-    if (!cloudCamera || !skyDome) return;
-    skyDome.position.copy(cloudCamera.position);
+    if (cloudCamera && skyDome) skyDome.position.copy(cloudCamera.position);
 }
 
 function updateUndergroundAmbient() {
@@ -292,13 +248,8 @@ function updateUndergroundAmbient() {
     const y = cloudCamera.position.y;
     const underground = 1 - THREE.MathUtils.smoothstep(y, -1, 8);
     const deepDark = 1 - THREE.MathUtils.smoothstep(y, -24, -1);
-
-    // Outdoor sun/sky lights must be completely disabled below the surface.
-    // This prevents shadow-map/light leakage from making cave walls glow.
     const outdoorVisible = y >= 8;
     for (const light of outdoorLights) light.visible = outdoorVisible;
-
-    // Keep a small, uniform underground fill so caves are dark but still readable.
     undergroundAmbient.intensity = underground * (0.08 + (1 - deepDark) * 0.04);
 }
 
@@ -306,8 +257,6 @@ function clearClouds() {
     cloudEntries.length = 0;
     if (!cloudRoot) return;
     while (cloudRoot.children.length) cloudRoot.remove(cloudRoot.children[0]);
-    sunMesh = null;
-    sunGlowMeshes = [];
 }
 
 function rebuildCloudField(seed) {
@@ -319,9 +268,6 @@ function rebuildCloudField(seed) {
             makeCloud(cellX, cellZ);
         }
     }
-    createSun();
-    updateSunPosition();
-    updateSunFacing();
     updateSkyPosition();
 }
 
@@ -333,8 +279,6 @@ function tick(now) {
     if (cloudRoot?.visible) {
         for (const entry of cloudEntries) entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
     }
-    updateSunPosition();
-    updateSunFacing();
     updateSkyPosition();
     updateUndergroundAmbient();
     requestAnimationFrame(tick);
@@ -347,6 +291,7 @@ export function setupWorldClouds(scene, camera = null) {
     createSkyDome(scene);
     createUndergroundLighting(scene);
     removeWaterSpecularHighlights(scene);
+
     if (!cloudRoot) {
         cloudRoot = new THREE.Group();
         cloudRoot.name = "MinecraftWorldClouds";
@@ -354,11 +299,13 @@ export function setupWorldClouds(scene, camera = null) {
         cloudRoot.visible = document.body.classList.contains("webminecraft-in-world");
         scene.add(cloudRoot);
     }
+
     if (!running) {
         running = true;
         lastFrame = performance.now();
         requestAnimationFrame(tick);
     }
+
     if (!visibilityObserver) {
         visibilityObserver = new MutationObserver(() => {
             if (cloudRoot) cloudRoot.visible = document.body.classList.contains("webminecraft-in-world");
