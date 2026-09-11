@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
-import { sendBlockChange } from "./multiplayerClient.js";
+import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, giveBrokenBlock, getSelectedItemId, consumeSelected } from "./inventory.js";
 import "./worldSave.js";
 import "./heldBlock3D.js";
@@ -118,6 +118,7 @@ export function setupInteraction(scene, camera) {
         const type = getBlockAt(target.x, target.y, target.z);
         if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) return;
         if (!setBlockAt(target.x, target.y, target.z, BLOCK.AIR)) return;
+        sendPlayerAction("mine");
         sendBlockChange(target.x, target.y, target.z, BLOCK.AIR);
         notifyBlockChange(target.x, target.y, target.z, BLOCK.AIR);
         giveBrokenBlock(type);
@@ -136,6 +137,7 @@ export function setupInteraction(scene, camera) {
         if (playerOverlapsBlock({ x, y, z }, camera)) return;
         if (!setBlockAt(x, y, z, itemId)) return;
         if (!consumeSelected(selectedSlot)) { setBlockAt(x, y, z, BLOCK.AIR); return; }
+        sendPlayerAction("place");
         sendBlockChange(x, y, z, itemId);
         notifyBlockChange(x, y, z, itemId);
     }
@@ -171,9 +173,6 @@ function getTargetBlock(scene, camera, BLOCK) {
     raycaster.near = 0.01;
     raycaster.far = INTERACTION_DISTANCE;
     const hits = raycaster.intersectObjects(scene.children, true);
-    // Water is only a visual surface. Ignore it when choosing the block target
-    // so the ray can continue to the real block underneath it. This lets players
-    // mine blocks while standing next to water or looking down through its surface.
     const hit = hits.find(entry => {
         if (!entry.object?.userData?.isChunk || !entry.face) return false;
         let object = entry.object;
