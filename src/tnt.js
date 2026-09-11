@@ -113,6 +113,17 @@ function processBlockChangeForTNT(scene, detail) {
     }
 }
 
+function getLandingY(x, startY, nextY, z, BLOCK) {
+    const highestSupportY = Math.floor(startY - 0.5 + 0.00001);
+    const lowestSupportY = Math.floor(nextY - 0.5 + 0.00001);
+
+    for (let supportY = highestSupportY; supportY >= lowestSupportY; supportY--) {
+        const supportType = getBlockAt(x, supportY, z);
+        if (isSolidBlock(supportType, BLOCK)) return supportY + 1;
+    }
+    return null;
+}
+
 function updateFallingTNT(deltaTime) {
     if (!lastScene || fallingTNT.size === 0) return;
     const BLOCK = getBlockTypes();
@@ -127,17 +138,7 @@ function updateFallingTNT(deltaTime) {
         entity.velocity = Math.min(entity.velocity + TNT_GRAVITY * dt, TNT_MAX_FALL_SPEED);
         const startY = entity.y;
         const nextY = startY - entity.velocity * dt;
-        const highestSupportY = Math.floor(startY - 0.5 + 0.00001);
-        const lowestSupportY = Math.floor(nextY - 0.5 + 0.00001);
-        let landingY = null;
-
-        for (let supportY = highestSupportY; supportY >= lowestSupportY; supportY--) {
-            const supportType = getBlockAt(entity.x, supportY, entity.z);
-            if (isSolidBlock(supportType, BLOCK)) {
-                landingY = supportY + 1;
-                break;
-            }
-        }
+        const landingY = getLandingY(entity.x, startY, nextY, entity.z, BLOCK);
 
         if (landingY !== null && landingY <= startY) {
             entity.y = landingY;
@@ -239,9 +240,28 @@ function startFuse(scene, x, y, z) {
 
     const originalColors = mesh.userData.originalColors.map(color => color.clone());
     let lastFlashState = false;
+    let velocityY = 0;
+    let currentY = y;
+    let lastTickTime = performance.now();
     const started = performance.now();
 
     const tick = time => {
+        const frameDelta = Math.min(Math.max((time - lastTickTime) / 1000, 0), 0.05);
+        lastTickTime = time;
+
+        velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);
+        const nextY = currentY - velocityY * frameDelta;
+        const landingY = getLandingY(x, currentY, nextY, z, BLOCK);
+        if (landingY !== null && landingY <= currentY) {
+            currentY = landingY;
+            velocityY = 0;
+        } else {
+            currentY = nextY;
+        }
+        mesh.position.y = currentY;
+        marker.position.y = currentY + 0.58;
+        light.position.y = currentY + 0.45;
+
         const age = time - started;
         const progress = Math.min(age / FUSE_MS, 1);
         const flashInterval = THREE.MathUtils.lerp(150, 55, progress);
@@ -287,7 +307,7 @@ function startFuse(scene, x, y, z) {
         scene.remove(light);
         light.dispose();
         primed.delete(key);
-        explode(scene, x, y, z);
+        explode(scene, x, Math.round(currentY), z);
     };
 
     requestAnimationFrame(tick);
