@@ -5,6 +5,8 @@ const CHAT_NOTIFICATION_DELAY = 5000;
 let chatHideTimer = null;
 let chatNotificationTimer = null;
 let chatApiWrapped = null;
+let lastChatNotificationKey = "";
+let lastChatNotificationAt = 0;
 
 function isMultiplayerActive() { return Boolean(window.__webminecraftMultiplayerActive); }
 function chatInput() { return document.querySelector("#multiplayerChat input, #multiplayerChat textarea"); }
@@ -44,13 +46,14 @@ body.webminecraft-chat-open #multiplayerChat{display:flex!important;flex-directi
 .multiplayerChatSystem{color:#cfcfcf!important;font-style:italic!important}.multiplayerChatName{font-weight:700!important;color:#fff!important}
 #multiplayerChatInput{box-sizing:border-box!important;width:100%!important;max-width:1100px!important;height:52px!important;flex:0 0 52px!important;margin:14px auto 0!important;padding:9px 13px!important;background:rgba(0,0,0,.82)!important;color:#fff!important;border:2px solid #777!important;border-top-color:#aaa!important;border-left-color:#aaa!important;outline:none!important;pointer-events:auto!important;font:18px Arial,sans-serif!important;text-shadow:1px 1px 0 #000!important}
 #multiplayerChatInput:focus{border-color:#fff!important}#multiplayerChatInput::placeholder{color:#aaa!important}
+#webMinecraftChatClose{display:none!important;position:absolute!important;top:14px!important;right:14px!important;width:78px!important;height:40px!important;z-index:2!important;box-sizing:border-box!important;border:2px solid #111!important;border-top-color:#888!important;border-left-color:#888!important;background:linear-gradient(#696969,#505050)!important;color:#fff!important;font-family:"MinecraftFont",monospace!important;font-size:11px!important;text-shadow:2px 2px 0 #222!important;cursor:pointer!important;pointer-events:auto!important}
+#webMinecraftChatClose:active{background:#3f3f3f!important}
 #webMinecraftChatNotifications{position:fixed!important;top:14px!important;left:14px!important;width:min(520px,calc(100vw - 28px))!important;z-index:49999!important;display:flex!important;flex-direction:column!important;gap:4px!important;pointer-events:none!important;font-family:Arial,sans-serif!important;text-shadow:2px 2px 0 #000!important}
 .webMinecraftChatNotification{box-sizing:border-box!important;width:100%!important;padding:8px 12px!important;background:rgba(0,0,0,.82)!important;border:2px solid rgba(255,255,255,.18)!important;color:#fff!important;font-size:16px!important;line-height:1.35!important;overflow-wrap:anywhere!important;animation:webMinecraftChatNotificationIn .16s ease-out!important}
 .webMinecraftChatNotificationName{font-weight:700!important;color:#fff!important}
-#touchChatCloseButton{display:none;position:fixed;right:18px;top:18px;width:74px;min-height:44px;padding:8px 10px;z-index:50001;pointer-events:auto;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:linear-gradient(#a33,#7d2525);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;user-select:none;-webkit-user-select:none;touch-action:none}
 @keyframes webMinecraftChatNotificationIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-body.webminecraft-chat-open #webMinecraftChatNotifications{display:none!important}body.webminecraft-chat-open #touchChatButton{display:none!important}body.webminecraft-chat-open #touchChatCloseButton{display:block!important}
-@media(max-width:700px){#multiplayerChat{padding:14px!important;background:rgba(0,0,0,.78)!important}#multiplayerChat::before{font-size:25px!important;margin-bottom:10px!important}#multiplayerChatFeed{padding:11px 12px!important}.multiplayerChatLine{font-size:15px!important;line-height:1.5!important;margin:3px 0!important}#multiplayerChatInput{height:50px!important;flex-basis:50px!important;margin-top:10px!important;font-size:16px!important}#webMinecraftChatNotifications{top:10px!important;left:10px!important;width:calc(100vw - 20px)!important}.webMinecraftChatNotification{font-size:14px!important;padding:7px 10px!important}}
+body.webminecraft-chat-open #webMinecraftChatNotifications{display:none!important}body.webminecraft-chat-open #touchChatButton{display:none!important}
+@media(max-width:700px){#multiplayerChat{padding:14px!important;background:rgba(0,0,0,.78)!important}#multiplayerChat::before{font-size:25px!important;margin-bottom:10px!important}#multiplayerChatFeed{padding:11px 12px!important}.multiplayerChatLine{font-size:15px!important;line-height:1.5!important;margin:3px 0!important}#multiplayerChatInput{height:50px!important;flex-basis:50px!important;margin-top:10px!important;font-size:16px!important}#webMinecraftChatClose{display:block!important}#webMinecraftChatNotifications{top:10px!important;left:10px!important;width:calc(100vw - 20px)!important}.webMinecraftChatNotification{font-size:14px!important;padding:7px 10px!important}}
 `;
     document.head.appendChild(style);
 }
@@ -72,6 +75,14 @@ function showChatNotification(args) {
     const text = typeof args?.[0] === "string" ? args[0].trim() : "";
     const name = typeof args?.[2] === "string" ? args[2].trim() : "";
     if (system || !text) return;
+
+    // Prevent the same incoming chat event from creating multiple bars.
+    // This also protects against the chat API being wrapped more than once.
+    const key = `${name}\n${text}`;
+    const now = Date.now();
+    if (key === lastChatNotificationKey && now - lastChatNotificationAt < 1000) return;
+    lastChatNotificationKey = key;
+    lastChatNotificationAt = now;
 
     const container = ensureChatNotifications();
     const line = document.createElement("div");
@@ -148,22 +159,17 @@ function closeChat() { hideChat(); }
 function wrapIncomingChat() {
     const add = window.__webminecraftChatAdd;
     if (typeof add !== "function") return;
-
-    // The multiplayer client can recreate the chat function. Mark the wrapper itself
-    // so it can never be wrapped again, which was causing duplicate notification bars.
-    if (add.__webminecraftNotificationWrapper) {
+    if (add.__webminecraftChatNotificationWrapper === true) {
         chatApiWrapped = add;
         return;
     }
-    if (add === chatApiWrapped) return;
-
     const wrapped = function (...args) {
         const result = add.apply(this, args);
         showChatNotification(args);
         return result;
     };
-    wrapped.__webminecraftNotificationWrapper = true;
-    wrapped.__webminecraftOriginal = add;
+    wrapped.__webminecraftChatNotificationWrapper = true;
+    wrapped.__webminecraftChatOriginal = add;
     window.__webminecraftChatAdd = wrapped;
     chatApiWrapped = wrapped;
 }
@@ -183,20 +189,38 @@ function installChatInput() {
     }, true);
 }
 
+function ensureMobileChatCloseButton() {
+    const chat = chatElement();
+    if (!chat || document.getElementById("webMinecraftChatClose")) return;
+    const button = document.createElement("button");
+    button.id = "webMinecraftChatClose";
+    button.type = "button";
+    button.textContent = "CLOSE";
+    button.setAttribute("aria-label", "Close chat");
+    button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeChat();
+    });
+    chat.appendChild(button);
+}
+
 function watchChatCreation() {
     installFullscreenChatStyles();
     ensureChatNotifications();
     installChatInput();
+    ensureMobileChatCloseButton();
     wrapIncomingChat();
     const observer = new MutationObserver(() => {
         installChatInput();
         wrapIncomingChat();
         ensureChatNotifications();
+        ensureMobileChatCloseButton();
         if (chatElement()) installFullscreenChatStyles();
     });
     observer.observe(document.body, { childList: true, subtree: true });
     let checks = 0;
-    const timer = setInterval(() => { wrapIncomingChat(); installChatInput(); if (++checks >= 30 && chatApiWrapped) clearInterval(timer); }, 250);
+    const timer = setInterval(() => { wrapIncomingChat(); installChatInput(); ensureMobileChatCloseButton(); if (++checks >= 30 && chatApiWrapped) clearInterval(timer); }, 250);
 }
 
 function createMobileChatButton() {
@@ -207,21 +231,8 @@ function createMobileChatButton() {
     button.textContent = "CHAT";
     button.addEventListener("click", () => { openChat(""); keepMobileChatOpen(); });
     document.body.appendChild(button);
-
-    const closeButton = document.createElement("button");
-    closeButton.id = "touchChatCloseButton";
-    closeButton.type = "button";
-    closeButton.textContent = "CLOSE";
-    closeButton.setAttribute("aria-label", "Close chat");
-    closeButton.addEventListener("click", event => {
-        event.preventDefault();
-        event.stopPropagation();
-        closeChat();
-    });
-    document.body.appendChild(closeButton);
-
     const style = document.createElement("style");
-    style.textContent = `#touchChatButton{display:none;position:fixed;right:18px;top:18px;width:74px;min-height:44px;padding:8px 10px;z-index:190;pointer-events:auto;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#696969,#505050);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;user-select:none;-webkit-user-select:none;touch-action:none}body.mobile-mode.webminecraft-in-world #touchChatButton{display:block}body.mobile-mode.webminecraft-in-world.webminecraft-chat-open #touchChatButton{background:linear-gradient(#6d8d4e,#526f3c)}body:not(.webminecraft-in-world) #touchChatButton{display:none!important}body:not(.mobile-mode) #touchChatButton{display:none!important}body:not(.mobile-mode) #touchChatCloseButton{display:none!important}body:not(.webminecraft-in-world) #touchChatCloseButton{display:none!important}`;
+    style.textContent = `#touchChatButton{display:none;position:fixed;right:18px;top:18px;width:74px;min-height:44px;padding:8px 10px;z-index:190;pointer-events:auto;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#696969,#505050);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;user-select:none;-webkit-user-select:none;touch-action:none}body.mobile-mode.webminecraft-in-world #touchChatButton{display:block}body.mobile-mode.webminecraft-in-world.webminecraft-chat-open #touchChatButton{background:linear-gradient(#6d8d4e,#526f3c)}body:not(.webminecraft-in-world) #touchChatButton{display:none!important}body:not(.mobile-mode) #touchChatButton{display:none!important}`;
     document.head.appendChild(style);
 }
 
