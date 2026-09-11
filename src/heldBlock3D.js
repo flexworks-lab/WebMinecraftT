@@ -8,26 +8,8 @@ import {
     sandMaterial,
     sandstoneMaterial,
     oakLogMaterial,
-    leavesMaterial,
-    oakPlankMaterial,
-    bedrockMaterial,
-    coalMaterial,
-    ironMaterial,
-    snowMaterial
+    leavesMaterial
 } from "./blocks.js";
-
-const ITEM_TEXTURES = [
-    null,
-    "Grass_Block_(top_texture)_JE2.png",
-    "dirt.png",
-    "stone.png",
-    "sand.png",
-    "oak_log_top.png",
-    "oak-leaves-normal-original-default.png",
-    "stone.png",
-    "dirt.png",
-    "sand.png"
-];
 
 const ITEM_MATERIALS = {
     1: grassMaterial,
@@ -43,10 +25,9 @@ const ITEM_MATERIALS = {
 
 let renderer;
 let camera;
+let scene;
 let heldRoot;
 let blockMesh;
-let handMesh;
-let animationFrame = 0;
 let visible = false;
 let selectedItemId = 1;
 
@@ -58,13 +39,13 @@ function makeHandTexture() {
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = "#d69b72";
     ctx.fillRect(0, 0, 16, 16);
-    ctx.fillStyle = "#c18461";
-    ctx.fillRect(0, 12, 16, 4);
     ctx.fillStyle = "#e2ad83";
-    ctx.fillRect(2, 2, 11, 8);
+    ctx.fillRect(1, 1, 12, 10);
+    ctx.fillStyle = "#c18461";
+    ctx.fillRect(0, 11, 16, 5);
     ctx.fillStyle = "#b87655";
-    ctx.fillRect(11, 4, 5, 8);
-    ctx.fillStyle = "#70452f";
+    ctx.fillRect(12, 3, 4, 10);
+    ctx.fillStyle = "#754932";
     ctx.fillRect(0, 0, 16, 1);
     ctx.fillRect(0, 15, 16, 1);
     const texture = new THREE.CanvasTexture(canvas);
@@ -74,12 +55,54 @@ function makeHandTexture() {
     return texture;
 }
 
-function materialFor(itemId) {
-    const materials = ITEM_MATERIALS[itemId] || stoneMaterial;
-    return Array.isArray(materials) ? materials.map(material => material.clone()) : materials.clone();
+function cloneMaterial(material) {
+    return material?.clone ? material.clone() : material;
 }
 
-function createRenderer() {
+function getMaterials(itemId) {
+    const source = ITEM_MATERIALS[itemId] || stoneMaterial;
+    return Array.isArray(source) ? source.map(cloneMaterial) : cloneMaterial(source);
+}
+
+function isWorldVisible() {
+    const inWorldClass = document.body.classList.contains("webminecraft-in-world");
+    const mainMenu = document.getElementById("mainMenu");
+    const seedMenu = document.getElementById("seedMenu");
+    const savedWorlds = document.getElementById("savedWorlds");
+    const mainHidden = !mainMenu || getComputedStyle(mainMenu).display === "none";
+    const seedHidden = !seedMenu || getComputedStyle(seedMenu).display === "none";
+    const savedHidden = !savedWorlds || getComputedStyle(savedWorlds).display === "none";
+    return !!ITEM_MATERIALS[selectedItemId] && (inWorldClass || (mainHidden && seedHidden && savedHidden));
+}
+
+function updateVisibility() {
+    visible = isWorldVisible();
+    if (renderer) renderer.domElement.style.display = visible ? "block" : "none";
+}
+
+function updateBlock() {
+    if (!blockMesh) return;
+    const next = getMaterials(selectedItemId);
+    if (Array.isArray(blockMesh.material)) {
+        blockMesh.material.forEach(material => material?.dispose?.());
+    } else {
+        blockMesh.material?.dispose?.();
+    }
+    blockMesh.material = next;
+}
+
+function readSelectedItem(slot) {
+    try {
+        const inventory = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
+        return Number(inventory?.[slot]?.itemId) || 1;
+    } catch {
+        return 1;
+    }
+}
+
+function init() {
+    if (document.getElementById("heldBlock3DCanvas")) return;
+
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false, powerPreference: "high-performance" });
     renderer.setPixelRatio(1);
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -88,121 +111,80 @@ function createRenderer() {
     renderer.domElement.id = "heldBlock3DCanvas";
     Object.assign(renderer.domElement.style, {
         position: "fixed",
-        inset: "0",
+        left: "0",
+        top: "0",
         width: "100vw",
         height: "100vh",
         pointerEvents: "none",
         zIndex: "79",
-        display: "none",
-        imageRendering: "pixelated"
+        display: "none"
     });
     document.body.appendChild(renderer.domElement);
 
     const style = document.createElement("style");
     style.id = "heldBlock3DStyles";
-    style.textContent = `
-#heldBlock{display:none!important}
-body:not(.webminecraft-in-world) #heldBlock3DCanvas{display:none!important}
-body.webminecraft-in-world #heldBlock3DCanvas{display:block}
-`;
+    style.textContent = `#heldBlock{display:none!important}`;
     document.head.appendChild(style);
-}
 
-function createScene() {
-    camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.01, 20);
-    camera.position.set(0, 0, 2.8);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.01, 30);
+    camera.position.set(0, 0, 3);
+    camera.lookAt(0, 0, 0);
 
     heldRoot = new THREE.Group();
-    heldRoot.position.set(0.78, -0.43, -1.35);
-    heldRoot.rotation.set(0.08, -0.28, -0.12);
-    heldRoot.scale.setScalar(0.72);
+    heldRoot.position.set(0.72, -0.38, -1.05);
+    heldRoot.rotation.set(0.08, -0.18, -0.10);
+    heldRoot.scale.setScalar(0.9);
+    scene.add(heldRoot);
 
-    const armGeometry = new THREE.BoxGeometry(0.26, 0.62, 0.26);
+    const armGeometry = new THREE.BoxGeometry(0.28, 0.70, 0.28);
     const handMaterial = new THREE.MeshBasicMaterial({ map: makeHandTexture() });
-    handMesh = new THREE.Mesh(armGeometry, handMaterial);
-    handMesh.position.set(0.18, -0.23, 0.05);
-    handMesh.rotation.z = -0.12;
-    handMesh.rotation.x = -0.25;
-    heldRoot.add(handMesh);
+    const hand = new THREE.Mesh(armGeometry, handMaterial);
+    hand.position.set(0.20, -0.26, 0.08);
+    hand.rotation.x = -0.22;
+    hand.rotation.z = -0.12;
+    heldRoot.add(hand);
 
-    const blockGeometry = new THREE.BoxGeometry(0.56, 0.56, 0.56);
-    blockMesh = new THREE.Mesh(blockGeometry, materialFor(selectedItemId));
-    blockMesh.position.set(-0.02, 0.10, 0);
-    blockMesh.rotation.set(0.05, 0.25, -0.05);
-    blockMesh.castShadow = false;
-    blockMesh.receiveShadow = false;
+    const blockGeometry = new THREE.BoxGeometry(0.58, 0.58, 0.58);
+    blockMesh = new THREE.Mesh(blockGeometry, getMaterials(selectedItemId));
+    blockMesh.position.set(-0.04, 0.10, 0);
+    blockMesh.rotation.set(0.06, 0.32, -0.06);
     heldRoot.add(blockMesh);
 
-    updateBlockMaterial();
-}
+    updateBlock();
+    updateVisibility();
 
-function updateBlockMaterial() {
-    if (!blockMesh) return;
-    const next = materialFor(selectedItemId);
-    if (Array.isArray(blockMesh.material)) {
-        blockMesh.material.forEach(material => material.dispose());
-    } else {
-        blockMesh.material.dispose();
-    }
-    blockMesh.material = next;
-}
+    window.addEventListener("resize", () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+    });
 
-function updateVisibility() {
-    visible = document.body.classList.contains("webminecraft-in-world") && !!ITEM_MATERIALS[selectedItemId];
-    if (renderer) renderer.domElement.style.display = visible ? "block" : "none";
-}
-
-function animate(time) {
-    animationFrame = requestAnimationFrame(animate);
-    if (!visible || !heldRoot) return;
-    heldRoot.rotation.y = -0.28 + Math.sin(time * 0.0016) * 0.018;
-    heldRoot.rotation.z = -0.12 + Math.sin(time * 0.0021) * 0.012;
-    renderer.render(heldRoot.parent ? heldRoot.parent : heldRoot, camera);
-}
-
-function resize() {
-    if (!renderer) return;
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-}
-
-function init() {
-    createRenderer();
-    createScene();
-
-    const scene = new THREE.Scene();
-    scene.add(heldRoot);
-
-    const light = new THREE.AmbientLight(0xffffff, 2.2);
-    scene.add(light);
-    const key = new THREE.DirectionalLight(0xffffff, 2.0);
-    key.position.set(-2, 3, 4);
-    scene.add(key);
-
-    heldRoot.parent.remove(heldRoot);
-    scene.add(heldRoot);
-
-    window.addEventListener("resize", resize);
     window.addEventListener("webminecraft:selectedslot", event => {
         const slot = Number(event.detail?.slot ?? 0);
-        const saved = Number.parseInt(localStorage.getItem("webminecraft_inventory") || "", 10);
-        void saved;
-        const raw = (() => {
-            try { return JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]"); } catch { return []; }
-        })();
-        const item = raw?.[slot];
-        selectedItemId = Number(item?.itemId) || 1;
-        updateBlockMaterial();
+        selectedItemId = readSelectedItem(slot);
+        updateBlock();
         updateVisibility();
     });
 
     const observer = new MutationObserver(updateVisibility);
     observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
-    updateVisibility();
-    animate(0);
+    setInterval(updateVisibility, 250);
+
+    function render() {
+        requestAnimationFrame(render);
+        if (!visible) return;
+        const time = performance.now();
+        heldRoot.rotation.y = -0.18 + Math.sin(time * 0.0015) * 0.018;
+        heldRoot.rotation.z = -0.10 + Math.sin(time * 0.0020) * 0.012;
+        renderer.render(scene, camera);
+    }
+    render();
 }
 
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
-else init();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+} else {
+    init();
+}
