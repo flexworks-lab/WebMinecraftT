@@ -24,7 +24,8 @@ const ITEM_MATERIALS = {
     9: sandstoneMaterial
 };
 
-const BASE_POS = new THREE.Vector3(0.72, -0.74, -1.05);
+// Larger and a little farther right, while keeping the hand/block anchored near the bottom.
+const BASE_POS = new THREE.Vector3(0.84, -0.76, -1.05);
 const BASE_ROT = new THREE.Euler(0.08, -0.18, -0.10);
 const ACTION_DURATION = 180;
 
@@ -33,8 +34,6 @@ let visible = false;
 let selectedItemId = 1;
 let action = null;
 let actionStartedAt = 0;
-let lastMobileMine = false;
-let lastMobilePlace = false;
 
 function makeHandTexture() {
     const canvas = document.createElement("canvas");
@@ -142,19 +141,20 @@ function init() {
     heldRoot = new THREE.Group();
     heldRoot.position.copy(BASE_POS);
     heldRoot.rotation.copy(BASE_ROT);
-    heldRoot.scale.setScalar(0.9);
+    // Bigger overall viewmodel.
+    heldRoot.scale.setScalar(1.08);
     scene.add(heldRoot);
 
     const hand = new THREE.Mesh(
-        new THREE.BoxGeometry(0.28, 0.70, 0.28),
+        new THREE.BoxGeometry(0.30, 0.76, 0.30),
         new THREE.MeshBasicMaterial({ map: makeHandTexture() })
     );
-    hand.position.set(0.20, -0.26, 0.08);
+    hand.position.set(0.22, -0.29, 0.08);
     hand.rotation.x = -0.22;
     hand.rotation.z = -0.12;
     heldRoot.add(hand);
 
-    blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.58, 0.58), getMaterials(selectedItemId));
+    blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.64, 0.64), getMaterials(selectedItemId));
     blockMesh.position.set(-0.04, 0.10, 0);
     blockMesh.rotation.set(0.06, 0.32, -0.06);
     blockMesh.renderOrder = 2;
@@ -179,6 +179,11 @@ function init() {
         if (document.pointerLockElement !== document.body) return;
         if (event.button === 0) triggerAction("mine");
         if (event.button === 2) triggerAction("place");
+    });
+
+    window.addEventListener("webminecraft:heldaction", event => {
+        const type = event.detail?.type;
+        if (type === "mine" || type === "place") triggerAction(type);
     });
 
     const observer = new MutationObserver(updateVisibility);
@@ -218,25 +223,16 @@ function init() {
         heldRoot.position.set(BASE_POS.x + sway + actionPX, BASE_POS.y + bob - Math.abs(actionPX) * 0.2, BASE_POS.z + actionPZ);
         heldRoot.rotation.set(
             BASE_ROT.x + actionX,
-            BASE_ROT.y + Math.sin(now * 0.0015) * 0.018 + actionY,
-            BASE_ROT.z + Math.sin(now * 0.0020) * 0.012 + actionZ
+            BASE_ROT.y,
+            BASE_ROT.z + actionY + sway * 0.5
         );
-
-        const blockBob = walk ? Math.sin(now * 0.012 + 0.7) * 0.025 : 0;
-        blockMesh.rotation.y = 0.32 + blockBob;
-        blockMesh.rotation.x = 0.06 + (walk ? Math.cos(now * 0.012) * 0.018 : 0);
-
-        const mine = !!touchInput.breakPressed || !!touchInput.punchPressed;
-        const place = !!touchInput.placePressed;
-        if (mine && !lastMobileMine) triggerAction("mine");
-        if (place && !lastMobilePlace) triggerAction("place");
-        lastMobileMine = mine;
-        lastMobilePlace = place;
-
         renderer.render(scene, camera);
     }
     render();
 }
 
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
-else init();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+} else {
+    init();
+}
