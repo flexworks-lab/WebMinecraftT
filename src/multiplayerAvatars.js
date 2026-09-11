@@ -3,6 +3,7 @@ import { getRemotePlayers, isMultiplayerActive } from "./multiplayerClient.js";
 
 const avatars = new Map();
 let animationStarted = false;
+const HEAD_TURN_LIMIT = 1.35;
 
 const SKIN_COLORS = [0xf3d2b6, 0xe6b892, 0xd39a72, 0xb87752, 0x965d43, 0x714331];
 const HAIR_COLORS = [0x17110d, 0x2a1a12, 0x4a2d1c, 0x6b4125, 0x7a4a2b, 0xa36b3d];
@@ -89,7 +90,6 @@ function makeHeadTexture(seed, skinHex, hairHex, variant) {
     const hairLight = shade(hairHex, 0.06);
     return makeCanvasTexture(ctx => {
         if (variant === 2) {
-            // Top of the head: solid hair coverage so the cube never has a bald spot.
             ctx.fillStyle = hair;
             ctx.fillRect(0, 0, 16, 16);
             ctx.fillStyle = hairLight;
@@ -100,7 +100,6 @@ function makeHeadTexture(seed, skinHex, hairHex, variant) {
             for (let x = 1; x < 16; x += 4) ctx.fillRect(x, 12, 2, 1);
             return;
         }
-
         ctx.fillStyle = base;
         ctx.fillRect(0, 0, 16, 16);
         ctx.fillStyle = light;
@@ -108,7 +107,6 @@ function makeHeadTexture(seed, skinHex, hairHex, variant) {
         ctx.fillStyle = dark;
         for (let i = 0; i < 8; i++) ctx.fillRect(Math.floor(rng() * 14) + 1, Math.floor(rng() * 13) + 2, 1, 1);
         ctx.fillStyle = hair;
-
         if (variant === 0) {
             ctx.fillRect(0, 0, 16, 4);
             ctx.fillRect(1, 3, 14, 3);
@@ -118,7 +116,6 @@ function makeHeadTexture(seed, skinHex, hairHex, variant) {
             ctx.fillRect(0, 2, 5, 6);
             ctx.fillRect(11, 2, 5, 6);
         }
-
         ctx.fillStyle = hairLight;
         for (let i = 0; i < 5; i++) ctx.fillRect(Math.floor(rng() * 13) + 1, Math.floor(rng() * 5), 1, 1);
     });
@@ -178,15 +175,8 @@ function createAvatar(id, name) {
 
     const group = new THREE.Group();
     group.userData.multiplayerAvatar = true;
-
-    // BoxGeometry material order is +X, -X, +Y, -Y, +Z, -Z.
-    // The player's visible/front-facing side is the -Z side in this avatar setup.
-    const head = new THREE.Mesh(
-        new THREE.BoxGeometry(0.62, 0.62, 0.62),
-        [side, side, top, skin, back, face]
-    );
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [side, side, top, skin, back, face]);
     head.position.y = 1.8;
-
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt); torso.position.y = 1.1;
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt); leftArm.position.set(-0.53, 1.23, 0);
     const rightArm = leftArm.clone(); rightArm.position.x = 0.53;
@@ -204,7 +194,6 @@ function createAvatar(id, name) {
     const nameTexture = new THREE.CanvasTexture(nameCanvas); nameTexture.colorSpace = THREE.SRGBColorSpace; nameTexture.minFilter = THREE.LinearFilter; nameTexture.magFilter = THREE.LinearFilter;
     const nameSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTexture, transparent: true, depthTest: false })); nameSprite.scale.set(Math.max(1.1, Math.min(2.8, 0.8 + text.length * 0.13)), 0.36, 1); nameSprite.position.y = 2.28; group.add(nameSprite);
     group.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
-
     return { group, parts: { head, torso, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe } };
 }
 
@@ -221,6 +210,10 @@ function shortestAngleDelta(from, to) {
     return THREE.MathUtils.euclideanModulo(to - from + Math.PI, Math.PI * 2) - Math.PI;
 }
 
+function normalizeAngle(angle) {
+    return THREE.MathUtils.euclideanModulo(angle + Math.PI, Math.PI * 2) - Math.PI;
+}
+
 function animateAvatar(entry, player, time) {
     const parts = entry.parts;
     const previous = entry.lastPosition;
@@ -232,20 +225,18 @@ function animateAvatar(entry, player, time) {
     entry.lastTimeDelta = Math.max((time - entry.lastTime) / 1000, 1 / 60);
     entry.lastTime = time;
 
-    // The body follows movement direction only. It never turns directly from camera look yaw.
     if (speed > 0.35) {
         const movementYaw = Math.atan2(dx, -dz);
         const delta = shortestAngleDelta(entry.bodyYaw, movementYaw);
-        entry.bodyYaw += delta * 0.18;
-        entry.bodyYaw = THREE.MathUtils.euclideanModulo(entry.bodyYaw + Math.PI, Math.PI * 2) - Math.PI;
+        entry.bodyYaw = normalizeAngle(entry.bodyYaw + delta * 0.18);
     }
+
     entry.group.rotation.y = entry.bodyYaw;
 
     const moving = String(player.action || "") === "walk" || speed > 0.35;
     const phase = time * 0.014 + entry.walkPhase;
     const swing = moving ? Math.sin(phase) * Math.min(0.72, 0.28 + speed * 0.08) : 0;
     const bob = moving ? Math.abs(Math.sin(phase * 2)) * 0.045 : 0;
-
     parts.leftLeg.rotation.x = THREE.MathUtils.lerp(parts.leftLeg.rotation.x, swing, 0.35);
     parts.rightLeg.rotation.x = THREE.MathUtils.lerp(parts.rightLeg.rotation.x, -swing, 0.35);
     parts.leftArm.rotation.x = THREE.MathUtils.lerp(parts.leftArm.rotation.x, -swing * 0.8, 0.35);
@@ -305,20 +296,29 @@ export function updateMultiplayerAvatars(scene) {
         entry.target.set(Number(player.position.x) || 0, (Number(player.position.y) || 0) - 1.8, Number(player.position.z) || 0);
         entry.group.position.lerp(entry.target, 0.32);
 
+        const action = String(player.action || "idle");
+        if (action !== entry.lastAction) { entry.lastAction = action; entry.actionStarted = now; }
+        animateAvatar(entry, player, now);
+
+        // Let the head look left/right, but once it reaches the limit the body catches up.
         const rawPitch = Number(player.rotation?.x) || 0;
         const targetPitch = THREE.MathUtils.clamp(rawPitch, -1.25, 1.25);
         const rawLookYaw = Number(player.rotation?.y) || 0;
-        const headYawDelta = shortestAngleDelta(entry.bodyYaw, rawLookYaw);
-        const targetHeadYaw = THREE.MathUtils.clamp(headYawDelta, -1.35, 1.35);
+        let headYawDelta = shortestAngleDelta(entry.bodyYaw, rawLookYaw);
+        if (Math.abs(headYawDelta) > HEAD_TURN_LIMIT) {
+            const excess = Math.abs(headYawDelta) - HEAD_TURN_LIMIT;
+            const turnDirection = headYawDelta > 0 ? 1 : -1;
+            entry.bodyYaw = normalizeAngle(entry.bodyYaw + turnDirection * excess * 0.16);
+            entry.group.rotation.y = entry.bodyYaw;
+            headYawDelta = shortestAngleDelta(entry.bodyYaw, rawLookYaw);
+        }
+
+        const targetHeadYaw = THREE.MathUtils.clamp(headYawDelta, -HEAD_TURN_LIMIT, HEAD_TURN_LIMIT);
         const parts = entry.parts;
         parts.head.rotation.order = "YXZ";
         parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, targetPitch, 0.28);
         parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, targetHeadYaw, 0.28);
         parts.head.rotation.z = THREE.MathUtils.lerp(parts.head.rotation.z, 0, 0.35);
-
-        const action = String(player.action || "idle");
-        if (action !== entry.lastAction) { entry.lastAction = action; entry.actionStarted = now; }
-        animateAvatar(entry, player, now);
     }
 
     for (const [id, entry] of avatars) {
