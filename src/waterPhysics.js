@@ -1,13 +1,14 @@
 import * as THREE from "three";
 import { getBlockAt, getBlockTypes, CHUNK_SIZE } from "./world.js";
 
-// Chunk-local Minecraft-style water simulation.
-// Water simulation and geometry rebuilds stay limited to areas that changed.
+// Performance-first Minecraft-style water simulation.
+// Simulation, dirty tracking, and rendering are all kept local to affected chunks.
 const MAX_FLOW = 8;
-const FLOW_INTERVAL = 150;
-const MAX_CELLS_PER_STEP = 900;
-const MAX_MESH_CELLS_PER_CHUNK = 5000;
-const MAX_CHUNK_REBUILDS_PER_UPDATE = 4;
+const FLOW_INTERVAL = 200;
+const MAX_CELLS_PER_STEP = 500;
+const MAX_MESH_CELLS_PER_CHUNK = 4000;
+const MAX_CHUNK_REBUILDS_PER_UPDATE = 2;
+const MAX_WATER_CELLS = 50000;
 
 const water = new Map();
 const cellsByChunk = new Map();
@@ -25,14 +26,13 @@ const key = (x, y, z) => `${x},${y},${z}`;
 const parseKey = value => value.split(",").map(Number);
 const chunkKey = (x, z) => `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
 
-const waterMaterial = new THREE.MeshPhongMaterial({
+// Lambert is cheaper than Phong and still reacts to the scene lighting.
+const waterMaterial = new THREE.MeshLambertMaterial({
     color: 0x438fbd,
     transparent: true,
     opacity: 0.68,
     depthWrite: false,
-    side: THREE.DoubleSide,
-    shininess: 90,
-    specular: 0x9ccfe0
+    side: THREE.DoubleSide
 });
 
 function markChunkDirty(x, z) {
@@ -41,27 +41,37 @@ function markChunkDirty(x, z) {
 
 function markCellDirty(x, z) {
     markChunkDirty(x, z);
-    // Neighbor chunks can share visible water faces.
-    if (Math.floor(x / CHUNK_SIZE) !== Math.floor((x + 1) / CHUNK_SIZE)) markChunkDirty(x + 1, z);
-    if (Math.floor(x / CHUNK_SIZE) !== Math.floor((x - 1) / CHUNK_SIZE)) markChunkDirty(x - 1, z);
-    if (Math.floor(z / CHUNK_SIZE) !== Math.floor((z + 1) / CHUNK_SIZE)) markChunkDirty(x, z + 1);
-    if (Math.floor(z / CHUNK_SIZE) !== Math.floor((z - 1) / CHUNK_SIZE)) markChunkDirty(x, z - 1);
+
+    const cx = Math.floor(x / CHUNK_SIZE);
+    const cz = Math.floor(z / CHUNK_SIZE);
+    if (cx !== Math.floor((x + 1) / CHUNK_SIZE)) markChunkDirty(x + 1, z);
+    if (cx !== Math.floor((x - 1) / CHUNK_SIZE)) markChunkDirty(x - 1, z);
+    if (cz !== Math.floor((z + 1) / CHUNK_SIZE)) markChunkDirty(x, z + 1);
+    if (cz !== Math.floor((z - 1) / CHUNK_SIZE)) markChunkDirty(x, z - 1);
 }
 
 function setWater(x, y, z, level) {
-    if (level <= 0) return;
+    if (level <= 0 || water.size >= MAX_WATER_CELLS) return;
+
     const k = key(x, y, z);
-    const old = water.get(k) || 0;
+    const existing = water.get(k);
+    const old = existing?.level || 0;
     if (level <= old) return;
 
-    water.set(k, level);
-    const ck = chunkKey(x, z);
-    let cells = cellsByChunk.get(ck);
-    if (!cells) {
-        cells = new Set();
-        cellsByChunk.set(ck, cells);
+    if (existing) {
+        existing.level = level;
+    } else {
+        water.set(k, { x, y, z, level });
+
+        const ck = chunkKey(x, z);
+        let cells = cellsByChunk.get(ck);
+        if (!cells) {
+            cells = new Set();
+            cellsByChunk.set(ck, cells);
+        }
+        cells.add(k);
     }
-    cells.add(k);
+
     active.add(k);
     markCellDirty(x, z);
 }
@@ -73,6 +83,7 @@ function isOpen(x, y, z) {
 function registerExistingWaterMesh(mesh) {
     if (!mesh || mesh.userData?.isDynamicWater) return;
     mesh.visible = false;
+
     const position = mesh.geometry?.getAttribute("position");
     if (!position) return;
 
@@ -84,6 +95,7 @@ function registerExistingWaterMesh(mesh) {
         const k = key(x, y, z);
         if (seen.has(k)) continue;
         seen.add(k);
+
         if (!naturalSources.has(k)) {
             naturalSources.add(k);
             setWater(x, y, z, MAX_FLOW);
@@ -94,6 +106,7 @@ function registerExistingWaterMesh(mesh) {
 function scanSceneForWater() {
     if (!gameScene || sceneScanned) return;
     sceneScanned = true;
+
     gameScene.traverse(object => {
         if (!object.isMesh || object.userData?.isDynamicWater) return;
         if (object.userData?.isWater || object.name?.toLowerCase().includes("water")) {
@@ -105,6 +118,7 @@ function scanSceneForWater() {
 function removeChunkMesh(ck) {
     const mesh = chunkMeshes.get(ck);
     if (!mesh) return;
+
     gameScene.remove(mesh);
     mesh.geometry.dispose();
     chunkMeshes.delete(ck);
@@ -126,14 +140,14 @@ function rebuildChunk(ck) {
     let cellCount = 0;
 
     for (const k of cells) {
-        const level = water.get(k) || 0;
-        if (level <= 0) continue;
+        const cell = water.get(k);
+        if (!cell || cell.level <= 0) continue;
         if (++cellCount > MAX_MESH_CELLS_PER_CHUNK) break;
 
-        const [x, y, z] = parseKey(k);
+        const { x, y, z, level } = cell;
         const height = level >= MAX_FLOW ? 1 : Math.max(0.125, level / MAX_FLOW);
         const topY = y - 0.5 + height;
-        const above = water.get(key(x, y + 1, z)) || 0;
+        const above = water.get(key(x, y + 1, z))?.level || 0;
 
         if (above <= 0) {
             positions.push(
@@ -148,9 +162,7 @@ function rebuildChunk(ck) {
         }
 
         for (const [dx, dz] of DIRS) {
-            const nx = x + dx;
-            const nz = z + dz;
-            const neighbor = water.get(key(nx, y, nz)) || 0;
+            const neighbor = water.get(key(x + dx, y, z))?.level || 0;
             if (neighbor >= level) continue;
 
             const sideHeight = Math.max(0.125, neighbor / MAX_FLOW);
@@ -197,6 +209,7 @@ function rebuildChunk(ck) {
 
 function rebuildDirtyChunks(limit = MAX_CHUNK_REBUILDS_PER_UPDATE) {
     if (!gameScene || !dirtyChunks.size) return;
+
     let count = 0;
     for (const ck of dirtyChunks) {
         dirtyChunks.delete(ck);
@@ -218,26 +231,32 @@ function spread(x, y, z, level) {
             setWater(nx, y - 1, nz, MAX_FLOW);
             continue;
         }
+
         if (!isOpen(nx, y, nz)) continue;
 
         const nk = key(nx, y, nz);
-        if ((water.get(nk) || 0) < nextLevel) setWater(nx, y, nz, nextLevel);
+        if ((water.get(nk)?.level || 0) < nextLevel) {
+            setWater(nx, y, nz, nextLevel);
+        }
     }
 }
 
 function stepWater() {
     const current = [];
     let count = 0;
+
     for (const k of active) {
         current.push(k);
         if (++count >= MAX_CELLS_PER_STEP) break;
     }
+
     for (const k of current) active.delete(k);
 
     for (const k of current) {
-        const level = water.get(k) || 0;
-        if (level <= 0) continue;
-        const [x, y, z] = parseKey(k);
+        const cell = water.get(k);
+        if (!cell || cell.level <= 0) continue;
+
+        const { x, y, z, level } = cell;
         const below = key(x, y - 1, z);
 
         if (isOpen(x, y - 1, z) && !water.has(below)) {
@@ -251,7 +270,10 @@ function stepWater() {
 export function setupWaterPhysics(scene) {
     gameScene = scene;
     scanSceneForWater();
-    while (dirtyChunks.size) rebuildDirtyChunks(32);
+
+    while (dirtyChunks.size) {
+        rebuildDirtyChunks(32);
+    }
 }
 
 export function updateWaterPhysics() {
@@ -274,6 +296,7 @@ export function notifyWaterBlockChanged(x, y, z) {
     active.add(key(x,y,z - 1));
     active.add(key(x,y + 1,z));
     active.add(key(x,y - 1,z));
+
     markCellDirty(x, z);
     markCellDirty(x + 1, z);
     markCellDirty(x - 1, z);
@@ -289,9 +312,9 @@ THREE.Scene.prototype.add = function (...objects) {
     return result;
 };
 
-// Low-frequency scheduler so water does not compete with the render loop.
+// Low-frequency scheduler keeps water work away from the render loop.
 function waterLoop() {
     updateWaterPhysics();
-    setTimeout(waterLoop, 100);
+    setTimeout(waterLoop, 150);
 }
-setTimeout(waterLoop, 100);
+setTimeout(waterLoop, 150);
