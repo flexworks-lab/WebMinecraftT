@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import "./cloud3D.js";
 
 const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
 
