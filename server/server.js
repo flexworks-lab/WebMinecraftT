@@ -39,6 +39,8 @@ function getOrCreateRoom(id, ownerName = "Player", isPrivate = false) {
 
 function cleanRoom(room) {
     if (!room || room.players.size !== 0) return;
+    if (rooms.get(room.id) !== room) return;
+    rooms.delete(room.id);
 }
 
 function sanitizeRoom(value) {
@@ -297,8 +299,8 @@ function handleMessage(ws, raw, state) {
             const oldest = room.blockChanges.keys().next().value;
             if (oldest) room.blockChanges.delete(oldest);
         }
-        broadcast(room, { type: "block_change", x, y, z, type });
-        send(ws, { type: "block_change_ack", x, y, z, type });
+        broadcast(room, { type: "block_change", x, y, z, blockType: type });
+        send(ws, { type: "block_change_ack", x, y, z, blockType: type });
         return;
     }
     if (message.type === "world_sync_request") {
@@ -365,12 +367,14 @@ httpServer.on("upgrade", (request, socket) => {
 setInterval(() => {
     for (const room of rooms.values()) {
         if (room.players.size < 2) continue;
-        broadcast(room, { type: "player_states", players: [...room.players.values()].map(publicPlayer), serverTime: Date.now() });
+        const players = [...room.players.values()];
+        const payload = JSON.stringify({ type: "player_states", players: players.map(publicPlayer) });
+        for (const player of players) {
+            if (player.ws.connected) player.ws.sendText(payload);
+        }
     }
 }, BROADCAST_INTERVAL);
 
 httpServer.listen(PORT, HOST, () => {
     console.log(`WebMinecraft multiplayer server listening on ${HOST}:${PORT}`);
-    console.log(`Health: http://localhost:${PORT}/health`);
-    console.log(`WebSocket: ws://localhost:${PORT}/multiplayer`);
 });
