@@ -99,12 +99,11 @@ function createInventoryUI() {
 #inventoryHint{padding:9px 3px 1px;color:#aaa;font-size:11px;text-align:center}
 #inventoryMobileButton{display:none;position:fixed;right:18px;bottom:84px;width:54px;height:54px;z-index:90;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#555;color:#fff;font-size:27px;box-shadow:0 3px 0 #171717;touch-action:manipulation}
 body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block}
-#heldBlock{position:fixed;right:5.5vw;bottom:5.5vh;width:150px;height:150px;z-index:80;display:none;pointer-events:none;transform:rotate(-7deg);filter:drop-shadow(5px 7px 2px rgba(0,0,0,.35));image-rendering:pixelated}
+#heldBlock{position:fixed;right:3vw;bottom:8vh;width:190px;height:190px;z-index:80;display:none;pointer-events:none;transform:rotate(-7deg);filter:drop-shadow(6px 8px 2px rgba(0,0,0,.38));image-rendering:pixelated}
 body.webminecraft-in-world #heldBlock{display:block}
-#heldBlockImage{position:absolute;right:8px;top:6px;width:105px;height:105px;background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated;transform:perspective(180px) rotateX(8deg) rotateY(-10deg) rotateZ(-3deg)}
-#heldBlockImage:after{content:"";position:absolute;inset:0;box-shadow:inset 7px 7px 0 rgba(255,255,255,.13),inset -8px -8px 0 rgba(0,0,0,.2)}
-.heldHand{position:absolute;right:0;bottom:0;width:72px;height:68px;background:#d59b72;border:4px solid #6b432f;box-shadow:inset -8px -8px 0 rgba(100,55,35,.18);transform:rotate(-8deg);z-index:-1}
-@media(max-width:700px){#inventoryPanel{width:96vw;padding:8px}#inventoryGrid{gap:3px}.inventoryTexture{inset:4px}.inventoryCount{font-size:12px}#heldBlock{right:1vw;bottom:17vh;width:105px;height:105px}#heldBlockImage{width:74px;height:74px}.heldHand{width:52px;height:48px;border-width:3px}}
+#heldBlockImage{position:absolute;right:8px;top:6px;width:135px;height:135px;background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated;transform:perspective(180px) rotateX(8deg) rotateY(-10deg) rotateZ(-3deg);border:3px solid rgba(0,0,0,.22);box-shadow:inset 9px 9px 0 rgba(255,255,255,.13),inset -10px -10px 0 rgba(0,0,0,.22)}
+.heldHand{position:absolute;right:0;bottom:0;width:88px;height:78px;background:#d59b72;border:4px solid #6b432f;box-shadow:inset -8px -8px 0 rgba(100,55,35,.18);transform:rotate(-8deg);z-index:-1}
+@media(max-width:700px){#inventoryPanel{width:96vw;padding:8px}#inventoryGrid{gap:3px}.inventoryTexture{inset:4px}.inventoryCount{font-size:12px}#heldBlock{right:1vw;bottom:17vh;width:125px;height:125px}#heldBlockImage{width:88px;height:88px}.heldHand{width:58px;height:52px;border-width:3px}}
 `;
     document.head.appendChild(style);
     screen.addEventListener("pointerdown", event => { if (event.target === screen) closeInventory(); });
@@ -139,7 +138,6 @@ function renderInventory() {
 }
 
 function syncHotbar() {
-    const BASE = import.meta.env.BASE_URL;
     document.querySelectorAll("#hotbar .slot").forEach((slotEl, index) => {
         const slot = inventory[index];
         let countEl = slotEl.querySelector(".hotbarCount");
@@ -160,7 +158,7 @@ function updateHeldBlock() {
     const image = document.querySelector("#heldBlock .heldBlockImage");
     if (!held || !image) return;
     const inWorld = document.body.classList.contains("webminecraft-in-world");
-    const item = inventory[window.webMinecraftSelectedSlot || 0];
+    const item = inventory[Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0];
     if (!inWorld || !item) { held.style.display = "none"; return; }
     const info = getItem(item.itemId);
     if (!info) { held.style.display = "none"; return; }
