@@ -171,7 +171,18 @@ function getTargetBlock(scene, camera, BLOCK) {
     raycaster.near = 0.01;
     raycaster.far = INTERACTION_DISTANCE;
     const hits = raycaster.intersectObjects(scene.children, true);
-    const hit = hits.find(entry => entry.object?.userData?.isChunk === true && !!entry.face);
+    // Water is only a visual surface. Ignore it when choosing the block target
+    // so the ray can continue to the real block underneath it. This lets players
+    // mine blocks while standing next to water or looking down through its surface.
+    const hit = hits.find(entry => {
+        if (!entry.object?.userData?.isChunk || !entry.face) return false;
+        let object = entry.object;
+        while (object) {
+            if (object.userData?.isWater === true) return false;
+            object = object.parent;
+        }
+        return true;
+    });
     raycaster.near = 0;
     raycaster.far = Infinity;
     if (!hit || hit.distance > INTERACTION_DISTANCE) return null;
