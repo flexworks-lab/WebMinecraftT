@@ -57,98 +57,101 @@ body.webminecraft-in-world #discussionButton{display:none !important}
     document.head.appendChild(style);
 }
 
-function addRect(blocks, startX, endX, startZ, endZ) {
-    for (let x = startX; x <= endX; x++) {
-        for (let z = startZ; z <= endZ; z++) {
-            blocks.push(new THREE.Vector3(
-                x * CLOUD_BLOCK_SIZE,
-                0,
-                z * CLOUD_BLOCK_SIZE
-            ));
-        }
-    }
-}
-
-function addRandomPatch(blocks, cellX, cellZ, patchIndex, width, depth) {
-    const h = (n) => seedHash(cellX, cellZ, n + patchIndex * 97);
-
-    // Pick a rectangular flat patch inside/around the cloud.
-    const patchWidth = 1 + Math.floor(h(11) * Math.max(2, Math.floor(width * 0.65)));
-    const patchDepth = 1 + Math.floor(h(13) * Math.max(2, Math.floor(depth * 0.8)));
-    const startX = -Math.floor(width / 2) + Math.floor(h(17) * Math.max(1, width - patchWidth + 1));
-    const startZ = -Math.floor(depth / 2) + Math.floor(h(19) * Math.max(1, depth - patchDepth + 1));
-
-    addRect(
-        blocks,
-        startX,
-        startX + patchWidth - 1,
-        startZ,
-        startZ + patchDepth - 1
-    );
+function addBlock(blocks, x, z) {
+    blocks.push(new THREE.Vector3(
+        x * CLOUD_BLOCK_SIZE,
+        0,
+        z * CLOUD_BLOCK_SIZE
+    ));
 }
 
 function buildCloudShape(cellX, cellZ) {
     const blocks = [];
+    const seen = new Set();
 
-    // Much wider flat clouds with random proportions.
-    const width = 8 + Math.floor(seedHash(cellX, cellZ, 17) * 9); // 17-33 blocks wide
-    const depth = 3 + Math.floor(seedHash(cellX, cellZ, 23) * 6); // 7-17 blocks deep
+    // Very wide clouds with a random footprint. Everything stays on the SAME Y layer.
+    const halfWidth = 8 + Math.floor(seedHash(cellX, cellZ, 17) * 10); // 17-37 blocks wide
+    const halfDepth = 3 + Math.floor(seedHash(cellX, cellZ, 23) * 6);  // 7-17 blocks deep
 
-    // Start with a broad irregular base made entirely on one Y layer.
-    addRect(
-        blocks,
-        -width,
-        width,
-        -depth,
-        depth
-    );
+    // Build row-by-row so every cloud has a different silhouette.
+    for (let z = -halfDepth; z <= halfDepth; z++) {
+        const rowRandom = seedHash(cellX, cellZ, 30 + z + halfDepth);
+        const rowWidth = Math.max(
+            2,
+            Math.floor(halfWidth * (0.48 + rowRandom * 0.52))
+        );
+        const rowOffset = Math.floor(
+            (seedHash(cellX, cellZ, 70 + z + halfDepth) - 0.5) * halfWidth * 0.5
+        );
 
-    // Cut the silhouette with deterministic missing edge sections.
-    const cuts = 5 + Math.floor(seedHash(cellX, cellZ, 29) * 6);
-    for (let i = 0; i < cuts; i++) {
-        const edge = Math.floor(seedHash(cellX, cellZ, 40 + i) * 4);
-        const cutSize = 1 + Math.floor(seedHash(cellX, cellZ, 60 + i) * 4);
+        const left = -rowWidth + rowOffset;
+        const right = rowWidth + rowOffset;
 
-        if (edge === 0) {
-            for (let z = -cutSize; z <= cutSize; z++) {
-                blocks.splice(blocks.length, 0);
-            }
-            // No-op here; shape irregularity is added below with visible patches.
+        for (let x = left; x <= right; x++) {
+            addBlock(blocks, x, z);
         }
     }
 
-    // Layered-in flat patches make each cloud a different chunky shape without increasing height.
-    const patchCount = 8 + Math.floor(seedHash(cellX, cellZ, 83) * 8);
-    for (let i = 0; i < patchCount; i++) {
-        addRandomPatch(blocks, cellX, cellZ, i, width * 2 + 1, depth * 2 + 1);
+    // Remove several random edge chunks to create jagged blocky outlines.
+    const edgeCuts = 7 + Math.floor(seedHash(cellX, cellZ, 140) * 8);
+    for (let i = 0; i < edgeCuts; i++) {
+        const cutZ = -halfDepth + Math.floor(seedHash(cellX, cellZ, 150 + i) * (halfDepth * 2 + 1));
+        const rowRandom = seedHash(cellX, cellZ, 180 + cutZ + halfDepth);
+        const rowWidth = Math.max(2, Math.floor(halfWidth * (0.48 + rowRandom * 0.52)));
+        const rowOffset = Math.floor(
+            (seedHash(cellX, cellZ, 220 + cutZ + halfDepth) - 0.5) * halfWidth * 0.5
+        );
+        const side = seedHash(cellX, cellZ, 260 + i) > 0.5 ? 1 : -1;
+        const cutSize = 1 + Math.floor(seedHash(cellX, cellZ, 280 + i) * 4);
+        const cutStart = side > 0
+            ? rowWidth + rowOffset - cutSize + 1
+            : -rowWidth + rowOffset;
+        const cutEnd = side > 0
+            ? rowWidth + rowOffset
+            : -rowWidth + rowOffset + cutSize - 1;
+
+        for (let x = cutStart; x <= cutEnd; x++) {
+            seen.add(`${x}|${cutZ}`);
+        }
     }
 
-    // Add a few flat protrusions around random edges for the classic blocky silhouette.
-    const protrusions = 3 + Math.floor(seedHash(cellX, cellZ, 101) * 5);
+    // Add a few separated flat protrusions, still on the exact same layer.
+    const protrusions = 4 + Math.floor(seedHash(cellX, cellZ, 320) * 6);
     for (let i = 0; i < protrusions; i++) {
-        const side = Math.floor(seedHash(cellX, cellZ, 120 + i) * 4);
-        const amount = 1 + Math.floor(seedHash(cellX, cellZ, 140 + i) * 4);
-        const span = 1 + Math.floor(seedHash(cellX, cellZ, 160 + i) * 3);
+        const side = Math.floor(seedHash(cellX, cellZ, 330 + i) * 4);
+        const amount = 1 + Math.floor(seedHash(cellX, cellZ, 350 + i) * 5);
+        const span = 1 + Math.floor(seedHash(cellX, cellZ, 370 + i) * 3);
 
         if (side === 0) {
-            addRect(blocks, -width - amount, -width, -span, span);
+            const zCenter = -halfDepth + Math.floor(seedHash(cellX, cellZ, 390 + i) * (halfDepth * 2 + 1));
+            for (let x = -halfWidth - amount; x < -halfWidth; x++) {
+                for (let z = zCenter - span; z <= zCenter + span; z++) addBlock(blocks, x, z);
+            }
         } else if (side === 1) {
-            addRect(blocks, width, width + amount, -span, span);
+            const zCenter = -halfDepth + Math.floor(seedHash(cellX, cellZ, 410 + i) * (halfDepth * 2 + 1));
+            for (let x = halfWidth; x < halfWidth + amount; x++) {
+                for (let z = zCenter - span; z <= zCenter + span; z++) addBlock(blocks, x, z);
+            }
         } else if (side === 2) {
-            addRect(blocks, -span, span, -depth - amount, -depth);
+            const xCenter = -halfWidth + Math.floor(seedHash(cellX, cellZ, 430 + i) * (halfWidth * 2 + 1));
+            for (let z = -halfDepth - amount; z < -halfDepth; z++) {
+                for (let x = xCenter - span; x <= xCenter + span; x++) addBlock(blocks, x, z);
+            }
         } else {
-            addRect(blocks, -span, span, depth, depth + amount);
+            const xCenter = -halfWidth + Math.floor(seedHash(cellX, cellZ, 450 + i) * (halfWidth * 2 + 1));
+            for (let z = halfDepth; z < halfDepth + amount; z++) {
+                for (let x = xCenter - span; x <= xCenter + span; x++) addBlock(blocks, x, z);
+            }
         }
     }
 
-    // Remove duplicate blocks so the random patches/protrusions stay visually clean.
-    const seen = new Set();
-    return blocks.filter((block) => {
+    // Apply cuts and remove duplicates from overlapping protrusions.
+    const unique = new Map();
+    for (const block of blocks) {
         const key = `${block.x}|${block.z}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
+        if (!seen.has(key)) unique.set(key, block);
+    }
+    return [...unique.values()];
 }
 
 function makeCloud(cellX, cellZ) {
@@ -167,9 +170,9 @@ function makeCloud(cellX, cellZ) {
     mesh.receiveShadow = false;
 
     // Fixed world coordinates. Clouds no longer recenter around the player/camera.
-    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 201) - 0.5) * 24;
-    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 211) - 0.5) * 24;
-    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 221) - 0.5) * 2;
+    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 500) - 0.5) * 24;
+    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 510) - 0.5) * 24;
+    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 520) - 0.5) * 2;
 
     cloudRoot.add(mesh);
     cloudEntries.push({ mesh, baseX, baseZ, baseY });
@@ -185,7 +188,7 @@ function rebuildCloudField(seed) {
     cloudSeed = (Math.floor(Math.abs(Number(seed))) >>> 0) || 0;
     clearClouds();
 
-    // Larger area + higher spawn rate = many more clouds across the sky.
+    // Large area + high spawn rate = lots of clouds across the sky.
     for (let cellX = -CLOUD_GRID_RADIUS; cellX <= CLOUD_GRID_RADIUS; cellX++) {
         for (let cellZ = -CLOUD_GRID_RADIUS; cellZ <= CLOUD_GRID_RADIUS; cellZ++) {
             if (seedHash(cellX, cellZ, 97) < 0.50) continue;
