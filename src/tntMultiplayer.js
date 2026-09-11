@@ -1,8 +1,8 @@
 const TNT_SIGNAL_PREFIX = "\u2063WM_TNT:";
-let chatBridgeInstalled = false;
+let chatBridgeWrapped = false;
 
 function installChatBridge() {
-    if (chatBridgeInstalled) return;
+    if (chatBridgeWrapped) return;
     const tryInstall = () => {
         const add = window.__webminecraftChatAdd;
         if (typeof add !== "function" || add.__webminecraftTNTBridge) return;
@@ -21,13 +21,13 @@ function installChatBridge() {
         };
         wrapped.__webminecraftTNTBridge = true;
         window.__webminecraftChatAdd = wrapped;
+        chatBridgeWrapped = true;
     };
     tryInstall();
     const timer = setInterval(() => {
         tryInstall();
-        if (chatBridgeInstalled) clearInterval(timer);
+        if (chatBridgeWrapped) clearInterval(timer);
     }, 50);
-    chatBridgeInstalled = true;
 }
 
 export function sendTNTIgnite(x, y, z) {
