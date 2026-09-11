@@ -34,7 +34,6 @@ function loadTexture(path) {
     return texture;
 }
 
-// Vite copies /public to the root of the build, so BASE_URL is the correct path prefix.
 const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURIComponent(file)}`;
 
 const grassTopTexture = loadTexture(texturePath("Grass_Block_(top_texture)_JE2.png"));
@@ -70,15 +69,13 @@ const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, ver
 const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true });
 
-// Leaves use alpha cutout instead of blended transparency so transparent pixels
-// do not write depth while the solid leaf pixels still behave like opaque geometry.
-// This prevents nearby block textures from disappearing behind the leaf texture.
+// Leaves keep their texture visible but are translucent so blocks behind them can be seen.
 const leavesMaterial = new THREE.MeshLambertMaterial({
     map: leavesTexture,
-    transparent: false,
-    opacity: 1,
-    alphaTest: 0.1,
-    depthWrite: true,
+    transparent: true,
+    opacity: 0.78,
+    alphaTest: 0.08,
+    depthWrite: false,
     depthTest: true,
     side: THREE.DoubleSide,
     vertexColors: true
