@@ -9,6 +9,19 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/adminUsers/$(request.auth.token.email))
+        && get(/databases/$(database)/documents/adminUsers/$(request.auth.token.email)).data.enabled == true;
+    }
+
+    match /adminUsers/{email} {
+      allow get: if isDeveloper() || (request.auth != null && request.auth.token.email == email);
+      allow list: if isDeveloper();
+      allow create, update, delete: if isDeveloper();
+    }
+
     match /users/{userId}/worlds/{worldId} {
       allow read, write, delete: if request.auth != null
         && request.auth.uid == userId;
@@ -44,21 +57,17 @@ service cloud.firestore {
 
       allow update: if false;
 
-      allow delete: if isDeveloper()
+      allow delete: if isDeveloper() || isAdmin()
         || (request.auth != null
           && resource.data.expiresAt is timestamp
           && resource.data.expiresAt <= request.time);
     }
 
-    // Public-to-read maintenance state. Only the verified developer account
-    // can change it, so normal players cannot turn maintenance mode off.
     match /serverControl/{controlId} {
       allow read: if request.auth != null;
       allow create, update, delete: if isDeveloper();
     }
 
-    // The active website announcement must be readable before a player logs in.
-    // Only the verified developer account can publish or clear it.
     match /announcements/{announcementId} {
       allow read: if announcementId == 'active';
       allow create, update, delete: if isDeveloper();
