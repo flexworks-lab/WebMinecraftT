@@ -24,8 +24,9 @@ let sunMesh = null;
 let sunGlowMeshes = [];
 let cloudCamera = null;
 let skyDome = null;
+let undergroundAmbient = null;
+let legacyDepthLightNeutralized = false;
 
-// Bright, opaque white clouds so they are easy to see against the sky.
 const cloudMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: false,
@@ -36,14 +37,12 @@ const cloudMaterial = new THREE.MeshBasicMaterial({
     toneMapped: false
 });
 
-// Every cloud piece is exactly 1 unit tall and 2 units wide/deep.
 const cloudGeometry = new THREE.BoxGeometry(
     CLOUD_BLOCK_SIZE,
     CLOUD_HEIGHT,
     CLOUD_BLOCK_SIZE
 );
 
-// Square sun with a soft square glow. It is a sky-only visual, not a world object.
 const sunGeometry = new THREE.PlaneGeometry(10, 10);
 const sunMaterial = new THREE.MeshBasicMaterial({
     color: 0xffe87a,
@@ -76,7 +75,6 @@ function ensureStyles() {
     if (document.getElementById("webMinecraftWorldCloudFixes")) return;
     const style = document.createElement("style");
     style.id = "webMinecraftWorldCloudFixes";
-    // Only hide unrelated in-world UI. No cloud texture/element is hidden here.
     style.textContent = `
 body.webminecraft-in-world #devControlsButton,
 body.webminecraft-in-world #discussionButton{display:none !important}
@@ -85,31 +83,20 @@ body.webminecraft-in-world #discussionButton{display:none !important}
 }
 
 function addBlock(blocks, x, z) {
-    blocks.push(new THREE.Vector3(
-        x * CLOUD_BLOCK_SIZE,
-        0,
-        z * CLOUD_BLOCK_SIZE
-    ));
+    blocks.push(new THREE.Vector3(x * CLOUD_BLOCK_SIZE, 0, z * CLOUD_BLOCK_SIZE));
 }
 
 function buildCloudShape(cellX, cellZ) {
     const blocks = [];
     const seen = new Set();
-
-    // Very wide clouds with a random footprint. Everything stays on the SAME Y layer.
     const halfWidth = 8 + Math.floor(seedHash(cellX, cellZ, 17) * 10);
     const halfDepth = 3 + Math.floor(seedHash(cellX, cellZ, 23) * 6);
 
     for (let z = -halfDepth; z <= halfDepth; z++) {
         const rowRandom = seedHash(cellX, cellZ, 30 + z + halfDepth);
         const rowWidth = Math.max(2, Math.floor(halfWidth * (0.48 + rowRandom * 0.52)));
-        const rowOffset = Math.floor(
-            (seedHash(cellX, cellZ, 70 + z + halfDepth) - 0.5) * halfWidth * 0.5
-        );
-
-        for (let x = -rowWidth + rowOffset; x <= rowWidth + rowOffset; x++) {
-            addBlock(blocks, x, z);
-        }
+        const rowOffset = Math.floor((seedHash(cellX, cellZ, 70 + z + halfDepth) - 0.5) * halfWidth * 0.5);
+        for (let x = -rowWidth + rowOffset; x <= rowWidth + rowOffset; x++) addBlock(blocks, x, z);
     }
 
     const edgeCuts = 7 + Math.floor(seedHash(cellX, cellZ, 140) * 8);
@@ -117,9 +104,7 @@ function buildCloudShape(cellX, cellZ) {
         const cutZ = -halfDepth + Math.floor(seedHash(cellX, cellZ, 150 + i) * (halfDepth * 2 + 1));
         const rowRandom = seedHash(cellX, cellZ, 180 + cutZ + halfDepth);
         const rowWidth = Math.max(2, Math.floor(halfWidth * (0.48 + rowRandom * 0.52)));
-        const rowOffset = Math.floor(
-            (seedHash(cellX, cellZ, 220 + cutZ + halfDepth) - 0.5) * halfWidth * 0.5
-        );
+        const rowOffset = Math.floor((seedHash(cellX, cellZ, 220 + cutZ + halfDepth) - 0.5) * halfWidth * 0.5);
         const side = seedHash(cellX, cellZ, 260 + i) > 0.5 ? 1 : -1;
         const cutSize = 1 + Math.floor(seedHash(cellX, cellZ, 280 + i) * 4);
         const cutStart = side > 0 ? rowWidth + rowOffset - cutSize + 1 : -rowWidth + rowOffset;
@@ -127,7 +112,6 @@ function buildCloudShape(cellX, cellZ) {
         for (let x = cutStart; x <= cutEnd; x++) seen.add(`${x}|${cutZ}`);
     }
 
-    // Random flat protrusions keep silhouettes varied without adding height.
     const protrusions = 4 + Math.floor(seedHash(cellX, cellZ, 320) * 6);
     for (let i = 0; i < protrusions; i++) {
         const side = Math.floor(seedHash(cellX, cellZ, 330 + i) * 4);
@@ -175,7 +159,6 @@ function makeCloud(cellX, cellZ) {
     mesh.receiveShadow = false;
     mesh.renderOrder = 10;
 
-    // Randomly scatter the cloud inside its cell so there is no visible grid/line pattern.
     const randomX = seedHash(cellX, cellZ, 500);
     const randomZ = seedHash(cellX, cellZ, 510);
     const baseX = (cellX + randomX - 0.5) * CLOUD_CELL_SIZE;
@@ -232,6 +215,37 @@ function createSkyDome(scene) {
     scene.add(skyDome);
 }
 
+function createUndergroundLighting(scene) {
+    if (undergroundAmbient) return;
+
+    // Ambient fill prevents enclosed spaces from going almost black without creating
+    // the localized light beam caused by a point light sitting on the camera.
+    undergroundAmbient = new THREE.AmbientLight(0x87a5b8, 0.22);
+    undergroundAmbient.name = "MinecraftUndergroundAmbient";
+    scene.add(undergroundAmbient);
+
+    // Older builds used a camera-following PointLight for underground brightness.
+    // Disable that light so illumination cannot leak through walls or make bright seams.
+    if (!legacyDepthLightNeutralized) {
+        for (const object of scene.children) {
+            if (!object.isPointLight) continue;
+            const hex = object.color?.getHex?.();
+            if (hex !== 0x9db6d2) continue;
+            object.intensity = 0;
+            try {
+                Object.defineProperty(object, "intensity", {
+                    configurable: true,
+                    get() { return 0; },
+                    set() {}
+                });
+            } catch {
+                object.intensity = 0;
+            }
+        }
+        legacyDepthLightNeutralized = true;
+    }
+}
+
 function createSun() {
     if (sunMesh || !cloudRoot) return;
 
@@ -266,12 +280,8 @@ function createSun() {
 
 function updateSunPosition() {
     if (!cloudCamera || !sunMesh) return;
-
-    // Sky-only sun: keep it within the camera clip range but always move it with the camera.
-    // That means flying toward it can never actually reach the visual sun.
     const direction = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
     const position = cloudCamera.position.clone().addScaledVector(direction, SUN_DISTANCE);
-
     sunMesh.position.copy(position);
     for (const glow of sunGlowMeshes) glow.position.copy(position);
 }
@@ -287,6 +297,14 @@ function updateSkyPosition() {
     skyDome.position.copy(cloudCamera.position);
 }
 
+function updateUndergroundAmbient() {
+    if (!cloudCamera || !undergroundAmbient) return;
+    const y = cloudCamera.position.y;
+    const underground = 1 - THREE.MathUtils.smoothstep(y, -1, 8);
+    const deepDark = 1 - THREE.MathUtils.smoothstep(y, -24, -1);
+    undergroundAmbient.intensity = underground * (0.16 + (1 - deepDark) * 0.08);
+}
+
 function clearClouds() {
     cloudEntries.length = 0;
     if (!cloudRoot) return;
@@ -299,7 +317,6 @@ function rebuildCloudField(seed) {
     cloudSeed = (Math.floor(Math.abs(Number(seed))) >>> 0) || 0;
     clearClouds();
 
-    // Large area + high spawn rate = lots of clouds across the sky.
     for (let cellX = -CLOUD_GRID_RADIUS; cellX <= CLOUD_GRID_RADIUS; cellX++) {
         for (let cellZ = -CLOUD_GRID_RADIUS; cellZ <= CLOUD_GRID_RADIUS; cellZ++) {
             if (seedHash(cellX, cellZ, 97) < 0.32) continue;
@@ -328,6 +345,7 @@ function tick(now) {
     updateSunPosition();
     updateSunFacing();
     updateSkyPosition();
+    updateUndergroundAmbient();
     requestAnimationFrame(tick);
 }
 
@@ -336,6 +354,7 @@ export function setupWorldClouds(scene, camera = null) {
     cloudCamera = camera;
     cloudScene = scene;
     createSkyDome(scene);
+    createUndergroundLighting(scene);
 
     if (!cloudRoot) {
         cloudRoot = new THREE.Group();
