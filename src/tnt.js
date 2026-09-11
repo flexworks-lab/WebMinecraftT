@@ -15,7 +15,6 @@ const SAND_MAX_FALL_SPEED = 28;
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
 const primed = new Set();
-const fallingTNT = new Map();
 const fallingSand = new Map();
 let suppressPhysicsBlockEvent = false;
 let lastScene = null;
@@ -68,39 +67,26 @@ function disposeDynamicMesh(mesh) {
     }
 }
 
-function removeEntity(map, key) {
-    const entity = map.get(key);
-    if (!entity) return null;
-    map.delete(key);
-    disposeDynamicMesh(entity.mesh);
-    return entity;
-}
-
-function activateFallingBlock(scene, x, y, z, type, map, materials, kind) {
+function activateFallingSand(scene, x, y, z) {
     const key = makeKey(x, y, z);
-    if (map.has(key) || getBlockAt(x, y, z) !== type) return false;
     const BLOCK = getBlockTypes();
+    if (fallingSand.has(key) || getBlockAt(x, y, z) !== BLOCK.SAND) return false;
     if (isSolidBlock(getBlockAt(x, y - 1, z), BLOCK)) return false;
 
-    const mesh = createDynamicBlock(scene, x, y, z, materials, kind);
-    map.set(key, { x, y, z, velocity: 0, mesh });
+    const mesh = createDynamicBlock(scene, x, y, z, [sandMaterial], "sand");
+    fallingSand.set(key, { x, y, z, velocity: 0, mesh });
     if (!setBlockFromPhysics(x, y, z, BLOCK.AIR)) {
-        removeEntity(map, key);
+        fallingSand.delete(key);
+        disposeDynamicMesh(mesh);
         return false;
     }
     return true;
 }
 
-function tryTrackTNTAt(scene, x, y, z) {
-    const BLOCK = getBlockTypes();
-    if (getBlockAt(x, y, z) !== BLOCK.TNT) return;
-    activateFallingBlock(scene, x, y, z, BLOCK.TNT, fallingTNT, tntMaterial, "tnt");
-}
-
 function tryTrackSandAt(scene, x, y, z) {
     const BLOCK = getBlockTypes();
     if (getBlockAt(x, y, z) !== BLOCK.SAND) return;
-    activateFallingBlock(scene, x, y, z, BLOCK.SAND, fallingSand, [sandMaterial], "sand");
+    activateFallingSand(scene, x, y, z);
 }
 
 function processBlockChangeForPhysics(scene, detail) {
@@ -112,6 +98,7 @@ function processBlockChangeForPhysics(scene, detail) {
         tryTrackSandAt(scene, x, y, z);
         return;
     }
+
     if (type === BLOCK.AIR) {
         for (let offset = 1; offset <= 4; offset++) {
             tryTrackSandAt(scene, x, y + offset, z);
@@ -128,18 +115,18 @@ function getLandingY(x, startY, nextY, z, BLOCK) {
     return null;
 }
 
-function updateFallingMap(map, deltaTime, type, gravity, maxFallSpeed) {
-    if (!lastScene || map.size === 0) return;
+function updateFallingSand(deltaTime) {
+    if (!lastScene || fallingSand.size === 0) return;
     const BLOCK = getBlockTypes();
     const dt = Math.min(Math.max(deltaTime, 0), 0.05);
 
-    for (const [key, entity] of map) {
+    for (const [key, entity] of fallingSand) {
         if (!entity.mesh?.parent) {
-            map.delete(key);
+            fallingSand.delete(key);
             continue;
         }
 
-        entity.velocity = Math.min(entity.velocity + gravity * dt, maxFallSpeed);
+        entity.velocity = Math.min(entity.velocity + SAND_GRAVITY * dt, SAND_MAX_FALL_SPEED);
         const startY = entity.y;
         const nextY = startY - entity.velocity * dt;
         const landingY = getLandingY(entity.x, startY, nextY, entity.z, BLOCK);
@@ -147,9 +134,9 @@ function updateFallingMap(map, deltaTime, type, gravity, maxFallSpeed) {
         if (landingY !== null && landingY <= startY) {
             entity.y = landingY;
             entity.mesh.position.y = landingY;
-            map.delete(key);
+            fallingSand.delete(key);
             disposeDynamicMesh(entity.mesh);
-            setBlockFromPhysics(entity.x, landingY, entity.z, type);
+            setBlockFromPhysics(entity.x, landingY, entity.z, BLOCK.SAND);
             continue;
         }
 
@@ -157,18 +144,10 @@ function updateFallingMap(map, deltaTime, type, gravity, maxFallSpeed) {
         entity.mesh.position.y = nextY;
 
         if (nextY < -60) {
-            map.delete(key);
+            fallingSand.delete(key);
             disposeDynamicMesh(entity.mesh);
         }
     }
-}
-
-function updateFallingTNT(deltaTime) {
-    updateFallingMap(fallingTNT, deltaTime, getBlockTypes().TNT, TNT_GRAVITY, TNT_MAX_FALL_SPEED);
-}
-
-function updateFallingSand(deltaTime) {
-    updateFallingMap(fallingSand, deltaTime, getBlockTypes().SAND, SAND_GRAVITY, SAND_MAX_FALL_SPEED);
 }
 
 function startPhysicsLoop() {
@@ -177,7 +156,6 @@ function startPhysicsLoop() {
     const loop = time => {
         const deltaTime = Math.min((time - lastPhysicsTime) / 1000, 0.05);
         lastPhysicsTime = time;
-        updateFallingTNT(deltaTime);
         updateFallingSand(deltaTime);
         requestAnimationFrame(loop);
     };
@@ -203,6 +181,7 @@ function getTarget(scene, camera) {
     raycaster.near = 0;
     raycaster.far = Infinity;
     if (!hit || hit.distance > INTERACTION_DISTANCE) return null;
+
     const normal = hit.face.normal.clone().normalize();
     const point = hit.point.clone().sub(normal.clone().multiplyScalar(0.01));
     const x = Math.floor(point.x + 0.5);
@@ -236,15 +215,9 @@ function setFlashState(mesh, originalColors, flashState) {
 function startFuse(scene, x, y, z) {
     const key = makeKey(x, y, z);
     const BLOCK = getBlockTypes();
-    if (primed.has(key)) return false;
+    if (primed.has(key) || getBlockAt(x, y, z) !== BLOCK.TNT) return false;
 
-    const staticTNT = getBlockAt(x, y, z) === BLOCK.TNT;
-    const fallingKey = [...fallingTNT.entries()].find(([, entity]) => entity.x === x && entity.y === y && entity.z === z)?.[0];
-    if (!staticTNT && !fallingKey) return false;
-
-    if (fallingKey) removeEntity(fallingTNT, fallingKey);
-    else if (!setBlockAt(x, y, z, BLOCK.AIR)) return false;
-
+    if (!setBlockAt(x, y, z, BLOCK.AIR)) return false;
     notifyBlockChange(x, y, z, BLOCK.AIR);
     primed.add(key);
 
@@ -277,7 +250,7 @@ function startFuse(scene, x, y, z) {
         const flashInterval = THREE.MathUtils.lerp(150, 55, progress);
         const flashState = Math.floor(age / flashInterval) % 2 === 0;
 
-        // Once TNT is ignited, gravity stays active for the entire fuse.
+        // Ignited TNT has gravity for the entire fuse.
         velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);
         const nextY = currentY - velocityY * frameDelta;
         const landingY = getLandingY(x, currentY, nextY, z, BLOCK);
@@ -377,11 +350,13 @@ function explode(scene, cx, cy, cz) {
                 if (distance > EXPLOSION_RADIUS) continue;
                 const type = getBlockAt(x, y, z);
                 if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
+
                 if (type === BLOCK.TNT && !(x === cx && y === cy && z === cz)) {
                     const delay = 100 + Math.random() * 300;
                     setTimeout(() => startFuse(scene, x, y, z), delay);
                     continue;
                 }
+
                 const resistance = distance / EXPLOSION_RADIUS;
                 const chance = 0.97 - resistance * 0.42;
                 if (Math.random() > chance) continue;
@@ -404,6 +379,7 @@ export function tryIgniteTNT(scene, camera, itemId) {
     lastScene = scene;
     startPhysicsLoop();
     if (itemId !== FLINT_AND_STEEL_ITEM_ID) return false;
+
     const BLOCK = getBlockTypes();
     const target = getTarget(scene, camera);
     if (!target || target.type !== BLOCK.TNT) return false;
@@ -412,7 +388,6 @@ export function tryIgniteTNT(scene, camera, itemId) {
 
 export function updateTNTPhysics(scene, deltaTime) {
     lastScene = scene;
-    updateFallingTNT(deltaTime);
     updateFallingSand(deltaTime);
 }
 
