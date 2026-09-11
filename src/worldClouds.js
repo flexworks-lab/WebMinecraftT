@@ -61,22 +61,22 @@ function addRect(blocks, startX, endX, startZ, endZ, y) {
 
 function buildCloudShape(cellX, cellZ) {
     const blocks = [];
-    // Keep every cloud inside a clear maximum size so none become enormous.
-    const width = 5 + Math.floor(seedHash(cellX, cellZ, 17) * 5);   // 11-19 blocks wide
-    const depth = 2 + Math.floor(seedHash(cellX, cellZ, 23) * 3);   // 5-9 blocks deep
+    // Hard size cap: 9-15 blocks wide and 5-7 blocks deep on the base.
+    const width = 4 + Math.floor(seedHash(cellX, cellZ, 17) * 4);
+    const depth = 2 + Math.floor(seedHash(cellX, cellZ, 23) * 2);
 
     addRect(blocks, -width, width, -depth, depth, 0);
 
-    // Small stepped rectangular sections give the clouds a Minecraft-like shape.
-    const capWidth = Math.min(width - 2, 3 + Math.floor(seedHash(cellX, cellZ, 31) * 3));
-    const sideWidth = Math.min(width - 1, 2 + Math.floor(seedHash(cellX, cellZ, 37) * 3));
+    // Chunky upper sections stay smaller than the base.
+    const capWidth = Math.min(width - 2, 2 + Math.floor(seedHash(cellX, cellZ, 31) * 3));
+    const sideWidth = Math.min(width - 1, 1 + Math.floor(seedHash(cellX, cellZ, 37) * 3));
 
-    addRect(blocks, -capWidth, capWidth, -Math.max(1, depth - 2), Math.max(1, depth - 2), 1);
+    addRect(blocks, -capWidth, capWidth, -Math.max(1, depth - 1), Math.max(1, depth - 1), 1);
     addRect(blocks, -width + 1, -width + sideWidth, -depth + 1, depth - 1, 1);
     addRect(blocks, width - sideWidth, width - 1, -depth + 1, depth - 1, 1);
 
-    if (seedHash(cellX, cellZ, 53) > 0.55) {
-        addRect(blocks, -2, 2, -1, 1, 2);
+    if (seedHash(cellX, cellZ, 53) > 0.6) {
+        addRect(blocks, -1, 1, -1, 1, 2);
     }
 
     return blocks;
@@ -132,8 +132,7 @@ function tick(now) {
 
     if (cloudRoot?.visible) {
         for (const entry of cloudEntries) {
-            const x = entry.baseX + windDistance;
-            entry.mesh.position.set(x, entry.baseY, entry.baseZ);
+            entry.mesh.position.set(entry.baseX + windDistance, entry.baseY, entry.baseZ);
         }
     }
 
