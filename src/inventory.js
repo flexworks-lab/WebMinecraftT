@@ -1,3 +1,5 @@
+import * as THREE from "three";
+
 const INVENTORY_SIZE = 36;
 const HOTBAR_SIZE = 9;
 const MAX_STACK = 64;
@@ -17,6 +19,10 @@ const ITEM_TYPES = [
 let inventory = Array.from({ length: INVENTORY_SIZE }, () => null);
 let inventoryOpen = false;
 let draggedSlot = null;
+let held3D = null;
+let held3DCamera = null;
+let heldTextureLoader = null;
+let heldTextureCache = new Map();
 
 function textureUrl(texture) { return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(texture)}`; }
 function ensureInitialItems() { ITEM_TYPES.forEach((item, index) => { if (!inventory[index]) inventory[index] = { itemId: item.id, count: 64 }; }); }
@@ -79,7 +85,7 @@ function createInventoryUI() {
 
     const held = document.createElement("div");
     held.id = "heldBlock";
-    held.innerHTML = `<div class="heldHand"></div><div class="heldBlockImage"></div>`;
+    held.setAttribute("aria-hidden", "true");
     document.body.appendChild(held);
 
     const style = document.createElement("style");
@@ -99,11 +105,7 @@ function createInventoryUI() {
 #inventoryHint{padding:9px 3px 1px;color:#aaa;font-size:11px;text-align:center}
 #inventoryMobileButton{display:none;position:fixed;right:18px;bottom:84px;width:54px;height:54px;z-index:90;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#555;color:#fff;font-size:27px;box-shadow:0 3px 0 #171717;touch-action:manipulation}
 body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block}
-#heldBlock{position:fixed;right:3vw;bottom:8vh;width:190px;height:190px;z-index:80;display:none;pointer-events:none;transform:rotate(-7deg);filter:drop-shadow(6px 8px 2px rgba(0,0,0,.38));image-rendering:pixelated}
-body.webminecraft-in-world #heldBlock{display:block}
-#heldBlockImage{position:absolute;right:8px;top:6px;width:135px;height:135px;background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated;transform:perspective(180px) rotateX(8deg) rotateY(-10deg) rotateZ(-3deg);border:3px solid rgba(0,0,0,.22);box-shadow:inset 9px 9px 0 rgba(255,255,255,.13),inset -10px -10px 0 rgba(0,0,0,.22)}
-.heldHand{position:absolute;right:0;bottom:0;width:88px;height:78px;background:#d59b72;border:4px solid #6b432f;box-shadow:inset -8px -8px 0 rgba(100,55,35,.18);transform:rotate(-8deg);z-index:-1}
-@media(max-width:700px){#inventoryPanel{width:96vw;padding:8px}#inventoryGrid{gap:3px}.inventoryTexture{inset:4px}.inventoryCount{font-size:12px}#heldBlock{right:1vw;bottom:17vh;width:125px;height:125px}#heldBlockImage{width:88px;height:88px}.heldHand{width:58px;height:52px;border-width:3px}}
+#heldBlock{display:none!important;pointer-events:none}
 `;
     document.head.appendChild(style);
     screen.addEventListener("pointerdown", event => { if (event.target === screen) closeInventory(); });
@@ -153,27 +155,108 @@ function syncHotbar() {
     updateHeldBlock();
 }
 
+function loadHeldTexture(info) {
+    if (!heldTextureLoader) heldTextureLoader = new THREE.TextureLoader();
+    if (heldTextureCache.has(info.texture)) return heldTextureCache.get(info.texture);
+    const texture = heldTextureLoader.load(textureUrl(info.texture));
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    heldTextureCache.set(info.texture, texture);
+    return texture;
+}
+
+function makeHandMaterial() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 16;
+    canvas.height = 16;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return new THREE.MeshLambertMaterial({ color: 0xd59b72 });
+    ctx.fillStyle = "#d79b72";
+    ctx.fillRect(0, 0, 16, 16);
+    ctx.fillStyle = "#bf815c";
+    ctx.fillRect(0, 11, 16, 5);
+    ctx.fillStyle = "#e4ad85";
+    ctx.fillRect(3, 1, 10, 7);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    return new THREE.MeshLambertMaterial({ map: texture });
+}
+
+function createHeld3D(camera) {
+    if (!camera || held3D) return;
+    held3DCamera = camera;
+    const root = new THREE.Group();
+    root.name = "WebMinecraftHeldBlock";
+    root.position.set(0.62, -0.48, -1.18);
+    root.rotation.set(-0.08, -0.18, -0.16);
+    root.visible = false;
+
+    const handMaterial = makeHandMaterial();
+    const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.62, 0.22), handMaterial);
+    forearm.position.set(0.20, -0.11, 0.06);
+    forearm.rotation.set(0.08, -0.12, -0.16);
+    forearm.castShadow = false;
+    forearm.receiveShadow = false;
+    root.add(forearm);
+
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.28, 0.28), handMaterial);
+    hand.position.set(0.07, 0.17, -0.02);
+    hand.rotation.set(0.12, -0.08, -0.12);
+    hand.castShadow = false;
+    hand.receiveShadow = false;
+    root.add(hand);
+
+    const block = new THREE.Mesh(
+        new THREE.BoxGeometry(0.58, 0.58, 0.58),
+        Array.from({ length: 6 }, () => new THREE.MeshLambertMaterial({ color: 0xffffff }))
+    );
+    block.name = "HeldTexturedBlock";
+    block.position.set(-0.03, 0.26, -0.22);
+    block.rotation.set(0.08, -0.22, 0.10);
+    block.castShadow = false;
+    block.receiveShadow = false;
+    root.add(block);
+
+    camera.add(root);
+    held3D = { root, block, forearm, hand };
+}
+
 function updateHeldBlock() {
-    const held = document.getElementById("heldBlock");
-    const image = document.querySelector("#heldBlock .heldBlockImage");
-    if (!held || !image) return;
     const inWorld = document.body.classList.contains("webminecraft-in-world");
-    const item = inventory[Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0];
-    if (!inWorld || !item) { held.style.display = "none"; return; }
+    const slotIndex = Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0;
+    const item = inventory[slotIndex];
+    if (!held3D) return;
+    if (!inWorld || !item) {
+        held3D.root.visible = false;
+        return;
+    }
     const info = getItem(item.itemId);
-    if (!info) { held.style.display = "none"; return; }
-    image.style.backgroundImage = `url('${textureUrl(info.texture)}')`;
-    held.style.display = "block";
-    held.title = info.name;
+    if (!info) {
+        held3D.root.visible = false;
+        return;
+    }
+
+    const texture = loadHeldTexture(info);
+    for (const material of held3D.block.material) {
+        material.map = texture;
+        material.needsUpdate = true;
+    }
+    held3D.root.visible = true;
 }
 
 export function getSelectedItemId(slotIndex) { return inventory[slotIndex]?.itemId ?? null; }
 export function consumeSelected(slotIndex) { return removeItem(slotIndex, 1); }
 export function giveBrokenBlock(itemId) { return addItem(itemId, 1); }
 
-export function setupInventory() {
+export function setupInventory(camera) {
     loadInventory();
     createInventoryUI();
+    createHeld3D(camera);
     renderInventory();
     window.webMinecraftSelectedSlot = 0;
     updateHeldBlock();
