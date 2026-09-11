@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, setWorldSeed, getWorldSeed } from "./world.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed } from "./world.js";
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
@@ -13,6 +13,7 @@ import "./chat.js";
 const scene = new THREE.Scene();
 const skyColor = new THREE.Color(0x87ceeb);
 const undergroundColor = new THREE.Color(0x11151a);
+const underwaterColor = new THREE.Color(0x071b2b);
 scene.background = skyColor.clone();
 scene.fog = new THREE.Fog(skyColor.clone(), 40, 120);
 
@@ -106,19 +107,30 @@ function updateDepthLighting() {
     const y = camera.position.y;
     const underground = 1 - smoothStep(-1, 8, y);
     const deepDark = 1 - smoothStep(-24, -1, y);
+    const underwater = isPointInWater(camera.position.x, camera.position.y, camera.position.z);
     const profile = getLightingProfile();
     const sunlightFactor = THREE.MathUtils.lerp(1, profile.undergroundSun, underground);
     const skyFactor = THREE.MathUtils.lerp(1, profile.ambientFloor, underground);
     const exposure = THREE.MathUtils.lerp(1, 0.62, deepDark) * (0.9 + settings.brightness * 0.35);
-    sun.intensity = profile.sun * sunlightFactor;
-    skyLight.intensity = profile.sky * skyFactor;
+    const underwaterExposure = underwater ? 0.68 : 1;
+    const finalExposure = exposure * underwaterExposure;
+    sun.intensity = profile.sun * sunlightFactor * (underwater ? 0.55 : 1);
+    skyLight.intensity = profile.sky * skyFactor * (underwater ? 0.62 : 1);
     depthLight.intensity = underground * (0.08 + (1 - deepDark) * 0.08);
     depthLight.position.set(camera.position.x, camera.position.y + 1, camera.position.z);
-    renderer.toneMappingExposure = exposure;
-    scene.background.lerpColors(skyColor, undergroundColor, underground * 0.86);
-    scene.fog.color.lerpColors(skyColor, undergroundColor, underground * 0.9);
-    scene.fog.near = THREE.MathUtils.lerp(40, 8, underground);
-    scene.fog.far = THREE.MathUtils.lerp(120, 55, underground);
+    renderer.toneMappingExposure = finalExposure;
+
+    if (underwater) {
+        scene.background.lerpColors(skyColor, underwaterColor, 0.98);
+        scene.fog.color.lerpColors(skyColor, underwaterColor, 0.98);
+        scene.fog.near = 2.5;
+        scene.fog.far = 30;
+    } else {
+        scene.background.lerpColors(skyColor, undergroundColor, underground * 0.86);
+        scene.fog.color.lerpColors(skyColor, undergroundColor, underground * 0.9);
+        scene.fog.near = THREE.MathUtils.lerp(40, 8, underground);
+        scene.fog.far = THREE.MathUtils.lerp(120, 55, underground);
+    }
 }
 applySettings();
 
