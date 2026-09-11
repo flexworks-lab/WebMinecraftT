@@ -70,13 +70,14 @@ const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, ver
 const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true });
 const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true });
 
-// Leaf faces on the outside of the canopy are fully opaque.
-// The PNG's transparent pixels are still cut out, but the actual leaf pixels are never blended.
+// Leaves use alpha cutout instead of blended transparency so transparent pixels
+// do not write depth while the solid leaf pixels still behave like opaque geometry.
+// This prevents nearby block textures from disappearing behind the leaf texture.
 const leavesMaterial = new THREE.MeshLambertMaterial({
     map: leavesTexture,
     transparent: false,
     opacity: 1,
-    alphaTest: 0.5,
+    alphaTest: 0.1,
     depthWrite: true,
     depthTest: true,
     side: THREE.DoubleSide,
