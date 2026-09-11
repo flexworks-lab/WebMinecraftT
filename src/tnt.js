@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { sendBlockChange } from "./multiplayerClient.js";
-import { blockGeometry, tntMaterial } from "./blocks.js";
+import { blockGeometry, tntMaterial, sandMaterial } from "./blocks.js";
 
 const FLINT_AND_STEEL_ITEM_ID = 16;
 const FUSE_MS = 2500;
@@ -9,19 +9,20 @@ const EXPLOSION_RADIUS = 4;
 const INTERACTION_DISTANCE = 5;
 const TNT_GRAVITY = 22;
 const TNT_MAX_FALL_SPEED = 28;
+const SAND_GRAVITY = 22;
+const SAND_MAX_FALL_SPEED = 28;
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
 const primed = new Set();
 const fallingTNT = new Map();
+const fallingSand = new Map();
 let suppressPhysicsBlockEvent = false;
 let lastScene = null;
 let physicsLoopStarted = false;
 let lastPhysicsTime = performance.now();
 
-function makeKey(x, y, z) {
-    return `${x},${y},${z}`;
-}
+function makeKey(x, y, z) { return `${x},${y},${z}`; }
 
 function notifyBlockChange(x, y, z, type) {
     window.dispatchEvent(new CustomEvent("webminecraft:blockchange", {
@@ -45,97 +46,105 @@ function setBlockFromPhysics(x, y, z, type) {
     }
 }
 
-function cloneTNTMaterials() {
-    return tntMaterial.map(material => material.clone());
-}
+function cloneMaterials(materials) { return materials.map(material => material.clone()); }
 
-function createDynamicTNT(scene, x, y, z) {
-    const materials = cloneTNTMaterials();
-    const mesh = new THREE.Mesh(blockGeometry, materials);
+function createDynamicBlock(scene, x, y, z, materials, kind) {
+    const cloned = cloneMaterials(materials);
+    const mesh = new THREE.Mesh(blockGeometry, cloned);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.userData.isDynamicTNT = true;
-    mesh.userData.originalColors = materials.map(material => material.color.clone());
+    mesh.userData.dynamicBlockType = kind;
+    mesh.userData.originalColors = cloned.map(material => material.color.clone());
     scene.add(mesh);
     return mesh;
 }
 
-function removeFallingTNT(key, disposeMaterials = true) {
-    const entity = fallingTNT.get(key);
-    if (!entity) return null;
-    fallingTNT.delete(key);
-    if (entity.mesh?.parent) entity.mesh.parent.remove(entity.mesh);
-    if (disposeMaterials && Array.isArray(entity.mesh?.material)) {
-        for (const material of entity.mesh.material) material.dispose();
+function disposeDynamicMesh(mesh) {
+    if (!mesh) return;
+    if (mesh.parent) mesh.parent.remove(mesh);
+    if (Array.isArray(mesh.material)) {
+        for (const material of mesh.material) material.dispose();
     }
+}
+
+function removeEntity(map, key) {
+    const entity = map.get(key);
+    if (!entity) return null;
+    map.delete(key);
+    disposeDynamicMesh(entity.mesh);
     return entity;
 }
 
-function activateFallingTNT(scene, x, y, z) {
+function activateFallingBlock(scene, x, y, z, type, map, materials, kind) {
     const key = makeKey(x, y, z);
-    if (primed.has(key) || fallingTNT.has(key)) return false;
+    if (map.has(key) || getBlockAt(x, y, z) !== type) return false;
     const BLOCK = getBlockTypes();
-    if (getBlockAt(x, y, z) !== BLOCK.TNT) return false;
+    if (isSolidBlock(getBlockAt(x, y - 1, z), BLOCK)) return false;
 
-    const below = getBlockAt(x, y - 1, z);
-    if (isSolidBlock(below, BLOCK)) return false;
-
-    const mesh = createDynamicTNT(scene, x, y, z);
-    fallingTNT.set(key, { x, z, y, velocity: 0, mesh });
-
+    const mesh = createDynamicBlock(scene, x, y, z, materials, kind);
+    map.set(key, { x, y, z, velocity: 0, mesh });
     if (!setBlockFromPhysics(x, y, z, BLOCK.AIR)) {
-        removeFallingTNT(key);
+        removeEntity(map, key);
         return false;
     }
     return true;
 }
 
 function tryTrackTNTAt(scene, x, y, z) {
-    if (!scene) return;
-    if (getBlockAt(x, y, z) !== getBlockTypes().TNT) return;
-    activateFallingTNT(scene, x, y, z);
+    const BLOCK = getBlockTypes();
+    if (getBlockAt(x, y, z) !== BLOCK.TNT) return;
+    activateFallingBlock(scene, x, y, z, BLOCK.TNT, fallingTNT, tntMaterial, "tnt");
 }
 
-function processBlockChangeForTNT(scene, detail) {
+function tryTrackSandAt(scene, x, y, z) {
+    const BLOCK = getBlockTypes();
+    if (getBlockAt(x, y, z) !== BLOCK.SAND) return;
+    activateFallingBlock(scene, x, y, z, BLOCK.SAND, fallingSand, [sandMaterial], "sand");
+}
+
+function processBlockChangeForPhysics(scene, detail) {
     if (suppressPhysicsBlockEvent || !scene || !detail) return;
     const { x, y, z, type } = detail;
     const BLOCK = getBlockTypes();
 
     if (type === BLOCK.TNT) {
-        activateFallingTNT(scene, x, y, z);
+        tryTrackTNTAt(scene, x, y, z);
         return;
     }
-
+    if (type === BLOCK.SAND) {
+        tryTrackSandAt(scene, x, y, z);
+        return;
+    }
     if (type === BLOCK.AIR) {
-        tryTrackTNTAt(scene, x, y + 1, z);
-        tryTrackTNTAt(scene, x, y + 2, z);
+        for (let offset = 1; offset <= 4; offset++) {
+            tryTrackTNTAt(scene, x, y + offset, z);
+            tryTrackSandAt(scene, x, y + offset, z);
+        }
     }
 }
 
 function getLandingY(x, startY, nextY, z, BLOCK) {
     const highestSupportY = Math.floor(startY - 0.5 + 0.00001);
     const lowestSupportY = Math.floor(nextY - 0.5 + 0.00001);
-
     for (let supportY = highestSupportY; supportY >= lowestSupportY; supportY--) {
-        const supportType = getBlockAt(x, supportY, z);
-        if (isSolidBlock(supportType, BLOCK)) return supportY + 1;
+        if (isSolidBlock(getBlockAt(x, supportY, z), BLOCK)) return supportY + 1;
     }
     return null;
 }
 
-function updateFallingTNT(deltaTime) {
-    if (!lastScene || fallingTNT.size === 0) return;
+function updateFallingMap(map, deltaTime, type, gravity, maxFallSpeed) {
+    if (!lastScene || map.size === 0) return;
     const BLOCK = getBlockTypes();
     const dt = Math.min(Math.max(deltaTime, 0), 0.05);
 
-    for (const [key, entity] of fallingTNT) {
+    for (const [key, entity] of map) {
         if (!entity.mesh?.parent) {
-            fallingTNT.delete(key);
+            map.delete(key);
             continue;
         }
 
-        entity.velocity = Math.min(entity.velocity + TNT_GRAVITY * dt, TNT_MAX_FALL_SPEED);
+        entity.velocity = Math.min(entity.velocity + gravity * dt, maxFallSpeed);
         const startY = entity.y;
         const nextY = startY - entity.velocity * dt;
         const landingY = getLandingY(entity.x, startY, nextY, entity.z, BLOCK);
@@ -143,12 +152,9 @@ function updateFallingTNT(deltaTime) {
         if (landingY !== null && landingY <= startY) {
             entity.y = landingY;
             entity.mesh.position.y = landingY;
-            fallingTNT.delete(key);
-            entity.mesh.parent.remove(entity.mesh);
-            if (Array.isArray(entity.mesh.material)) {
-                for (const material of entity.mesh.material) material.dispose();
-            }
-            setBlockFromPhysics(entity.x, landingY, entity.z, BLOCK.TNT);
+            map.delete(key);
+            disposeDynamicMesh(entity.mesh);
+            setBlockFromPhysics(entity.x, landingY, entity.z, type);
             continue;
         }
 
@@ -156,26 +162,30 @@ function updateFallingTNT(deltaTime) {
         entity.mesh.position.y = nextY;
 
         if (nextY < -60) {
-            fallingTNT.delete(key);
-            entity.mesh.parent.remove(entity.mesh);
-            if (Array.isArray(entity.mesh.material)) {
-                for (const material of entity.mesh.material) material.dispose();
-            }
+            map.delete(key);
+            disposeDynamicMesh(entity.mesh);
         }
     }
+}
+
+function updateFallingTNT(deltaTime) {
+    updateFallingMap(fallingTNT, deltaTime, getBlockTypes().TNT, TNT_GRAVITY, TNT_MAX_FALL_SPEED);
+}
+
+function updateFallingSand(deltaTime) {
+    updateFallingMap(fallingSand, deltaTime, getBlockTypes().SAND, SAND_GRAVITY, SAND_MAX_FALL_SPEED);
 }
 
 function startPhysicsLoop() {
     if (physicsLoopStarted) return;
     physicsLoopStarted = true;
-
     const loop = time => {
         const deltaTime = Math.min((time - lastPhysicsTime) / 1000, 0.05);
         lastPhysicsTime = time;
         updateFallingTNT(deltaTime);
+        updateFallingSand(deltaTime);
         requestAnimationFrame(loop);
     };
-
     lastPhysicsTime = performance.now();
     requestAnimationFrame(loop);
 }
@@ -198,7 +208,6 @@ function getTarget(scene, camera) {
     raycaster.near = 0;
     raycaster.far = Infinity;
     if (!hit || hit.distance > INTERACTION_DISTANCE) return null;
-
     const normal = hit.face.normal.clone().normalize();
     const point = hit.point.clone().sub(normal.clone().multiplyScalar(0.01));
     const x = Math.floor(point.x + 0.5);
@@ -207,6 +216,26 @@ function getTarget(scene, camera) {
     const type = getBlockAt(x, y, z);
     if (!type) return null;
     return { x, y, z, type };
+}
+
+function setFlashState(mesh, originalColors, flashState) {
+    if (!Array.isArray(mesh.material)) return;
+    mesh.material.forEach((material, index) => {
+        if (!material?.color) return;
+        if (flashState) {
+            material.color.setHex(0xffffff);
+            if (material.emissive) {
+                material.emissive.setHex(0xffffff);
+                material.emissiveIntensity = 1.15;
+            }
+        } else {
+            material.color.copy(originalColors[index]);
+            if (material.emissive) {
+                material.emissive.setHex(0x000000);
+                material.emissiveIntensity = 0;
+            }
+        }
+    });
 }
 
 function startFuse(scene, x, y, z) {
@@ -218,13 +247,13 @@ function startFuse(scene, x, y, z) {
     const fallingKey = [...fallingTNT.entries()].find(([, entity]) => entity.x === x && entity.y === y && entity.z === z)?.[0];
     if (!staticTNT && !fallingKey) return false;
 
-    if (fallingKey) removeFallingTNT(fallingKey);
+    if (fallingKey) removeEntity(fallingTNT, fallingKey);
     else if (!setBlockAt(x, y, z, BLOCK.AIR)) return false;
 
     notifyBlockChange(x, y, z, BLOCK.AIR);
     primed.add(key);
 
-    const mesh = createDynamicTNT(scene, x, y, z);
+    const mesh = createDynamicBlock(scene, x, y, z, tntMaterial, "primedTNT");
     mesh.userData.isPrimedTNT = true;
 
     const marker = new THREE.Mesh(
@@ -248,48 +277,35 @@ function startFuse(scene, x, y, z) {
     const tick = time => {
         const frameDelta = Math.min(Math.max((time - lastTickTime) / 1000, 0), 0.05);
         lastTickTime = time;
-
-        velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);
-        const nextY = currentY - velocityY * frameDelta;
-        const landingY = getLandingY(x, currentY, nextY, z, BLOCK);
-        if (landingY !== null && landingY <= currentY) {
-            currentY = landingY;
-            velocityY = 0;
-        } else {
-            currentY = nextY;
-        }
-        mesh.position.y = currentY;
-        marker.position.y = currentY + 0.58;
-        light.position.y = currentY + 0.45;
-
         const age = time - started;
         const progress = Math.min(age / FUSE_MS, 1);
         const flashInterval = THREE.MathUtils.lerp(150, 55, progress);
         const flashState = Math.floor(age / flashInterval) % 2 === 0;
 
+        // Ignited TNT only gets gravity while it is flashing white.
+        if (flashState) {
+            velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);
+            const nextY = currentY - velocityY * frameDelta;
+            const landingY = getLandingY(x, currentY, nextY, z, BLOCK);
+            if (landingY !== null && landingY <= currentY) {
+                currentY = landingY;
+                velocityY = 0;
+            } else {
+                currentY = nextY;
+            }
+        } else {
+            velocityY = 0;
+        }
+
+        mesh.position.y = currentY;
+        marker.position.y = currentY + 0.58;
+        light.position.y = currentY + 0.45;
         marker.visible = flashState;
         light.intensity = 1.5 + Math.sin(age * 0.06) * 0.9;
 
         if (flashState !== lastFlashState) {
             lastFlashState = flashState;
-            if (Array.isArray(mesh.material)) {
-                mesh.material.forEach((material, index) => {
-                    if (!material?.color) return;
-                    if (flashState) {
-                        material.color.setHex(0xffffff);
-                        if (material.emissive) {
-                            material.emissive.setHex(0xffffff);
-                            material.emissiveIntensity = 1.15;
-                        }
-                    } else {
-                        material.color.copy(originalColors[index]);
-                        if (material.emissive) {
-                            material.emissive.setHex(0x000000);
-                            material.emissiveIntensity = 0;
-                        }
-                    }
-                });
-            }
+            setFlashState(mesh, originalColors, flashState);
         }
 
         if (age < FUSE_MS) {
@@ -297,10 +313,7 @@ function startFuse(scene, x, y, z) {
             return;
         }
 
-        scene.remove(mesh);
-        if (Array.isArray(mesh.material)) {
-            for (const material of mesh.material) material.dispose();
-        }
+        disposeDynamicMesh(mesh);
         scene.remove(marker);
         marker.geometry.dispose();
         marker.material.dispose();
@@ -318,20 +331,16 @@ function makeExplosionEffect(scene, x, y, z) {
     const flash = new THREE.PointLight(0xff9a42, 9, 12);
     flash.position.set(x, y + 0.5, z);
     scene.add(flash);
-
     const particles = [];
     const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12);
     const start = performance.now();
 
     for (let i = 0; i < 40; i++) {
-        const particle = new THREE.Mesh(
-            geometry,
-            new THREE.MeshBasicMaterial({
-                color: i % 3 === 0 ? 0x222222 : 0xc46b36,
-                transparent: true,
-                opacity: 1
-            })
-        );
+        const particle = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+            color: i % 3 === 0 ? 0x222222 : 0xc46b36,
+            transparent: true,
+            opacity: 1
+        }));
         particle.position.set(x, y + 0.5, z);
         particle.userData.velocity = new THREE.Vector3(
             (Math.random() - 0.5) * 7,
@@ -345,7 +354,6 @@ function makeExplosionEffect(scene, x, y, z) {
     const update = time => {
         const age = time - start;
         flash.intensity = Math.max(0, 9 * (1 - age / 220));
-
         if (age >= 650) {
             for (const particle of particles) {
                 if (!particle.parent) continue;
@@ -357,7 +365,6 @@ function makeExplosionEffect(scene, x, y, z) {
             geometry.dispose();
             return;
         }
-
         for (const particle of particles) {
             particle.userData.velocity.y -= 11 / 60;
             particle.position.addScaledVector(particle.userData.velocity, 1 / 60);
@@ -367,32 +374,26 @@ function makeExplosionEffect(scene, x, y, z) {
         }
         requestAnimationFrame(update);
     };
-
     requestAnimationFrame(update);
 }
 
 function explode(scene, cx, cy, cz) {
     const BLOCK = getBlockTypes();
-
     for (let x = Math.floor(cx - EXPLOSION_RADIUS); x <= Math.floor(cx + EXPLOSION_RADIUS); x++) {
         for (let y = Math.floor(cy - EXPLOSION_RADIUS); y <= Math.floor(cy + EXPLOSION_RADIUS); y++) {
             for (let z = Math.floor(cz - EXPLOSION_RADIUS); z <= Math.floor(cz + EXPLOSION_RADIUS); z++) {
                 const distance = Math.hypot(x - cx, y - cy, z - cz);
                 if (distance > EXPLOSION_RADIUS) continue;
-
                 const type = getBlockAt(x, y, z);
                 if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
-
                 if (type === BLOCK.TNT && !(x === cx && y === cy && z === cz)) {
                     const delay = 100 + Math.random() * 300;
                     setTimeout(() => startFuse(scene, x, y, z), delay);
                     continue;
                 }
-
                 const resistance = distance / EXPLOSION_RADIUS;
                 const chance = 0.97 - resistance * 0.42;
                 if (Math.random() > chance) continue;
-
                 if (setBlockAt(x, y, z, BLOCK.AIR)) {
                     sendBlockChange(x, y, z, BLOCK.AIR);
                     notifyBlockChange(x, y, z, BLOCK.AIR);
@@ -400,13 +401,12 @@ function explode(scene, cx, cy, cz) {
             }
         }
     }
-
     makeExplosionEffect(scene, cx, cy, cz);
 }
 
 window.addEventListener("webminecraft:blockchange", event => {
     if (!lastScene) return;
-    processBlockChangeForTNT(lastScene, event.detail);
+    processBlockChangeForPhysics(lastScene, event.detail);
 });
 
 export function tryIgniteTNT(scene, camera, itemId) {
@@ -422,6 +422,7 @@ export function tryIgniteTNT(scene, camera, itemId) {
 export function updateTNTPhysics(scene, deltaTime) {
     lastScene = scene;
     updateFallingTNT(deltaTime);
+    updateFallingSand(deltaTime);
 }
 
 export function registerTNTPhysicsScene(scene) {
