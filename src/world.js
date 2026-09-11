@@ -3,7 +3,7 @@ import {
     grassMaterial, dirtMaterial, stoneMaterial, cobblestoneMaterial,
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial,
     coalMaterial, ironMaterial, oakLogMaterial, oakPlankMaterial,
-    leavesMaterial, snowMaterial, tntMaterial
+    leavesMaterial, snowMaterial, tntSideMaterial, tntTopMaterial, tntBottomMaterial
 } from "./blocks.js";
 
 export const CHUNK_SIZE = 19;
@@ -60,7 +60,8 @@ const chunkMaterials = [
     grassMaterial[0], grassMaterial[2], dirtMaterial, stoneMaterial,
     sandMaterial, oakLogMaterial[0], oakLogMaterial[2], leavesMaterial,
     cobblestoneMaterial, gravelMaterial, sandstoneMaterial, bedrockMaterial,
-    coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial, tntMaterial
+    coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial,
+    tntSideMaterial, tntTopMaterial, tntBottomMaterial
 ];
 
 const waterMaterial = new THREE.MeshPhongMaterial({
