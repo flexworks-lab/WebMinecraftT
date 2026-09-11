@@ -1,7 +1,9 @@
 const CHAT_CLASS = "webminecraft-chat-open";
 const CHAT_HIDE_DELAY = 25000;
 const MOBILE_CHAT_HIDE_DELAY = 10000;
+const CHAT_NOTIFICATION_DELAY = 5000;
 let chatHideTimer = null;
+let chatNotificationTimer = null;
 let chatApiWrapped = null;
 
 function isMultiplayerActive() {
@@ -65,6 +67,11 @@ body.webminecraft-chat-open #multiplayerChat{display:flex!important;flex-directi
 #multiplayerChatInput{box-sizing:border-box!important;width:100%!important;max-width:1100px!important;height:52px!important;flex:0 0 52px!important;margin:14px auto 0!important;padding:9px 13px!important;background:rgba(0,0,0,.82)!important;color:#fff!important;border:2px solid #777!important;border-top-color:#aaa!important;border-left-color:#aaa!important;outline:none!important;pointer-events:auto!important;font:18px Arial,sans-serif!important;text-shadow:1px 1px 0 #000!important}
 #multiplayerChatInput:focus{border-color:#fff!important}
 #multiplayerChatInput::placeholder{color:#aaa!important}
+#webMinecraftChatNotifications{position:fixed!important;top:14px!important;left:14px!important;width:min(520px,calc(100vw - 28px))!important;z-index:49999!important;display:flex!important;flex-direction:column!important;gap:4px!important;pointer-events:none!important;font-family:Arial,sans-serif!important;text-shadow:2px 2px 0 #000!important}
+.webMinecraftChatNotification{box-sizing:border-box!important;width:100%!important;padding:8px 12px!important;background:rgba(0,0,0,.82)!important;border:2px solid rgba(255,255,255,.18)!important;color:#fff!important;font-size:16px!important;line-height:1.35!important;overflow-wrap:anywhere!important;animation:webMinecraftChatNotificationIn .16s ease-out!important}
+.webMinecraftChatNotificationName{font-weight:700!important;color:#fff!important}
+@keyframes webMinecraftChatNotificationIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+body.webminecraft-chat-open #webMinecraftChatNotifications{display:none!important}
 body.webminecraft-chat-open #touchChatButton{display:none!important}
 @media(max-width:700px){
  #multiplayerChat{padding:14px!important;background:rgba(0,0,0,.78)!important}
@@ -72,9 +79,61 @@ body.webminecraft-chat-open #touchChatButton{display:none!important}
  #multiplayerChatFeed{padding:11px 12px!important}
  .multiplayerChatLine{font-size:15px!important;line-height:1.5!important;margin:3px 0!important}
  #multiplayerChatInput{height:50px!important;flex-basis:50px!important;margin-top:10px!important;font-size:16px!important}
+ #webMinecraftChatNotifications{top:10px!important;left:10px!important;width:calc(100vw - 20px)!important}
+ .webMinecraftChatNotification{font-size:14px!important;padding:7px 10px!important}
 }
 `;
     document.head.appendChild(style);
+}
+
+function ensureChatNotifications() {
+    let container = document.getElementById("webMinecraftChatNotifications");
+    if (container) return container;
+
+    container = document.createElement("div");
+    container.id = "webMinecraftChatNotifications";
+    container.setAttribute("aria-live", "polite");
+    document.body.appendChild(container);
+    return container;
+}
+
+function showChatNotification(args) {
+    if (chatIsOpen()) return;
+
+    const container = ensureChatNotifications();
+    const line = document.createElement("div");
+    line.className = "webMinecraftChatNotification";
+
+    const name = args?.[0] ?? "";
+    const text = args?.[1] ?? args?.[0] ?? "";
+    const safeName = String(name);
+    const safeText = String(text);
+
+    if (args.length >= 2) {
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "webMinecraftChatNotificationName";
+        nameSpan.textContent = `${safeName}: `;
+        line.appendChild(nameSpan);
+        line.appendChild(document.createTextNode(safeText));
+    } else {
+        line.textContent = safeText;
+    }
+
+    container.appendChild(line);
+    while (container.children.length > 4) container.firstElementChild?.remove();
+
+    clearTimeout(chatNotificationTimer);
+    chatNotificationTimer = setTimeout(() => {
+        if (chatIsOpen()) return;
+        container.querySelectorAll(".webMinecraftChatNotification").forEach(item => {
+            item.style.transition = "opacity .25s ease, transform .25s ease";
+            item.style.opacity = "0";
+            item.style.transform = "translateY(-4px)";
+        });
+        setTimeout(() => {
+            if (!chatIsOpen()) container.innerHTML = "";
+        }, 280);
+    }, CHAT_NOTIFICATION_DELAY);
 }
 
 function showChat(prefill = "") {
@@ -147,13 +206,13 @@ function wrapIncomingChat() {
 
     const wrapped = function (...args) {
         const result = add.apply(this, args);
-        if (chatElement()) {
-            installFullscreenChatStyles();
-            document.body.classList.add(CHAT_CLASS);
-            chatElement().style.display = "flex";
-            clearTimeout(chatHideTimer);
-            chatHideTimer = setTimeout(() => hideChat(), CHAT_HIDE_DELAY);
+
+        // Incoming messages stay in the normal Minecraft-style top-left notification bar.
+        // They no longer force the full-screen chat open.
+        if (!chatIsOpen()) {
+            showChatNotification(args);
         }
+
         return result;
     };
 
@@ -200,12 +259,14 @@ function installChatInput() {
 
 function watchChatCreation() {
     installFullscreenChatStyles();
+    ensureChatNotifications();
     installChatInput();
     wrapIncomingChat();
 
     const observer = new MutationObserver(() => {
         installChatInput();
         wrapIncomingChat();
+        ensureChatNotifications();
         if (chatElement()) installFullscreenChatStyles();
     });
     observer.observe(document.body, { childList: true, subtree: true });
