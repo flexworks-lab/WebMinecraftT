@@ -14,8 +14,6 @@ let lastPlace = false;
 
 function setupTexturedHotbar() {
     let hotbar = document.getElementById("hotbar");
-
-    // Rebuild the hotbar if the page did not provide one.
     if (!hotbar) {
         hotbar = document.createElement("div");
         hotbar.id = "hotbar";
@@ -29,18 +27,11 @@ function setupTexturedHotbar() {
 
     const BASE = import.meta.env.BASE_URL;
     const textures = [
-        "Grass_Block_(top_texture)_JE2.png",
-        "dirt.png",
-        "stone.png",
-        "sand.png",
-        "oak_log_top.png",
-        "oak-leaves-normal-original-default.png",
-        "Grass_Block_(top_texture)_JE2.png",
-        "dirt.png",
-        "stone.png"
+        "Grass_Block_(top_texture)_JE2.png", "dirt.png", "stone.png", "sand.png",
+        "oak_log_top.png", "oak-leaves-normal-original-default.png",
+        "Grass_Block_(top_texture)_JE2.png", "dirt.png", "stone.png"
     ];
 
-    // Always make exactly 9 usable hotbar slots.
     while (hotbar.querySelectorAll(".slot").length < 9) {
         const slot = document.createElement("div");
         slot.className = "slot";
@@ -48,7 +39,9 @@ function setupTexturedHotbar() {
     }
 
     hotbar.classList.add("textured-hotbar");
-    hotbar.style.setProperty("display", "flex", "important");
+    hotbar.style.removeProperty("display");
+    hotbar.style.removeProperty("visibility");
+    hotbar.style.removeProperty("opacity");
     hotbar.style.setProperty("pointer-events", "auto", "important");
 
     hotbar.querySelectorAll(".slot").forEach((slot, index) => {
@@ -62,7 +55,8 @@ function setupTexturedHotbar() {
         const style = document.createElement("style");
         style.id = "webMinecraftTexturedHotbarStyles";
         style.textContent = `
-#hotbar.textured-hotbar{position:fixed!important;left:50%!important;bottom:20px!important;transform:translateX(-50%)!important;display:flex!important;gap:0!important;padding:4px!important;background:rgba(25,25,25,.96)!important;border:3px solid #111!important;box-shadow:inset 2px 2px 0 #777,inset -2px -2px 0 #333,0 3px 0 rgba(0,0,0,.65)!important;z-index:10000!important;visibility:visible!important;opacity:1!important;image-rendering:pixelated;pointer-events:auto!important}
+#hotbar.textured-hotbar{position:fixed!important;left:50%!important;bottom:20px!important;transform:translateX(-50%)!important;display:flex!important;gap:0!important;padding:4px!important;background:rgba(25,25,25,.96)!important;border:3px solid #111!important;box-shadow:inset 2px 2px 0 #777,inset -2px -2px 0 #333,0 3px 0 rgba(0,0,0,.65)!important;z-index:10000!important;image-rendering:pixelated;pointer-events:auto!important}
+body:not(.webminecraft-in-world) #hotbar.textured-hotbar{display:none!important}
 #hotbar.textured-hotbar .slot{position:relative;width:52px!important;height:52px!important;flex:0 0 52px!important;padding:0!important;margin:0!important;border:2px solid #555!important;background:#222!important;overflow:hidden;cursor:pointer;image-rendering:pixelated}
 #hotbar.textured-hotbar .slot.selected{border:3px solid #fff!important;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111!important;z-index:2}
 #hotbar.textured-hotbar .hotbarTexture{position:absolute;inset:3px;display:block;background-position:center;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;pointer-events:none}
@@ -75,20 +69,6 @@ body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:56px!
 `;
         document.head.appendChild(style);
     }
-
-    // main.js hides the hotbar while switching from the menu into the world.
-    // Keep forcing it visible once the world is active, including when no body-class mutation fires.
-    const forceHotbarVisible = () => {
-        const inWorld = document.body.classList.contains("webminecraft-in-world");
-        if (inWorld || !document.getElementById("mainMenu") || document.getElementById("mainMenu")?.style.display === "none") {
-            hotbar.style.setProperty("display", "flex", "important");
-            hotbar.style.setProperty("visibility", "visible", "important");
-            hotbar.style.setProperty("opacity", "1", "important");
-        }
-    };
-    forceHotbarVisible();
-    setInterval(forceHotbarVisible, 250);
-    new MutationObserver(forceHotbarVisible).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 
 export function setupInteraction(scene, camera) {
@@ -101,6 +81,7 @@ export function setupInteraction(scene, camera) {
 
     const updateHotbar = () => {
         document.querySelectorAll("#hotbar .slot").forEach((slot, index) => slot.classList.toggle("selected", index === selectedSlot));
+        window.dispatchEvent(new CustomEvent("webminecraft:selectedslot", { detail: { slot: selectedSlot } }));
     };
 
     document.addEventListener("keydown", event => {
