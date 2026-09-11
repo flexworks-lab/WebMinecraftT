@@ -359,5 +359,45 @@ function getMenuCameraHeight() {
     return 32;
 }
 function updateMenuCamera(deltaTime) {
-    // Existing camera update logic follows in the file.
+    if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
+    panoramaCamera.angle += panoramaCamera.speed * deltaTime;
+    menuLook.x = THREE.MathUtils.lerp(menuLook.x, menuLook.targetX, Math.min(deltaTime * 2.5, 1));
+    menuLook.y = THREE.MathUtils.lerp(menuLook.y, menuLook.targetY, Math.min(deltaTime * 2.5, 1));
+    panoramaCamera.swayX = THREE.MathUtils.lerp(panoramaCamera.swayX, menuLook.x, Math.min(deltaTime * 1.8, 1));
+    panoramaCamera.swayY = THREE.MathUtils.lerp(panoramaCamera.swayY, menuLook.targetY, Math.min(deltaTime * 1.8, 1));
+    updateChunkVisibility(panoramaCamera.position, camera);
+    if (panoramaCamera.safeHeight === null) {
+        panoramaCamera.safeHeight = getMenuCameraHeight();
+        panoramaCamera.position.y = Math.max(20, panoramaCamera.safeHeight);
+        panoramaCamera.targetY = Math.max(16, panoramaCamera.position.y - 10);
+    }
+    camera.position.copy(panoramaCamera.position);
+    const lookDistance = 40;
+    const mouseYaw = panoramaCamera.swayX * 0.12;
+    const mousePitch = panoramaCamera.swayY * 0.055;
+    const lookAngle = panoramaCamera.angle + mouseYaw;
+    const lookTarget = new THREE.Vector3(panoramaCamera.position.x + Math.sin(lookAngle) * lookDistance, panoramaCamera.targetY - mousePitch * lookDistance, panoramaCamera.position.z + Math.cos(lookAngle) * lookDistance);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(lookTarget);
+    updateDepthLighting();
 }
+function updateSunPosition() {
+    const dx = camera.position.x - lastSunX, dz = camera.position.z - lastSunZ;
+    if (dx * dx + dz * dz < sunFollowDistance * sunFollowDistance) return;
+    lastSunX = camera.position.x; lastSunZ = camera.position.z;
+    sun.target.position.set(camera.position.x, camera.position.y, camera.position.z);
+    sun.position.set(camera.position.x + 45, camera.position.y + 85, camera.position.z + 30);
+    sun.target.updateMatrixWorld();
+}
+function animate() {
+    requestAnimationFrame(animate);
+    const currentTime = performance.now();
+    const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
+    lastTime = currentTime;
+    if (gameStarted) { updatePlayer(camera, scene, deltaTime); updateChunkVisibility(camera.position, camera); updateSunPosition(); updateDepthLighting(); }
+    else updateMenuCamera(deltaTime);
+    renderer.render(scene, camera);
+    fpsFrames++;
+    if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
+}
+animate();
