@@ -11,6 +11,7 @@ const CLOUD_WIND_SPEED = 0.45;
 const SUN_DISTANCE = 900;
 
 let cloudRoot = null;
+let cloudScene = null;
 let cloudSeed = 0;
 let cloudEntries = [];
 let windDistance = 0;
@@ -20,6 +21,7 @@ let visibilityObserver = null;
 let sunMesh = null;
 let sunGlowMeshes = [];
 let cloudCamera = null;
+let skyDome = null;
 
 // Bright, opaque white clouds so they are easy to see against the sky.
 const cloudMaterial = new THREE.MeshBasicMaterial({
@@ -183,6 +185,52 @@ function makeCloud(cellX, cellZ) {
     cloudEntries.push({ mesh, baseX, baseZ, baseY });
 }
 
+function createSkyDome(scene) {
+    if (skyDome) return;
+
+    const geometry = new THREE.SphereGeometry(1000, 32, 16);
+    const material = new THREE.ShaderMaterial({
+        uniforms: {
+            topColor: { value: new THREE.Color(0x3f9fe8) },
+            horizonColor: { value: new THREE.Color(0x9fddff) },
+            bottomColor: { value: new THREE.Color(0x72bde7) }
+        },
+        vertexShader: `
+            varying float vSkyHeight;
+            void main() {
+                vec3 worldDirection = normalize((modelMatrix * vec4(position, 0.0)).xyz);
+                vSkyHeight = clamp(worldDirection.y * 0.5 + 0.5, 0.0, 1.0);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            varying float vSkyHeight;
+            uniform vec3 topColor;
+            uniform vec3 horizonColor;
+            uniform vec3 bottomColor;
+            void main() {
+                vec3 sky;
+                if (vSkyHeight < 0.5) {
+                    sky = mix(bottomColor, horizonColor, vSkyHeight * 2.0);
+                } else {
+                    sky = mix(horizonColor, topColor, (vSkyHeight - 0.5) * 2.0);
+                }
+                gl_FragColor = vec4(sky, 1.0);
+            }
+        `,
+        side: THREE.BackSide,
+        depthWrite: false,
+        depthTest: true,
+        fog: false
+    });
+
+    skyDome = new THREE.Mesh(geometry, material);
+    skyDome.name = "MinecraftSkyDome";
+    skyDome.frustumCulled = false;
+    skyDome.renderOrder = -100;
+    scene.add(skyDome);
+}
+
 function createSun() {
     if (sunMesh || !cloudRoot) return;
 
@@ -218,8 +266,8 @@ function createSun() {
 function updateSunPosition() {
     if (!cloudCamera || !sunMesh) return;
 
-    // Keep the sun as a sky object instead of a world object. It moves with the camera
-    // at a very large distance, so flying upward/toward it never reaches the sun.
+    // Sky-mounted sun: it follows the camera at a very large distance,
+    // making it a visual sky object that cannot be physically reached.
     const direction = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
     const position = cloudCamera.position.clone().addScaledVector(direction, SUN_DISTANCE);
 
@@ -231,6 +279,11 @@ function updateSunFacing() {
     if (!cloudCamera || !sunMesh) return;
     sunMesh.lookAt(cloudCamera.position);
     for (const glow of sunGlowMeshes) glow.lookAt(cloudCamera.position);
+}
+
+function updateSkyPosition() {
+    if (!cloudCamera || !skyDome) return;
+    skyDome.position.copy(cloudCamera.position);
 }
 
 function clearClouds() {
@@ -256,6 +309,7 @@ function rebuildCloudField(seed) {
     createSun();
     updateSunPosition();
     updateSunFacing();
+    updateSkyPosition();
 }
 
 function tick(now) {
@@ -272,12 +326,15 @@ function tick(now) {
 
     updateSunPosition();
     updateSunFacing();
+    updateSkyPosition();
     requestAnimationFrame(tick);
 }
 
 export function setupWorldClouds(scene, camera = null) {
     ensureStyles();
     cloudCamera = camera;
+    cloudScene = scene;
+    createSkyDome(scene);
 
     if (!cloudRoot) {
         cloudRoot = new THREE.Group();
