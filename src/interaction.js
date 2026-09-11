@@ -37,10 +37,10 @@ function setupTexturedHotbar() {
         slot.innerHTML = `<span class="hotbarTexture" style="background-image:url('${BASE}textures/${encodeURIComponent(texture)}')"></span><span class="hotbarNumber">${index + 1}</span>`;
     });
 
-    if (document.getElementById("webMinecraftTexturedHotbarStyles")) return;
-    const style = document.createElement("style");
-    style.id = "webMinecraftTexturedHotbarStyles";
-    style.textContent = `
+    if (!document.getElementById("webMinecraftTexturedHotbarStyles")) {
+        const style = document.createElement("style");
+        style.id = "webMinecraftTexturedHotbarStyles";
+        style.textContent = `
 #hotbar.textured-hotbar{
     gap:0 !important;
     padding:4px !important;
@@ -90,7 +90,7 @@ function setupTexturedHotbar() {
     background:rgba(0,0,0,.45);
     pointer-events:none;
 }
-body.mobile-mode #hotbar.textured-hotbar{
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{
     bottom:154px !important;
     max-width:calc(100vw - 12px) !important;
     overflow-x:auto !important;
@@ -98,11 +98,22 @@ body.mobile-mode #hotbar.textured-hotbar{
     pointer-events:auto !important;
     touch-action:pan-x;
 }
-body.mobile-mode #hotbar.textured-hotbar::-webkit-scrollbar{display:none}
-body.mobile-mode #hotbar.textured-hotbar .slot{width:56px !important;height:56px !important;flex-basis:56px !important}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar::-webkit-scrollbar{display:none}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:56px !important;height:56px !important;flex-basis:56px !important}
 @media(max-width:700px){#hotbar.textured-hotbar .slot{width:48px !important;height:48px !important;flex-basis:48px !important}}
 `;
-    document.head.appendChild(style);
+        document.head.appendChild(style);
+    }
+
+    const syncInWorldVisibility = () => {
+        if (document.body.classList.contains("webminecraft-in-world")) {
+            hotbar.style.setProperty("display", "flex", "important");
+        } else {
+            hotbar.style.removeProperty("display");
+        }
+    };
+    syncInWorldVisibility();
+    new MutationObserver(syncInWorldVisibility).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 
 export function setupInteraction(scene, camera) {
