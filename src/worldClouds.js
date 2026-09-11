@@ -149,10 +149,13 @@ function makeCloud(cellX, cellZ) {
     mesh.receiveShadow = false;
     mesh.renderOrder = 10;
 
-    // Fixed world coordinates. Clouds no longer recenter around the player/camera.
-    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 500) - 0.5) * 24;
-    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 510) - 0.5) * 24;
-    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 520) - 0.5) * 2;
+    // Randomize each cloud position INSIDE its cell so the grid is no longer visible.
+    // Each cell still has a deterministic position from the world seed, so the layout stays stable.
+    const randomX = seedHash(cellX, cellZ, 500);
+    const randomZ = seedHash(cellX, cellZ, 510);
+    const baseX = (cellX + randomX - 0.5) * CLOUD_CELL_SIZE;
+    const baseZ = (cellZ + randomZ - 0.5) * CLOUD_CELL_SIZE;
+    const baseY = CLOUD_ALTITUDE;
 
     cloudRoot.add(mesh);
     cloudEntries.push({ mesh, baseX, baseZ, baseY });
