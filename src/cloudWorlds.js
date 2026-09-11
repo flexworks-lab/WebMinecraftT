@@ -215,8 +215,22 @@ export async function deleteCloudWorld(seed, permanent = true) {
     }
 }
 
-export function clearCloudWorldDeletion(seed) {
-    clearDeletedSeed(seed);
+export async function clearCloudWorldDeletion(seed) {
+    const normalizedSeed = normalizeSeed(seed);
+    if (normalizedSeed === null) return false;
+
+    clearDeletedSeed(normalizedSeed);
+
+    try {
+        const user = await getUser();
+        const db = firestore();
+        if (!user || !db) return false;
+        await deletedRef(user.uid, normalizedSeed).delete();
+        return true;
+    } catch (error) {
+        console.warn("Could not clear cloud world deletion:", error);
+        return false;
+    }
 }
 
 export async function listCloudWorlds() {
@@ -268,6 +282,14 @@ export async function syncCloudWorlds() {
 }
 
 window.webMinecraftCloudSync = syncCloudWorlds;
+window.webMinecraftSaveCloudWorld = saveCloudWorld;
 window.webMinecraftDeleteCloudWorld = deleteCloudWorld;
 window.webMinecraftClearCloudWorldDeletion = clearCloudWorldDeletion;
 window.webMinecraftListCloudWorlds = listCloudWorlds;
+
+waitForFirebase().then(auth => {
+    if (!auth?.onAuthStateChanged) return;
+    auth.onAuthStateChanged(user => {
+        if (user) setTimeout(() => syncCloudWorlds().catch(() => {}), 250);
+    });
+});
