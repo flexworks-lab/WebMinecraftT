@@ -57,6 +57,8 @@ function setupTexturedHotbar() {
         style.textContent = `
 #hotbar.textured-hotbar{position:fixed!important;left:50%!important;bottom:20px!important;transform:translateX(-50%)!important;display:flex!important;gap:0!important;padding:4px!important;background:rgba(25,25,25,.96)!important;border:3px solid #111!important;box-shadow:inset 2px 2px 0 #777,inset -2px -2px 0 #333,0 3px 0 rgba(0,0,0,.65)!important;z-index:10000!important;image-rendering:pixelated;pointer-events:auto!important}
 body:not(.webminecraft-in-world) #hotbar.textured-hotbar{display:none!important}
+#savedWorlds{z-index:20000!important}
+#savedWorlds:not([style*="display: none"]) ~ #hotbar.textured-hotbar{display:none!important}
 #hotbar.textured-hotbar .slot{position:relative;width:52px!important;height:52px!important;flex:0 0 52px!important;padding:0!important;margin:0!important;border:2px solid #555!important;background:#222!important;overflow:hidden;cursor:pointer;image-rendering:pixelated}
 #hotbar.textured-hotbar .slot.selected{border:3px solid #fff!important;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111!important;z-index:2}
 #hotbar.textured-hotbar .hotbarTexture{position:absolute;inset:3px;display:block;background-position:center;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;pointer-events:none}
