@@ -3,12 +3,16 @@ import { loadCloudWorld, saveCloudWorld } from "./cloudWorlds.js";
 import { isWorldDeleted } from "./worlds.js";
 
 const WAIT_MS = 50;
+const LOCAL_SAVE_DELAY_MS = 350;
+const CLOUD_SAVE_DELAY_MS = 1500;
+const LIVE_CLOUD_SAVE_MS = 5000;
 
 let activeWorld = null;
 let activeWorldSeed = null;
 let activeBlocks = {};
 let saveTimer = null;
 let cloudSaveTimer = null;
+let liveCloudSaveTimer = null;
 let worldSwitchId = 0;
 const pendingChanges = new Map();
 
@@ -82,6 +86,7 @@ async function loadSavedBlocks(seed, switchId) {
             setBlockAt(parts[0], parts[1], parts[2], type);
         }
 
+        startLiveCloudSave();
         return activeWorld;
     } catch (error) {
         console.warn("Could not load saved world blocks:", error);
@@ -102,18 +107,48 @@ async function queueBlockSave(change) {
     activeBlocks[key] = change.type;
     pendingChanges.set(key, change);
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(flushBlockSaves, 350);
+    saveTimer = setTimeout(flushBlockSaves, LOCAL_SAVE_DELAY_MS);
 }
 
-function scheduleCloudSave(world, switchId = worldSwitchId) {
+async function saveCloudNow(world, switchId = worldSwitchId) {
+    if (!world || isWorldDeleted(world.seed)) return false;
+    if (switchId !== worldSwitchId || activeWorldSeed !== world.seed || activeWorld !== world) return false;
+    try {
+        await saveCloudWorld(world);
+        return true;
+    } catch (error) {
+        console.warn("Cloud world save failed:", error);
+        return false;
+    }
+}
+
+function scheduleCloudSave(world, switchId = worldSwitchId, immediate = false) {
     clearTimeout(cloudSaveTimer);
     if (!world || isWorldDeleted(world.seed)) return;
+
+    if (immediate) {
+        void saveCloudNow(world, switchId);
+        return;
+    }
+
     cloudSaveTimer = setTimeout(async () => {
         cloudSaveTimer = null;
-        if (switchId !== worldSwitchId || isWorldDeleted(world.seed) || activeWorldSeed !== world.seed) return;
-        try { await saveCloudWorld(world); }
-        catch (error) { console.warn("Cloud world save failed:", error); }
-    }, 1500);
+        await saveCloudNow(world, switchId);
+    }, CLOUD_SAVE_DELAY_MS);
+}
+
+function startLiveCloudSave() {
+    clearInterval(liveCloudSaveTimer);
+    liveCloudSaveTimer = setInterval(() => {
+        if (!activeWorld || !activeWorldSeed || isWorldDeleted(activeWorldSeed)) return;
+        if (pendingChanges.size > 0 || saveTimer) return;
+        void saveCloudNow(activeWorld, worldSwitchId);
+    }, LIVE_CLOUD_SAVE_MS);
+}
+
+function stopLiveCloudSave() {
+    clearInterval(liveCloudSaveTimer);
+    liveCloudSaveTimer = null;
 }
 
 async function flushBlockSaves() {
@@ -169,6 +204,7 @@ export async function setWorldSeedForPersistence(seed) {
     const switchId = ++worldSwitchId;
     clearTimeout(saveTimer);
     clearTimeout(cloudSaveTimer);
+    stopLiveCloudSave();
     saveTimer = null;
     cloudSaveTimer = null;
     pendingChanges.clear();
@@ -196,7 +232,15 @@ export async function saveCurrentWorld() {
     clearTimeout(saveTimer);
     saveTimer = null;
     if (pendingChanges.size > 0) await flushBlockSaves();
-    if (activeWorld && !isWorldDeleted(activeWorld.seed)) scheduleCloudSave(activeWorld, worldSwitchId);
+    if (activeWorld && !isWorldDeleted(activeWorld.seed)) {
+        activeWorld.updatedAt = new Date().toISOString();
+        const storage = await waitForStorage();
+        if (storage?.saveLocalWorld && activeWorldSeed === activeWorld.seed && !isWorldDeleted(activeWorld.seed)) {
+            try { activeWorld = await storage.saveLocalWorld(activeWorld) || activeWorld; } catch {}
+        }
+        // Do not wait for the delayed timer when the player is leaving the world.
+        await saveCloudNow(activeWorld, worldSwitchId);
+    }
     return activeWorld;
 }
 
@@ -204,11 +248,10 @@ export async function deleteCurrentWorld(seed) {
     const normalizedSeed = normalizeSeed(seed ?? activeWorldSeed);
     if (normalizedSeed === null) return false;
 
-    // Invalidate every in-flight load/save first. The storage layer then writes
-    // the tombstone before deleting the actual browser data.
     ++worldSwitchId;
     clearTimeout(saveTimer);
     clearTimeout(cloudSaveTimer);
+    stopLiveCloudSave();
     pendingChanges.clear();
     saveTimer = null;
     cloudSaveTimer = null;
@@ -243,5 +286,6 @@ window.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") void saveCurrentWorld();
 });
 window.addEventListener("pagehide", () => { void saveCurrentWorld(); });
+window.addEventListener("beforeunload", () => { void saveCurrentWorld(); });
 
 initialize().catch(error => console.warn("World persistence initialization failed:", error));
