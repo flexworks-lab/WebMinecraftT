@@ -60,9 +60,10 @@ body:not(.webminecraft-in-world) #hotbar.textured-hotbar{display:none!important}
 #hotbar.textured-hotbar .hotbarTexture{position:absolute;inset:3px;display:block;background-position:center;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;pointer-events:none}
 #hotbar.textured-hotbar .hotbarNumber{position:absolute;left:2px;top:1px;min-width:13px;height:14px;padding:0 2px;color:#fff;font:11px/14px Arial,sans-serif;font-weight:700;text-align:center;text-shadow:1px 1px 0 #000;background:rgba(0,0,0,.45);pointer-events:none;z-index:3}
 #hotbar.textured-hotbar .hotbarCount{position:absolute;right:3px;bottom:1px;color:#fff;font:bold 13px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none;z-index:3}
-body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{bottom:154px!important;max-width:calc(100vw - 12px)!important;overflow-x:auto!important;scrollbar-width:none}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{left:50%!important;bottom:8px!important;transform:translateX(-50%)!important;z-index:10000!important;max-width:calc(100vw - 92px)!important;overflow-x:auto!important;scrollbar-width:none}
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar::-webkit-scrollbar{display:none}
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:56px!important;height:56px!important;flex-basis:56px!important}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar + #inventoryButton{z-index:10001!important}
 @media(max-width:700px){#hotbar.textured-hotbar .slot{width:48px!important;height:48px!important;flex-basis:48px!important}}
 `;
         document.head.appendChild(style);
@@ -73,6 +74,7 @@ export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
     setupTexturedHotbar();
     setupInventory(camera);
+    positionMobileInventoryButton();
     const outline = createSelectionOutline();
     scene.add(outline);
     const updateHotbar = () => {
@@ -103,6 +105,7 @@ export function setupInteraction(scene, camera) {
         if (place && !lastPlace) placeBlock();
         lastPunch = punch;
         lastPlace = place;
+        positionMobileInventoryButton();
         requestAnimationFrame(pollTouchActions);
     }
     pollTouchActions();
@@ -135,6 +138,22 @@ export function setupInteraction(scene, camera) {
         if (!consumeSelected(selectedSlot)) { setBlockAt(x, y, z, BLOCK.AIR); return; }
         sendBlockChange(x, y, z, itemId);
         notifyBlockChange(x, y, z, itemId);
+    }
+    function positionMobileInventoryButton() {
+        if (!document.body.classList.contains("mobile-mode") || !document.body.classList.contains("webminecraft-in-world")) return;
+        const hotbar = document.getElementById("hotbar");
+        const button = document.getElementById("inventoryButton");
+        if (!hotbar || !button || hotbar.offsetParent === null) return;
+        const rect = hotbar.getBoundingClientRect();
+        const size = Math.max(rect.height, 48);
+        button.style.setProperty("position", "fixed", "important");
+        button.style.setProperty("left", `${Math.max(6, rect.left - size - 8)}px`, "important");
+        button.style.setProperty("top", `${rect.top + (rect.height - size) / 2}px`, "important");
+        button.style.setProperty("width", `${size}px`, "important");
+        button.style.setProperty("height", `${size}px`, "important");
+        button.style.setProperty("right", "auto", "important");
+        button.style.setProperty("bottom", "auto", "important");
+        button.style.setProperty("z-index", "10001", "important");
     }
     function updateSelection() {
         const target = getTargetBlock(scene, camera, BLOCK);
