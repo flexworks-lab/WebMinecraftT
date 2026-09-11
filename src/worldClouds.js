@@ -26,6 +26,7 @@ let cloudCamera = null;
 let skyDome = null;
 let undergroundAmbient = null;
 let legacyDepthLightNeutralized = false;
+let outdoorLights = [];
 
 const cloudMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -209,6 +210,8 @@ function createUndergroundLighting(scene) {
     undergroundAmbient.name = "MinecraftUndergroundAmbient";
     scene.add(undergroundAmbient);
 
+    outdoorLights = scene.children.filter(object => object.isDirectionalLight || object.isHemisphereLight);
+
     if (!legacyDepthLightNeutralized) {
         for (const object of scene.children) {
             if (!object.isPointLight) continue;
@@ -289,7 +292,14 @@ function updateUndergroundAmbient() {
     const y = cloudCamera.position.y;
     const underground = 1 - THREE.MathUtils.smoothstep(y, -1, 8);
     const deepDark = 1 - THREE.MathUtils.smoothstep(y, -24, -1);
-    undergroundAmbient.intensity = underground * (0.16 + (1 - deepDark) * 0.08);
+
+    // Outdoor sun/sky lights must be completely disabled below the surface.
+    // This prevents shadow-map/light leakage from making cave walls glow.
+    const outdoorVisible = y >= 8;
+    for (const light of outdoorLights) light.visible = outdoorVisible;
+
+    // Keep a small, uniform underground fill so caves are dark but still readable.
+    undergroundAmbient.intensity = underground * (0.08 + (1 - deepDark) * 0.04);
 }
 
 function clearClouds() {
