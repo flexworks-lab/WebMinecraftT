@@ -211,14 +211,12 @@ function getTerrainProfile(x, z) {
     const peaks = octave2D(x - 600, z + 1100, 4, 120, 0.50, 89);
     const detail = octave2D(x + 2400, z - 1700, 3, 28, 0.50, 97);
 
-    // Raise the average terrain so grassy land is much more common than water.
     let baseHeight = 21 + (continentalness - 0.5) * 21;
     baseHeight += (0.5 - erosion) * 10;
     const mountainMask = Math.max(0, (peaks - 0.57) / 0.43);
     baseHeight += mountainMask * mountainMask * 30;
     baseHeight += (detail - 0.5) * 5;
 
-    // Keep only the lowest continental areas underwater.
     const oceanMask = Math.max(0, 0.09 - continentalness) / 0.09;
     baseHeight -= oceanMask * 4;
 
@@ -304,7 +302,6 @@ function getSurfaceBlock(biome, y, surfaceY, x, z) {
         return chooseStoneVariant(x, y, z, surfaceY);
     }
 
-    // Keep beaches narrow so grass dominates coastlines too.
     if (beach) {
         if (y >= surfaceY - 1) return BLOCK.SAND;
         if (y === surfaceY - 2) return BLOCK.SANDSTONE;
@@ -398,7 +395,6 @@ function generateTerrain(chunk) {
     const startX = chunk.x * CHUNK_SIZE;
     const startZ = chunk.z * CHUNK_SIZE;
 
-    // Phase 1: make the solid land first.
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
@@ -414,7 +410,6 @@ function generateTerrain(chunk) {
         }
     }
 
-    // Phase 2: surface variations are added after the land exists.
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
@@ -554,7 +549,11 @@ function makeGeometryForChunk(chunk) {
                         y + face.normal[1],
                         z + face.normal[2]
                     );
-                    if (isSolid(neighbor)) continue;
+                    // Leaves are visually transparent, so they must not cull
+                    // the touching face of the neighboring block. This keeps
+                    // the full side texture of stone/dirt/etc. visible through
+                    // a leaf block just like a transparent water boundary.
+                    if (isSolid(neighbor) && neighbor !== BLOCK.LEAVES) continue;
 
                     const base = vertexCount;
                     for (const corner of face.corners) {
@@ -675,7 +674,6 @@ function rebuildChunkMesh(chunk) {
         chunkMeshes.set(chunkKey(chunk.x, chunk.z), mesh);
     }
 
-    // Land is built first; water is rendered second.
     const waterGeometry = makeWaterGeometry(chunk);
     if (waterGeometry) {
         const waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
