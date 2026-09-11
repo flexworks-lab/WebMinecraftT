@@ -5,6 +5,7 @@ let socket = null;
 let localPlayerId = null;
 let remotePlayers = new Map();
 const pendingWorldChanges = new Map();
+let pendingPlayerAction = "idle";
 
 const PRODUCTION_SERVER_URL = "wss://webminecraft-server.onrender.com/multiplayer";
 const PRODUCTION_API_URL = "https://webminecraft-server.onrender.com";
@@ -170,6 +171,7 @@ function startSharedWorld(worldSeed) {
     seedInput.value = String(sharedSeed);
     window.__webminecraftMultiplayerActive = true;
     window.__webminecraftMultiplayerPlayerId = localPlayerId;
+    pendingPlayerAction = "idle";
     ensureChatUI();
     window.__webminecraftChatShow?.();
     if (overlay) {
@@ -189,14 +191,12 @@ function ensureMenu() {
         <div id="multiplayerPanel" role="dialog" aria-modal="true" aria-labelledby="multiplayerTitle">
             <h2 id="multiplayerTitle">Multiplayer</h2>
             <p id="multiplayerSubtitle">Choose a server, then choose a room to join.</p>
-
             <section id="multiplayerServerView">
                 <div id="multiplayerViewTitle">Servers</div>
                 <button id="multiplayerRefresh" class="multiplayerButton" type="button">Refresh Servers</button>
                 <div id="multiplayerServerList"><div class="multiplayerEmpty">Loading servers...</div></div>
                 <div class="multiplayerHint">PRIVATE servers are visible in the list, but require a private code to join.</div>
             </section>
-
             <section id="multiplayerRoomView" style="display:none">
                 <div id="multiplayerViewTitle">Join Room</div>
                 <div id="multiplayerSelected"></div>
@@ -212,7 +212,6 @@ function ensureMenu() {
                 <div class="multiplayerHint">Public and private servers both appear in the list. Private servers require their private code to join.</div>
                 <div id="multiplayerStatus" aria-live="polite"></div>
             </section>
-
             <div id="multiplayerButtons">
                 <button id="multiplayerJoin" class="multiplayerButton" type="button" disabled>Join Room</button>
                 <button id="multiplayerBack" class="multiplayerButton" type="button">Back</button>
@@ -275,43 +274,35 @@ function ensureMenu() {
     const renderRoomList = server => {
         roomList.innerHTML = "";
         const rooms = [...(server.rooms || [])].sort((a, b) => String(a.id).localeCompare(String(b.id)));
-        if (!rooms.some(room => room.id === "default")) rooms.unshift({ id: "default", players: 0, maxPlayers: server.maxPlayers || 10 });
         if (!rooms.length) {
-            roomList.innerHTML = '<div class="multiplayerEmpty">No rooms yet. Create one by typing a room name below.</div>';
+            roomList.innerHTML = '<div class="multiplayerEmpty">No rooms are listed yet. Create one below.</div>';
             return;
         }
         for (const room of rooms) {
-            const full = Number(room.players) >= Number(room.maxPlayers || server.maxPlayers || 10);
-            const card = document.createElement("button");
-            card.type = "button";
-            card.className = "multiplayerCard" + (room.id === roomInput.value ? " selected" : "");
-            card.innerHTML = `
-                <div class="multiplayerCardTop">
-                    <div class="multiplayerCardName">${escapeHtml(room.name || room.id)}</div>
-                    <div class="multiplayer${full ? "Offline" : "Online"}">${full ? "FULL" : `${Number(room.players) || 0}/${Number(room.maxPlayers) || 10}`}</div>
-                </div>
-                <div class="multiplayerMeta">Owner: ${escapeHtml(room.owner || "Player")} · Seed: ${escapeHtml(room.worldSeed ?? "?")}</div>
-            `;
-            card.disabled = full;
-            card.addEventListener("click", () => {
-                roomInput.value = room.id;
-                document.querySelectorAll(".multiplayerCard").forEach(other => other.classList.remove("selected"));
-                card.classList.add("selected");
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "multiplayerCard";
+            const count = Number(room.players) || 0;
+            const max = Number(room.maxPlayers) || 0;
+            button.innerHTML = `<div class="multiplayerCardTop"><span class="multiplayerCardName">${escapeHtml(room.name || room.id || "Room")}</span><span class="multiplayerOnline">${count}${max ? `/${max}` : ""} online</span></div><div class="multiplayerMeta">${escapeHtml(room.id || "default")}</div>`;
+            button.addEventListener("click", () => {
+                roomInput.value = String(room.id || room.name || "default").slice(0, 32);
+                setStatus(`Selected room "${room.name || room.id || "default"}".`);
                 joinButton.disabled = false;
-                setStatus(`Room selected: ${room.id}`);
             });
-            roomList.appendChild(card);
+            roomList.appendChild(button);
         }
     };
 
-    const selectServer = server => {
+    const showRoomView = server => {
         selectedServer = server;
-        selectedInfo.innerHTML = `<strong>${escapeHtml(server.name || "Server")}</strong><br>${Number(server.players) || 0}/${Number(server.maxPlayers) || 10} players`;
         serverView.style.display = "none";
         roomView.style.display = "block";
-        joinButton.disabled = false;
+        serverInput.value = server.websocket || defaultServerUrl();
+        selectedInfo.innerHTML = `<strong>${escapeHtml(server.name || "Server")}</strong> · ${escapeHtml(server.description || "Multiplayer server")}`;
         renderRoomList(server);
-        setStatus("Select a room or type a room name.");
+        joinButton.disabled = false;
+        setStatus("");
         backButton.textContent = "Back to Servers";
     };
 
@@ -319,35 +310,21 @@ function ensureMenu() {
         serverData = servers;
         serverList.innerHTML = "";
         if (!servers.length) {
-            serverList.innerHTML = '<div class="multiplayerEmpty">No servers are available.</div>';
+            serverList.innerHTML = '<div class="multiplayerEmpty">No servers found.</div>';
             return;
         }
         for (const server of servers) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "multiplayerCard";
             const online = server.online !== false;
-            const card = document.createElement("button");
-            card.type = "button";
-            card.className = "multiplayerCard";
-            card.innerHTML = `
-                <div class="multiplayerCardTop">
-                    <div class="multiplayerCardName">${escapeHtml(server.name || "WebMinecraft Server")}</div>
-                    <div class="${online ? "multiplayerOnline" : "multiplayerOffline"}">${online ? "ONLINE" : "OFFLINE"}</div>
-                </div>
-                <div class="multiplayerMeta">${Number(server.players) || 0} / ${Number(server.maxPlayers) || 10} players · ${(server.rooms || []).length || 1} room${(server.rooms || []).length === 1 ? "" : "s"}</div>
-            `;
-            card.addEventListener("click", () => selectServer(server));
-            serverList.appendChild(card);
+            button.innerHTML = `<div class="multiplayerCardTop"><span class="multiplayerCardName">${escapeHtml(server.name || "Server")}</span><span class="${online ? "multiplayerOnline" : "multiplayerOffline"}">${online ? "ONLINE" : "OFFLINE"}</span></div><div class="multiplayerMeta">${escapeHtml(server.description || "Multiplayer server")}</div>`;
+            button.addEventListener("click", () => showRoomView(server));
+            serverList.appendChild(button);
         }
     };
 
-    const fallbackServer = () => ({
-        id: "webminecraft-official",
-        name: "WebMinecraft Official",
-        online: true,
-        players: 0,
-        maxPlayers: 10,
-        rooms: [],
-        websocket: PRODUCTION_SERVER_URL,
-    });
+    const fallbackServer = () => ({ name: "Official WebMinecraft Server", description: "Official multiplayer server", online: true, websocket: defaultServerUrl(), rooms: [] });
 
     const loadServers = async () => {
         renderServers([fallbackServer()]);
@@ -376,6 +353,7 @@ function ensureMenu() {
         }
         remotePlayers.clear();
         localPlayerId = null;
+        pendingPlayerAction = "idle";
         window.__webminecraftMultiplayerActive = false;
         window.__webminecraftMultiplayerPlayerId = null;
         window.__webminecraftChatHide?.();
@@ -426,6 +404,7 @@ function ensureMenu() {
                 privateCode,
                 position: { x: 0, y: 0, z: 0 },
                 rotation: { x: 0, y: 0, z: 0 },
+                action: "idle",
             }));
         });
 
@@ -504,14 +483,12 @@ function ensureMenu() {
     window.addEventListener("keydown", event => {
         if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
         if (!isMultiplayerActive()) return;
-
         if (event.key === "/") {
             event.preventDefault();
             event.stopImmediatePropagation();
             openChatInput("/");
             return;
         }
-
         if (event.key === "Enter" || event.key.toLowerCase() === "t") {
             event.preventDefault();
             event.stopImmediatePropagation();
@@ -545,8 +522,10 @@ export function isMultiplayerActive() {
     return Boolean(window.__webminecraftMultiplayerActive && socket && socket.readyState === WebSocket.OPEN);
 }
 
-export function sendPlayerState(position, rotation) {
+export function sendPlayerState(position, rotation, action = null) {
     if (!isMultiplayerActive()) return;
+    const outgoingAction = action || pendingPlayerAction || "idle";
+    pendingPlayerAction = "idle";
     socket.send(JSON.stringify({
         type: "player_state",
         position: {
@@ -559,7 +538,13 @@ export function sendPlayerState(position, rotation) {
             y: Number(rotation?.y) || 0,
             z: Number(rotation?.z) || 0,
         },
+        action: ["idle", "walk", "mine", "place", "jump"].includes(outgoingAction) ? outgoingAction : "idle",
     }));
+}
+
+export function sendPlayerAction(action) {
+    if (!["mine", "place", "jump"].includes(action)) return;
+    pendingPlayerAction = action;
 }
 
 export function sendBlockChange(x, y, z, blockType) {
