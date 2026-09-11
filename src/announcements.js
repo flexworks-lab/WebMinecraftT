@@ -1,4 +1,5 @@
 const ANNOUNCEMENT_DOC = "announcements/active";
+const ANNOUNCEMENT_SEEN_KEY = "webminecraft_seen_announcement";
 
 let firebaseReady = null;
 
@@ -22,6 +23,39 @@ function waitForFirebase(timeout = 15000) {
     return firebaseReady;
 }
 
+function getAnnouncementId(data) {
+    const updatedAt = data?.updatedAt;
+    let version = "";
+
+    try {
+        if (updatedAt && typeof updatedAt.toMillis === "function") {
+            version = String(updatedAt.toMillis());
+        } else if (updatedAt) {
+            version = String(updatedAt);
+        }
+    } catch {}
+
+    if (!version) {
+        version = `${String(data?.reason || "").trim()}|${String(data?.message || "").trim()}`;
+    }
+
+    return version;
+}
+
+function hasSeenAnnouncement(data) {
+    try {
+        return localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) === getAnnouncementId(data);
+    } catch {
+        return false;
+    }
+}
+
+function markAnnouncementSeen(data) {
+    try {
+        localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, getAnnouncementId(data));
+    } catch {}
+}
+
 function addStyles() {
     if (document.getElementById("siteAnnouncementStyles")) return;
     const style = document.createElement("style");
@@ -42,7 +76,7 @@ function addStyles() {
 function showAnnouncement(data) {
     const reason = String(data?.reason || "Announcement").trim();
     const message = String(data?.message || "").trim();
-    if (!message) return;
+    if (!message || hasSeenAnnouncement(data)) return;
 
     addStyles();
     document.getElementById("siteAnnouncementOverlay")?.remove();
@@ -75,12 +109,14 @@ function showAnnouncement(data) {
 
     closeButton.addEventListener("click", () => {
         if (closeButton.disabled) return;
+        markAnnouncementSeen(data);
         clearInterval(countdown);
         overlay.remove();
     });
 
     overlay.addEventListener("click", event => {
         if (event.target === overlay && !closeButton.disabled) {
+            markAnnouncementSeen(data);
             clearInterval(countdown);
             overlay.remove();
         }
