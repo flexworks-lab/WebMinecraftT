@@ -217,6 +217,10 @@ function disposeAvatar(group) {
     for (const material of materials) { if (material.map) material.map.dispose(); material.dispose(); }
 }
 
+function shortestAngleDelta(from, to) {
+    return THREE.MathUtils.euclideanModulo(to - from + Math.PI, Math.PI * 2) - Math.PI;
+}
+
 function animateAvatar(entry, player, time) {
     const parts = entry.parts;
     const previous = entry.lastPosition;
@@ -227,6 +231,15 @@ function animateAvatar(entry, player, time) {
     entry.lastPosition.copy(current);
     entry.lastTimeDelta = Math.max((time - entry.lastTime) / 1000, 1 / 60);
     entry.lastTime = time;
+
+    // The body follows movement direction only. It never turns directly from camera look yaw.
+    if (speed > 0.35) {
+        const movementYaw = Math.atan2(dx, -dz);
+        const delta = shortestAngleDelta(entry.bodyYaw, movementYaw);
+        entry.bodyYaw += delta * 0.18;
+        entry.bodyYaw = THREE.MathUtils.euclideanModulo(entry.bodyYaw + Math.PI, Math.PI * 2) - Math.PI;
+    }
+    entry.group.rotation.y = entry.bodyYaw;
 
     const moving = String(player.action || "") === "walk" || speed > 0.35;
     const phase = time * 0.014 + entry.walkPhase;
@@ -282,7 +295,8 @@ export function updateMultiplayerAvatars(scene) {
                 lastTimeDelta: 1 / 60,
                 walkPhase: hashString(id) % 1000,
                 actionStarted: now,
-                lastAction: "idle"
+                lastAction: "idle",
+                bodyYaw: 0
             };
             entry.group.position.copy(entry.lastPosition);
             avatars.set(id, entry);
@@ -291,15 +305,15 @@ export function updateMultiplayerAvatars(scene) {
         entry.target.set(Number(player.position.x) || 0, (Number(player.position.y) || 0) - 1.8, Number(player.position.z) || 0);
         entry.group.position.lerp(entry.target, 0.32);
 
-        const targetYaw = Number(player.rotation?.y) || 0;
-        entry.group.rotation.y = THREE.MathUtils.lerp(entry.group.rotation.y, targetYaw, 0.35);
-
         const rawPitch = Number(player.rotation?.x) || 0;
         const targetPitch = THREE.MathUtils.clamp(rawPitch, -1.25, 1.25);
+        const rawLookYaw = Number(player.rotation?.y) || 0;
+        const headYawDelta = shortestAngleDelta(entry.bodyYaw, rawLookYaw);
+        const targetHeadYaw = THREE.MathUtils.clamp(headYawDelta, -1.35, 1.35);
         const parts = entry.parts;
         parts.head.rotation.order = "YXZ";
         parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, targetPitch, 0.28);
-        parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, 0, 0.35);
+        parts.head.rotation.y = THREE.MathUtils.lerp(parts.head.rotation.y, targetHeadYaw, 0.28);
         parts.head.rotation.z = THREE.MathUtils.lerp(parts.head.rotation.z, 0, 0.35);
 
         const action = String(player.action || "idle");
