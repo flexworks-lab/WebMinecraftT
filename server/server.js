@@ -38,8 +38,6 @@ function getOrCreateRoom(id, ownerName = "Player", isPrivate = false) {
 }
 
 function cleanRoom(room) {
-    // Player-created servers stay listed even when everyone leaves.
-    // Their world seed and block changes remain available for the next join.
     if (!room || room.players.size !== 0) return;
 }
 
@@ -61,8 +59,8 @@ function sanitizeName(value) {
 
 function sanitizeChat(value) {
     return String(value ?? "")
-        .replace(/[<>]/g, "")
         .replace(/[\r\n]+/g, " ")
+        .replace(/[<>]/g, "")
         .trim()
         .slice(0, MAX_CHAT_LENGTH);
 }
@@ -87,6 +85,7 @@ function publicRoom(room) {
         name: room.name,
         owner: room.ownerName,
         players: room.players.size,
+        playerNames: [...room.players.values()].map(player => player.name),
         maxPlayers: MAX_PLAYERS_PER_SERVER,
         private: Boolean(room.isPrivate),
         worldSeed: room.worldSeed,
@@ -135,7 +134,6 @@ function decodeFrames(buffer, onMessage, onClose) {
         const masked = Boolean(second & 0x80);
         let length = second & 0x7f;
         let headerLength = 2;
-
         if (length === 126) {
             if (offset + 4 > buffer.length) break;
             length = buffer.readUInt16BE(offset + 2);
@@ -147,27 +145,22 @@ function decodeFrames(buffer, onMessage, onClose) {
             length = Number(bigLength);
             headerLength = 10;
         }
-
         const maskLength = masked ? 4 : 0;
         const frameLength = headerLength + maskLength + length;
         if (offset + frameLength > buffer.length) break;
-
         if (opcode === 0x8) {
             onClose();
             return { consumed: offset + frameLength, closed: true };
         }
-
         if (opcode === 0x9) {
             onMessage({ kind: "ping", payload: Buffer.alloc(0) });
             offset += frameLength;
             continue;
         }
-
         if (opcode !== 0x1) {
             offset += frameLength;
             continue;
         }
-
         let payload = buffer.subarray(offset + headerLength + maskLength, offset + frameLength);
         if (masked) {
             const maskStart = offset + headerLength;
@@ -175,11 +168,9 @@ function decodeFrames(buffer, onMessage, onClose) {
             payload = Buffer.from(payload);
             for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i % 4];
         }
-
         onMessage({ kind: "text", payload });
         offset += frameLength;
     }
-
     return { consumed: offset, closed: false };
 }
 
@@ -191,58 +182,27 @@ class SimpleWebSocket {
         this.messageHandler = null;
         this.closeHandler = null;
         this.pingHandler = null;
-
         socket.on("data", chunk => this.handleData(chunk));
         socket.on("close", () => this.close());
         socket.on("error", () => this.close());
     }
-
     onMessage(handler) { this.messageHandler = handler; }
     onClose(handler) { this.closeHandler = handler; }
     onPing(handler) { this.pingHandler = handler; }
-
-    sendText(text) {
-        if (!this.connected) return;
-        this.socket.write(encodeFrame(text));
-    }
-
-    sendPong() {
-        if (!this.connected) return;
-        this.socket.write(Buffer.from([0x8a, 0x00]));
-    }
-
+    sendText(text) { if (this.connected) this.socket.write(encodeFrame(text)); }
+    sendPong() { if (this.connected) this.socket.write(Buffer.from([0x8a, 0x00])); }
     handleData(chunk) {
         if (!this.connected) return;
         this.buffer = Buffer.concat([this.buffer, chunk]);
-        if (this.buffer.length > MAX_MESSAGE_SIZE * 2) {
-            this.close();
-            return;
-        }
-
-        const result = decodeFrames(
-            this.buffer,
-            frame => {
-                if (frame.kind === "ping") {
-                    this.sendPong();
-                    this.pingHandler?.();
-                    return;
-                }
-                if (frame.payload.length > MAX_MESSAGE_SIZE) {
-                    this.close();
-                    return;
-                }
-                this.messageHandler?.(frame.payload.toString("utf8"));
-            },
-            () => this.close(),
-        );
-
-        if (result.closed) {
-            this.buffer = Buffer.alloc(0);
-        } else if (result.consumed > 0) {
-            this.buffer = this.buffer.subarray(result.consumed);
-        }
+        if (this.buffer.length > MAX_MESSAGE_SIZE * 2) { this.close(); return; }
+        const result = decodeFrames(this.buffer, frame => {
+            if (frame.kind === "ping") { this.sendPong(); this.pingHandler?.(); return; }
+            if (frame.payload.length > MAX_MESSAGE_SIZE) { this.close(); return; }
+            this.messageHandler?.(frame.payload.toString("utf8"));
+        }, () => this.close());
+        if (result.closed) this.buffer = Buffer.alloc(0);
+        else if (result.consumed > 0) this.buffer = this.buffer.subarray(result.consumed);
     }
-
     close() {
         if (!this.connected) return;
         this.connected = false;
@@ -253,40 +213,20 @@ class SimpleWebSocket {
 
 function acceptWebSocket(request, socket) {
     const key = request.headers["sec-websocket-key"];
-    if (!key) {
-        socket.destroy();
-        return null;
-    }
-
-    const accept = crypto
-        .createHash("sha1")
-        .update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
-        .digest("base64");
-
-    socket.write(
-        "HTTP/1.1 101 Switching Protocols\r\n" +
-        "Upgrade: websocket\r\n" +
-        "Connection: Upgrade\r\n" +
-        `Sec-WebSocket-Accept: ${accept}\r\n\r\n`,
-    );
-
+    if (!key) { socket.destroy(); return null; }
+    const accept = crypto.createHash("sha1").update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
+    socket.write("HTTP/1.1 101 Switching Protocols\r\n" + "Upgrade: websocket\r\n" + "Connection: Upgrade\r\n" + `Sec-WebSocket-Accept: ${accept}\r\n\r\n`);
     return new SimpleWebSocket(socket);
 }
 
 function handleMessage(ws, raw, state) {
     let message;
-    try {
-        message = JSON.parse(raw);
-    } catch {
-        send(ws, { type: "error", code: "invalid_json", message: "Invalid message." });
-        return;
-    }
-
+    try { message = JSON.parse(raw); }
+    catch { send(ws, { type: "error", code: "invalid_json", message: "Invalid message." }); return; }
     if (!message || typeof message.type !== "string") return;
 
     if (message.type === "join") {
         if (state.joined) return;
-
         const roomId = sanitizeRoom(message.room);
         const safeName = sanitizeName(message.name);
         const wantsPrivate = Boolean(message.private);
@@ -298,35 +238,18 @@ function handleMessage(ws, raw, state) {
             return;
         }
         room = getOrCreateRoom(roomId, safeName, wantsPrivate);
-        if (!room) {
-            send(ws, { type: "error", code: "server_limit", message: "The server has reached its room limit." });
-            ws.close();
-            return;
-        }
-        if (room.players.size >= MAX_PLAYERS_PER_SERVER) {
-            send(ws, { type: "error", code: "server_full", message: "This server is full." });
-            ws.close();
-            return;
-        }
+        if (!room) { send(ws, { type: "error", code: "server_limit", message: "The server has reached its room limit." }); ws.close(); return; }
+        if (room.players.size >= MAX_PLAYERS_PER_SERVER) { send(ws, { type: "error", code: "server_full", message: "This server is full." }); ws.close(); return; }
 
         const player = {
             id: randomUUID(),
             name: safeName,
             room: roomId,
             ws,
-            position: {
-                x: numberOr(message.position?.x),
-                y: numberOr(message.position?.y),
-                z: numberOr(message.position?.z),
-            },
-            rotation: {
-                x: numberOr(message.rotation?.x),
-                y: numberOr(message.rotation?.y),
-                z: numberOr(message.rotation?.z),
-            },
+            position: { x: numberOr(message.position?.x), y: numberOr(message.position?.y), z: numberOr(message.position?.z) },
+            rotation: { x: numberOr(message.rotation?.x), y: numberOr(message.rotation?.y), z: numberOr(message.rotation?.z) },
             lastUpdate: 0,
         };
-
         room.players.set(player.id, player);
         state.player = player;
         state.joined = true;
@@ -344,7 +267,6 @@ function handleMessage(ws, raw, state) {
             worldChanges: [...room.blockChanges.values()],
             players: [...room.players.values()].map(publicPlayer),
         });
-
         broadcast(room, { type: "player_joined", player: publicPlayer(player) }, player.id);
         broadcast(room, { type: "chat_system", text: `${player.name} has joined the server` });
         return;
@@ -352,21 +274,14 @@ function handleMessage(ws, raw, state) {
 
     const player = state.player;
     if (!state.joined || !player) return;
-
     if (message.type === "chat_message") {
         const room = rooms.get(player.room);
         if (!room) return;
         const text = sanitizeChat(message.text);
         if (!text) return;
-        broadcast(room, {
-            type: "chat_message",
-            playerId: player.id,
-            name: player.name,
-            text,
-        });
+        broadcast(room, { type: "chat_message", playerId: player.id, name: player.name, text });
         return;
     }
-
     if (message.type === "block_change") {
         const x = Math.floor(numberOr(message.x, NaN));
         const y = Math.floor(numberOr(message.y, NaN));
@@ -382,27 +297,19 @@ function handleMessage(ws, raw, state) {
             const oldest = room.blockChanges.keys().next().value;
             if (oldest) room.blockChanges.delete(oldest);
         }
-
         broadcast(room, { type: "block_change", x, y, z, type });
         send(ws, { type: "block_change_ack", x, y, z, type });
         return;
     }
-
     if (message.type === "world_sync_request") {
         const room = rooms.get(player.room);
         if (!room) return;
-        send(ws, {
-            type: "world_sync",
-            worldSeed: room.worldSeed,
-            worldChanges: [...room.blockChanges.values()],
-        });
+        send(ws, { type: "world_sync", worldSeed: room.worldSeed, worldChanges: [...room.blockChanges.values()] });
         return;
     }
-
     if (message.type === "player_state") {
         const now = Date.now();
         if (now - player.lastUpdate < 20) return;
-
         if (message.position && message.rotation) {
             player.position.x = numberOr(message.position.x, player.position.x);
             player.position.y = numberOr(message.position.y, player.position.y);
@@ -414,79 +321,40 @@ function handleMessage(ws, raw, state) {
         }
         return;
     }
-
-    if (message.type === "ping") {
-        send(ws, { type: "pong", time: Date.now() });
-    }
+    if (message.type === "ping") send(ws, { type: "pong", time: Date.now() });
 }
 
 const httpServer = http.createServer((request, response) => {
     if (request.url === "/health") {
-        response.writeHead(200, {
-            "content-type": "application/json",
-            "access-control-allow-origin": "*",
-            "cache-control": "no-store",
-        });
-        response.end(JSON.stringify({
-            ok: true,
-            rooms: rooms.size,
-            players: [...rooms.values()].reduce((count, room) => count + room.players.size, 0),
-            maxPlayers: MAX_PLAYERS_PER_SERVER,
-            maxRooms: MAX_ROOMS,
-        }));
+        response.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*", "cache-control": "no-store" });
+        response.end(JSON.stringify({ ok: true, rooms: rooms.size, players: [...rooms.values()].reduce((count, room) => count + room.players.size, 0), maxPlayers: MAX_PLAYERS_PER_SERVER, maxRooms: MAX_ROOMS }));
         return;
     }
-
     if (request.url === "/servers") {
         const totalPlayers = [...rooms.values()].reduce((count, room) => count + room.players.size, 0);
-        response.writeHead(200, {
-            "content-type": "application/json",
-            "access-control-allow-origin": "*",
-            "cache-control": "no-store",
-        });
+        response.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*", "cache-control": "no-store" });
         response.end(JSON.stringify({
-            servers: [{
-                id: "webminecraft-official",
-                name: "WebMinecraft Official",
-                online: true,
-                players: totalPlayers,
-                maxPlayers: MAX_PLAYERS_PER_SERVER,
-                rooms: [...rooms.values()].map(publicRoom),
-            }],
+            servers: [{ id: "webminecraft-official", name: "WebMinecraft Official", online: true, players: totalPlayers, maxPlayers: MAX_PLAYERS_PER_SERVER, rooms: [...rooms.values()].map(publicRoom) }],
             updatedAt: Date.now(),
         }));
         return;
     }
-
     response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
     response.end("WebMinecraft multiplayer server is running.");
 });
 
 httpServer.on("upgrade", (request, socket) => {
-    if (request.url !== "/multiplayer") {
-        socket.destroy();
-        return;
-    }
-
+    if (request.url !== "/multiplayer") { socket.destroy(); return; }
     const ws = acceptWebSocket(request, socket);
     if (!ws) return;
-
     const state = { joined: false, player: null };
-
-    send(ws, {
-        type: "server_info",
-        tickRate: TICK_RATE,
-        maxPlayers: MAX_PLAYERS_PER_SERVER,
-        maxRooms: MAX_ROOMS,
-    });
-
+    send(ws, { type: "server_info", tickRate: TICK_RATE, maxPlayers: MAX_PLAYERS_PER_SERVER, maxRooms: MAX_ROOMS });
     ws.onMessage(raw => handleMessage(ws, raw, state));
     ws.onClose(() => {
         const player = state.player;
         if (!player) return;
         const room = rooms.get(player.room);
         if (!room) return;
-
         room.players.delete(player.id);
         broadcast(room, { type: "chat_system", text: `${player.name} has left the server` });
         broadcast(room, { type: "player_left", playerId: player.id });
@@ -497,11 +365,7 @@ httpServer.on("upgrade", (request, socket) => {
 setInterval(() => {
     for (const room of rooms.values()) {
         if (room.players.size < 2) continue;
-        broadcast(room, {
-            type: "player_states",
-            players: [...room.players.values()].map(publicPlayer),
-            serverTime: Date.now(),
-        });
+        broadcast(room, { type: "player_states", players: [...room.players.values()].map(publicPlayer), serverTime: Date.now() });
     }
 }, BROADCAST_INTERVAL);
 
