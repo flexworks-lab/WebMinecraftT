@@ -37,11 +37,28 @@ function loadInventory() {
         else ensureInitialItems();
     } catch { ensureInitialItems(); }
 
-    // Always repair older saved inventories so the newly added items are present.
-    const hasTnt = inventory.some(slot => slot?.itemId === 15 && slot.count > 0);
-    const hasFlintAndSteel = inventory.some(slot => slot?.itemId === 16 && slot.count > 0);
-    if (!hasTnt) addItem(15, 64);
-    if (!hasFlintAndSteel) addItem(16, 64);
+    // Always keep TNT and Flint & Steel available, and place them in visible hotbar slots.
+    const ensureHotbarItem = (itemId, preferredIndex) => {
+        let found = inventory.findIndex(slot => slot?.itemId === itemId && slot.count > 0);
+        if (found >= 0) {
+            if (found !== preferredIndex) {
+                const preferred = inventory[preferredIndex];
+                if (!preferred || preferred.itemId === itemId) {
+                    inventory[preferredIndex] = inventory[found];
+                    inventory[found] = preferred;
+                }
+            }
+            return;
+        }
+        if (inventory[preferredIndex] && inventory[preferredIndex].itemId !== itemId) {
+            const empty = inventory.findIndex((slot, index) => index !== preferredIndex && !slot);
+            if (empty >= 0) inventory[empty] = inventory[preferredIndex];
+        }
+        inventory[preferredIndex] = { itemId, count: 64 };
+    };
+
+    ensureHotbarItem(15, 6);
+    ensureHotbarItem(16, 7);
     saveInventory();
 }
 
