@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { keys, touchInput } from "./controls.js";
 import {
     grassMaterial,
     dirtMaterial,
@@ -23,34 +24,30 @@ const ITEM_MATERIALS = {
     9: sandstoneMaterial
 };
 
-let renderer;
-let camera;
-let scene;
-let heldRoot;
-let blockMesh;
+const BASE_POS = new THREE.Vector3(0.72, -0.74, -1.05);
+const BASE_ROT = new THREE.Euler(0.08, -0.18, -0.10);
+const ACTION_DURATION = 180;
+
+let renderer, camera, scene, heldRoot, blockMesh;
 let visible = false;
 let selectedItemId = 1;
+let action = null;
+let actionStartedAt = 0;
+let lastMobileMine = false;
+let lastMobilePlace = false;
 
 function makeHandTexture() {
     const canvas = document.createElement("canvas");
-    canvas.width = 16;
-    canvas.height = 16;
+    canvas.width = canvas.height = 16;
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#d69b72";
-    ctx.fillRect(0, 0, 16, 16);
-    ctx.fillStyle = "#e2ad83";
-    ctx.fillRect(1, 1, 12, 10);
-    ctx.fillStyle = "#c18461";
-    ctx.fillRect(0, 11, 16, 5);
-    ctx.fillStyle = "#b87655";
-    ctx.fillRect(12, 3, 4, 10);
-    ctx.fillStyle = "#754932";
-    ctx.fillRect(0, 0, 16, 1);
-    ctx.fillRect(0, 15, 16, 1);
+    ctx.fillStyle = "#d69b72"; ctx.fillRect(0, 0, 16, 16);
+    ctx.fillStyle = "#e2ad83"; ctx.fillRect(1, 1, 12, 10);
+    ctx.fillStyle = "#c18461"; ctx.fillRect(0, 11, 16, 5);
+    ctx.fillStyle = "#b87655"; ctx.fillRect(12, 3, 4, 10);
+    ctx.fillStyle = "#754932"; ctx.fillRect(0, 0, 16, 1); ctx.fillRect(0, 15, 16, 1);
     const texture = new THREE.CanvasTexture(canvas);
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = texture.minFilter = THREE.NearestFilter;
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
 }
@@ -58,7 +55,6 @@ function makeHandTexture() {
 function cloneMaterial(material) {
     if (!material?.clone) return material;
     const cloned = material.clone();
-    // World chunk meshes contain vertex colors, but the held cube uses plain BoxGeometry.
     cloned.vertexColors = false;
     if (cloned.color) cloned.color.setRGB(1, 1, 1);
     cloned.needsUpdate = true;
@@ -71,14 +67,14 @@ function getMaterials(itemId) {
 }
 
 function isWorldVisible() {
-    const inWorldClass = document.body.classList.contains("webminecraft-in-world");
-    const mainMenu = document.getElementById("mainMenu");
-    const seedMenu = document.getElementById("seedMenu");
-    const savedWorlds = document.getElementById("savedWorlds");
-    const mainHidden = !mainMenu || getComputedStyle(mainMenu).display === "none";
-    const seedHidden = !seedMenu || getComputedStyle(seedMenu).display === "none";
-    const savedHidden = !savedWorlds || getComputedStyle(savedWorlds).display === "none";
-    return !!ITEM_MATERIALS[selectedItemId] && inWorldClass && mainHidden && seedHidden && savedHidden;
+    const inWorld = document.body.classList.contains("webminecraft-in-world");
+    const main = document.getElementById("mainMenu");
+    const seed = document.getElementById("seedMenu");
+    const saved = document.getElementById("savedWorlds");
+    return !!ITEM_MATERIALS[selectedItemId] && inWorld
+        && (!main || getComputedStyle(main).display === "none")
+        && (!seed || getComputedStyle(seed).display === "none")
+        && (!saved || getComputedStyle(saved).display === "none");
 }
 
 function updateVisibility() {
@@ -89,21 +85,27 @@ function updateVisibility() {
 function updateBlock() {
     if (!blockMesh) return;
     const next = getMaterials(selectedItemId);
-    if (Array.isArray(blockMesh.material)) {
-        blockMesh.material.forEach(material => material?.dispose?.());
-    } else {
-        blockMesh.material?.dispose?.();
-    }
+    if (Array.isArray(blockMesh.material)) blockMesh.material.forEach(m => m?.dispose?.());
+    else blockMesh.material?.dispose?.();
     blockMesh.material = next;
 }
 
 function readSelectedItem(slot) {
     try {
-        const inventory = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
-        return Number(inventory?.[slot]?.itemId) || 1;
-    } catch {
-        return 1;
-    }
+        const inv = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
+        return Number(inv?.[slot]?.itemId) || 1;
+    } catch { return 1; }
+}
+
+function triggerAction(type) {
+    if (!visible) return;
+    action = type;
+    actionStartedAt = performance.now();
+}
+
+function moving() {
+    return !!(keys["KeyW"] || keys["KeyA"] || keys["KeyS"] || keys["KeyD"]
+        || Math.abs(touchInput.moveX || 0) > 0.08 || Math.abs(touchInput.moveZ || 0) > 0.08);
 }
 
 function init() {
@@ -116,14 +118,8 @@ function init() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.domElement.id = "heldBlock3DCanvas";
     Object.assign(renderer.domElement.style, {
-        position: "fixed",
-        left: "0",
-        top: "0",
-        width: "100vw",
-        height: "100vh",
-        pointerEvents: "none",
-        zIndex: "79",
-        display: "none"
+        position: "fixed", left: "0", top: "0", width: "100vw", height: "100vh",
+        pointerEvents: "none", zIndex: "79", display: "none"
     });
     document.body.appendChild(renderer.domElement);
 
@@ -137,37 +133,32 @@ function init() {
     camera.position.set(0, 0, 3);
     camera.lookAt(0, 0, 0);
 
-    // The world block materials are Lambert materials, so this little overlay scene
-    // needs its own lights. Without them the textured cube appears completely black.
     scene.add(new THREE.AmbientLight(0xffffff, 2.8));
-    const keyLight = new THREE.DirectionalLight(0xffffff, 3.5);
-    keyLight.position.set(-2, 3, 4);
-    scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    fillLight.position.set(3, 1, 2);
-    scene.add(fillLight);
+    const key = new THREE.DirectionalLight(0xffffff, 3.5);
+    key.position.set(-2, 3, 4); scene.add(key);
+    const fill = new THREE.DirectionalLight(0xffffff, 1.5);
+    fill.position.set(3, 1, 2); scene.add(fill);
 
     heldRoot = new THREE.Group();
-    heldRoot.position.set(0.72, -0.38, -1.05);
-    heldRoot.rotation.set(0.08, -0.18, -0.10);
+    heldRoot.position.copy(BASE_POS);
+    heldRoot.rotation.copy(BASE_ROT);
     heldRoot.scale.setScalar(0.9);
     scene.add(heldRoot);
 
-    const armGeometry = new THREE.BoxGeometry(0.28, 0.70, 0.28);
-    const handMaterial = new THREE.MeshBasicMaterial({ map: makeHandTexture() });
-    const hand = new THREE.Mesh(armGeometry, handMaterial);
+    const hand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.28, 0.70, 0.28),
+        new THREE.MeshBasicMaterial({ map: makeHandTexture() })
+    );
     hand.position.set(0.20, -0.26, 0.08);
     hand.rotation.x = -0.22;
     hand.rotation.z = -0.12;
     heldRoot.add(hand);
 
-    const blockGeometry = new THREE.BoxGeometry(0.58, 0.58, 0.58);
-    blockMesh = new THREE.Mesh(blockGeometry, getMaterials(selectedItemId));
+    blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.58, 0.58), getMaterials(selectedItemId));
     blockMesh.position.set(-0.04, 0.10, 0);
     blockMesh.rotation.set(0.06, 0.32, -0.06);
     blockMesh.renderOrder = 2;
     heldRoot.add(blockMesh);
-
     updateBlock();
     updateVisibility();
 
@@ -178,30 +169,74 @@ function init() {
     });
 
     window.addEventListener("webminecraft:selectedslot", event => {
-        const slot = Number(event.detail?.slot ?? 0);
-        selectedItemId = readSelectedItem(slot);
+        selectedItemId = readSelectedItem(Number(event.detail?.slot ?? 0));
         updateBlock();
         updateVisibility();
     });
 
+    window.addEventListener("mousedown", event => {
+        if (!visible || document.body.classList.contains("mobile-mode")) return;
+        if (document.pointerLockElement !== document.body) return;
+        if (event.button === 0) triggerAction("mine");
+        if (event.button === 2) triggerAction("place");
+    });
+
     const observer = new MutationObserver(updateVisibility);
     observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-
     setInterval(updateVisibility, 250);
 
     function render() {
         requestAnimationFrame(render);
         if (!visible) return;
-        const time = performance.now();
-        heldRoot.rotation.y = -0.18 + Math.sin(time * 0.0015) * 0.018;
-        heldRoot.rotation.z = -0.10 + Math.sin(time * 0.0020) * 0.012;
+
+        const now = performance.now();
+        const walk = moving();
+        const speed = walk ? 0.012 : 0.0022;
+        const bob = walk ? Math.sin(now * speed) * 0.055 : Math.sin(now * speed) * 0.008;
+        const sway = walk ? Math.cos(now * speed * 0.52) * 0.018 : 0;
+
+        let actionX = 0, actionY = 0, actionZ = 0, actionPX = 0, actionPZ = 0;
+        if (action) {
+            const t = THREE.MathUtils.clamp((now - actionStartedAt) / ACTION_DURATION, 0, 1);
+            const p = Math.sin(Math.PI * t);
+            if (action === "mine") {
+                actionX = -0.72 * p;
+                actionY = 0.18 * p;
+                actionZ = -0.08 * p;
+                actionPX = 0.11 * p;
+                actionPZ = 0.10 * p;
+            } else {
+                actionX = -0.38 * p;
+                actionY = 0.10 * p;
+                actionZ = -0.05 * p;
+                actionPX = -0.04 * p;
+                actionPZ = 0.12 * p;
+            }
+            if (t >= 1) action = null;
+        }
+
+        heldRoot.position.set(BASE_POS.x + sway + actionPX, BASE_POS.y + bob - Math.abs(actionPX) * 0.2, BASE_POS.z + actionPZ);
+        heldRoot.rotation.set(
+            BASE_ROT.x + actionX,
+            BASE_ROT.y + Math.sin(now * 0.0015) * 0.018 + actionY,
+            BASE_ROT.z + Math.sin(now * 0.0020) * 0.012 + actionZ
+        );
+
+        const blockBob = walk ? Math.sin(now * 0.012 + 0.7) * 0.025 : 0;
+        blockMesh.rotation.y = 0.32 + blockBob;
+        blockMesh.rotation.x = 0.06 + (walk ? Math.cos(now * 0.012) * 0.018 : 0);
+
+        const mine = !!touchInput.breakPressed || !!touchInput.punchPressed;
+        const place = !!touchInput.placePressed;
+        if (mine && !lastMobileMine) triggerAction("mine");
+        if (place && !lastMobilePlace) triggerAction("place");
+        lastMobileMine = mine;
+        lastMobilePlace = place;
+
         renderer.render(scene, camera);
     }
     render();
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init, { once: true });
-} else {
-    init();
-}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+else init();
