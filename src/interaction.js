@@ -11,6 +11,100 @@ let selectedSlot = 0;
 let lastPunch = false;
 let lastPlace = false;
 
+function setupTexturedHotbar() {
+    const hotbar = document.getElementById("hotbar");
+    if (!hotbar || hotbar.dataset.textured === "1") return;
+    hotbar.dataset.textured = "1";
+
+    const BASE = import.meta.env.BASE_URL;
+    const textures = [
+        "Grass_Block_(top_texture)_JE2.png",
+        "dirt.png",
+        "stone.png",
+        "sand.png",
+        "oak_log_top.png",
+        "oak-leaves-normal-original-default.png",
+        "Grass_Block_(top_texture)_JE2.png",
+        "dirt.png",
+        "stone.png"
+    ];
+
+    hotbar.classList.add("textured-hotbar");
+    hotbar.querySelectorAll(".slot").forEach((slot, index) => {
+        const texture = textures[index] || textures[0];
+        slot.title = `${index + 1}`;
+        slot.setAttribute("aria-label", `Hotbar slot ${index + 1}`);
+        slot.innerHTML = `<span class="hotbarTexture" style="background-image:url('${BASE}textures/${encodeURIComponent(texture)}')"></span><span class="hotbarNumber">${index + 1}</span>`;
+    });
+
+    if (document.getElementById("webMinecraftTexturedHotbarStyles")) return;
+    const style = document.createElement("style");
+    style.id = "webMinecraftTexturedHotbarStyles";
+    style.textContent = `
+#hotbar.textured-hotbar{
+    gap:0 !important;
+    padding:4px !important;
+    background:rgba(25,25,25,.9) !important;
+    border:3px solid #111 !important;
+    box-shadow:inset 2px 2px 0 #777,inset -2px -2px 0 #333,0 3px 0 rgba(0,0,0,.65) !important;
+    image-rendering:pixelated;
+}
+#hotbar.textured-hotbar .slot{
+    position:relative;
+    width:52px !important;
+    height:52px !important;
+    flex:0 0 52px !important;
+    padding:0 !important;
+    border:2px solid #555 !important;
+    background:#222 !important;
+    overflow:hidden;
+    cursor:pointer;
+    image-rendering:pixelated;
+}
+#hotbar.textured-hotbar .slot.selected{
+    border:3px solid #fff !important;
+    box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111 !important;
+    z-index:2;
+}
+#hotbar.textured-hotbar .hotbarTexture{
+    position:absolute;
+    inset:3px;
+    display:block;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-size:100% 100%;
+    image-rendering:pixelated;
+}
+#hotbar.textured-hotbar .hotbarNumber{
+    position:absolute;
+    left:2px;
+    top:1px;
+    min-width:13px;
+    height:14px;
+    padding:0 2px;
+    color:#fff;
+    font:11px/14px Arial,sans-serif;
+    font-weight:700;
+    text-align:center;
+    text-shadow:1px 1px 0 #000;
+    background:rgba(0,0,0,.45);
+    pointer-events:none;
+}
+body.mobile-mode #hotbar.textured-hotbar{
+    bottom:154px !important;
+    max-width:calc(100vw - 12px) !important;
+    overflow-x:auto !important;
+    scrollbar-width:none;
+    pointer-events:auto !important;
+    touch-action:pan-x;
+}
+body.mobile-mode #hotbar.textured-hotbar::-webkit-scrollbar{display:none}
+body.mobile-mode #hotbar.textured-hotbar .slot{width:56px !important;height:56px !important;flex-basis:56px !important}
+@media(max-width:700px){#hotbar.textured-hotbar .slot{width:48px !important;height:48px !important;flex-basis:48px !important}}
+`;
+    document.head.appendChild(style);
+}
+
 export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
     const placeTypes = [
@@ -24,6 +118,8 @@ export function setupInteraction(scene, camera) {
         BLOCK.OAK,
         BLOCK.LEAVES
     ];
+
+    setupTexturedHotbar();
 
     const outline = createSelectionOutline();
     scene.add(outline);
@@ -51,7 +147,6 @@ export function setupInteraction(scene, camera) {
         });
     });
 
-    // Desktop controls.
     document.addEventListener("mousedown", (event) => {
         if (document.body.classList.contains("mobile-mode")) return;
         if (document.pointerLockElement !== document.body) return;
@@ -60,7 +155,6 @@ export function setupInteraction(scene, camera) {
     });
     document.addEventListener("contextmenu", (event) => event.preventDefault());
 
-    // Mobile controls. Punch is the only block-breaking button.
     function pollTouchActions() {
         const mobile = document.body.classList.contains("mobile-mode");
         const punch = mobile && !!touchInput.punchPressed;
@@ -89,7 +183,6 @@ export function setupInteraction(scene, camera) {
         if (!type || type === BLOCK.AIR) return;
         if (type === BLOCK.BEDROCK) return;
 
-        // Change the world first, then tell multiplayer and save it.
         if (!setBlockAt(target.x, target.y, target.z, BLOCK.AIR)) return;
         sendBlockChange(target.x, target.y, target.z, BLOCK.AIR);
         notifyBlockChange(target.x, target.y, target.z, BLOCK.AIR);
@@ -132,7 +225,6 @@ function getTargetBlock(scene, camera, BLOCK) {
     raycaster.near = 0.01;
     raycaster.far = INTERACTION_DISTANCE;
 
-    // IMPORTANT: raycast the scene, not camera.parent.
     const hits = raycaster.intersectObjects(scene.children, true);
     const hit = hits.find((entry) => {
         const object = entry.object;
