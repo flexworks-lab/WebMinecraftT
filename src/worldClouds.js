@@ -8,6 +8,7 @@ const CLOUD_CELL_SIZE = 80;
 const CLOUD_GRID_RADIUS = 9;
 const CLOUD_WRAP = 2048;
 const CLOUD_WIND_SPEED = 0.45;
+const SUN_DISTANCE = 900;
 
 let cloudRoot = null;
 let cloudSeed = 0;
@@ -185,11 +186,8 @@ function makeCloud(cellX, cellZ) {
 function createSun() {
     if (sunMesh || !cloudRoot) return;
 
-    const sunPosition = new THREE.Vector3(45, 85, 30);
-
     sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
     sunMesh.name = "MinecraftSquareSun";
-    sunMesh.position.copy(sunPosition);
     sunMesh.renderOrder = 30;
     sunMesh.frustumCulled = false;
     sunMesh.userData.isSun = true;
@@ -210,13 +208,23 @@ function createSun() {
         });
         const glow = new THREE.Mesh(sunGlowGeometry, material);
         glow.name = `MinecraftSunGlow${i + 1}`;
-        glow.position.copy(sunPosition);
-        glow.scale.setScalar(sunGlowSizes[i]);
         glow.renderOrder = 29 - i;
         glow.frustumCulled = false;
         cloudRoot.add(glow);
         sunGlowMeshes.push(glow);
     }
+}
+
+function updateSunPosition() {
+    if (!cloudCamera || !sunMesh) return;
+
+    // Keep the sun as a sky object instead of a world object. It moves with the camera
+    // at a very large distance, so flying upward/toward it never reaches the sun.
+    const direction = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
+    const position = cloudCamera.position.clone().addScaledVector(direction, SUN_DISTANCE);
+
+    sunMesh.position.copy(position);
+    for (const glow of sunGlowMeshes) glow.position.copy(position);
 }
 
 function updateSunFacing() {
@@ -246,6 +254,7 @@ function rebuildCloudField(seed) {
     }
 
     createSun();
+    updateSunPosition();
     updateSunFacing();
 }
 
@@ -261,6 +270,7 @@ function tick(now) {
         }
     }
 
+    updateSunPosition();
     updateSunFacing();
     requestAnimationFrame(tick);
 }
