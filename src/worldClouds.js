@@ -8,7 +8,7 @@ const CLOUD_CELL_SIZE = 80;
 const CLOUD_GRID_RADIUS = 9;
 const CLOUD_WRAP = 2048;
 const CLOUD_WIND_SPEED = 0.45;
-const SUN_DISTANCE = 900;
+const SUN_DISTANCE = 100000;
 
 let cloudRoot = null;
 let cloudScene = null;
@@ -41,7 +41,7 @@ const cloudGeometry = new THREE.BoxGeometry(
     CLOUD_BLOCK_SIZE
 );
 
-// Square sun with layered square glow. All geometry is generated in code.
+// Square sun with a soft square glow. It is a sky-only visual, not a world object.
 const sunGeometry = new THREE.PlaneGeometry(10, 10);
 const sunMaterial = new THREE.MeshBasicMaterial({
     color: 0xffe87a,
@@ -173,8 +173,7 @@ function makeCloud(cellX, cellZ) {
     mesh.receiveShadow = false;
     mesh.renderOrder = 10;
 
-    // Randomize each cloud position INSIDE its cell so the grid is no longer visible.
-    // Each cell still has a deterministic position from the world seed, so the layout stays stable.
+    // Randomly scatter the cloud inside its cell so there is no visible grid/line pattern.
     const randomX = seedHash(cellX, cellZ, 500);
     const randomZ = seedHash(cellX, cellZ, 510);
     const baseX = (cellX + randomX - 0.5) * CLOUD_CELL_SIZE;
@@ -266,8 +265,8 @@ function createSun() {
 function updateSunPosition() {
     if (!cloudCamera || !sunMesh) return;
 
-    // Sky-mounted sun: it follows the camera at a very large distance,
-    // making it a visual sky object that cannot be physically reached.
+    // Sky-only sun: always far away and follows the camera.
+    // Players can fly forever without ever reaching the visual sun.
     const direction = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
     const position = cloudCamera.position.clone().addScaledVector(direction, SUN_DISTANCE);
 
