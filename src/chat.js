@@ -46,7 +46,7 @@ body.webminecraft-chat-open #multiplayerChat{display:flex!important;flex-directi
 .multiplayerChatSystem{color:#cfcfcf!important;font-style:italic!important}.multiplayerChatName{font-weight:700!important;color:#fff!important}
 #multiplayerChatInput{box-sizing:border-box!important;width:100%!important;max-width:1100px!important;height:52px!important;flex:0 0 52px!important;margin:14px auto 0!important;padding:9px 13px!important;background:rgba(0,0,0,.82)!important;color:#fff!important;border:2px solid #777!important;border-top-color:#aaa!important;border-left-color:#aaa!important;outline:none!important;pointer-events:auto!important;font:18px Arial,sans-serif!important;text-shadow:1px 1px 0 #000!important}
 #multiplayerChatInput:focus{border-color:#fff!important}#multiplayerChatInput::placeholder{color:#aaa!important}
-#webMinecraftChatClose{display:none!important;position:absolute!important;top:14px!important;right:14px!important;width:78px!important;height:40px!important;z-index:99999!important;box-sizing:border-box!important;border:2px solid #111!important;border-top-color:#888!important;border-left-color:#888!important;background:linear-gradient(#696969,#505050)!important;color:#fff!important;font-family:"MinecraftFont",monospace!important;font-size:11px!important;text-shadow:2px 2px 0 #222!important;cursor:pointer!important;pointer-events:auto!important;touch-action:manipulation!important;user-select:none!important;-webkit-user-select:none!important}
+#webMinecraftChatClose{display:none!important;position:fixed!important;top:14px!important;right:14px!important;width:86px!important;height:42px!important;z-index:50001!important;box-sizing:border-box!important;border:2px solid #111!important;border-top-color:#888!important;border-left-color:#888!important;background:linear-gradient(#696969,#505050)!important;color:#fff!important;font-family:"MinecraftFont",monospace!important;font-size:11px!important;text-shadow:2px 2px 0 #222!important;cursor:pointer!important;pointer-events:auto!important;touch-action:manipulation!important;user-select:none!important;-webkit-user-select:none!important}
 #webMinecraftChatClose:active{background:#3f3f3f!important}
 #webMinecraftChatNotifications{position:fixed!important;top:14px!important;left:14px!important;width:min(520px,calc(100vw - 28px))!important;z-index:49999!important;display:flex!important;flex-direction:column!important;gap:4px!important;pointer-events:none!important;font-family:Arial,sans-serif!important;text-shadow:2px 2px 0 #000!important}
 .webMinecraftChatNotification{box-sizing:border-box!important;width:100%!important;padding:8px 12px!important;background:rgba(0,0,0,.82)!important;border:2px solid rgba(255,255,255,.18)!important;color:#fff!important;font-size:16px!important;line-height:1.35!important;overflow-wrap:anywhere!important;animation:webMinecraftChatNotificationIn .16s ease-out!important}
@@ -184,9 +184,9 @@ function installChatInput() {
 
 function ensureMobileChatCloseButton() {
     const chat = chatElement();
-    if (!chat) return;
+    if (!chat || !document.body) return;
     let button = document.getElementById("webMinecraftChatClose");
-    if (button && button.parentElement !== chat) {
+    if (button && button.parentElement !== document.body) {
         button.remove();
         button = null;
     }
@@ -205,7 +205,7 @@ function ensureMobileChatCloseButton() {
         event.stopPropagation();
         closeChat();
     });
-    chat.appendChild(button);
+    document.body.appendChild(button);
 }
 
 function watchChatCreation() {
