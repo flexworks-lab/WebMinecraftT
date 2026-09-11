@@ -47,8 +47,9 @@ body.webminecraft-chat-open #multiplayerChat{display:flex!important;flex-directi
 #webMinecraftChatNotifications{position:fixed!important;top:14px!important;left:14px!important;width:min(520px,calc(100vw - 28px))!important;z-index:49999!important;display:flex!important;flex-direction:column!important;gap:4px!important;pointer-events:none!important;font-family:Arial,sans-serif!important;text-shadow:2px 2px 0 #000!important}
 .webMinecraftChatNotification{box-sizing:border-box!important;width:100%!important;padding:8px 12px!important;background:rgba(0,0,0,.82)!important;border:2px solid rgba(255,255,255,.18)!important;color:#fff!important;font-size:16px!important;line-height:1.35!important;overflow-wrap:anywhere!important;animation:webMinecraftChatNotificationIn .16s ease-out!important}
 .webMinecraftChatNotificationName{font-weight:700!important;color:#fff!important}
+#touchChatCloseButton{display:none;position:fixed;right:18px;top:18px;width:74px;min-height:44px;padding:8px 10px;z-index:50001;pointer-events:auto;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:linear-gradient(#a33,#7d2525);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;user-select:none;-webkit-user-select:none;touch-action:none}
 @keyframes webMinecraftChatNotificationIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-body.webminecraft-chat-open #webMinecraftChatNotifications{display:none!important}body.webminecraft-chat-open #touchChatButton{display:none!important}
+body.webminecraft-chat-open #webMinecraftChatNotifications{display:none!important}body.webminecraft-chat-open #touchChatButton{display:none!important}body.webminecraft-chat-open #touchChatCloseButton{display:block!important}
 @media(max-width:700px){#multiplayerChat{padding:14px!important;background:rgba(0,0,0,.78)!important}#multiplayerChat::before{font-size:25px!important;margin-bottom:10px!important}#multiplayerChatFeed{padding:11px 12px!important}.multiplayerChatLine{font-size:15px!important;line-height:1.5!important;margin:3px 0!important}#multiplayerChatInput{height:50px!important;flex-basis:50px!important;margin-top:10px!important;font-size:16px!important}#webMinecraftChatNotifications{top:10px!important;left:10px!important;width:calc(100vw - 20px)!important}.webMinecraftChatNotification{font-size:14px!important;padding:7px 10px!important}}
 `;
     document.head.appendChild(style);
@@ -76,7 +77,6 @@ function showChatNotification(args) {
     const line = document.createElement("div");
     line.className = "webMinecraftChatNotification";
 
-    // Always display player messages as: PlayerName: what they said
     if (name) {
         const nameSpan = document.createElement("span");
         nameSpan.className = "webMinecraftChatNotificationName";
@@ -147,12 +147,23 @@ function closeChat() { hideChat(); }
 
 function wrapIncomingChat() {
     const add = window.__webminecraftChatAdd;
-    if (typeof add !== "function" || add === chatApiWrapped) return;
+    if (typeof add !== "function") return;
+
+    // The multiplayer client can recreate the chat function. Mark the wrapper itself
+    // so it can never be wrapped again, which was causing duplicate notification bars.
+    if (add.__webminecraftNotificationWrapper) {
+        chatApiWrapped = add;
+        return;
+    }
+    if (add === chatApiWrapped) return;
+
     const wrapped = function (...args) {
         const result = add.apply(this, args);
         showChatNotification(args);
         return result;
     };
+    wrapped.__webminecraftNotificationWrapper = true;
+    wrapped.__webminecraftOriginal = add;
     window.__webminecraftChatAdd = wrapped;
     chatApiWrapped = wrapped;
 }
@@ -196,8 +207,21 @@ function createMobileChatButton() {
     button.textContent = "CHAT";
     button.addEventListener("click", () => { openChat(""); keepMobileChatOpen(); });
     document.body.appendChild(button);
+
+    const closeButton = document.createElement("button");
+    closeButton.id = "touchChatCloseButton";
+    closeButton.type = "button";
+    closeButton.textContent = "CLOSE";
+    closeButton.setAttribute("aria-label", "Close chat");
+    closeButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeChat();
+    });
+    document.body.appendChild(closeButton);
+
     const style = document.createElement("style");
-    style.textContent = `#touchChatButton{display:none;position:fixed;right:18px;top:18px;width:74px;min-height:44px;padding:8px 10px;z-index:190;pointer-events:auto;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#696969,#505050);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;user-select:none;-webkit-user-select:none;touch-action:none}body.mobile-mode.webminecraft-in-world #touchChatButton{display:block}body.mobile-mode.webminecraft-in-world.webminecraft-chat-open #touchChatButton{background:linear-gradient(#6d8d4e,#526f3c)}body:not(.webminecraft-in-world) #touchChatButton{display:none!important}body:not(.mobile-mode) #touchChatButton{display:none!important}`;
+    style.textContent = `#touchChatButton{display:none;position:fixed;right:18px;top:18px;width:74px;min-height:44px;padding:8px 10px;z-index:190;pointer-events:auto;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#696969,#505050);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;user-select:none;-webkit-user-select:none;touch-action:none}body.mobile-mode.webminecraft-in-world #touchChatButton{display:block}body.mobile-mode.webminecraft-in-world.webminecraft-chat-open #touchChatButton{background:linear-gradient(#6d8d4e,#526f3c)}body:not(.webminecraft-in-world) #touchChatButton{display:none!important}body:not(.mobile-mode) #touchChatButton{display:none!important}body:not(.mobile-mode) #touchChatCloseButton{display:none!important}body:not(.webminecraft-in-world) #touchChatCloseButton{display:none!important}`;
     document.head.appendChild(style);
 }
 
