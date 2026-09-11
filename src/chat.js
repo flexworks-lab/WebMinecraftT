@@ -7,7 +7,7 @@ function isMultiplayerActive() {
 }
 
 function chatInput() {
-    return document.getElementById("multiplayerChatInput");
+    return document.querySelector("#multiplayerChat input, #multiplayerChat textarea");
 }
 
 function chatElement() {
@@ -19,84 +19,76 @@ function chatIsOpen() {
 }
 
 function getChatFeed() {
-    return document.getElementById("multiplayerChatFeed");
+    return document.querySelector("#multiplayerChat .chat-messages, #multiplayerChat .messages, #multiplayerChat [class*=message]");
 }
 
-function addSystem(text) {
-    window.__webminecraftChatAdd?.(String(text), true);
+function addSystem(message) {
+    const feed = getChatFeed();
+    if (!feed) return;
+    const line = document.createElement("div");
+    line.textContent = message;
+    line.style.opacity = "0.8";
+    feed.appendChild(line);
+    feed.scrollTop = feed.scrollHeight;
 }
 
-function runCommand(raw) {
-    const input = String(raw || "").trim();
-    if (!input.startsWith("/")) return false;
-
-    const parts = input.slice(1).trim().split(/\s+/);
-    const command = (parts.shift() || "").toLowerCase();
-
-    switch (command) {
-        case "help": addSystem("Commands: /help /seed /clear /ping"); return true;
-        case "seed": addSystem(`Seed: ${document.getElementById("seedInput")?.value || "Unknown"}`); return true;
-        case "clear": { const feed = getChatFeed(); if (feed) feed.replaceChildren(); return true; }
-        case "ping": addSystem("Pong!"); return true;
-        default: addSystem(`Unknown command: /${command || ""}`); return true;
+function runCommand(text) {
+    const command = text.trim().toLowerCase();
+    if (command === "/help") {
+        addSystem("Commands: /help, /seed, /clear, /ping");
+    } else if (command === "/seed") {
+        addSystem(`Seed: ${window.__webminecraftSeed ?? "unknown"}`);
+    } else if (command === "/clear") {
+        const feed = getChatFeed();
+        if (feed) feed.innerHTML = "";
+    } else if (command === "/ping") {
+        addSystem("Pong!");
+    } else {
+        addSystem(`Unknown command: ${text}`);
     }
 }
 
-function showChat() {
+function showChat(prefill = "") {
     const chat = chatElement();
-    if (chat) chat.style.setProperty("display", "block", "important");
+    if (!chat) return false;
+
+    clearTimeout(chatHideTimer);
     document.body.classList.add(CHAT_CLASS);
-}
-
-function hideChat() {
-    if (chatHideTimer) {
-        clearTimeout(chatHideTimer);
-        chatHideTimer = null;
-    }
-
-    const chat = chatElement();
-    if (chat) chat.style.setProperty("display", "none", "important");
-    document.body.classList.remove(CHAT_CLASS);
-    window.__webminecraftChatHide?.();
-}
-
-function keepChatOpenAfterSend() {
-    showChat();
-
-    if (chatHideTimer) clearTimeout(chatHideTimer);
-
-    chatHideTimer = setTimeout(() => {
-        chatHideTimer = null;
-        if (isMultiplayerActive()) hideChat();
-    }, CHAT_HIDE_DELAY);
-}
-
-function openChat(initialText = "") {
-    if (!isMultiplayerActive()) return false;
-
-    if (chatHideTimer) {
-        clearTimeout(chatHideTimer);
-        chatHideTimer = null;
-    }
-
-    showChat();
-    document.exitPointerLock?.();
+    chat.style.display = "block";
 
     const input = chatInput();
-    if (!input) {
-        requestAnimationFrame(() => openChat(initialText));
-        return true;
+    if (input) {
+        input.value = prefill;
+        input.focus({ preventScroll: true });
+        try { input.setSelectionRange(input.value.length, input.value.length); } catch {}
     }
 
-    input.value = initialText;
-    input.focus({ preventScroll: true });
-    input.setSelectionRange(input.value.length, input.value.length);
     return true;
 }
 
-function closeChat() {
+function hideChat() {
+    clearTimeout(chatHideTimer);
+    chatHideTimer = null;
+    document.body.classList.remove(CHAT_CLASS);
+
     const input = chatInput();
     if (input) input.blur();
+}
+
+function keepChatOpenAfterSend() {
+    clearTimeout(chatHideTimer);
+    document.body.classList.add(CHAT_CLASS);
+    chatHideTimer = setTimeout(() => {
+        hideChat();
+    }, CHAT_HIDE_DELAY);
+}
+
+function openChat(prefill = "") {
+    if (!showChat(prefill)) return;
+    try { document.exitPointerLock?.(); } catch {}
+}
+
+function closeChat() {
     hideChat();
 }
 
@@ -106,27 +98,30 @@ function installChatInput() {
     input.dataset.webminecraftChatInstalled = "1";
 
     input.addEventListener("keydown", event => {
-        event.stopPropagation();
-
         if (event.key === "Enter") {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-
             const text = input.value.trim();
-            if (text) {
-                if (text.startsWith("/")) {
-                    runCommand(text);
-                } else if (isMultiplayerActive()) {
-                    try { window.__webminecraftSendChat?.(text); } catch {}
-                }
 
-                // Keep the chat visible for 25 seconds after the message is sent.
-                keepChatOpenAfterSend();
-            } else {
+            if (!text) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
                 closeChat();
+                return;
             }
 
-            input.value = "";
+            // Slash commands belong to the local chat command system.
+            if (text.startsWith("/")) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                runCommand(text);
+                input.value = "";
+                keepChatOpenAfterSend();
+                return;
+            }
+
+            // Normal multiplayer messages MUST be allowed to reach the
+            // multiplayer client's own Enter handler. Do not stop propagation,
+            // prevent the event, or clear the input here.
+            keepChatOpenAfterSend();
             return;
         }
 
@@ -141,17 +136,20 @@ function installChatInput() {
 
 function watchChatCreation() {
     installChatInput();
-    new MutationObserver(() => installChatInput()).observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+    const observer = new MutationObserver(() => installChatInput());
+    observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function createMobileChatButton() {
     if (document.getElementById("touchChatButton")) return;
+    const button = document.createElement("button");
+    button.id = "touchChatButton";
+    button.type = "button";
+    button.textContent = "CHAT";
+    button.addEventListener("click", () => openChat(""));
+    document.body.appendChild(button);
 
     const style = document.createElement("style");
-    style.id = "webMinecraftChatButtonStyles";
     style.textContent = `
 #touchChatButton{display:none;position:fixed;right:18px;top:18px;width:74px;min-height:44px;padding:8px 10px;z-index:190;pointer-events:auto;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#696969,#505050);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;user-select:none;-webkit-user-select:none;touch-action:none}
 body.mobile-mode.webminecraft-in-world #touchChatButton{display:block}
@@ -162,63 +160,51 @@ body:not(.mobile-mode) #touchChatButton{display:none!important}
 body.webminecraft-chat-open #multiplayerChat{display:block!important}
 `;
     document.head.appendChild(style);
-
-    const button = document.createElement("button");
-    button.id = "touchChatButton";
-    button.type = "button";
-    button.textContent = "CHAT";
-    button.setAttribute("aria-label", "Open chat");
-    button.addEventListener("pointerdown", event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openChat();
-    });
-    document.body.appendChild(button);
 }
 
 function isTypingInAnotherField(target) {
-    if (!target) return false;
-    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
-        return target.id !== "multiplayerChatInput";
-    }
-    return Boolean(target.isContentEditable);
+    if (!target || !target.tagName) return false;
+    const tag = target.tagName.toLowerCase();
+    return (tag === "input" || tag === "textarea" || target.isContentEditable) && !target.closest("#multiplayerChat");
 }
 
 function installKeyboardChat() {
-    // Capture on window so pointer-lock/canvas controls cannot swallow the shortcut.
     window.addEventListener("keydown", event => {
-        if (!isMultiplayerActive()) return;
-        if (isTypingInAnotherField(event.target)) return;
+        const target = event.target;
+        const input = chatInput();
+        const chatOpen = chatIsOpen();
 
-        const slashPressed = event.code === "Slash" || event.key === "/";
-        const enterPressed = event.code === "Enter" || event.key === "Enter";
-        const tPressed = event.code === "KeyT" || event.key.toLowerCase() === "t";
+        if (input && target === input) return;
+        if (isTypingInAnotherField(target)) return;
 
-        if (slashPressed) {
+        if (event.key === "Escape" && chatOpen) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            closeChat();
+            return;
+        }
+
+        if (event.key === "/" || event.code === "Slash") {
+            if (!isMultiplayerActive() && !chatElement()) return;
             event.preventDefault();
             event.stopImmediatePropagation();
             openChat("/");
             return;
         }
 
-        if (enterPressed && !chatIsOpen()) {
+        if (event.key.toLowerCase() === "t") {
+            if (!isMultiplayerActive() && !chatElement()) return;
             event.preventDefault();
             event.stopImmediatePropagation();
-            openChat();
+            openChat("");
             return;
         }
 
-        if (tPressed && !chatIsOpen() && !event.repeat) {
+        if (event.key === "Enter" && !chatOpen) {
+            if (!isMultiplayerActive() && !chatElement()) return;
             event.preventDefault();
             event.stopImmediatePropagation();
-            openChat();
-            return;
-        }
-
-        if (event.key === "Escape" && chatIsOpen()) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            closeChat();
+            openChat("");
         }
     }, true);
 }
@@ -229,20 +215,10 @@ function exposeChatAPI() {
 }
 
 function init() {
-    createMobileChatButton();
     watchChatCreation();
+    createMobileChatButton();
     installKeyboardChat();
     exposeChatAPI();
-
-    new MutationObserver(() => {
-        installChatInput();
-        if (!isMultiplayerActive() && chatIsOpen()) closeChat();
-    }).observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["class"]
-    });
 }
 
 if (document.readyState === "loading") {
