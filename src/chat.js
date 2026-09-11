@@ -29,15 +29,22 @@ function runCommand(raw) {
     }
 }
 
-function openChat() {
-    if (!inWorld()) return;
+function openChat(initialText = "") {
+    if (!inWorld() || !isMultiplayerActive()) return;
     document.body.classList.add(CHAT_CLASS);
+
     if (typeof window.__webminecraftOpenChatInput === "function") {
-        window.__webminecraftOpenChatInput();
+        window.__webminecraftOpenChatInput(initialText);
         return;
     }
+
     window.__webminecraftChatShow?.();
-    document.getElementById("multiplayerChatInput")?.focus();
+    const input = document.getElementById("multiplayerChatInput");
+    if (input) {
+        input.value = initialText;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+    }
 }
 
 function closeChat() {
@@ -93,26 +100,36 @@ body.webminecraft-chat-open #multiplayerChat{display:block!important}
 function init() {
     createMobileChatButton();
     watchChatCreation();
+
+    // Desktop chat shortcut: press / anywhere while playing.
+    // Use both event.key and event.code so it works reliably across keyboard layouts.
     document.addEventListener("keydown", event => {
-        if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
-        if (event.key === "/") {
-            if (!inWorld()) return;
+        const target = event.target;
+        const typing = target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            target?.isContentEditable;
+
+        if ((event.key === "/" || event.code === "Slash") && !typing) {
+            if (!inWorld() || !isMultiplayerActive()) return;
             event.preventDefault();
             event.stopImmediatePropagation();
             openChat();
             return;
         }
+
         if (event.key === "Escape" && chatIsOpen()) {
             event.preventDefault();
             event.stopImmediatePropagation();
             closeChat();
             return;
         }
-        if ((event.key === "Enter" || event.key.toLowerCase() === "t") && isMultiplayerActive()) {
+
+        if ((event.key === "Enter" || event.key.toLowerCase() === "t") && isMultiplayerActive() && !typing) {
             event.preventDefault();
             event.stopImmediatePropagation();
         }
     }, true);
+
     new MutationObserver(() => {
         if (!isMultiplayerActive() && chatIsOpen()) closeChat();
     }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
