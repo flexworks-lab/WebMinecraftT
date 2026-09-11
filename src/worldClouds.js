@@ -1,11 +1,11 @@
 import * as THREE from "three";
 
-const CLOUD_BLOCK_SIZE = 2.5;
-const CLOUD_ALTITUDE = 76;
-const CLOUD_CELL_SIZE = 48;
+const CLOUD_BLOCK_SIZE = 3;
+const CLOUD_ALTITUDE = 78;
+const CLOUD_CELL_SIZE = 64;
 const CLOUD_GRID_RADIUS = 5;
 const CLOUD_WRAP = 2048;
-const CLOUD_WIND_SPEED = 3.2;
+const CLOUD_WIND_SPEED = 0.9;
 
 let cloudRoot = null;
 let cloudSeed = 0;
@@ -19,7 +19,7 @@ let visibilityObserver = null;
 const cloudMaterial = new THREE.MeshLambertMaterial({
     color: 0xffffff,
     transparent: true,
-    opacity: 0.86,
+    opacity: 0.9,
     depthWrite: false,
     depthTest: true,
     fog: true,
@@ -51,31 +51,35 @@ body.webminecraft-in-world #discussionButton{display:none !important}
     document.head.appendChild(style);
 }
 
-function buildCloudShape(cellX, cellZ) {
-    const blocks = [];
-    const width = 4 + Math.floor(seedHash(cellX, cellZ, 17) * 5);
-    const depth = 2 + Math.floor(seedHash(cellX, cellZ, 23) * 3);
-
-    for (let x = -width; x <= width; x++) {
-        for (let z = -depth; z <= depth; z++) {
-            const distance = Math.abs(x) / Math.max(width, 1) + Math.abs(z) / Math.max(depth, 1);
-            const edge = seedHash(cellX * 31 + x, cellZ * 37 + z, 41);
-            if (distance > 1.05 && edge < 0.45) continue;
-            if (edge < 0.16) continue;
-
-            const y = seedHash(cellX * 13 + x, cellZ * 17 + z, 59) > 0.82 ? 1 : 0;
+function addRect(blocks, startX, endX, startZ, endZ, y) {
+    for (let x = startX; x <= endX; x++) {
+        for (let z = startZ; z <= endZ; z++) {
             blocks.push(new THREE.Vector3(x * CLOUD_BLOCK_SIZE, y * CLOUD_BLOCK_SIZE, z * CLOUD_BLOCK_SIZE));
         }
     }
+}
 
-    if (blocks.length < 8) {
-        blocks.push(
-            new THREE.Vector3(-CLOUD_BLOCK_SIZE, 0, 0),
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(CLOUD_BLOCK_SIZE, 0, 0),
-            new THREE.Vector3(0, CLOUD_BLOCK_SIZE, 0)
-        );
+function buildCloudShape(cellX, cellZ) {
+    const blocks = [];
+    const width = 7 + Math.floor(seedHash(cellX, cellZ, 17) * 7);
+    const depth = 3 + Math.floor(seedHash(cellX, cellZ, 23) * 4);
+
+    // Large rectangular Minecraft-style cloud base.
+    addRect(blocks, -width, width, -depth, depth, 0);
+
+    // Chunky rectangular upper sections make the cloud feel built from blocks.
+    const leftWidth = 2 + Math.floor(seedHash(cellX, cellZ, 31) * 4);
+    const middleWidth = 3 + Math.floor(seedHash(cellX, cellZ, 37) * 5);
+    const rightWidth = 2 + Math.floor(seedHash(cellX, cellZ, 43) * 4);
+
+    addRect(blocks, -width + 1, -width + leftWidth, -depth + 1, depth - 1, 1);
+    addRect(blocks, -middleWidth, middleWidth, -Math.max(1, depth - 2), Math.max(1, depth - 2), 1);
+    addRect(blocks, width - rightWidth, width - 1, -depth + 1, depth - 1, 1);
+
+    if (seedHash(cellX, cellZ, 53) > 0.35) {
+        addRect(blocks, -Math.max(2, middleWidth - 2), Math.max(2, middleWidth - 2), -1, 1, 2);
     }
+
     return blocks;
 }
 
@@ -94,9 +98,9 @@ function makeCloud(cellX, cellZ) {
     mesh.castShadow = false;
     mesh.receiveShadow = false;
 
-    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 71) - 0.5) * 20;
-    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 79) - 0.5) * 20;
-    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 83) - 0.5) * 4;
+    const baseX = cellX * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 71) - 0.5) * 28;
+    const baseZ = cellZ * CLOUD_CELL_SIZE + (seedHash(cellX, cellZ, 79) - 0.5) * 28;
+    const baseY = CLOUD_ALTITUDE + (seedHash(cellX, cellZ, 83) - 0.5) * 5;
 
     cloudRoot.add(mesh);
     cloudEntries.push({ mesh, cellX, cellZ, baseX, baseZ, baseY });
