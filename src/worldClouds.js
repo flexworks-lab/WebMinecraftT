@@ -16,6 +16,7 @@ let windDistance = 0;
 let running = false;
 let lastFrame = performance.now();
 let visibilityObserver = null;
+let sunMesh = null;
 
 // Bright, opaque white clouds so they are easy to see against the sky.
 const cloudMaterial = new THREE.MeshBasicMaterial({
@@ -34,6 +35,18 @@ const cloudGeometry = new THREE.BoxGeometry(
     CLOUD_HEIGHT,
     CLOUD_BLOCK_SIZE
 );
+
+// Simple bright 3D sun disc made entirely from geometry.
+const sunMaterial = new THREE.MeshBasicMaterial({
+    color: 0xfff29a,
+    transparent: false,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+    toneMapped: false
+});
+
+const sunGeometry = new THREE.SphereGeometry(8, 20, 12);
 
 function seedHash(a, b, c = 0) {
     let h = Math.imul((a | 0) ^ 0x9e3779b9, 374761393);
@@ -161,10 +174,23 @@ function makeCloud(cellX, cellZ) {
     cloudEntries.push({ mesh, baseX, baseZ, baseY });
 }
 
+function createSun() {
+    if (sunMesh || !cloudRoot) return;
+
+    sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+    sunMesh.name = "MinecraftSun";
+    sunMesh.position.set(45, 85, 30);
+    sunMesh.renderOrder = 20;
+    sunMesh.frustumCulled = false;
+    sunMesh.userData.isSun = true;
+    cloudRoot.add(sunMesh);
+}
+
 function clearClouds() {
     cloudEntries.length = 0;
     if (!cloudRoot) return;
     while (cloudRoot.children.length) cloudRoot.remove(cloudRoot.children[0]);
+    sunMesh = null;
 }
 
 function rebuildCloudField(seed) {
@@ -178,6 +204,8 @@ function rebuildCloudField(seed) {
             makeCloud(cellX, cellZ);
         }
     }
+
+    createSun();
 }
 
 function tick(now) {
