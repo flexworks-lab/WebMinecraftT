@@ -81,6 +81,19 @@ function ensureUi() {
             panel.style.display = "none";
         }
     });
+
+    // Leaving a multiplayer world through the game's Return to Main Menu
+    // button must close the page's WebSocket so the server immediately
+    // removes this player from its online count.
+    document.addEventListener("click", event => {
+        const target = event.target instanceof Element ? event.target.closest("button") : null;
+        if (!target || !window.__webminecraftMultiplayerActive) return;
+        const label = String(target.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+        if (!label.includes("main menu") || !label.includes("return")) return;
+        window.setTimeout(() => {
+            if (window.__webminecraftMultiplayerActive) window.location.reload();
+        }, 0);
+    }, true);
 }
 
 function renderPlayers(data) {
