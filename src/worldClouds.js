@@ -17,8 +17,7 @@ let running = false;
 let lastFrame = performance.now();
 let visibilityObserver = null;
 
-// MeshBasicMaterial keeps clouds bright white even when there is little/no world lighting.
-// This also avoids the dark/black cloud appearance from the old Lambert material.
+// Keep clouds bright instead of allowing them to render black under weak lighting.
 const cloudMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
@@ -28,7 +27,7 @@ const cloudMaterial = new THREE.MeshBasicMaterial({
     fog: true
 });
 
-// Clouds are exactly 1 unit tall and very wide.
+// Every cloud piece is exactly 1 unit tall and 2 units wide/deep.
 const cloudGeometry = new THREE.BoxGeometry(
     CLOUD_BLOCK_SIZE,
     CLOUD_HEIGHT,
@@ -50,7 +49,7 @@ function ensureStyles() {
     if (document.getElementById("webMinecraftWorldCloudFixes")) return;
     const style = document.createElement("style");
     style.id = "webMinecraftWorldCloudFixes";
-    // Keep unrelated in-world UI fixes, but DO NOT hide/replace any cloud textures.
+    // Only hide unrelated in-world UI. No cloud texture/element is hidden here.
     style.textContent = `
 body.webminecraft-in-world #devControlsButton,
 body.webminecraft-in-world #discussionButton{display:none !important}
@@ -61,7 +60,6 @@ body.webminecraft-in-world #discussionButton{display:none !important}
 function addRect(blocks, startX, endX, startZ, endZ) {
     for (let x = startX; x <= endX; x++) {
         for (let z = startZ; z <= endZ; z++) {
-            // Every cloud piece is on the exact same Y layer: no tall cloud stacks.
             blocks.push(new THREE.Vector3(
                 x * CLOUD_BLOCK_SIZE,
                 0,
@@ -74,13 +72,13 @@ function addRect(blocks, startX, endX, startZ, endZ) {
 function buildCloudShape(cellX, cellZ) {
     const blocks = [];
 
-    // Large flat base, with random proportions so the clouds are not perfect rectangles.
+    // Wide flat base. The shape is irregular, but never gets taller.
     const width = 6 + Math.floor(seedHash(cellX, cellZ, 17) * 7); // 13-27 blocks wide
     const depth = 2 + Math.floor(seedHash(cellX, cellZ, 23) * 4); // 5-9 blocks deep
 
     addRect(blocks, -width, width, -depth, depth);
 
-    // Add flat side/center extensions on the SAME layer to make irregular Minecraft shapes.
+    // Flat side/front/back extensions create the blocky Minecraft silhouette.
     const leftExtra = 2 + Math.floor(seedHash(cellX, cellZ, 31) * 5);
     const rightExtra = 2 + Math.floor(seedHash(cellX, cellZ, 37) * 5);
     const frontExtra = Math.floor(seedHash(cellX, cellZ, 41) * 3);
@@ -94,19 +92,6 @@ function buildCloudShape(cellX, cellZ) {
     }
     if (backExtra > 0) {
         addRect(blocks, -Math.max(2, width - 2), Math.max(2, width - 2), depth, depth + backExtra);
-    }
-
-    // Small cut-outs keep the silhouette cloud-like without ever adding height.
-    if (seedHash(cellX, cellZ, 53) > 0.35) {
-        const cutWidth = 1 + Math.floor(seedHash(cellX, cellZ, 59) * 3);
-        const cutDepth = 1 + Math.floor(seedHash(cellX, cellZ, 61) * 2);
-        const side = seedHash(cellX, cellZ, 67) > 0.5 ? 1 : -1;
-        if (side < 0) {
-            // Leave the outer edge irregular by simply not adding anything there.
-            // The base remains one flat layer.
-        }
-        void cutWidth;
-        void cutDepth;
     }
 
     return blocks;
@@ -146,7 +131,7 @@ function rebuildCloudField(seed) {
     cloudSeed = (Math.floor(Math.abs(Number(seed))) >>> 0) || 0;
     clearClouds();
 
-    // Much denser field so there are plenty of clouds across the sky.
+    // Dense field so there are many clouds across the sky.
     for (let cellX = -CLOUD_GRID_RADIUS; cellX <= CLOUD_GRID_RADIUS; cellX++) {
         for (let cellZ = -CLOUD_GRID_RADIUS; cellZ <= CLOUD_GRID_RADIUS; cellZ++) {
             if (seedHash(cellX, cellZ, 97) < 0.42) continue;
