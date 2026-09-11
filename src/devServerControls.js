@@ -67,7 +67,7 @@ function addServerStyles() {
     const style = document.createElement("style");
     style.id = "devServerControlsStyles";
     style.textContent = `
-#devServerSection{display:block}.devServerList{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}.devServerCard{background:#171717;border:1px solid #414141;padding:10px}.devServerHead{display:flex;align-items:center;gap:8px}.devServerName{font-weight:700;font-size:13px;flex:1}.devServerCount{font-size:10px;color:#9fce72}.devServerPlayers{display:flex;flex-direction:column;gap:5px;margin:8px 0}.devPlayer{display:flex;align-items:center;gap:7px;background:#252525;border:1px solid #444;padding:6px 7px;font-size:10px}.devPlayerName{display:flex;align-items:center;gap:6px;flex:1;min-width:0}.devPlayerSelect{width:14px;height:14px;margin:0;accent-color:#9fce72}.devKick,.devWarnOne{border:1px solid #111;background:#633f3b;color:#fff;padding:3px 6px;cursor:pointer;font-size:9px}.devWarnOne{background:#735d34}.devPlayerTools{display:flex;gap:5px;flex-wrap:wrap}.devWarningActions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.devServerActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.devServerChat{margin-top:9px;background:#111;border:1px solid #333;padding:8px}.devServerChatFeed{height:130px;overflow:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:7px}.devServerChatLine{font-size:10px;line-height:1.35;color:#eee}.devServerChatLine strong{color:#b8dc95}.devServerChatInputRow{display:flex;gap:6px}.devServerChatInput{min-width:0;flex:1;background:#222;border:1px solid #555;color:#fff;padding:7px;font-size:11px}.devServerChatSend{min-width:65px}.devRandomReminder{width:100%;margin-bottom:6px}.devServerEmpty{color:#888;font-size:11px;padding:8px;background:#171717;border:1px solid #333}@media(max-width:650px){.devServerActions,.devWarningActions{grid-template-columns:1fr}.devServerChatInputRow{flex-direction:column}}
+#devServerSection{display:block}.devServerList{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}.devServerCard{background:#171717;border:1px solid #414141;padding:10px}.devServerHead{display:flex;align-items:center;gap:8px}.devServerName{font-weight:700;font-size:13px;flex:1}.devServerCount{font-size:10px;color:#9fce72}.devServerPlayers{display:flex;flex-direction:column;gap:5px;margin:8px 0}.devPlayer{display:flex;align-items:center;gap:7px;background:#252525;border:1px solid #444;padding:6px 7px;font-size:10px}.devPlayerName{display:flex;align-items:center;gap:6px;flex:1;min-width:0}.devPlayerSelect{width:14px;height:14px;margin:0;accent-color:#9fce72}.devKick,.devWarnOne{border:1px solid #111;background:#633f3b;color:#fff;padding:3px 6px;cursor:pointer;font-size:9px}.devWarnOne{background:#735d34}.devPlayerTools{display:flex;gap:5px;flex-wrap:wrap}.devWarningActions{margin-top:7px}.devServerActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.devServerChat{margin-top:9px;background:#111;border:1px solid #333;padding:8px}.devServerChatFeed{height:130px;overflow:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:7px}.devServerChatLine{font-size:10px;line-height:1.35;color:#eee}.devServerChatLine strong{color:#b8dc95}.devServerChatInputRow{display:flex;gap:6px}.devServerChatInput{min-width:0;flex:1;background:#222;border:1px solid #555;color:#fff;padding:7px;font-size:11px}.devServerChatSend{min-width:65px}.devRandomReminder{width:100%;margin-bottom:6px}.devServerEmpty{color:#888;font-size:11px;padding:8px;background:#171717;border:1px solid #333}@media(max-width:650px){.devServerActions{grid-template-columns:1fr}.devServerChatInputRow{flex-direction:column}}
 `;
     document.head.appendChild(style);
 }
@@ -181,12 +181,11 @@ function renderServers(servers) {
             });
             const warningActions = document.createElement("div");
             warningActions.className = "devWarningActions";
-            warningActions.innerHTML = `<button class="devButton devWarnSelected" type="button">Warn Selected</button><button class="devButton" type="button">Clear Selection</button>`;
+            warningActions.innerHTML = `<button class="devButton danger devWarnSelected" type="button">Warn Selected</button>`;
             warningActions.querySelector(".devWarnSelected").addEventListener("click", () => {
                 const selected = [...(selectedWarningPlayers.get(String(server.id)) || [])];
                 warnPlayers(server.id, selected);
             });
-            warningActions.querySelector("button:not(.devWarnSelected)").addEventListener("click", () => clearSelectedPlayers(server.id));
             playersEl.appendChild(warningActions);
         }
         const feed = card.querySelector(".devServerChatFeed");
@@ -233,11 +232,6 @@ function setPlayerSelection(serverId, playerId, selected) {
     if (selected) set.add(player);
     else set.delete(player);
     if (!set.size) selectedWarningPlayers.delete(id);
-}
-
-function clearSelectedPlayers(serverId) {
-    selectedWarningPlayers.delete(String(serverId));
-    refreshServers();
 }
 
 async function runAction(body) {
