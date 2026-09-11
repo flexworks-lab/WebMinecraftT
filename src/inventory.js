@@ -77,13 +77,18 @@ function createInventoryUI() {
     mobileButton.addEventListener("click", openInventory);
     document.body.appendChild(mobileButton);
 
+    const held = document.createElement("div");
+    held.id = "heldBlock";
+    held.innerHTML = `<div class="heldHand"></div><div class="heldBlockImage"></div>`;
+    document.body.appendChild(held);
+
     const style = document.createElement("style");
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
 #inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.58);z-index:150;pointer-events:auto;font-family:Arial,sans-serif}
 #inventoryScreen.open{display:flex}
 #inventoryPanel{width:min(620px,94vw);padding:12px;background:#383838;border:3px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:8px 8px 0 rgba(0,0,0,.6),inset 2px 2px 0 #555;color:#fff;image-rendering:pixelated}
-#inventoryHeader{height:42px;display:flex;align-items:center;justify-content:space-between;font-family:"MinecraftFont",monospace;font-size:20px;text-shadow:2px 2px 0 #111;padding:0 4px 8px}
+#inventoryHeader{height:42px;display:flex;align-items:center;justify-content:space-between;font-size:20px;text-shadow:2px 2px 0 #111;padding:0 4px 8px}
 #inventoryClose{width:34px;height:34px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#666;color:#fff;font-size:25px;line-height:24px;cursor:pointer}
 #inventoryGrid{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;padding:7px;background:#202020;border:2px solid #111}
 .inventorySlot{position:relative;aspect-ratio:1;border:2px solid #555;border-top-color:#222;border-left-color:#222;background:#8b8b8b;cursor:pointer;touch-action:none}
@@ -94,7 +99,12 @@ function createInventoryUI() {
 #inventoryHint{padding:9px 3px 1px;color:#aaa;font-size:11px;text-align:center}
 #inventoryMobileButton{display:none;position:fixed;right:18px;bottom:84px;width:54px;height:54px;z-index:90;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#555;color:#fff;font-size:27px;box-shadow:0 3px 0 #171717;touch-action:manipulation}
 body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block}
-@media(max-width:700px){#inventoryPanel{width:96vw;padding:8px}#inventoryGrid{gap:3px}.inventoryTexture{inset:4px}.inventoryCount{font-size:12px}}
+#heldBlock{position:fixed;right:5.5vw;bottom:5.5vh;width:150px;height:150px;z-index:80;display:none;pointer-events:none;transform:rotate(-7deg);filter:drop-shadow(5px 7px 2px rgba(0,0,0,.35));image-rendering:pixelated}
+body.webminecraft-in-world #heldBlock{display:block}
+#heldBlockImage{position:absolute;right:8px;top:6px;width:105px;height:105px;background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated;transform:perspective(180px) rotateX(8deg) rotateY(-10deg) rotateZ(-3deg)}
+#heldBlockImage:after{content:"";position:absolute;inset:0;box-shadow:inset 7px 7px 0 rgba(255,255,255,.13),inset -8px -8px 0 rgba(0,0,0,.2)}
+.heldHand{position:absolute;right:0;bottom:0;width:72px;height:68px;background:#d59b72;border:4px solid #6b432f;box-shadow:inset -8px -8px 0 rgba(100,55,35,.18);transform:rotate(-8deg);z-index:-1}
+@media(max-width:700px){#inventoryPanel{width:96vw;padding:8px}#inventoryGrid{gap:3px}.inventoryTexture{inset:4px}.inventoryCount{font-size:12px}#heldBlock{right:1vw;bottom:17vh;width:105px;height:105px}#heldBlockImage{width:74px;height:74px}.heldHand{width:52px;height:48px;border-width:3px}}
 `;
     document.head.appendChild(style);
     screen.addEventListener("pointerdown", event => { if (event.target === screen) closeInventory(); });
@@ -129,13 +139,34 @@ function renderInventory() {
 }
 
 function syncHotbar() {
+    const BASE = import.meta.env.BASE_URL;
     document.querySelectorAll("#hotbar .slot").forEach((slotEl, index) => {
         const slot = inventory[index];
         let countEl = slotEl.querySelector(".hotbarCount");
         if (!countEl) { countEl = document.createElement("span"); countEl.className = "hotbarCount"; slotEl.appendChild(countEl); }
         countEl.textContent = slot?.count > 1 ? slot.count : "";
-        if (slot) slotEl.title = `${getItem(slot.itemId)?.name || "Item"} (${slot.count})`;
+        if (slot) {
+            const item = getItem(slot.itemId);
+            slotEl.title = `${item?.name || "Item"} (${slot.count})`;
+            const textureEl = slotEl.querySelector(".hotbarTexture");
+            if (textureEl && item) textureEl.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
+        }
     });
+    updateHeldBlock();
+}
+
+function updateHeldBlock() {
+    const held = document.getElementById("heldBlock");
+    const image = document.querySelector("#heldBlock .heldBlockImage");
+    if (!held || !image) return;
+    const inWorld = document.body.classList.contains("webminecraft-in-world");
+    const item = inventory[window.webMinecraftSelectedSlot || 0];
+    if (!inWorld || !item) { held.style.display = "none"; return; }
+    const info = getItem(item.itemId);
+    if (!info) { held.style.display = "none"; return; }
+    image.style.backgroundImage = `url('${textureUrl(info.texture)}')`;
+    held.style.display = "block";
+    held.title = info.name;
 }
 
 export function getSelectedItemId(slotIndex) { return inventory[slotIndex]?.itemId ?? null; }
@@ -146,6 +177,12 @@ export function setupInventory() {
     loadInventory();
     createInventoryUI();
     renderInventory();
+    window.webMinecraftSelectedSlot = 0;
+    updateHeldBlock();
+    window.addEventListener("webminecraft:selectedslot", event => {
+        window.webMinecraftSelectedSlot = event.detail?.slot ?? 0;
+        updateHeldBlock();
+    });
     document.addEventListener("keydown", event => {
         if (event.key.toLowerCase() === "e" && !event.repeat && document.body.classList.contains("webminecraft-in-world")) {
             event.preventDefault();
@@ -153,6 +190,8 @@ export function setupInventory() {
         }
         if (event.key === "Escape" && inventoryOpen) closeInventory();
     });
+    const worldObserver = new MutationObserver(updateHeldBlock);
+    worldObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 
 function openInventory() {
