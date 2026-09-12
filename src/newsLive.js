@@ -1,6 +1,7 @@
 const NEWS_COLLECTION = "news";
 const NEWS_SEEN_KEY = "webminecraft-news-seen-live-v2";
 const PREVIEW_LENGTH = 110;
+const TITLE_IMAGE_PATH = "./WEBMINECRAFT-9-12-2026.png";
 
 let firebaseReady = null;
 let latestDocs = [];
@@ -199,11 +200,37 @@ function installLiveNews() {
     });
 }
 
+function installGameTitleImage() {
+    if (document.getElementById("webminecraftTitleImage")) return;
+    const title = document.getElementById("menuTitle");
+    if (!title) return;
+
+    const image = document.createElement("img");
+    image.id = "webminecraftTitleImage";
+    image.src = TITLE_IMAGE_PATH;
+    image.alt = "WebMinecraftT";
+    image.decoding = "async";
+    image.loading = "eager";
+    image.style.display = "block";
+    image.style.width = "min(560px, 92vw)";
+    image.style.maxWidth = "100%";
+    image.style.height = "auto";
+    image.style.maxHeight = "90px";
+    image.style.objectFit = "contain";
+    image.style.objectPosition = "center";
+    image.style.margin = "0 auto 16px";
+    image.style.filter = "drop-shadow(0 5px 3px rgba(0,0,0,.65))";
+
+    title.replaceWith(image);
+}
+
 function watchNewsUi() {
+    installGameTitleImage();
     installLiveNews();
     if (attached) return;
 
     const observer = new MutationObserver(() => {
+        installGameTitleImage();
         installLiveNews();
         if (attached) observer.disconnect();
     });
