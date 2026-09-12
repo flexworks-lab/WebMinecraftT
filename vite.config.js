@@ -47,6 +47,14 @@ const gameplayUiPlugin = {
             return { code, map: null };
         }
 
+        if (id.endsWith("/src/inventory.js")) {
+            code = code.replace(
+                'texture: "Grass_Block_(top_texture)_JE2.png"',
+                'texture: "grass_block_side.png"'
+            );
+            return { code, map: null };
+        }
+
         if (id.endsWith("/src/playerList.js")) {
             code = code.replace(
                 "if (!mainMenuVisible && !active) {",
