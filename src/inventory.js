@@ -101,6 +101,19 @@ function removeItem(slotIndex, amount = 1) {
     return true;
 }
 
+export function clearHotbar() {
+    let changed = false;
+    for (let i = 0; i < HOTBAR_SIZE; i++) {
+        if (inventory[i] !== null) {
+            inventory[i] = null;
+            changed = true;
+        }
+    }
+    if (changed) saveInventory();
+    renderInventory();
+    updateHeldBlock();
+}
+
 function itemMatchesSearch(item) {
     if (!searchQuery.trim()) return true;
     return item.name.toLowerCase().includes(searchQuery.trim().toLowerCase());
@@ -366,6 +379,14 @@ function syncHotbar() {
                     const texture = document.createElement("span");
                     texture.className = "hotbarTexture";
                     texture.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
+                    texture.style.backgroundPosition = "center";
+                    texture.style.backgroundSize = "100% 100%";
+                    texture.style.backgroundRepeat = "no-repeat";
+                    texture.style.imageRendering = "pixelated";
+                    texture.style.position = "absolute";
+                    texture.style.inset = "5px";
+                    texture.style.pointerEvents = "none";
+                    texture.style.zIndex = "1";
                     slotEl.appendChild(texture);
                 } else {
                     textureEl.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
