@@ -5,44 +5,64 @@ const FIREBASE_VERSION = "12.18.0";
 let firebaseReadyPromise = null;
 let currentUser = null;
 let database = null;
-let friendRequestUnsubscribe = null;
-let friendsUnsubscribe = null;
 let initialized = false;
+let requestRef = null;
+let sentRequestRef = null;
+let friendsRef = null;
+let requestHandler = null;
+let sentRequestHandler = null;
+let friendsHandler = null;
+let authUnsubscribe = null;
 
 function waitForFirebase() {
     if (firebaseReadyPromise) return firebaseReadyPromise;
     firebaseReadyPromise = new Promise(resolve => {
-        const start = Date.now();
+        const started = Date.now();
         const check = () => {
-            if (window.firebase?.auth && window.firebase?.database) return resolve(true);
-            if (window.firebase?.auth && !window.firebase?.database && !document.querySelector(`script[src*="firebase-database-compat"]`)) {
+            if (window.firebase?.auth && window.firebase?.database) {
+                try {
+                    database = window.firebase.database();
+                    resolve(true);
+                } catch (error) {
+                    console.warn("Could not initialize Realtime Database:", error);
+                    resolve(false);
+                }
+                return;
+            }
+            if (window.firebase?.auth && !window.firebase?.database && !document.querySelector('script[src*="firebase-database-compat"]')) {
                 const script = document.createElement("script");
                 script.src = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-database-compat.js`;
                 script.async = true;
-                script.onload = () => resolve(!!window.firebase?.database);
+                script.onload = () => {
+                    try {
+                        database = window.firebase.database();
+                        resolve(true);
+                    } catch (error) {
+                        console.warn("Could not initialize Realtime Database:", error);
+                        resolve(false);
+                    }
+                };
                 script.onerror = () => resolve(false);
                 document.head.appendChild(script);
                 return;
             }
-            if (Date.now() - start > 10000) return resolve(false);
+            if (Date.now() - started > 10000) {
+                resolve(false);
+                return;
+            }
             setTimeout(check, 80);
         };
         check();
-    }).then(ready => {
-        if (!ready) return false;
-        try {
-            database = window.firebase.database();
-            return true;
-        } catch (error) {
-            console.warn("Could not initialize Realtime Database:", error);
-            return false;
-        }
     });
     return firebaseReadyPromise;
 }
 
 function getAuthUser() {
-    try { return window.firebase?.auth?.().currentUser || null; } catch { return null; }
+    try {
+        return window.firebase?.auth?.().currentUser || null;
+    } catch {
+        return null;
+    }
 }
 
 function makeFriendCode(uid) {
@@ -104,8 +124,9 @@ function addStyles() {
 #friendsStatus{min-height:20px;margin:8px 0 0;color:#aaa;font-size:12px;line-height:1.4;text-align:center}
 #friendsSections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
 .friendsList{min-height:120px}
+.friendSectionLabel{padding:8px 2px 4px;color:#aaa;font:11px MinecraftFont,monospace;text-transform:uppercase;letter-spacing:.7px}
 .friendFullRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;margin:7px 0;background:#303030;border:1px solid #4d4d4d}
-.friendFullName{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.friendFullMeta{font-size:10px;color:#999;margin-top:3px}.friendFullActions{display:flex;gap:6px;flex:0 0 auto}.friendSmallAction{min-height:32px;padding:5px 10px;background:#4d4d4d;border:1px solid #777;color:#fff;cursor:pointer}.friendSmallAction.accept{background:#5e8242}.friendSmallAction.decline{background:#6a3f3f}.friendEmpty{padding:16px;color:#888;background:#181818;border:1px solid #333;font-size:12px;text-align:center}
+.friendFullName{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.friendFullMeta{font-size:10px;color:#999;margin-top:3px}.friendFullActions{display:flex;gap:6px;flex:0 0 auto}.friendSmallAction{min-height:32px;padding:5px 10px;background:#4d4d4d;border:1px solid #777;color:#fff;cursor:pointer}.friendSmallAction.accept{background:#5e8242}.friendSmallAction.decline,.friendSmallAction.unfriend{background:#6a3f3f}.friendSmallAction:disabled{opacity:.55;cursor:default}.friendEmpty{padding:16px;color:#888;background:#181818;border:1px solid #333;font-size:12px;text-align:center}
 @media(max-width:850px){#friendsPage{padding:18px 14px 30px}#friendsGrid{grid-template-columns:1fr}#friendsSections{grid-template-columns:1fr}#friendsTop{align-items:flex-start}.friendsCard{padding:17px}}
 @media(max-width:560px){#friendsButton{left:calc(50vw + 6px) !important;bottom:18px !important;width:calc(50vw - 18px) !important;height:46px !important}.friendsBadge{min-width:17px !important;height:17px !important}}
 `;
@@ -131,7 +152,9 @@ function createUi() {
   </div>
 </div>`;
     document.body.appendChild(modal);
-    modal.addEventListener("click", event => { if (event.target === modal || event.target.id === "friendsPage") closeFriends(); });
+    modal.addEventListener("click", event => {
+        if (event.target === modal || event.target.id === "friendsPage") closeFriends();
+    });
     modal.querySelector("#friendsClose").addEventListener("click", closeFriends);
     modal.querySelector("#friendsCopy").addEventListener("click", copyCode);
     modal.querySelector("#friendsAdd").addEventListener("click", addFriend);
@@ -146,14 +169,19 @@ function createUi() {
     });
 }
 
-function getButton() { return document.getElementById("friendsButton"); }
-function getFriendCode() { return currentUser?.uid ? makeFriendCode(currentUser.uid) : ""; }
+function getButton() {
+    return document.getElementById("friendsButton");
+}
+
+function getFriendCode() {
+    return currentUser?.uid ? makeFriendCode(currentUser.uid) : "";
+}
 
 function setStatus(text, type = "") {
-    const el = document.getElementById("friendsStatus");
-    if (!el) return;
-    el.textContent = text || "";
-    el.style.color = type === "error" ? "#ff8b8b" : type === "success" ? "#9dcc76" : "#aaa";
+    const element = document.getElementById("friendsStatus");
+    if (!element) return;
+    element.textContent = text || "";
+    element.style.color = type === "error" ? "#ff8b8b" : type === "success" ? "#9dcc76" : "#aaa";
 }
 
 function updateBadge(count = 0) {
@@ -162,7 +190,7 @@ function updateBadge(count = 0) {
     const total = Math.max(0, Number(count) || 0);
     button.classList.toggle("friendAlert", total > 0);
     button.querySelector(".friendsBadge")?.remove();
-    if (total <= 0) return;
+    if (!total) return;
     const badge = document.createElement("span");
     badge.className = "friendsBadge";
     badge.textContent = total > 99 ? "99+" : String(total);
@@ -185,30 +213,30 @@ async function openFriends() {
         renderSignedOut();
         return;
     }
+    if (!requestRef || !friendsRef) startLiveSync();
     await syncPublicProfile();
-    await refreshFriends();
 }
 
 function renderStaticData() {
-    const value = document.getElementById("friendsCodeValue");
-    if (value) value.textContent = getFriendCode() || "--------";
+    const code = document.getElementById("friendsCodeValue");
+    if (code) code.textContent = getFriendCode() || "--------";
 }
 
 function renderSignedOut() {
     document.getElementById("friendsCodeValue")?.replaceChildren(document.createTextNode("--------"));
-    document.getElementById("friendsRequests").innerHTML = '<div class="friendEmpty">Sign in to see requests.</div>';
-    document.getElementById("friendsList").innerHTML = '<div class="friendEmpty">Sign in to see friends.</div>';
+    const requests = document.getElementById("friendsRequests");
+    const friends = document.getElementById("friendsList");
+    if (requests) requests.innerHTML = '<div class="friendEmpty">Sign in to see requests.</div>';
+    if (friends) friends.innerHTML = '<div class="friendEmpty">Sign in to see friends.</div>';
     updateBadge(0);
 }
 
 async function syncPublicProfile() {
     if (!database || !currentUser) return;
-    const code = getFriendCode();
-    const profileRef = database.ref(`publicProfiles/${currentUser.uid}`);
-    await profileRef.update({
+    await database.ref(`publicProfiles/${currentUser.uid}`).update({
         uid: currentUser.uid,
         displayName: currentUser.displayName || "Player",
-        friendCode: code,
+        friendCode: getFriendCode(),
         updatedAt: window.firebase.database.ServerValue.TIMESTAMP
     });
 }
@@ -225,13 +253,22 @@ async function copyCode() {
 }
 
 async function addFriend() {
-    if (!(await waitForFirebase()) || !currentUser) return setStatus("Sign in to add friends.", "error");
+    if (!(await waitForFirebase()) || !currentUser) {
+        setStatus("Sign in to add friends.", "error");
+        return;
+    }
     const input = document.getElementById("friendsCodeInput");
     const button = document.getElementById("friendsAdd");
     if (!input || !button) return;
     const code = input.value.replace(/\s+/g, "").toUpperCase();
-    if (!code) return setStatus("Enter a friend code.", "error");
-    if (code === getFriendCode()) return setStatus("You cannot add yourself.", "error");
+    if (!code) {
+        setStatus("Enter a friend code.", "error");
+        return;
+    }
+    if (code === getFriendCode()) {
+        setStatus("You cannot add yourself.", "error");
+        return;
+    }
 
     button.disabled = true;
     button.textContent = "Sending…";
@@ -250,20 +287,22 @@ async function addFriend() {
         }
 
         const requestId = `${currentUser.uid}_${target.uid}`;
-        const incomingRef = database.ref(`friendRequests/${target.uid}/${requestId}`);
-        const sentRef = database.ref(`sentFriendRequests/${currentUser.uid}/${requestId}`);
-        const friendRef = database.ref(`friends/${currentUser.uid}/${target.uid}`);
-
-        const [existingIncoming, existingSent, existingFriend] = await Promise.all([
-            incomingRef.once("value"),
-            sentRef.once("value"),
-            friendRef.once("value")
+        const paths = {
+            incoming: `friendRequests/${target.uid}/${requestId}`,
+            sent: `sentFriendRequests/${currentUser.uid}/${requestId}`,
+            mineFriend: `friends/${currentUser.uid}/${target.uid}`
+        };
+        const [incomingSnap, sentSnap, friendSnap] = await Promise.all([
+            database.ref(paths.incoming).once("value"),
+            database.ref(paths.sent).once("value"),
+            database.ref(paths.mineFriend).once("value")
         ]);
-        if (existingFriend.exists()) {
+
+        if (friendSnap.exists()) {
             setStatus("You are already friends.", "error");
             return;
         }
-        if (existingIncoming.exists() || existingSent.exists()) {
+        if (incomingSnap.exists() || sentSnap.exists()) {
             setStatus("A request is already pending.", "error");
             return;
         }
@@ -280,9 +319,10 @@ async function addFriend() {
             createdAt: window.firebase.database.ServerValue.TIMESTAMP,
             updatedAt: window.firebase.database.ServerValue.TIMESTAMP
         };
+
         const updates = {};
-        updates[`friendRequests/${target.uid}/${requestId}`] = request;
-        updates[`sentFriendRequests/${currentUser.uid}/${requestId}`] = request;
+        updates[paths.incoming] = request;
+        updates[paths.sent] = request;
         await database.ref().update(updates);
         input.value = "";
         setStatus(`Friend request sent to ${target.displayName || "Player"}.`, "success");
@@ -292,16 +332,24 @@ async function addFriend() {
     } finally {
         button.disabled = false;
         button.textContent = "Send Friend Request";
-        await refreshFriends();
     }
 }
 
-async function respondToRequest(request, accept) {
-    if (!currentUser || !database || !request?.fromUid || !request?.requestId) return;
+async function respondToRequest(requestId, accept) {
+    if (!database || !currentUser || !requestId) return;
+    const button = document.querySelector(`[data-request-action="${esc(requestId)}"]`);
+    if (button) button.disabled = true;
+
     try {
+        const incomingRef = database.ref(`friendRequests/${currentUser.uid}/${requestId}`);
+        const snapshot = await incomingRef.once("value");
+        const request = snapshot.val();
+        if (!request?.fromUid) return;
+
         const updates = {};
-        const incomingPath = `friendRequests/${currentUser.uid}/${request.requestId}`;
-        const sentPath = `sentFriendRequests/${request.fromUid}/${request.requestId}`;
+        updates[`friendRequests/${currentUser.uid}/${requestId}`] = null;
+        updates[`sentFriendRequests/${request.fromUid}/${requestId}`] = null;
+
         if (accept) {
             updates[`friends/${currentUser.uid}/${request.fromUid}`] = {
                 uid: request.fromUid,
@@ -314,146 +362,241 @@ async function respondToRequest(request, accept) {
                 friendCode: getFriendCode()
             };
         }
-        updates[incomingPath] = null;
-        updates[sentPath] = null;
+
         await database.ref().update(updates);
         setStatus(accept ? `You are now friends with ${request.fromName || "Player"}!` : "Friend request declined.", accept ? "success" : "");
-        await refreshFriends();
     } catch (error) {
         console.warn("RTDB friend response failed:", error);
-        setStatus("Could not update that friend request.", "error");
+        setStatus(error?.code === "PERMISSION_DENIED" ? "Friend request update blocked by Realtime Database rules." : "Could not update that friend request.", "error");
     }
 }
 
-function renderRequestsSnapshot(snapshot) {
-    const requestsEl = document.getElementById("friendsRequests");
-    if (!requestsEl) return;
-    const requests = [];
-    snapshot.forEach(child => {
-        const value = child.val() || {};
-        if (value.status === "pending") requests.push({ id: child.key, ...value });
-    });
-    requests.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-    requestsEl.innerHTML = requests.length
-        ? requests.map(x => `<div class="friendFullRow"><div><div class="friendFullName">${esc(x.fromName || "Player")}</div><div class="friendFullMeta">Friend request</div></div><div class="friendFullActions"><button class="friendSmallAction accept" data-accept="${esc(x.id)}">Accept</button><button class="friendSmallAction decline" data-decline="${esc(x.id)}">Decline</button></div></div>`).join("")
-        : '<div class="friendEmpty">No pending requests.</div>';
-    requestsEl.querySelectorAll("[data-accept]").forEach(btn => btn.addEventListener("click", () => respondToRequest(requests.find(x => x.id === btn.dataset.accept), true)));
-    requestsEl.querySelectorAll("[data-decline]").forEach(btn => btn.addEventListener("click", () => respondToRequest(requests.find(x => x.id === btn.dataset.decline), false)));
+async function unfriend(friendUid) {
+    if (!database || !currentUser || !friendUid || friendUid === currentUser.uid) return;
+    const button = document.querySelector(`[data-unfriend="${esc(friendUid)}"]`);
+    if (button) {
+        button.disabled = true;
+        button.textContent = "Removing…";
+    }
+    try {
+        const updates = {};
+        updates[`friends/${currentUser.uid}/${friendUid}`] = null;
+        updates[`friends/${friendUid}/${currentUser.uid}`] = null;
+        await database.ref().update(updates);
+        setStatus("Friend removed.", "success");
+    } catch (error) {
+        console.warn("RTDB unfriend failed:", error);
+        setStatus(error?.code === "PERMISSION_DENIED" ? "Unfriend blocked by Realtime Database rules." : "Could not remove that friend.", "error");
+    }
 }
 
-function renderFriendsSnapshot(snapshot) {
-    const listEl = document.getElementById("friendsList");
-    if (!listEl) return;
-    const friends = [];
-    snapshot.forEach(child => friends.push({ id: child.key, ...(child.val() || {}) }));
+function getSnapshotRows(snapshot) {
+    const rows = [];
+    snapshot.forEach(child => {
+        const value = child.val() || {};
+        rows.push({ id: child.key, ...value });
+    });
+    return rows;
+}
+
+function renderIncomingRequests(rows) {
+    const requests = rows.filter(request => request.status === "pending");
+    requests.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    return requests.map(request => `
+        <div class="friendFullRow">
+            <div style="min-width:0">
+                <div class="friendFullName">${esc(request.fromName || "Player")}</div>
+                <div class="friendFullMeta">Incoming friend request</div>
+            </div>
+            <div class="friendFullActions">
+                <button class="friendSmallAction accept" type="button" data-request-action="${esc(request.id)}" data-action-accept="${esc(request.id)}">Accept</button>
+                <button class="friendSmallAction decline" type="button" data-request-action="${esc(request.id)}" data-action-decline="${esc(request.id)}">Decline</button>
+            </div>
+        </div>`).join("");
+}
+
+function renderSentRequests(rows) {
+    const requests = rows.filter(request => request.status === "pending");
+    requests.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    return requests.map(request => `
+        <div class="friendFullRow">
+            <div style="min-width:0">
+                <div class="friendFullName">${esc(request.toName || "Player")}</div>
+                <div class="friendFullMeta">Pending request</div>
+            </div>
+            <div class="friendFullActions"><span style="padding:8px 6px;color:#aaa;font-size:11px">Pending…</span></div>
+        </div>`).join("");
+}
+
+function renderRequests(incomingSnapshot, sentSnapshot) {
+    const element = document.getElementById("friendsRequests");
+    if (!element) return;
+    const incoming = getSnapshotRows(incomingSnapshot);
+    const sent = getSnapshotRows(sentSnapshot);
+    const incomingPending = incoming.filter(x => x.status === "pending");
+    const sentPending = sent.filter(x => x.status === "pending");
+    updateBadge(incomingPending.length);
+
+    const incomingHtml = renderIncomingRequests(incoming);
+    const sentHtml = renderSentRequests(sent);
+    const parts = [];
+    if (incomingHtml) parts.push(`<div class="friendSectionLabel">Incoming</div>${incomingHtml}`);
+    if (sentHtml) parts.push(`<div class="friendSectionLabel">Sent</div>${sentHtml}`);
+    element.innerHTML = parts.length ? parts.join("") : '<div class="friendEmpty">No pending requests.</div>';
+}
+
+function renderFriends(snapshot) {
+    const element = document.getElementById("friendsList");
+    if (!element) return;
+    const friends = getSnapshotRows(snapshot);
     friends.sort((a, b) => String(a.name || "Player").localeCompare(String(b.name || "Player")));
-    listEl.innerHTML = friends.length
-        ? friends.map(x => `<div class="friendFullRow"><div><div class="friendFullName">${esc(x.name || "Player")}</div><div class="friendFullMeta">Friend</div></div></div>`).join("")
+    element.innerHTML = friends.length
+        ? friends.map(friend => `
+            <div class="friendFullRow">
+                <div style="min-width:0">
+                    <div class="friendFullName">${esc(friend.name || "Player")}</div>
+                    <div class="friendFullMeta">Friend${friend.friendCode ? ` • ${esc(friend.friendCode)}` : ""}</div>
+                </div>
+                <div class="friendFullActions">
+                    <button class="friendSmallAction unfriend" type="button" data-unfriend="${esc(friend.id)}">Unfriend</button>
+                </div>
+            </div>`).join("")
         : '<div class="friendEmpty">No friends yet.</div>';
 }
 
-async function refreshFriends() {
-    if (!currentUser || !database) return;
-    const requestsEl = document.getElementById("friendsRequests");
-    const listEl = document.getElementById("friendsList");
-    if (!requestsEl || !listEl) return;
-    try {
-        const [requestsSnap, friendsSnap] = await Promise.all([
-            database.ref(`friendRequests/${currentUser.uid}`).once("value"),
-            database.ref(`friends/${currentUser.uid}`).once("value")
-        ]);
-        renderRequestsSnapshot(requestsSnap);
-        renderFriendsSnapshot(friendsSnap);
-    } catch (error) {
-        console.warn("Could not load RTDB friends:", error);
-        requestsEl.innerHTML = '<div class="friendEmpty">Friends are unavailable right now.</div>';
-        listEl.innerHTML = '<div class="friendEmpty">Friends are unavailable right now.</div>';
-    }
+function stopLiveSync() {
+    try { requestRef?.off("value", requestHandler); } catch {}
+    try { sentRequestRef?.off("value", sentRequestHandler); } catch {}
+    try { friendsRef?.off("value", friendsHandler); } catch {}
+    requestRef = null;
+    sentRequestRef = null;
+    friendsRef = null;
+    requestHandler = null;
+    sentRequestHandler = null;
+    friendsHandler = null;
 }
 
-function startRequestListener() {
-    stopRequestListener();
-    if (!currentUser || !database) return;
+function startLiveSync() {
+    stopLiveSync();
+    if (!database || !currentUser) return;
 
-    const requestRef = database.ref(`friendRequests/${currentUser.uid}`);
-    const friendRef = database.ref(`friends/${currentUser.uid}`);
+    requestRef = database.ref(`friendRequests/${currentUser.uid}`);
+    sentRequestRef = database.ref(`sentFriendRequests/${currentUser.uid}`);
+    friendsRef = database.ref(`friends/${currentUser.uid}`);
 
-    const requestHandler = snapshot => {
-        let pending = 0;
-        snapshot.forEach(child => {
-            if (child.val()?.status === "pending") pending++;
+    let latestIncoming = null;
+    let latestSent = null;
+    const renderRequestState = () => {
+        if (!latestIncoming || !latestSent) return;
+        renderRequests(latestIncoming, latestSent);
+    };
+
+    requestHandler = snapshot => {
+        latestIncoming = snapshot;
+        renderRequestState();
+    };
+    sentRequestHandler = snapshot => {
+        latestSent = snapshot;
+        renderRequestState();
+    };
+    friendsHandler = snapshot => renderFriends(snapshot);
+
+    requestRef.on("value", requestHandler, error => console.warn("Live incoming friend requests failed:", error));
+    sentRequestRef.on("value", sentRequestHandler, error => console.warn("Live outgoing friend requests failed:", error));
+    friendsRef.on("value", friendsHandler, error => console.warn("Live friends list failed:", error));
+}
+
+function attachControls() {
+    const requests = document.getElementById("friendsRequests");
+    if (requests && requests.dataset.liveControlsAttached !== "1") {
+        requests.dataset.liveControlsAttached = "1";
+        requests.addEventListener("click", event => {
+            const accept = event.target.closest("[data-action-accept]");
+            const decline = event.target.closest("[data-action-decline]");
+            if (!accept && !decline) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const requestId = (accept || decline).dataset.actionAccept || (accept || decline).dataset.actionDecline;
+            respondToRequest(requestId, !!accept);
         });
-        updateBadge(pending);
-        if (document.getElementById(FRIENDS_MODAL_ID)?.classList.contains("open")) {
-            renderRequestsSnapshot(snapshot);
-        }
-    };
+    }
 
-    const friendHandler = snapshot => {
-        if (document.getElementById(FRIENDS_MODAL_ID)?.classList.contains("open")) {
-            renderFriendsSnapshot(snapshot);
-        }
-    };
-
-    requestRef.on("value", requestHandler, error => console.warn("RTDB friend request listener failed:", error));
-    friendRef.on("value", friendHandler, error => console.warn("RTDB friends listener failed:", error));
-
-    friendRequestUnsubscribe = () => requestRef.off("value", requestHandler);
-    friendsUnsubscribe = () => friendRef.off("value", friendHandler);
-}
-
-function stopRequestListener() {
-    try { friendRequestUnsubscribe?.(); } catch {}
-    try { friendsUnsubscribe?.(); } catch {}
-    friendRequestUnsubscribe = null;
-    friendsUnsubscribe = null;
-    updateBadge(0);
+    const friends = document.getElementById("friendsList");
+    if (friends && friends.dataset.liveControlsAttached !== "1") {
+        friends.dataset.liveControlsAttached = "1";
+        friends.addEventListener("click", event => {
+            const button = event.target.closest("[data-unfriend]");
+            if (!button) return;
+            event.preventDefault();
+            event.stopPropagation();
+            unfriend(button.dataset.unfriend);
+        });
+    }
 }
 
 function attachButton() {
     const button = getButton();
-    if (!button || button.dataset.friendsRtdbInstalled === "1") return false;
-    button.dataset.friendsRtdbInstalled = "1";
+    if (!button || button.dataset.friendsLiveAttached === "1") return;
+    button.dataset.friendsLiveAttached = "1";
     button.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
         openFriends();
     });
-    return true;
 }
 
 function watchAuth() {
-    if (!window.firebase?.auth || watchAuth.done) return;
-    watchAuth.done = true;
-    window.firebase.auth().onAuthStateChanged(async user => {
-        stopRequestListener();
+    if (authUnsubscribe || !window.firebase?.auth) return;
+    authUnsubscribe = window.firebase.auth().onAuthStateChanged(async user => {
+        stopLiveSync();
         currentUser = user || null;
+        renderStaticData();
+
         if (!currentUser) {
             renderSignedOut();
             return;
         }
+
         if (!(await waitForFirebase()) || !database) return;
         try {
             await syncPublicProfile();
-            startRequestListener();
-            renderStaticData();
-            if (document.getElementById(FRIENDS_MODAL_ID)?.classList.contains("open")) refreshFriends();
         } catch (error) {
-            console.warn("Could not initialize RTDB friend profile:", error);
+            console.warn("Could not sync public friend profile:", error);
         }
+        startLiveSync();
     });
 }
 
-function init() {
+async function init() {
     if (initialized) return;
     initialized = true;
     addStyles();
     createUi();
     attachButton();
-    const observer = new MutationObserver(() => attachButton());
+    attachControls();
+
+    const observer = new MutationObserver(() => {
+        attachButton();
+        attachControls();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
-    watchAuth();
+
+    if (await waitForFirebase()) watchAuth();
+    else {
+        const started = Date.now();
+        const retry = () => {
+            if (window.firebase?.auth) {
+                watchAuth();
+                return;
+            }
+            if (Date.now() - started < 15000) setTimeout(retry, 100);
+        };
+        retry();
+    }
 }
 
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
-else init();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+} else {
+    init();
+}
