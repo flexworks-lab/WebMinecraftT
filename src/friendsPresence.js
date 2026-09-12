@@ -4,10 +4,11 @@ let database = null;
 let currentUser = null;
 let ownPresenceRef = null;
 let presenceRef = null;
-let lastState = null;
 let stateTimer = null;
+let heartbeatTimer = null;
 let renderTimer = null;
 let authStarted = false;
+let lastState = null;
 let lastPresence = {};
 let listRenderScheduled = false;
 
@@ -88,6 +89,10 @@ function stop() {
         clearInterval(stateTimer);
         stateTimer = null;
     }
+    if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+    }
     if (renderTimer) {
         clearInterval(renderTimer);
         renderTimer = null;
@@ -149,11 +154,19 @@ function start(user) {
         console.warn("Friend presence listener failed:", error);
     });
 
+    // Check the menu/server state frequently so changes appear to friends almost immediately.
     void updateOwnPresence(true);
     stateTimer = setInterval(() => {
         void updateOwnPresence();
+    }, 250);
+
+    // Keep the presence record fresh while the page remains open.
+    heartbeatTimer = setInterval(() => {
+        void updateOwnPresence(true);
     }, 5000);
-    renderTimer = setInterval(scheduleFriendRows, 500);
+
+    // Friend-list rendering may replace rows, so re-apply the live status without a DOM observer.
+    renderTimer = setInterval(scheduleFriendRows, 250);
     scheduleFriendRows();
 }
 
