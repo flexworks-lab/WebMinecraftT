@@ -13,14 +13,13 @@ const TNT_MAX_FALL_SPEED = 28;
 const SAND_GRAVITY = 22;
 const SAND_MAX_FALL_SPEED = 28;
 
-// Keep explosion work small enough that even chain explosions do not cause a frame spike.
-const EXPLOSION_BLOCKS_PER_FRAME = 10;
+// Explosions only touch a small number of blocks each frame so the game never has
+// to rebuild a large area in one frame.
+const EXPLOSION_BLOCKS_PER_FRAME = 16;
 const MAX_TNT_CHAIN_DELAY = 300;
-const EXPLOSION_PARTICLES = 10;
 const MAX_ACTIVE_EXPLOSIONS = 12;
 
-// Precompute the explosion shape once. Every TNT explosion reuses these offsets instead
-// of rebuilding hundreds of objects and calculating sqrt/hypot values again.
+// Precompute the radius once. Every TNT uses the same cheap list.
 const EXPLOSION_OFFSETS = [];
 for (let dx = -EXPLOSION_RADIUS; dx <= EXPLOSION_RADIUS; dx++) {
     for (let dy = -EXPLOSION_RADIUS; dy <= EXPLOSION_RADIUS; dy++) {
@@ -36,7 +35,6 @@ const CENTER = new THREE.Vector2(0, 0);
 const primed = new Set();
 const fallingSand = new Map();
 const activeExplosions = new Set();
-const explosionTouchedBlocks = new Set();
 let suppressPhysicsBlockEvent = false;
 let lastScene = null;
 let physicsLoopStarted = false;
@@ -202,31 +200,33 @@ function startFuse(scene, x, y, z, broadcastIgnite = true, allowAir = false) {
 }
 
 function makeExplosionEffect(scene, x, y, z) {
-    const flash = new THREE.PointLight(0xff9a42, 8, 10); flash.position.set(x, y + 0.5, z); scene.add(flash);
-    const particles = [];
-    const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12);
-    const material = new THREE.MeshBasicMaterial({ color: 0xc46b36, transparent: true, opacity: 1 });
+    // One expanding mesh + one light instead of many physics particles.
+    const flash = new THREE.PointLight(0xff9a42, 7, 9);
+    flash.position.set(x, y + 0.5, z);
+    scene.add(flash);
+
+    const geometry = new THREE.SphereGeometry(0.35, 8, 6);
+    const material = new THREE.MeshBasicMaterial({ color: 0xff9a42, transparent: true, opacity: 0.72, depthWrite: false });
+    const effect = new THREE.Mesh(geometry, material);
+    effect.position.set(x, y + 0.5, z);
+    scene.add(effect);
+
     const start = performance.now();
-    for (let i = 0; i < EXPLOSION_PARTICLES; i++) {
-        const particle = new THREE.Mesh(geometry, material);
-        particle.position.set(x, y + 0.5, z);
-        particle.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 7, 2 + Math.random() * 7, (Math.random() - 0.5) * 7);
-        scene.add(particle); particles.push(particle);
-    }
     const update = time => {
-        const age = time - start; flash.intensity = Math.max(0, 8 * (1 - age / 220));
-        if (age >= 500) {
-            for (const particle of particles) if (particle.parent) particle.parent.remove(particle);
-            scene.remove(flash); flash.dispose(); geometry.dispose(); material.dispose(); return;
+        const age = time - start;
+        const progress = Math.min(age / 220, 1);
+        const scale = 0.6 + progress * (EXPLOSION_RADIUS * 0.8);
+        effect.scale.setScalar(scale);
+        material.opacity = 0.72 * (1 - progress);
+        flash.intensity = 7 * (1 - progress);
+        if (progress >= 1) {
+            scene.remove(effect);
+            geometry.dispose();
+            material.dispose();
+            scene.remove(flash);
+            flash.dispose();
+            return;
         }
-        const dt = Math.min(Math.max((time - (update.lastTime ?? time)) / 1000, 0), 0.033);
-        update.lastTime = time;
-        for (const particle of particles) {
-            particle.userData.velocity.y -= 11 * dt;
-            particle.position.addScaledVector(particle.userData.velocity, dt);
-            particle.rotation.x += 0.18; particle.rotation.y += 0.14;
-        }
-        material.opacity = Math.max(0, 1 - age / 500);
         requestAnimationFrame(update);
     };
     requestAnimationFrame(update);
@@ -243,22 +243,23 @@ function processExplosionBatch(explosion) {
         const y = explosion.cy + offset.dy;
         const z = explosion.cz + offset.dz;
         const key = makeKey(x, y, z);
-        if (explosionTouchedBlocks.has(key)) continue;
+        if (explosion.touchedBlocks.has(key)) continue;
 
         const type = getBlockAt(x, y, z);
         if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
 
+        // TNT inside the radius chains after a short delay instead of doing another
+        // explosion in the same frame.
         if (type === BLOCK.TNT && !(x === explosion.cx && y === explosion.cy && z === explosion.cz)) {
-            explosionTouchedBlocks.add(key);
+            explosion.touchedBlocks.add(key);
             const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
             setTimeout(() => startFuse(scene, x, y, z), delay);
             continue;
         }
 
-        const resistance = offset.distance / EXPLOSION_RADIUS;
-        const chance = 0.97 - resistance * 0.42;
-        if (Math.random() > chance) continue;
-        explosionTouchedBlocks.add(key);
+        // Every block inside the radius is removed. No expensive per-block explosion
+        // probability calculations are needed.
+        explosion.touchedBlocks.add(key);
         if (setBlockAt(x, y, z, BLOCK.AIR)) {
             sendBlockChange(x, y, z, BLOCK.AIR);
             notifyBlockChange(x, y, z, BLOCK.AIR);
@@ -269,17 +270,25 @@ function processExplosionBatch(explosion) {
         requestAnimationFrame(() => processExplosionBatch(explosion));
         return false;
     }
+
     activeExplosions.delete(explosion);
     makeExplosionEffect(scene, explosion.cx, explosion.cy, explosion.cz);
     return true;
 }
 
 function explode(scene, cx, cy, cz) {
-    // Reuse the precomputed explosion shape and avoid starting unlimited concurrent
-    // explosion jobs if a large TNT chain is triggered at once.
     if (activeExplosions.size >= MAX_ACTIVE_EXPLOSIONS) return;
     const BLOCK = getBlockTypes();
-    const explosion = { scene, cx, cy, cz, BLOCK, offsets: EXPLOSION_OFFSETS, index: 0 };
+    const explosion = {
+        scene,
+        cx,
+        cy,
+        cz,
+        BLOCK,
+        offsets: EXPLOSION_OFFSETS,
+        index: 0,
+        touchedBlocks: new Set()
+    };
     activeExplosions.add(explosion);
     processExplosionBatch(explosion);
 }
