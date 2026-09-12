@@ -41,6 +41,17 @@ const gameplayUiPlugin = {
                 "const punch = mobile && !!touchInput.punchPressed;",
                 "const punch = mobile && !!touchInput.breakPressed;"
             );
+            const textureCss = '.hotbarTexture{position:absolute!important;inset:5px!important;display:block!important;background-position:center!important;background-size:100% 100%!important;background-repeat:no-repeat!important;image-rendering:pixelated!important;pointer-events:none!important;z-index:1!important}';
+            code = code.replace(
+                /(`(?:[^`]|\\`)*#hotbar\.textured-hotbar \.hotbarCount\{[^}]*\})/,
+                `$1\\n${textureCss}`
+            );
+            if (!code.includes(textureCss)) {
+                code = code.replace(
+                    'style.textContent = `',
+                    `style.textContent = `${textureCss}\\n`
+                );
+            }
             return { code, map: null };
         }
 
@@ -70,7 +81,7 @@ const gameplayUiPlugin = {
                 'const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1, showCoordinates: false };'
             );
             const anchor = 'const hotbar = document.getElementById("hotbar");';
-            const injected = `${anchor}\n\nconst coordinatesHud = document.createElement("div");\ncoordinatesHud.id = "coordinatesHud";\ncoordinatesHud.setAttribute("aria-live", "polite");\ncoordinatesHud.textContent = "X: 0  Y: 0  Z: 0";\ndocument.body.appendChild(coordinatesHud);\n\nfunction updateCoordinatesHud() {\n    const visible = gameStarted && settings.showCoordinates === true && settingsMenu?.style.display !== "flex";\n    coordinatesHud.style.display = visible ? "block" : "none";\n    if (visible) {\n        coordinatesHud.textContent = \`X: \${Math.floor(camera.position.x)}  Y: \${Math.floor(camera.position.y)}  Z: \${Math.floor(camera.position.z)}\`;\n    }\n}\n\nconst showCoordinatesToggle = document.getElementById("showCoordinatesToggle");\nif (showCoordinatesToggle) {\n    showCoordinatesToggle.checked = settings.showCoordinates === true;\n    showCoordinatesToggle.addEventListener("change", () => {\n        settings.showCoordinates = showCoordinatesToggle.checked;\n        saveSettings();\n        updateCoordinatesHud();\n    });\n}\n\nsetInterval(updateCoordinatesHud, 100);`;
+            const injected = `${anchor}\n\nconst coordinatesHud = document.createElement("div");\ncoordinatesHud.id = "coordinatesHud";\ncoordinatesHud.setAttribute("aria-live", "polite");\ncoordinatesHud.textContent = "X: 0  Y: 0  Z: 0";\ndocument.body.appendChild(coordinatesHud);\n\nfunction updateCoordinatesHud() {\n    const visible = gameStarted && settings.showCoordinates === true && settingsMenu?.style.display !== "flex";\n    coordinatesHud.style.display = visible ? "block" : "none";\n    if (visible) {\n        coordinatesHud.textContent = `X: ${Math.floor(camera.position.x)}  Y: ${Math.floor(camera.position.y)}  Z: ${Math.floor(camera.position.z)}`;\n    }\n}\n\nconst showCoordinatesToggle = document.getElementById("showCoordinatesToggle");\nif (showCoordinatesToggle) {\n    showCoordinatesToggle.checked = settings.showCoordinates === true;\n    showCoordinatesToggle.addEventListener("change", () => {\n        settings.showCoordinates = showCoordinatesToggle.checked;\n        saveSettings();\n        updateCoordinatesHud();\n    });\n}\n\nsetInterval(updateCoordinatesHud, 100);`;
             if (!code.includes('id = "coordinatesHud"')) code = code.replace(anchor, injected);
             code = code.replace(
                 'if (performanceHud) performanceHud.style.display = display;\n}',
