@@ -1,10 +1,10 @@
 import * as THREE from "three";
 
 // Minecraft-style world clouds: wide, flat, blocky sheets.
-const CLOUD_BLOCK_SIZE = 2;
+const CLOUD_BLOCK_SIZE = 3;
 const CLOUD_HEIGHT = 1;
-const CLOUD_ALTITUDE = 96;
-const CLOUD_CELL_SIZE = 80;
+const CLOUD_ALTITUDE = 78;
+const CLOUD_CELL_SIZE = 105;
 const CLOUD_GRID_RADIUS = 9;
 const CLOUD_WRAP = 2048;
 const CLOUD_WIND_SPEED = 0.45;
@@ -68,34 +68,34 @@ function addBlock(blocks, x, z) {
 function buildCloudShape(cellX, cellZ) {
     const blocks = [];
     const seen = new Set();
-    const halfWidth = 8 + Math.floor(seedHash(cellX, cellZ, 17) * 10);
-    const halfDepth = 3 + Math.floor(seedHash(cellX, cellZ, 23) * 6);
+    const halfWidth = 11 + Math.floor(seedHash(cellX, cellZ, 17) * 13);
+    const halfDepth = 4 + Math.floor(seedHash(cellX, cellZ, 23) * 8);
 
     for (let z = -halfDepth; z <= halfDepth; z++) {
         const rowRandom = seedHash(cellX, cellZ, 30 + z + halfDepth);
-        const rowWidth = Math.max(2, Math.floor(halfWidth * (0.48 + rowRandom * 0.52)));
+        const rowWidth = Math.max(3, Math.floor(halfWidth * (0.48 + rowRandom * 0.52)));
         const rowOffset = Math.floor((seedHash(cellX, cellZ, 70 + z + halfDepth) - 0.5) * halfWidth * 0.5);
         for (let x = -rowWidth + rowOffset; x <= rowWidth + rowOffset; x++) addBlock(blocks, x, z);
     }
 
-    const edgeCuts = 7 + Math.floor(seedHash(cellX, cellZ, 140) * 8);
+    const edgeCuts = 9 + Math.floor(seedHash(cellX, cellZ, 140) * 10);
     for (let i = 0; i < edgeCuts; i++) {
         const cutZ = -halfDepth + Math.floor(seedHash(cellX, cellZ, 150 + i) * (halfDepth * 2 + 1));
         const rowRandom = seedHash(cellX, cellZ, 180 + cutZ + halfDepth);
-        const rowWidth = Math.max(2, Math.floor(halfWidth * (0.48 + rowRandom * 0.52)));
+        const rowWidth = Math.max(3, Math.floor(halfWidth * (0.48 + rowRandom * 0.52)));
         const rowOffset = Math.floor((seedHash(cellX, cellZ, 220 + cutZ + halfDepth) - 0.5) * halfWidth * 0.5);
         const side = seedHash(cellX, cellZ, 260 + i) > 0.5 ? 1 : -1;
-        const cutSize = 1 + Math.floor(seedHash(cellX, cellZ, 280 + i) * 4);
+        const cutSize = 1 + Math.floor(seedHash(cellX, cellZ, 280 + i) * 5);
         const cutStart = side > 0 ? rowWidth + rowOffset - cutSize + 1 : -rowWidth + rowOffset;
         const cutEnd = side > 0 ? rowWidth + rowOffset : -rowWidth + rowOffset + cutSize - 1;
         for (let x = cutStart; x <= cutEnd; x++) seen.add(`${x}|${cutZ}`);
     }
 
-    const protrusions = 4 + Math.floor(seedHash(cellX, cellZ, 320) * 6);
+    const protrusions = 5 + Math.floor(seedHash(cellX, cellZ, 320) * 8);
     for (let i = 0; i < protrusions; i++) {
         const side = Math.floor(seedHash(cellX, cellZ, 330 + i) * 4);
-        const amount = 1 + Math.floor(seedHash(cellX, cellZ, 350 + i) * 5);
-        const span = 1 + Math.floor(seedHash(cellX, cellZ, 370 + i) * 3);
+        const amount = 1 + Math.floor(seedHash(cellX, cellZ, 350 + i) * 6);
+        const span = 1 + Math.floor(seedHash(cellX, cellZ, 370 + i) * 4);
         if (side === 0 || side === 1) {
             const zCenter = -halfDepth + Math.floor(seedHash(cellX, cellZ, 390 + i) * (halfDepth * 2 + 1));
             const startX = side === 0 ? -halfWidth - amount : halfWidth;
