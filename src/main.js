@@ -7,6 +7,7 @@ import { initSavedWorlds } from "./worlds.js";
 import { setWorldSeedForPersistence } from "./worldSave.js";
 import { setupWorldClouds, setWorldCloudSeed } from "./worldClouds.js";
 import { setupWaterPhysics } from "./waterPhysics.js";
+import { clearHotbar } from "./inventory.js";
 import "./background.js";
 import "./auth.js";
 import "./chat.js";
@@ -260,6 +261,7 @@ async function copyText(text) {
     }
 }
 async function startWorldWithSeed(seed) {
+    clearHotbar();
     setWorldSeed(seed);
     createWorld(scene);
     setupWaterPhysics(scene);
