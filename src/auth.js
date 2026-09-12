@@ -123,12 +123,15 @@ function addStyles() {
 .accountAction:hover{filter:brightness(1.1)}
 .accountPrimary{background:linear-gradient(#6d8d4e,#526f3c)}
 .googleAction{background:#fff;color:#222;text-shadow:none;font-family:Arial,sans-serif;font-weight:700}
-.oauthAction{font-family:Arial,sans-serif;font-weight:700;text-shadow:none}
-.appleAction{background:#111;color:#fff}
+.oauthAction{font-family:Arial,sans-serif;font-weight:700;text-shadow:none;display:flex;align-items:center;justify-content:center;gap:10px}
+.oauthIcon{width:21px;height:21px;flex:0 0 21px;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.googleIcon{font-size:19px;font-weight:800;font-family:Arial,sans-serif;color:#4285F4}
+.yahooIcon{font-size:17px;font-weight:800;font-family:Arial,sans-serif;color:#fff}
+.githubIcon{font-size:18px;color:#fff}
+.playGamesIcon{font-size:18px}
 .yahooAction{background:#6a1b9a;color:#fff}
 .githubAction{background:#242424;color:#fff}
 .playGamesAction{background:linear-gradient(#3d5afe,#283593);color:#fff}
-#accountOauthHint{margin:12px 0 2px;color:#888;text-align:center;font-size:10px;line-height:1.4}
 #accountSwitch{margin-top:14px;text-align:center;color:#aaa;font-size:12px}
 #accountSwitch button,#accountForgot{border:0;background:none;color:#9dcc76;text-decoration:underline;cursor:pointer;padding:0;font-size:inherit}
 #accountForgot{display:block;margin:4px auto 10px}
@@ -162,7 +165,7 @@ function createUi() {
     const modal = document.createElement("div"); modal.id = "accountModal";
     modal.innerHTML = `
 <div id="accountPanel">
-<section id="accountLoginView"><h2 id="accountTitle">Player Account</h2><p id="accountSubtitle">Save your profile and use the same account across devices.</p><input id="accountEmailInput" class="accountField" type="email" autocomplete="email" placeholder="Email"><input id="accountPasswordInput" class="accountField" type="password" autocomplete="current-password" placeholder="Password"><button id="accountSubmit" class="accountAction accountPrimary" type="button">Log In</button><button id="accountGoogle" class="accountAction googleAction" type="button">Continue with Google</button><button id="accountApple" class="accountAction oauthAction appleAction" type="button">Continue with Apple</button><button id="accountYahoo" class="accountAction oauthAction yahooAction" type="button">Continue with Yahoo</button><button id="accountGithub" class="accountAction oauthAction githubAction" type="button">Continue with GitHub</button><button id="accountPlayGames" class="accountAction oauthAction playGamesAction" type="button">Continue with Google Play Games</button><div id="accountOauthHint">Google Play Games sign-in is supported by Firebase on Android/Unity, not as a native web provider.</div><button id="accountForgot" type="button">Forgot password?</button><div id="accountSwitch">New here? <button id="accountSwitchButton" type="button">Create an account</button></div><div id="accountMessage"></div><button id="accountClose" class="accountAction" type="button">Close</button></section>
+<section id="accountLoginView"><h2 id="accountTitle">Player Account</h2><p id="accountSubtitle">Save your profile and use the same account across devices.</p><input id="accountEmailInput" class="accountField" type="email" autocomplete="email" placeholder="Email"><input id="accountPasswordInput" class="accountField" type="password" autocomplete="current-password" placeholder="Password"><button id="accountSubmit" class="accountAction accountPrimary" type="button">Log In</button><button id="accountGoogle" class="accountAction googleAction oauthAction" type="button"><span class="oauthIcon googleIcon">G</span><span>Continue with Google</span></button><button id="accountYahoo" class="accountAction oauthAction yahooAction" type="button"><span class="oauthIcon yahooIcon">Y!</span><span>Continue with Yahoo</span></button><button id="accountGithub" class="accountAction oauthAction githubAction" type="button"><span class="oauthIcon githubIcon">●</span><span>Continue with GitHub</span></button><button id="accountPlayGames" class="accountAction oauthAction playGamesAction" type="button"><span class="oauthIcon playGamesIcon">🎮</span><span>Continue with Google Play Games</span></button><button id="accountForgot" type="button">Forgot password?</button><div id="accountSwitch">New here? <button id="accountSwitchButton" type="button">Create an account</button></div><div id="accountMessage"></div><button id="accountClose" class="accountAction" type="button">Close</button></section>
 <section id="accountUser"><h2 id="accountTitle">Your Account</h2><img id="accountAvatar" alt=""><div id="accountName"></div><div id="accountEmail"></div><div id="friendCodeBox"><div id="friendCodeLabel">Your Friend Code</div><div id="friendCodeValue">--------</div><button id="friendCopy" class="accountAction accountPrimary" type="button">Copy Friend Code</button></div><div class="friendSection"><div class="friendSectionTitle">Add a Friend</div><input id="friendCodeInput" class="accountField" maxlength="9" autocomplete="off" placeholder="Enter friend code"><button id="friendAdd" class="accountAction accountPrimary" type="button">Send Friend Request</button></div><div class="friendSection"><div class="friendSectionTitle">Friend Requests</div><div id="friendRequests"><div class="friendEmpty">No pending requests.</div></div></div><div class="friendSection"><div class="friendSectionTitle">Friends</div><div id="friendList"><div class="friendEmpty">No friends yet.</div></div></div><button id="accountLogout" class="accountAction accountPrimary" type="button">Log Out</button><button id="accountCloseUser" class="accountAction" type="button">Close</button></section>
 <div id="accountLoading">Connecting to account service…</div></div>`;
     document.body.appendChild(modal);
@@ -178,7 +181,6 @@ function createUi() {
     switchButton.addEventListener("click", () => { signUpMode = !signUpMode; submit.textContent = signUpMode ? "Sign Up" : "Log In"; password.autocomplete = signUpMode ? "new-password" : "current-password"; password.placeholder = signUpMode ? "Create a password" : "Password"; switchButton.textContent = signUpMode ? "Log in instead" : "Create an account"; modal.querySelector("#accountSwitch").firstChild.textContent = signUpMode ? "Already have an account? " : "New here? "; setMessage(""); });
     submit.addEventListener("click", async () => { if (!(await ensureReady())) return; const emailValue = email.value.trim(), passwordValue = password.value; if (!emailValue || !passwordValue) return setMessage("Enter your email and password."); try { submit.disabled = true; if (signUpMode) await auth.createUserWithEmailAndPassword(emailValue, passwordValue); else await auth.signInWithEmailAndPassword(emailValue, passwordValue); setMessage(""); } catch (error) { setMessage(error); } finally { submit.disabled = false; } });
     modal.querySelector("#accountGoogle").addEventListener("click", async () => { if (!(await ensureReady())) return; try { await auth.signInWithPopup(new window.firebase.auth.GoogleAuthProvider()); } catch (error) { setMessage(error); } });
-    modal.querySelector("#accountApple").addEventListener("click", () => signInWithOAuth("apple.com", "Apple"));
     modal.querySelector("#accountYahoo").addEventListener("click", () => signInWithOAuth("yahoo.com", "Yahoo"));
     modal.querySelector("#accountGithub").addEventListener("click", () => signInWithOAuth("github.com", "GitHub"));
     modal.querySelector("#accountPlayGames").addEventListener("click", () => setMessage("Google Play Games sign-in is available for Android/Unity, not this web version."));
@@ -189,7 +191,6 @@ async function signInWithOAuth(providerId, providerName) {
     if (!(await ensureReady())) return;
     try {
         const provider = new window.firebase.auth.OAuthProvider(providerId);
-        if (providerId === "apple.com") { provider.addScope("email"); provider.addScope("name"); }
         if (providerId === "yahoo.com") { provider.addScope("openid"); provider.addScope("profile"); provider.addScope("email"); }
         await auth.signInWithPopup(provider);
     } catch (error) {
