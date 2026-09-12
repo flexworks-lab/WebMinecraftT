@@ -24,7 +24,7 @@
       }
     },
     "publicProfiles": {
-      ".read": "auth != null",
+      ".read": true,
       ".indexOn": ["friendCode"],
       "$uid": {
         ".write": "auth != null && auth.uid === $uid"
