@@ -1,110 +1,50 @@
 const DEV_EMAIL = "worthmarcus19@gmail.com";
+const ADMIN_COLLECTION = "admins";
+let observerStarted = false;
 
-let installed = false;
+function firebaseInstance(){try{return window.firebase||null;}catch{return null;}}
+function currentUser(){try{return firebaseInstance()?.auth?.()?.currentUser||null;}catch{return null;}}
+function isDeveloper(){return String(currentUser()?.email||"").trim().toLowerCase()===DEV_EMAIL.toLowerCase();}
+function db(){try{return firebaseInstance()?.firestore?.()||null;}catch{return null;}}
+function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");}
 
-function currentUser() {
-    try { return window.firebase?.auth?.()?.currentUser || null; } catch { return null; }
+function styles(){
+ if(document.getElementById("adminManagementStyles"))return;
+ const s=document.createElement("style");s.id="adminManagementStyles";s.textContent=`
+#adminManagementSection{display:block!important;margin-bottom:14px;padding:14px;background:#202020;border:1px solid #444;color:#fff}
+#adminManagementSection h3{margin:0 0 8px;font-family:MinecraftFont,monospace;font-size:15px}
+.adminManageRow{display:flex;gap:8px;margin:10px 0}.adminManageInput{flex:1;min-width:0;background:#111;color:#fff;border:2px solid #555;padding:9px;font-size:12px;outline:none}.adminManageInput:focus{border-color:#aaa}
+.adminManageStatus{min-height:18px;font-size:11px;color:#9fce72;margin:5px 0}.adminManageStatus.error{color:#e38a7b}.adminManageList{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto}.adminManageItem{display:flex;align-items:center;gap:8px;padding:8px;background:#151515;border:1px solid #444;font-size:11px}.adminManageEmail{flex:1;word-break:break-all}.adminManageToggle{background:#633f3b;color:#fff;border:1px solid #111;padding:6px 9px;font-size:9px;cursor:pointer}.adminManageToggle.on{background:#526f3c}@media(max-width:650px){.adminManageRow{flex-direction:column}.adminManageRow .devButton{width:100%}}
+`;document.head.appendChild(s);
 }
 
-function isDeveloper() {
-    return String(currentUser()?.email || "").toLowerCase() === DEV_EMAIL.toLowerCase();
+async function refresh(){
+ const list=document.getElementById("adminManageList");if(!list||!isDeveloper())return;const firestore=db();if(!firestore)return;
+ try{
+  const snap=await firestore.collection(ADMIN_COLLECTION).get();list.innerHTML="";
+  const docs=snap.docs.filter(d=>String(d.id).toLowerCase()!==DEV_EMAIL.toLowerCase());
+  if(!docs.length){list.innerHTML='<div class="devHint">No admins added yet.</div>';return;}
+  docs.forEach(doc=>{const data=doc.data()||{},email=String(data.email||doc.id).toLowerCase(),enabled=data.enabled===true,row=document.createElement("div");row.className="adminManageItem";row.innerHTML=`<span class="adminManageEmail">${esc(email)}</span><button class="adminManageToggle ${enabled?"on":""}" type="button">${enabled?"Turn Off":"Turn On"}</button>`;row.querySelector("button").onclick=async()=>{try{await firestore.collection(ADMIN_COLLECTION).doc(doc.id).set({email,enabled:!enabled,updatedAt:new Date()},{merge:true});await refresh();}catch(e){alert(e?.message||"Could not change admin status.");}};list.appendChild(row);});
+ }catch(e){list.innerHTML=`<div class="devHint">Could not load admins: ${esc(e?.message||"Unknown error")}</div>`;}
 }
 
-function getDb() {
-    try { return window.firebase?.firestore?.() || null; } catch { return null; }
+function install(){
+ const body=document.getElementById("devControlsBody");if(!body)return;
+ if(!isDeveloper()){document.getElementById("adminManagementSection")?.remove();return;}
+ if(document.getElementById("adminManagementSection"))return;
+ styles();
+ const section=document.createElement("section");section.className="devSection";section.id="adminManagementSection";section.innerHTML=`<h3>Admin Accounts</h3><p class="devHint">Give an account Admin Controls. Admins can view Live Multiplayer Servers, kick players, and moderate Discussions. They cannot shut down or delete servers.</p><div class="adminManageRow"><input id="adminManageEmail" class="adminManageInput" type="email" maxlength="160" placeholder="Player account email" autocomplete="off"><button id="adminManageAdd" class="devButton good" type="button">Make Admin</button></div><div id="adminManageStatus" class="adminManageStatus"></div><div id="adminManageList" class="adminManageList"><div class="devHint">Loading admins...</div></div>`;
+ body.insertBefore(section,body.firstElementChild);
+ const input=section.querySelector("#adminManageEmail"),status=section.querySelector("#adminManageStatus");
+ section.querySelector("#adminManageAdd").onclick=async()=>{
+  const email=input.value.trim().toLowerCase();status.classList.remove("error");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status.textContent="Enter a valid account email.";status.classList.add("error");return;}
+  if(email===DEV_EMAIL.toLowerCase()){status.textContent="The developer already has full access.";status.classList.add("error");return;}
+  const firestore=db();if(!firestore){status.textContent="Firebase is not ready yet.";status.classList.add("error");return;}
+  try{await firestore.collection(ADMIN_COLLECTION).doc(email).set({email,enabled:true,createdAt:new Date(),updatedAt:new Date()},{merge:true});input.value="";status.textContent=`${email} is now an admin.`;await refresh();}catch(e){status.textContent=e?.message||"Could not add admin.";status.classList.add("error");}
+ };
+ refresh();
 }
 
-function escapeAdminHtml(value) {
-    return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
-}
-
-function addAdminStyles() {
-    if (document.getElementById("adminManagementStyles")) return;
-    const style = document.createElement("style");
-    style.id = "adminManagementStyles";
-    style.textContent = `
-#adminManagementSection{margin-bottom:12px}.adminManageRow{display:flex;gap:7px;margin:8px 0}.adminManageInput{flex:1;min-width:0;background:#222;color:#fff;border:1px solid #555;padding:8px;font-size:11px}.adminManageList{display:flex;flex-direction:column;gap:5px;max-height:180px;overflow:auto}.adminManageItem{display:flex;align-items:center;gap:7px;background:#222;border:1px solid #444;padding:7px;font-size:10px}.adminManageEmail{flex:1;word-break:break-all}.adminManageToggle{border:1px solid #111;background:#63433f;color:#fff;padding:4px 7px;font-size:9px;cursor:pointer}.adminManageToggle.on{background:#526f3c}
-`;
-    document.head.appendChild(style);
-}
-
-async function refreshAdminList() {
-    const list = document.getElementById("adminManageList");
-    if (!list || !isDeveloper()) return;
-    const db = getDb();
-    if (!db) return;
-    try {
-        const snapshot = await db.collection("adminUsers").get();
-        list.innerHTML = "";
-        if (snapshot.empty) {
-            list.innerHTML = '<div class="devHint">No admins added yet.</div>';
-            return;
-        }
-        snapshot.docs.forEach(doc => {
-            const data = doc.data() || {};
-            if (String(doc.id).toLowerCase() === DEV_EMAIL.toLowerCase()) return;
-            const email = String(data.email || doc.id);
-            const enabled = data.enabled === true;
-            const row = document.createElement("div");
-            row.className = "adminManageItem";
-            row.innerHTML = `<span class="adminManageEmail">${escapeAdminHtml(email)}</span><button class="adminManageToggle ${enabled ? "on" : ""}" type="button">${enabled ? "Turn Off" : "Turn On"}</button>`;
-            row.querySelector("button").addEventListener("click", async () => {
-                try {
-                    await db.collection("adminUsers").doc(doc.id).set({ email: email.toLowerCase(), enabled: !enabled, updatedAt: new Date() }, { merge: true });
-                    refreshAdminList();
-                } catch (error) { alert(error?.message || "Could not change admin status."); }
-            });
-            list.appendChild(row);
-        });
-    } catch (error) {
-        list.innerHTML = `<div class="devHint">Could not load admins: ${escapeAdminHtml(error?.message || "Unknown error")}</div>`;
-    }
-}
-
-function installAdminManagement() {
-    if (installed || !isDeveloper()) return;
-    const body = document.getElementById("devControlsBody");
-    if (!body) return;
-    addAdminStyles();
-    const section = document.createElement("section");
-    section.className = "devSection";
-    section.id = "adminManagementSection";
-    section.innerHTML = `
-        <h3>Admin Accounts</h3>
-        <p class="devHint">Give an account Admin Controls. Admins can view live multiplayer servers, kick players, and moderate Discussions, but cannot shut down or delete servers.</p>
-        <div class="adminManageRow"><input id="adminManageEmail" class="adminManageInput" type="email" maxlength="160" placeholder="Player account email" autocomplete="off"><button id="adminManageAdd" class="devButton" type="button">Make Admin</button></div>
-        <div id="adminManageStatus" class="devHint"></div>
-        <div id="adminManageList" class="adminManageList"><div class="devHint">Loading admins...</div></div>`;
-    body.insertBefore(section, body.firstElementChild);
-    installed = true;
-    const input = section.querySelector("#adminManageEmail");
-    section.querySelector("#adminManageAdd").addEventListener("click", async () => {
-        const email = input.value.trim().toLowerCase();
-        const status = section.querySelector("#adminManageStatus");
-        if (!email || !email.includes("@")) { status.textContent = "Enter a valid account email."; return; }
-        if (email === DEV_EMAIL.toLowerCase()) { status.textContent = "The developer account is already the developer."; return; }
-        try {
-            const db = getDb();
-            await db.collection("adminUsers").doc(email).set({ email, enabled: true, createdAt: new Date(), updatedAt: new Date() }, { merge: true });
-            input.value = "";
-            status.textContent = `${email} is now an admin.`;
-            refreshAdminList();
-        } catch (error) { status.textContent = error?.message || "Could not add admin."; }
-    });
-    refreshAdminList();
-}
-
-function watchAdminManagement() {
-    installAdminManagement();
-    const observer = new MutationObserver(() => installAdminManagement());
-    observer.observe(document.body, { childList: true, subtree: true });
-    setInterval(() => {
-        if (!isDeveloper()) {
-            document.getElementById("adminManagementSection")?.remove();
-            installed = false;
-        } else installAdminManagement();
-    }, 1000);
-}
-
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watchAdminManagement, { once: true });
-else watchAdminManagement();
+function watch(){if(observerStarted)return;observerStarted=true;styles();install();const observer=new MutationObserver(install);observer.observe(document.body,{childList:true,subtree:true});setInterval(install,500);}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watch,{once:true});else watch();
