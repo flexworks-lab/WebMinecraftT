@@ -12,17 +12,27 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
-        && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.enabled == true;
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled == true;
     }
 
-    match /admins/{email} {
+    match /admins/{uid} {
       allow get: if isDeveloper()
         || (request.auth != null
           && request.auth.token.email_verified == true
-          && request.auth.token.email == email);
+          && request.auth.uid == uid);
       allow list: if isDeveloper();
       allow create, update, delete: if isDeveloper();
+    }
+
+    match /profiles/{uid} {
+      allow read: if isDeveloper()
+        || (request.auth != null && request.auth.uid == uid);
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email;
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
     match /users/{userId}/worlds/{worldId} {
