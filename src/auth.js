@@ -66,15 +66,20 @@ async function initFirebase() {
         const version = "12.18.0";
         await loadFirebaseScript(`https://www.gstatic.com/firebasejs/${version}/firebase-app-compat.js`);
         if (!window.firebase) throw new Error("Firebase SDK did not load.");
-        let app = window.firebase.app();
-        const currentOptions = app?.options || {};
-        const sameProject = currentOptions.apiKey === firebaseConfig.apiKey
-            && currentOptions.authDomain === firebaseConfig.authDomain
-            && currentOptions.projectId === firebaseConfig.projectId
-            && currentOptions.appId === firebaseConfig.appId;
-        if (!sameProject) {
-            try { await app.delete(); } catch {}
+        const apps = window.firebase.apps || [];
+        let app = apps.length ? apps[0] : null;
+        if (!app) {
             app = window.firebase.initializeApp(firebaseConfig);
+        } else {
+            const currentOptions = app.options || {};
+            const sameProject = currentOptions.apiKey === firebaseConfig.apiKey
+                && currentOptions.authDomain === firebaseConfig.authDomain
+                && currentOptions.projectId === firebaseConfig.projectId
+                && currentOptions.appId === firebaseConfig.appId;
+            if (!sameProject) {
+                try { await app.delete(); } catch {}
+                app = window.firebase.initializeApp(firebaseConfig);
+            }
         }
         await Promise.all([
             loadFirebaseScript(`https://www.gstatic.com/firebasejs/${version}/firebase-auth-compat.js`),
