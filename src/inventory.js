@@ -174,6 +174,7 @@ function createInventoryUI() {
     style.textContent = `
 #inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.64);z-index:150;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
 #inventoryScreen.open{display:flex}
+body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #inventoryPanel{width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#3b3b3b;border:3px solid #151515;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.58),inset 2px 2px 0 #5b5b5b;image-rendering:pixelated;overflow:hidden}
 #inventoryTopBar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 4px 6px;flex:0 0 auto}
 #inventoryTitle{font-size:22px;font-weight:700;text-shadow:2px 2px 0 #171717}
@@ -354,17 +355,11 @@ function renderSurvival() {
 }
 
 function syncHotbar() {
-    document.querySelectorAll("#hotbar .slot").forEach((slotEl, index) => {
-        const slot = inventory[index];
+    document.querySelectorAll("#hotbar .slot").forEach((slotEl) => {
         let countEl = slotEl.querySelector(".hotbarCount");
         if (!countEl) { countEl = document.createElement("span"); countEl.className = "hotbarCount"; slotEl.appendChild(countEl); }
-        countEl.textContent = slot?.count > 1 ? slot.count : "";
-        const textureEl = slotEl.querySelector(".hotbarTexture");
-        if (slot && textureEl) {
-            const item = getItem(slot.itemId);
-            if (item?.texture) textureEl.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
-            else textureEl.style.backgroundImage = "none";
-        }
+        countEl.textContent = "";
+        slotEl.querySelectorAll(".hotbarTexture").forEach(texture => texture.remove());
     });
     updateHeldBlock();
 }
@@ -431,7 +426,7 @@ function createHeld3D(camera) {
 }
 
 function updateHeldBlock() {
-    const inWorld = document.body.classList.contains("webminecraft-in-world");
+    const inWorld = document.body.classList.contains("webminecraft-in-world") && !inventoryOpen;
     const slotIndex = Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0;
     const item = inventory[slotIndex];
     if (!held3D) return;
@@ -474,14 +469,18 @@ export function setupInventory(camera) {
 
 function openInventory() {
     inventoryOpen = true;
+    document.body.classList.add("inventory-open");
     document.getElementById("inventoryScreen")?.classList.add("open");
     document.exitPointerLock?.();
     renderTabs();
     renderInventory();
     renderCatalog();
     renderSurvival();
+    updateHeldBlock();
 }
 function closeInventory() {
     inventoryOpen = false;
+    document.body.classList.remove("inventory-open");
     document.getElementById("inventoryScreen")?.classList.remove("open");
+    updateHeldBlock();
 }
