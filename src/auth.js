@@ -54,8 +54,8 @@ async function syncUserProfile(user) {
     const code = makeFriendCode(user.uid);
     friendCode = code;
     try {
-        await db.collection("profiles").doc(user.uid).set({ uid: user.uid, email: user.email, displayName: user.displayName || "", updatedAt: new Date() }, { merge: true });
-        await db.collection("publicProfiles").doc(user.uid).set({ uid: user.uid, displayName: user.displayName || "Player", friendCode: code, updatedAt: new Date() }, { merge: true });
+        await db.collection("profiles").doc(user.uid).set({ uid: user.uid, email: user.email, displayName: user.displayName || "", photoURL: user.photoURL || "", updatedAt: new Date() }, { merge: true });
+        await db.collection("publicProfiles").doc(user.uid).set({ uid: user.uid, displayName: user.displayName || "Player", photoURL: user.photoURL || "", friendCode: code, updatedAt: new Date() }, { merge: true });
     } catch (error) { console.warn("Could not sync account profile:", error); }
 }
 
@@ -123,6 +123,12 @@ function addStyles() {
 .accountAction:hover{filter:brightness(1.1)}
 .accountPrimary{background:linear-gradient(#6d8d4e,#526f3c)}
 .googleAction{background:#fff;color:#222;text-shadow:none;font-family:Arial,sans-serif;font-weight:700}
+.oauthAction{font-family:Arial,sans-serif;font-weight:700;text-shadow:none}
+.appleAction{background:#111;color:#fff}
+.yahooAction{background:#6a1b9a;color:#fff}
+.githubAction{background:#242424;color:#fff}
+.playGamesAction{background:linear-gradient(#3d5afe,#283593);color:#fff}
+#accountOauthHint{margin:12px 0 2px;color:#888;text-align:center;font-size:10px;line-height:1.4}
 #accountSwitch{margin-top:14px;text-align:center;color:#aaa;font-size:12px}
 #accountSwitch button,#accountForgot{border:0;background:none;color:#9dcc76;text-decoration:underline;cursor:pointer;padding:0;font-size:inherit}
 #accountForgot{display:block;margin:4px auto 10px}
@@ -156,7 +162,7 @@ function createUi() {
     const modal = document.createElement("div"); modal.id = "accountModal";
     modal.innerHTML = `
 <div id="accountPanel">
-<section id="accountLoginView"><h2 id="accountTitle">Player Account</h2><p id="accountSubtitle">Save your profile and use the same account across devices.</p><input id="accountEmailInput" class="accountField" type="email" autocomplete="email" placeholder="Email"><input id="accountPasswordInput" class="accountField" type="password" autocomplete="current-password" placeholder="Password"><button id="accountSubmit" class="accountAction accountPrimary" type="button">Log In</button><button id="accountGoogle" class="accountAction googleAction" type="button">Continue with Google</button><button id="accountForgot" type="button">Forgot password?</button><div id="accountSwitch">New here? <button id="accountSwitchButton" type="button">Create an account</button></div><div id="accountMessage"></div><button id="accountClose" class="accountAction" type="button">Close</button></section>
+<section id="accountLoginView"><h2 id="accountTitle">Player Account</h2><p id="accountSubtitle">Save your profile and use the same account across devices.</p><input id="accountEmailInput" class="accountField" type="email" autocomplete="email" placeholder="Email"><input id="accountPasswordInput" class="accountField" type="password" autocomplete="current-password" placeholder="Password"><button id="accountSubmit" class="accountAction accountPrimary" type="button">Log In</button><button id="accountGoogle" class="accountAction googleAction" type="button">Continue with Google</button><button id="accountApple" class="accountAction oauthAction appleAction" type="button">Continue with Apple</button><button id="accountYahoo" class="accountAction oauthAction yahooAction" type="button">Continue with Yahoo</button><button id="accountGithub" class="accountAction oauthAction githubAction" type="button">Continue with GitHub</button><button id="accountPlayGames" class="accountAction oauthAction playGamesAction" type="button">Continue with Google Play Games</button><div id="accountOauthHint">Google Play Games sign-in is supported by Firebase on Android/Unity, not as a native web provider.</div><button id="accountForgot" type="button">Forgot password?</button><div id="accountSwitch">New here? <button id="accountSwitchButton" type="button">Create an account</button></div><div id="accountMessage"></div><button id="accountClose" class="accountAction" type="button">Close</button></section>
 <section id="accountUser"><h2 id="accountTitle">Your Account</h2><img id="accountAvatar" alt=""><div id="accountName"></div><div id="accountEmail"></div><div id="friendCodeBox"><div id="friendCodeLabel">Your Friend Code</div><div id="friendCodeValue">--------</div><button id="friendCopy" class="accountAction accountPrimary" type="button">Copy Friend Code</button></div><div class="friendSection"><div class="friendSectionTitle">Add a Friend</div><input id="friendCodeInput" class="accountField" maxlength="9" autocomplete="off" placeholder="Enter friend code"><button id="friendAdd" class="accountAction accountPrimary" type="button">Send Friend Request</button></div><div class="friendSection"><div class="friendSectionTitle">Friend Requests</div><div id="friendRequests"><div class="friendEmpty">No pending requests.</div></div></div><div class="friendSection"><div class="friendSectionTitle">Friends</div><div id="friendList"><div class="friendEmpty">No friends yet.</div></div></div><button id="accountLogout" class="accountAction accountPrimary" type="button">Log Out</button><button id="accountCloseUser" class="accountAction" type="button">Close</button></section>
 <div id="accountLoading">Connecting to account service…</div></div>`;
     document.body.appendChild(modal);
@@ -172,14 +178,33 @@ function createUi() {
     switchButton.addEventListener("click", () => { signUpMode = !signUpMode; submit.textContent = signUpMode ? "Sign Up" : "Log In"; password.autocomplete = signUpMode ? "new-password" : "current-password"; password.placeholder = signUpMode ? "Create a password" : "Password"; switchButton.textContent = signUpMode ? "Log in instead" : "Create an account"; modal.querySelector("#accountSwitch").firstChild.textContent = signUpMode ? "Already have an account? " : "New here? "; setMessage(""); });
     submit.addEventListener("click", async () => { if (!(await ensureReady())) return; const emailValue = email.value.trim(), passwordValue = password.value; if (!emailValue || !passwordValue) return setMessage("Enter your email and password."); try { submit.disabled = true; if (signUpMode) await auth.createUserWithEmailAndPassword(emailValue, passwordValue); else await auth.signInWithEmailAndPassword(emailValue, passwordValue); setMessage(""); } catch (error) { setMessage(error); } finally { submit.disabled = false; } });
     modal.querySelector("#accountGoogle").addEventListener("click", async () => { if (!(await ensureReady())) return; try { await auth.signInWithPopup(new window.firebase.auth.GoogleAuthProvider()); } catch (error) { setMessage(error); } });
+    modal.querySelector("#accountApple").addEventListener("click", () => signInWithOAuth("apple.com", "Apple"));
+    modal.querySelector("#accountYahoo").addEventListener("click", () => signInWithOAuth("yahoo.com", "Yahoo"));
+    modal.querySelector("#accountGithub").addEventListener("click", () => signInWithOAuth("github.com", "GitHub"));
+    modal.querySelector("#accountPlayGames").addEventListener("click", () => setMessage("Google Play Games sign-in is available for Android/Unity, not this web version."));
     modal.querySelector("#accountForgot").addEventListener("click", async () => { if (!(await ensureReady())) return; const emailValue = email.value.trim(); if (!emailValue) return setMessage("Enter your email first."); try { await auth.sendPasswordResetEmail(emailValue); setMessage("Password reset email sent."); } catch (error) { setMessage(error); } });
+}
+
+async function signInWithOAuth(providerId, providerName) {
+    if (!(await ensureReady())) return;
+    try {
+        const provider = new window.firebase.auth.OAuthProvider(providerId);
+        if (providerId === "apple.com") { provider.addScope("email"); provider.addScope("name"); }
+        if (providerId === "yahoo.com") { provider.addScope("openid"); provider.addScope("profile"); provider.addScope("email"); }
+        await auth.signInWithPopup(provider);
+    } catch (error) {
+        if (error?.code === "auth/popup-closed-by-user") return setMessage(`${providerName} sign-in was closed.`);
+        if (error?.code === "auth/operation-not-allowed") return setMessage(`${providerName} sign-in is not enabled in Firebase yet.`);
+        if (error?.code === "auth/account-exists-with-different-credential") return setMessage("An account already exists with a different sign-in method.");
+        setMessage(error);
+    }
 }
 
 function setMessage(value) {
     const el = document.getElementById("accountMessage"); if (!el) return;
     if (!value) { el.textContent = ""; return; }
     if (typeof value === "string") { el.textContent = value; return; }
-    const messages = { "auth/invalid-email":"That email address is not valid.", "auth/user-not-found":"No account was found with that email.", "auth/wrong-password":"That password is incorrect.", "auth/invalid-credential":"The email or password is incorrect.", "auth/email-already-in-use":"That email is already in use.", "auth/weak-password":"Use a stronger password.", "auth/popup-closed-by-user":"Google sign-in was closed.", "auth/operation-not-allowed":"This sign-in method is not enabled yet." };
+    const messages = { "auth/invalid-email":"That email address is not valid.", "auth/user-not-found":"No account was found with that email.", "auth/wrong-password":"That password is incorrect.", "auth/invalid-credential":"The email or password is incorrect.", "auth/email-already-in-use":"That email is already in use.", "auth/weak-password":"Use a stronger password.", "auth/popup-closed-by-user":"Sign-in was closed.", "auth/operation-not-allowed":"This sign-in method is not enabled yet." };
     el.textContent = messages[value?.code] || value?.message || "Something went wrong. Please try again.";
 }
 
