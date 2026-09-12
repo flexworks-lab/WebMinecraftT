@@ -61,14 +61,128 @@ function addStyles() {
     const style = document.createElement("style");
     style.id = "siteAnnouncementStyles";
     style.textContent = `
-#siteAnnouncementOverlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-#siteAnnouncement{width:min(620px,94vw);box-sizing:border-box;background:linear-gradient(#303030,#191919);border:2px solid #111;border-top-color:#888;border-left-color:#888;box-shadow:9px 9px 0 rgba(0,0,0,.45);color:#fff;font-family:Arial,sans-serif}
-#siteAnnouncementHeader{padding:16px 18px;border-bottom:2px solid #111;background:#3b2928;font-family:MinecraftFont,monospace;font-size:20px;text-shadow:2px 2px 0 #000}
-#siteAnnouncementReason{padding:16px 18px 5px;font-family:MinecraftFont,monospace;font-size:13px;color:#b8dc95}
-#siteAnnouncementMessage{padding:5px 18px 18px;font-size:15px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
-#siteAnnouncementClose{display:block;margin:0 18px 18px;width:calc(100% - 36px);min-height:44px;padding:8px 12px;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#666,#4e4e4e);color:#fff;font-family:MinecraftFont,monospace;font-size:11px;cursor:pointer;text-shadow:2px 2px 0 #222}
-#siteAnnouncementClose:disabled{opacity:.55;cursor:not-allowed;filter:none}
-#siteAnnouncementClose:hover:not(:disabled){filter:brightness(1.1)}
+#siteAnnouncementOverlay{
+    position:fixed;
+    inset:0;
+    z-index:1000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    box-sizing:border-box;
+    background:rgba(0,0,0,.74);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    animation:siteAnnouncementFade .16s ease-out;
+}
+#siteAnnouncement{
+    width:min(700px,96vw);
+    max-height:min(86vh,760px);
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    background:linear-gradient(180deg,#343434 0%,#252525 42%,#1b1b1b 100%);
+    border:2px solid #111;
+    border-top-color:#999;
+    border-left-color:#999;
+    border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.72),0 4px 0 rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.08);
+    color:#fff;
+    font-family:Arial,sans-serif;
+    animation:siteAnnouncementPop .18s ease-out;
+}
+#siteAnnouncementHeader{
+    flex:0 0 auto;
+    position:relative;
+    padding:17px 54px 15px 20px;
+    border-bottom:2px solid #111;
+    background:linear-gradient(180deg,#4a3735,#342625);
+    font-family:MinecraftFont,monospace;
+    font-size:clamp(17px,2.4vw,23px);
+    letter-spacing:.2px;
+    text-shadow:2px 2px 0 #000;
+}
+#siteAnnouncementHeader::before{
+    content:"";
+    position:absolute;
+    left:20px;
+    right:20px;
+    bottom:-2px;
+    height:2px;
+    background:rgba(255,255,255,.08);
+}
+#siteAnnouncementReason{
+    flex:0 0 auto;
+    margin:0;
+    padding:16px 20px 8px;
+    color:#b9dc8f;
+    font-family:MinecraftFont,monospace;
+    font-size:13px;
+    line-height:1.35;
+    text-shadow:1px 1px 0 #111;
+}
+#siteAnnouncementReason::before{
+    content:"• ";
+    color:#d8efb4;
+}
+#siteAnnouncementMessage{
+    flex:1 1 auto;
+    min-height:0;
+    margin:0 4px 0 0;
+    padding:6px 20px 18px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    color:#ececec;
+    font-size:15px;
+    line-height:1.62;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    scrollbar-width:thin;
+    scrollbar-color:#6f6f6f #202020;
+}
+#siteAnnouncementMessage::-webkit-scrollbar{width:11px}
+#siteAnnouncementMessage::-webkit-scrollbar-track{background:#202020;border-left:1px solid #111}
+#siteAnnouncementMessage::-webkit-scrollbar-thumb{background:#666;border:2px solid #202020;border-radius:6px}
+#siteAnnouncementMessage::-webkit-scrollbar-thumb:hover{background:#7b7b7b}
+#siteAnnouncementFooter{
+    flex:0 0 auto;
+    display:flex;
+    justify-content:flex-end;
+    padding:12px 18px 16px;
+    border-top:2px solid #111;
+    background:#222;
+}
+#siteAnnouncementClose{
+    width:min(190px,100%);
+    min-height:46px;
+    padding:9px 14px;
+    border:2px solid #111;
+    border-top-color:#999;
+    border-left-color:#999;
+    border-radius:3px;
+    background:linear-gradient(#707070,#555);
+    color:#fff;
+    font-family:MinecraftFont,monospace;
+    font-size:12px;
+    cursor:pointer;
+    text-shadow:2px 2px 0 #222;
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.12),inset -2px -2px 0 rgba(0,0,0,.25),0 3px 0 rgba(0,0,0,.45);
+}
+#siteAnnouncementClose:not(:disabled):hover{filter:brightness(1.1)}
+#siteAnnouncementClose:not(:disabled):active{transform:translateY(2px);box-shadow:inset 1px 1px 0 rgba(0,0,0,.25)}
+#siteAnnouncementClose:disabled{opacity:.62;cursor:not-allowed}
+@keyframes siteAnnouncementFade{from{opacity:0}to{opacity:1}}
+@keyframes siteAnnouncementPop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:600px){
+    #siteAnnouncementOverlay{padding:10px}
+    #siteAnnouncement{width:100%;max-height:92vh;border-radius:4px}
+    #siteAnnouncementHeader{padding:15px 16px 13px}
+    #siteAnnouncementReason{padding:14px 16px 7px;font-size:12px}
+    #siteAnnouncementMessage{padding:6px 16px 14px;font-size:14px;line-height:1.55}
+    #siteAnnouncementFooter{padding:10px 12px 12px}
+    #siteAnnouncementClose{width:100%}
+}
 `;
     document.head.appendChild(style);
 }
@@ -88,7 +202,7 @@ function showAnnouncement(data) {
     <div id="siteAnnouncementHeader">Website Announcement</div>
     <div id="siteAnnouncementReason"></div>
     <div id="siteAnnouncementMessage"></div>
-    <button id="siteAnnouncementClose" type="button" disabled>Please wait 5...</button>
+    <div id="siteAnnouncementFooter"><button id="siteAnnouncementClose" type="button" disabled>Please wait 5...</button></div>
 </div>`;
     overlay.querySelector("#siteAnnouncementReason").textContent = reason;
     overlay.querySelector("#siteAnnouncementMessage").textContent = message;
