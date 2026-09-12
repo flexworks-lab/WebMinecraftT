@@ -1,5 +1,6 @@
 const DEV_EMAIL = "worthmarcus19@gmail.com";
 const ADMIN_COLLECTION = "admins";
+const PROFILE_COLLECTION = "profiles";
 let observerStarted = false;
 
 function firebaseInstance(){try{return window.firebase||null;}catch{return null;}}
@@ -14,8 +15,12 @@ function styles(){
 #adminManagementSection{display:block!important;margin-bottom:14px;padding:14px;background:#202020;border:1px solid #444;color:#fff}
 #adminManagementSection h3{margin:0 0 8px;font-family:MinecraftFont,monospace;font-size:15px}
 .adminManageRow{display:flex;gap:8px;margin:10px 0}.adminManageInput{flex:1;min-width:0;background:#111;color:#fff;border:2px solid #555;padding:9px;font-size:12px;outline:none}.adminManageInput:focus{border-color:#aaa}
-.adminManageStatus{min-height:18px;font-size:11px;color:#9fce72;margin:5px 0}.adminManageStatus.error{color:#e38a7b}.adminManageList{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto}.adminManageItem{display:flex;align-items:center;gap:8px;padding:8px;background:#151515;border:1px solid #444;font-size:11px}.adminManageUid{flex:1;word-break:break-all}.adminManageToggle{background:#633f3b;color:#fff;border:1px solid #111;padding:6px 9px;font-size:9px;cursor:pointer}.adminManageToggle.on{background:#526f3c}.adminManageRemove{background:#8b3f3f;color:#fff;border:1px solid #111;padding:6px 9px;font-size:9px;cursor:pointer}@media(max-width:650px){.adminManageRow{flex-direction:column}.adminManageRow .devButton{width:100%}}
+.adminManageStatus{min-height:18px;font-size:11px;color:#9fce72;margin:5px 0}.adminManageStatus.error{color:#e38a7b}.adminManageList{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto}.adminManageItem{display:flex;align-items:center;gap:8px;padding:8px;background:#151515;border:1px solid #444;font-size:11px}.adminManageIdentity{flex:1;min-width:0}.adminManageEmail{font-weight:700;word-break:break-all}.adminManageUid{margin-top:3px;color:#888;word-break:break-all;font-size:9px}.adminManageToggle{background:#633f3b;color:#fff;border:1px solid #111;padding:6px 9px;font-size:9px;cursor:pointer;white-space:nowrap}.adminManageToggle.on{background:#526f3c}.adminManageRemove{background:#8b3f3f;color:#fff;border:1px solid #111;padding:6px 9px;font-size:9px;cursor:pointer;white-space:nowrap}@media(max-width:650px){.adminManageRow{flex-direction:column}.adminManageRow .devButton{width:100%}.adminManageItem{align-items:stretch;flex-wrap:wrap}.adminManageIdentity{flex-basis:100%}}
 `;document.head.appendChild(s);
+}
+
+async function getProfileEmail(firestore,uid){
+ try{const snap=await firestore.collection(PROFILE_COLLECTION).doc(uid).get();return String(snap.data()?.email||"").trim();}catch{return "";}
 }
 
 async function refresh(){
@@ -24,7 +29,15 @@ async function refresh(){
   const snap=await firestore.collection(ADMIN_COLLECTION).get();list.innerHTML="";
   const docs=snap.docs.filter(d=>String(d.id)!==String(currentUser()?.uid||""));
   if(!docs.length){list.innerHTML='<div class="devHint">No admins added yet.</div>';return;}
-  docs.forEach(doc=>{const data=doc.data()||{},uid=String(data.uid||doc.id),enabled=data.enabled===true,row=document.createElement("div");row.className="adminManageItem";row.innerHTML=`<span class="adminManageUid">${esc(uid)}</span><button class="adminManageToggle ${enabled?"on":""}" type="button">${enabled?"Turn Off":"Turn On"}</button><button class="adminManageRemove" type="button">Remove</button>`;row.querySelector(".adminManageToggle").onclick=async()=>{try{await firestore.collection(ADMIN_COLLECTION).doc(doc.id).set({uid,enabled:!enabled,updatedAt:new Date()},{merge:true});await refresh();}catch(e){alert(e?.message||"Could not change admin status.");}};row.querySelector(".adminManageRemove").onclick=async()=>{if(!confirm(`Remove ${uid} from admins completely?`))return;try{await firestore.collection(ADMIN_COLLECTION).doc(doc.id).delete();await refresh();}catch(e){alert(e?.message||"Could not remove admin.");}};list.appendChild(row);});
+  const rows=await Promise.all(docs.map(async doc=>{
+   const data=doc.data()||{},uid=String(data.uid||doc.id),enabled=data.enabled===true,email=await getProfileEmail(firestore,uid);
+   const row=document.createElement("div");row.className="adminManageItem";
+   row.innerHTML=`<div class="adminManageIdentity"><div class="adminManageEmail">${esc(email||"Email not synced yet")}</div><div class="adminManageUid">UID: ${esc(uid)}</div></div><button class="adminManageToggle ${enabled?"on":""}" type="button">${enabled?"Turn Off":"Turn On"}</button><button class="adminManageRemove" type="button">Remove</button>`;
+   row.querySelector(".adminManageToggle").onclick=async()=>{try{await firestore.collection(ADMIN_COLLECTION).doc(doc.id).set({uid,enabled:!enabled,updatedAt:new Date()},{merge:true});await refresh();}catch(e){alert(e?.message||"Could not change admin status.");}};
+   row.querySelector(".adminManageRemove").onclick=async()=>{if(!confirm(`Remove ${email||uid} from admins completely?`))return;try{await firestore.collection(ADMIN_COLLECTION).doc(doc.id).delete();await refresh();}catch(e){alert(e?.message||"Could not remove admin.");}};
+   return row;
+  }));
+  rows.forEach(row=>list.appendChild(row));
  }catch(e){list.innerHTML=`<div class="devHint">Could not load admins: ${esc(e?.message||"Unknown error")}</div>`;}
 }
 
