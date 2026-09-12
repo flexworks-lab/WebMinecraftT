@@ -106,20 +106,18 @@ function getLiveEntry(doc) {
 function showLiveEntry(item, card) {
     selectedLiveId = item.id;
 
-    const version = document.getElementById("newsCurrentVersion");
-    const currentTitle = document.getElementById("newsCurrentTitle");
-    const detailsTitle = document.getElementById("newsDetailsTitle");
-    const detailsBody = document.getElementById("newsDetailsBody");
-    if (!version || !currentTitle || !detailsTitle || !detailsBody) return;
+    const version = document.getElementById("newsReadingVersion");
+    const title = document.getElementById("newsReadingTitle");
+    const body = document.getElementById("newsReadingBody");
+    if (!version || !title || !body) return;
 
     document.querySelectorAll("#newsList .newsItem").forEach(node => node.classList.remove("active"));
     card?.classList.add("active");
 
     version.textContent = item.version;
-    currentTitle.textContent = item.title;
-    detailsTitle.textContent = item.title;
-    detailsBody.textContent = item.body;
-    detailsBody.scrollTop = 0;
+    title.textContent = item.title;
+    body.textContent = item.body;
+    body.scrollTop = 0;
 }
 
 function appendOrRefreshLiveNews(docs) {
