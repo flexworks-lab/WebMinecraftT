@@ -13,10 +13,18 @@ const TNT_MAX_FALL_SPEED = 28;
 const SAND_GRAVITY = 22;
 const SAND_MAX_FALL_SPEED = 28;
 
+// TNT is deliberately processed over several frames instead of doing the whole
+// explosion in one frame. This keeps large chain explosions from blocking input,
+// rendering, or other local game systems.
+const EXPLOSION_BLOCKS_PER_FRAME = 18;
+const MAX_TNT_CHAIN_DELAY = 300;
+const EXPLOSION_PARTICLES = 16;
+
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
 const primed = new Set();
 const fallingSand = new Map();
+const activeExplosions = new Set();
 let suppressPhysicsBlockEvent = false;
 let lastScene = null;
 let physicsLoopStarted = false;
@@ -154,7 +162,7 @@ function startFuse(scene, x, y, z, broadcastIgnite = true, allowAir = false) {
 
     const mesh = createDynamicBlock(scene, x, y, z, tntMaterial, "primedTNT");
     mesh.userData.isPrimedTNT = true;
-    const marker = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffdd55 }));
+    const marker = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffdd55 }));
     marker.position.set(x, y + 0.58, z); scene.add(marker);
     const light = new THREE.PointLight(0xff782e, 1.8, 4);
     light.position.set(x, y + 0.45, z); scene.add(light);
@@ -180,40 +188,92 @@ function startFuse(scene, x, y, z, broadcastIgnite = true, allowAir = false) {
     };
     requestAnimationFrame(tick); return true;
 }
+
 function makeExplosionEffect(scene, x, y, z) {
-    const flash = new THREE.PointLight(0xff9a42, 9, 12); flash.position.set(x, y + 0.5, z); scene.add(flash);
-    const particles = [], geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12), start = performance.now();
-    for (let i = 0; i < 40; i++) {
-        const particle = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0x222222 : 0xc46b36, transparent: true, opacity: 1 }));
-        particle.position.set(x, y + 0.5, z); particle.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 7, 2 + Math.random() * 7, (Math.random() - 0.5) * 7); scene.add(particle); particles.push(particle);
+    const flash = new THREE.PointLight(0xff9a42, 8, 10); flash.position.set(x, y + 0.5, z); scene.add(flash);
+    const particles = [];
+    const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+    const material = new THREE.MeshBasicMaterial({ color: 0xc46b36, transparent: true, opacity: 1 });
+    const start = performance.now();
+    for (let i = 0; i < EXPLOSION_PARTICLES; i++) {
+        const particle = new THREE.Mesh(geometry, material);
+        particle.position.set(x, y + 0.5, z);
+        particle.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 7, 2 + Math.random() * 7, (Math.random() - 0.5) * 7);
+        scene.add(particle); particles.push(particle);
     }
     const update = time => {
-        const age = time - start; flash.intensity = Math.max(0, 9 * (1 - age / 220));
-        if (age >= 650) {
-            for (const particle of particles) { if (!particle.parent) continue; particle.parent.remove(particle); particle.material.dispose(); }
-            scene.remove(flash); flash.dispose(); geometry.dispose(); return;
+        const age = time - start; flash.intensity = Math.max(0, 8 * (1 - age / 220));
+        if (age >= 500) {
+            for (const particle of particles) if (particle.parent) particle.parent.remove(particle);
+            scene.remove(flash); flash.dispose(); geometry.dispose(); material.dispose(); return;
         }
-        for (const particle of particles) { particle.userData.velocity.y -= 11 / 60; particle.position.addScaledVector(particle.userData.velocity, 1 / 60); particle.rotation.x += 0.18; particle.rotation.y += 0.14; particle.material.opacity = Math.max(0, 1 - age / 650); }
+        const dt = Math.min(Math.max((time - (update.lastTime ?? time)) / 1000, 0), 0.033);
+        update.lastTime = time;
+        for (const particle of particles) {
+            particle.userData.velocity.y -= 11 * dt;
+            particle.position.addScaledVector(particle.userData.velocity, dt);
+            particle.rotation.x += 0.18; particle.rotation.y += 0.14;
+        }
+        material.opacity = Math.max(0, 1 - age / 500);
         requestAnimationFrame(update);
     };
     requestAnimationFrame(update);
 }
+
+function processExplosionBatch(explosion) {
+    if (!explosion.scene) return true;
+    const { scene, blocks, BLOCK } = explosion;
+    const end = Math.min(explosion.index + EXPLOSION_BLOCKS_PER_FRAME, blocks.length);
+
+    for (; explosion.index < end; explosion.index++) {
+        const { x, y, z, distance } = blocks[explosion.index];
+        const type = getBlockAt(x, y, z);
+        if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
+
+        if (type === BLOCK.TNT && !(x === explosion.cx && y === explosion.cy && z === explosion.cz)) {
+            // Delay chained TNT slightly so a large chain does not all execute in one frame.
+            const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
+            setTimeout(() => startFuse(scene, x, y, z), delay);
+            continue;
+        }
+
+        const resistance = distance / EXPLOSION_RADIUS;
+        const chance = 0.97 - resistance * 0.42;
+        if (Math.random() > chance) continue;
+        if (setBlockAt(x, y, z, BLOCK.AIR)) {
+            // Spread network work across frames instead of flooding the connection at once.
+            sendBlockChange(x, y, z, BLOCK.AIR);
+            notifyBlockChange(x, y, z, BLOCK.AIR);
+        }
+    }
+
+    if (explosion.index < blocks.length) {
+        requestAnimationFrame(() => processExplosionBatch(explosion));
+        return false;
+    }
+    activeExplosions.delete(explosion);
+    makeExplosionEffect(scene, explosion.cx, explosion.cy, explosion.cz);
+    return true;
+}
+
 function explode(scene, cx, cy, cz) {
+    // Build the small affected list once. The actual block mutations are then
+    // spread across animation frames, preventing a synchronous 9x9x9 scan from
+    // freezing the browser when several TNT blocks chain together.
     const BLOCK = getBlockTypes();
+    const blocks = [];
     for (let x = Math.floor(cx - EXPLOSION_RADIUS); x <= Math.floor(cx + EXPLOSION_RADIUS); x++) {
         for (let y = Math.floor(cy - EXPLOSION_RADIUS); y <= Math.floor(cy + EXPLOSION_RADIUS); y++) {
             for (let z = Math.floor(cz - EXPLOSION_RADIUS); z <= Math.floor(cz + EXPLOSION_RADIUS); z++) {
-                const distance = Math.hypot(x - cx, y - cy, z - cz); if (distance > EXPLOSION_RADIUS) continue;
-                const type = getBlockAt(x, y, z); if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
-                if (type === BLOCK.TNT && !(x === cx && y === cy && z === cz)) {
-                    const delay = 100 + Math.random() * 300; setTimeout(() => startFuse(scene, x, y, z), delay); continue;
-                }
-                const resistance = distance / EXPLOSION_RADIUS, chance = 0.97 - resistance * 0.42; if (Math.random() > chance) continue;
-                if (setBlockAt(x, y, z, BLOCK.AIR)) { sendBlockChange(x, y, z, BLOCK.AIR); notifyBlockChange(x, y, z, BLOCK.AIR); }
+                const distance = Math.hypot(x - cx, y - cy, z - cz);
+                if (distance <= EXPLOSION_RADIUS) blocks.push({ x, y, z, distance });
             }
         }
     }
-    makeExplosionEffect(scene, cx, cy, cz);
+
+    const explosion = { scene, cx, cy, cz, BLOCK, blocks, index: 0 };
+    activeExplosions.add(explosion);
+    processExplosionBatch(explosion);
 }
 
 window.addEventListener("webminecraft:tntignite", event => {
