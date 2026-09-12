@@ -220,7 +220,7 @@ function rebuildChunk(ck) {
         }
 
         for (const [dx, dz] of DIRS) {
-            const neighbor = water.get(key(x + dx, y, z))?.level || 0;
+            const neighbor = water.get(key(x + dx, y, z + dz))?.level || 0;
             if (neighbor >= level) continue;
 
             const sideHeight = Math.max(0.125, neighbor / MAX_FLOW);
@@ -391,6 +391,21 @@ export function notifyWaterBlockChanged(x, y, z) {
     markCellDirty(x - 1, z);
     markCellDirty(x, z + 1);
     markCellDirty(x, z - 1);
+}
+
+// Block breaking/placing in interaction.js broadcasts this event after the
+// world has changed. Listen for it so water immediately reacts to newly opened
+// spaces, just like Minecraft water updates around a broken block.
+if (typeof window !== "undefined") {
+    window.addEventListener("webminecraft:blockchange", event => {
+        const detail = event?.detail;
+        if (!detail) return;
+        const x = Number(detail.x);
+        const y = Number(detail.y);
+        const z = Number(detail.z);
+        if (![x, y, z].every(Number.isFinite)) return;
+        notifyWaterBlockChanged(Math.floor(x), Math.floor(y), Math.floor(z));
+    });
 }
 
 const originalSceneAdd = THREE.Scene.prototype.add;
