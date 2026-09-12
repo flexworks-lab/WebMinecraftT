@@ -65,10 +65,11 @@ const tntSideTexture = loadTexture(texturePath("tnt_side.png"), "TNT side");
 const tntTopTexture = loadTexture(texturePath("tnt_top.png"), "TNT top");
 const waterTexture = createTexture("#2b78aa", ["#1e628f", "#3f91c0", "#6bb9dc", "#245f86"], 30, 26);
 
-// Slightly darken the texture colors without changing the world lighting.
+// Darken the grass blocks substantially while leaving other block textures at their current shade.
 const textureShade = 0xd8d8d8;
-const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true, color: textureShade });
-const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true, color: textureShade });
+const grassTextureShade = 0x858585;
+const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true, color: grassTextureShade });
+const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true, color: grassTextureShade });
 const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture, vertexColors: true, color: textureShade });
 const stoneMaterial = new THREE.MeshLambertMaterial({ map: stoneTexture, vertexColors: true, color: textureShade });
 const cobblestoneMaterial = new THREE.MeshLambertMaterial({ map: cobblestoneTexture, vertexColors: true, color: textureShade });
