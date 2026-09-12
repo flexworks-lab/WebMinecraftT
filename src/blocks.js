@@ -65,35 +65,45 @@ const tntSideTexture = loadTexture(texturePath("tnt_side.png"), "TNT side");
 const tntTopTexture = loadTexture(texturePath("tnt_top.png"), "TNT top");
 const waterTexture = createTexture("#2b78aa", ["#1e628f", "#3f91c0", "#6bb9dc", "#245f86"], 30, 26);
 
-// Darken grass and dirt to match the darker block look.
+// Keep the darker block palette while adding a small material floor so textures
+// never become completely black when underground lighting gets very low.
 const textureShade = 0xd8d8d8;
 const grassTextureShade = 0x858585;
-const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true, color: grassTextureShade });
-const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true, color: grassTextureShade });
-const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture, vertexColors: true, color: grassTextureShade });
-const stoneMaterial = new THREE.MeshLambertMaterial({ map: stoneTexture, vertexColors: true, color: textureShade });
-const cobblestoneMaterial = new THREE.MeshLambertMaterial({ map: cobblestoneTexture, vertexColors: true, color: textureShade });
-const gravelMaterial = new THREE.MeshLambertMaterial({ map: gravelTexture, vertexColors: true, color: textureShade });
-const sandMaterial = new THREE.MeshLambertMaterial({ map: sandTexture, vertexColors: true, color: textureShade });
-const sandstoneMaterial = new THREE.MeshLambertMaterial({ map: sandstoneTexture, vertexColors: true, color: textureShade });
-const bedrockMaterial = new THREE.MeshLambertMaterial({ map: bedrockTexture, vertexColors: true, color: textureShade });
-const coalMaterial = new THREE.MeshLambertMaterial({ map: coalTexture, vertexColors: true, color: textureShade });
-const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture, vertexColors: true, color: textureShade });
-const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, vertexColors: true, color: textureShade });
-const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true, color: textureShade });
-const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true, color: textureShade });
+const textureEmissive = 0x2a2a2a;
+const textureEmissiveIntensity = 0.32;
+const materialOptions = {
+    vertexColors: true,
+    emissive: textureEmissive,
+    emissiveIntensity: textureEmissiveIntensity
+};
 
-const leavesMaterial = new THREE.MeshLambertMaterial({
+const grassTopMaterial = new THREE.MeshPhongMaterial({ map: grassTopTexture, color: grassTextureShade, ...materialOptions });
+const grassSideMaterial = new THREE.MeshPhongMaterial({ map: grassSideTexture, color: grassTextureShade, ...materialOptions });
+const dirtMaterial = new THREE.MeshPhongMaterial({ map: dirtTexture, color: grassTextureShade, ...materialOptions });
+const stoneMaterial = new THREE.MeshPhongMaterial({ map: stoneTexture, color: textureShade, ...materialOptions });
+const cobblestoneMaterial = new THREE.MeshPhongMaterial({ map: cobblestoneTexture, color: textureShade, ...materialOptions });
+const gravelMaterial = new THREE.MeshPhongMaterial({ map: gravelTexture, color: textureShade, ...materialOptions });
+const sandMaterial = new THREE.MeshPhongMaterial({ map: sandTexture, color: textureShade, ...materialOptions });
+const sandstoneMaterial = new THREE.MeshPhongMaterial({ map: sandstoneTexture, color: textureShade, ...materialOptions });
+const bedrockMaterial = new THREE.MeshPhongMaterial({ map: bedrockTexture, color: textureShade, ...materialOptions });
+const coalMaterial = new THREE.MeshPhongMaterial({ map: coalTexture, color: textureShade, ...materialOptions });
+const ironMaterial = new THREE.MeshPhongMaterial({ map: ironTexture, color: textureShade, ...materialOptions });
+const oakSideMaterial = new THREE.MeshPhongMaterial({ map: oakSideTexture, color: textureShade, ...materialOptions });
+const oakTopMaterial = new THREE.MeshPhongMaterial({ map: oakTopTexture, color: textureShade, ...materialOptions });
+const oakPlankMaterial = new THREE.MeshPhongMaterial({ map: oakPlankTexture, color: textureShade, ...materialOptions });
+
+const leavesMaterial = new THREE.MeshPhongMaterial({
     map: leavesTexture, transparent: false, opacity: 1, alphaTest: 0.1,
     depthWrite: true, depthTest: true, side: THREE.DoubleSide,
-    vertexColors: true, color: textureShade
+    vertexColors: true, color: textureShade,
+    emissive: textureEmissive, emissiveIntensity: textureEmissiveIntensity
 });
 
-const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true, color: textureShade });
-const tntSideMaterial = new THREE.MeshLambertMaterial({ map: tntSideTexture, vertexColors: true, color: textureShade });
-const tntTopMaterial = new THREE.MeshLambertMaterial({ map: tntTopTexture, vertexColors: true, color: textureShade });
-const tntBottomMaterial = new THREE.MeshLambertMaterial({ map: tntBottomTexture, vertexColors: true, color: textureShade });
-const waterMaterial = new THREE.MeshLambertMaterial({ map: waterTexture, transparent: true, opacity: 0.58, depthWrite: false, side: THREE.DoubleSide });
+const snowMaterial = new THREE.MeshPhongMaterial({ map: snowTexture, color: textureShade, ...materialOptions });
+const tntSideMaterial = new THREE.MeshPhongMaterial({ map: tntSideTexture, color: textureShade, ...materialOptions });
+const tntTopMaterial = new THREE.MeshPhongMaterial({ map: tntTopTexture, color: textureShade, ...materialOptions });
+const tntBottomMaterial = new THREE.MeshPhongMaterial({ map: tntBottomTexture, color: textureShade, ...materialOptions });
+const waterMaterial = new THREE.MeshPhongMaterial({ map: waterTexture, transparent: true, opacity: 0.58, depthWrite: false, side: THREE.DoubleSide, emissive: 0x12364a, emissiveIntensity: 0.28 });
 
 const grassMaterial = [grassSideMaterial, grassSideMaterial, grassTopMaterial, dirtMaterial, grassSideMaterial, grassSideMaterial];
 const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTopMaterial, oakSideMaterial, oakSideMaterial];
