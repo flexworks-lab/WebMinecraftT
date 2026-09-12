@@ -13,18 +13,30 @@ const TNT_MAX_FALL_SPEED = 28;
 const SAND_GRAVITY = 22;
 const SAND_MAX_FALL_SPEED = 28;
 
-// TNT is deliberately processed over several frames instead of doing the whole
-// explosion in one frame. This keeps large chain explosions from blocking input,
-// rendering, or other local game systems.
-const EXPLOSION_BLOCKS_PER_FRAME = 18;
+// Keep explosion work small enough that even chain explosions do not cause a frame spike.
+const EXPLOSION_BLOCKS_PER_FRAME = 10;
 const MAX_TNT_CHAIN_DELAY = 300;
-const EXPLOSION_PARTICLES = 16;
+const EXPLOSION_PARTICLES = 10;
+const MAX_ACTIVE_EXPLOSIONS = 12;
+
+// Precompute the explosion shape once. Every TNT explosion reuses these offsets instead
+// of rebuilding hundreds of objects and calculating sqrt/hypot values again.
+const EXPLOSION_OFFSETS = [];
+for (let dx = -EXPLOSION_RADIUS; dx <= EXPLOSION_RADIUS; dx++) {
+    for (let dy = -EXPLOSION_RADIUS; dy <= EXPLOSION_RADIUS; dy++) {
+        for (let dz = -EXPLOSION_RADIUS; dz <= EXPLOSION_RADIUS; dz++) {
+            const distance = Math.hypot(dx, dy, dz);
+            if (distance <= EXPLOSION_RADIUS) EXPLOSION_OFFSETS.push({ dx, dy, dz, distance });
+        }
+    }
+}
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
 const primed = new Set();
 const fallingSand = new Map();
 const activeExplosions = new Set();
+const explosionTouchedBlocks = new Set();
 let suppressPhysicsBlockEvent = false;
 let lastScene = null;
 let physicsLoopStarted = false;
@@ -222,32 +234,38 @@ function makeExplosionEffect(scene, x, y, z) {
 
 function processExplosionBatch(explosion) {
     if (!explosion.scene) return true;
-    const { scene, blocks, BLOCK } = explosion;
-    const end = Math.min(explosion.index + EXPLOSION_BLOCKS_PER_FRAME, blocks.length);
+    const { scene, BLOCK, offsets } = explosion;
+    const end = Math.min(explosion.index + EXPLOSION_BLOCKS_PER_FRAME, offsets.length);
 
     for (; explosion.index < end; explosion.index++) {
-        const { x, y, z, distance } = blocks[explosion.index];
+        const offset = offsets[explosion.index];
+        const x = explosion.cx + offset.dx;
+        const y = explosion.cy + offset.dy;
+        const z = explosion.cz + offset.dz;
+        const key = makeKey(x, y, z);
+        if (explosionTouchedBlocks.has(key)) continue;
+
         const type = getBlockAt(x, y, z);
         if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
 
         if (type === BLOCK.TNT && !(x === explosion.cx && y === explosion.cy && z === explosion.cz)) {
-            // Delay chained TNT slightly so a large chain does not all execute in one frame.
+            explosionTouchedBlocks.add(key);
             const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
             setTimeout(() => startFuse(scene, x, y, z), delay);
             continue;
         }
 
-        const resistance = distance / EXPLOSION_RADIUS;
+        const resistance = offset.distance / EXPLOSION_RADIUS;
         const chance = 0.97 - resistance * 0.42;
         if (Math.random() > chance) continue;
+        explosionTouchedBlocks.add(key);
         if (setBlockAt(x, y, z, BLOCK.AIR)) {
-            // Spread network work across frames instead of flooding the connection at once.
             sendBlockChange(x, y, z, BLOCK.AIR);
             notifyBlockChange(x, y, z, BLOCK.AIR);
         }
     }
 
-    if (explosion.index < blocks.length) {
+    if (explosion.index < offsets.length) {
         requestAnimationFrame(() => processExplosionBatch(explosion));
         return false;
     }
@@ -257,21 +275,11 @@ function processExplosionBatch(explosion) {
 }
 
 function explode(scene, cx, cy, cz) {
-    // Build the small affected list once. The actual block mutations are then
-    // spread across animation frames, preventing a synchronous 9x9x9 scan from
-    // freezing the browser when several TNT blocks chain together.
+    // Reuse the precomputed explosion shape and avoid starting unlimited concurrent
+    // explosion jobs if a large TNT chain is triggered at once.
+    if (activeExplosions.size >= MAX_ACTIVE_EXPLOSIONS) return;
     const BLOCK = getBlockTypes();
-    const blocks = [];
-    for (let x = Math.floor(cx - EXPLOSION_RADIUS); x <= Math.floor(cx + EXPLOSION_RADIUS); x++) {
-        for (let y = Math.floor(cy - EXPLOSION_RADIUS); y <= Math.floor(cy + EXPLOSION_RADIUS); y++) {
-            for (let z = Math.floor(cz - EXPLOSION_RADIUS); z <= Math.floor(cz + EXPLOSION_RADIUS); z++) {
-                const distance = Math.hypot(x - cx, y - cy, z - cz);
-                if (distance <= EXPLOSION_RADIUS) blocks.push({ x, y, z, distance });
-            }
-        }
-    }
-
-    const explosion = { scene, cx, cy, cz, BLOCK, blocks, index: 0 };
+    const explosion = { scene, cx, cy, cz, BLOCK, offsets: EXPLOSION_OFFSETS, index: 0 };
     activeExplosions.add(explosion);
     processExplosionBatch(explosion);
 }
