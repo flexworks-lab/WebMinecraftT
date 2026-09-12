@@ -215,7 +215,7 @@ function installGameTitleImage() {
     image.style.width = "min(560px, 92vw)";
     image.style.maxWidth = "100%";
     image.style.height = "auto";
-    image.style.maxHeight = "90px";
+    image.style.maxHeight = "140px";
     image.style.objectFit = "contain";
     image.style.objectPosition = "center";
     image.style.margin = "0 auto 16px";
