@@ -1,3 +1,5 @@
+import { clearHotbar } from "./inventory.js";
+
 const INDEX_KEY = "webminecraft_saved_world_index_v2";
 const DELETED_KEY = "webminecraft_deleted_worlds";
 const CACHE_NAME = "webminecraft-worlds-v2";
@@ -286,6 +288,7 @@ function showMenu() {
 }
 
 function closeMenu() {
+    clearHotbar();
     closeDetails();
     closeCreate();
     if (overlay) overlay.style.display = "none";
