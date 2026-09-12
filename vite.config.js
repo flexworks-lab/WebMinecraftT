@@ -42,16 +42,8 @@ const gameplayUiPlugin = {
                 "const punch = mobile && !!touchInput.breakPressed;"
             );
             const textureCss = '.hotbarTexture{position:absolute!important;inset:5px!important;display:block!important;background-position:center!important;background-size:100% 100%!important;background-repeat:no-repeat!important;image-rendering:pixelated!important;pointer-events:none!important;z-index:1!important}';
-            code = code.replace(
-                /(`(?:[^`]|\\`)*#hotbar\.textured-hotbar \.hotbarCount\{[^}]*\})/,
-                `$1\\n${textureCss}`
-            );
-            if (!code.includes(textureCss)) {
-                code = code.replace(
-                    'style.textContent = `',
-                    `style.textContent = `${textureCss}\\n`
-                );
-            }
+            const hotbarCountRule = '#hotbar.textured-hotbar .hotbarCount{position:absolute;right:3px;bottom:1px;color:#fff;font:bold 13px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none;z-index:3}';
+            code = code.replace(hotbarCountRule, `${hotbarCountRule}\n${textureCss}`);
             return { code, map: null };
         }
 
