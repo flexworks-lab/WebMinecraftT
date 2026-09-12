@@ -29,27 +29,9 @@ function hash2D(x, z, seed, salt = 0) {
 }
 
 function makeGrassTexture() {
-    const size = 16;
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = "#4fa83d";
-    const pixels = [
-        [7, 15, 2, 1], [6, 14, 2, 1], [8, 13, 2, 2], [6, 12, 2, 2],
-        [5, 10, 2, 2], [9, 11, 2, 2], [4, 8, 2, 2], [10, 9, 2, 2],
-        [7, 7, 2, 2], [6, 5, 2, 2], [8, 4, 2, 2], [9, 2, 2, 2]
-    ];
-    for (const [x, y, w, h] of pixels) ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = "#67bd4c";
-    ctx.fillRect(7, 11, 2, 3);
-    ctx.fillRect(8, 7, 2, 3);
-    ctx.fillRect(6, 4, 2, 3);
-
-    const texture = new THREE.CanvasTexture(canvas);
+    const texture = new THREE.TextureLoader().load(
+        `${import.meta.env.BASE_URL}textures/shortgrass.png`
+    );
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
     texture.wrapS = THREE.ClampToEdgeWrapping;
@@ -136,6 +118,7 @@ function scan() {
     const cz = Math.floor(cameraRef.position.z);
     const cameraY = cameraRef.position.y;
     const matrix = new THREE.Matrix4();
+    const scaleVector = new THREE.Vector3();
     let count = 0;
 
     for (let dz = -SCAN_RADIUS; dz <= SCAN_RADIUS && count < MAX_GRASS; dz++) {
@@ -154,7 +137,8 @@ function scan() {
             const y = surface.y + 0.505;
             matrix.makeRotationY(rotation);
             matrix.setPosition(x + 0.5, y, z + 0.5);
-            matrix.scale(new THREE.Vector3(scale, scale, scale));
+            scaleVector.set(scale, scale, scale);
+            matrix.scale(scaleVector);
             mesh.setMatrixAt(count, matrix);
             count++;
         }
