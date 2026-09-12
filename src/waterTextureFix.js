@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { waterTexture } from "./blocks.js";
 
 const BLUE_WATER = 0x3c8fc0;
+const WATER_TOP_Y = 16.42;
 const UV_SCALE = 0.22;
 
 waterTexture.wrapS = THREE.RepeatWrapping;
@@ -24,6 +25,22 @@ function applyWaterMaterial(material) {
         mat.side = THREE.DoubleSide;
         mat.needsUpdate = true;
     }
+}
+
+function alignStaticWaterTop(mesh) {
+    const geometry = mesh?.geometry;
+    const position = geometry?.getAttribute("position");
+    const normal = geometry?.getAttribute("normal");
+    if (!geometry || !position) return;
+
+    for (let i = 0; i < position.count; i++) {
+        // The world ocean is one continuous surface. Every top vertex must use
+        // the exact same Y so adjacent water blocks never look bent or stepped.
+        if (!normal || normal.getY(i) > 0.5) position.setY(i, WATER_TOP_Y - (mesh.position?.y || 0));
+    }
+    position.needsUpdate = true;
+    geometry.computeBoundingSphere();
+    geometry.computeBoundingBox();
 }
 
 function applyContinuousWaterUvs(mesh) {
@@ -73,6 +90,7 @@ function applyWaterTexture(object) {
     object.traverse(child => {
         if (!child.isMesh) return;
         applyWaterMaterial(child.material);
+        alignStaticWaterTop(child);
         applyContinuousWaterUvs(child);
     });
 }
