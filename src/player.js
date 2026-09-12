@@ -11,7 +11,7 @@ let jumpWasDown = false;
 let lastNetworkSend = 0;
 const avatarDots = new Map();
 
-const PLAYER_WIDTH = 0.98;
+const PLAYER_WIDTH = 0.80;
 const PLAYER_HEIGHT = 1.8;
 const HALF_WIDTH = PLAYER_WIDTH / 2;
 
