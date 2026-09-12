@@ -65,7 +65,7 @@ service cloud.firestore {
         && request.resource.data.status in ['accepted', 'declined'];
 
       allow delete: if request.auth != null
-        && (request.resource.data.fromUid == request.auth.uid || request.resource.data.toUid == request.auth.uid);
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
     }
 
     match /users/{userId}/worlds/{worldId} {
