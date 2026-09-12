@@ -1,6 +1,100 @@
 const ANNOUNCEMENT_DOC = "announcements/active";
 const ANNOUNCEMENT_SEEN_KEY = "webminecraft_seen_announcement";
 
+const PATCH_NOTES = `WebMinecraftT Patch Notes
+
+WORLD SAVES
+• Separate world saves keep each world’s block data independent.
+• Saved worlds keep their names, seeds, creation dates, and updated data.
+• World seed links make it easier to share and reopen generated worlds.
+• World loading and deletion behavior has been improved to keep saves consistent.
+
+GAMEPLAY
+• Added a full world creation/opening screen for entering and sharing seeds.
+• Added Copy Seed and Copy World Link tools.
+• Improved spawning and generated-world consistency.
+• Added pause, settings, mobile mode, and return-to-menu controls.
+
+WORLD & BLOCKS
+• Seed-based terrain generation is used for repeatable worlds.
+• Terrain, caves, biomes, trees, water, and spawn locations are tied to the world seed.
+• Block interaction and world updates have been improved for smoother gameplay.
+
+WATER
+• Improved flowing-water behavior with source creation, falling water, horizontal flow, and retraction.
+• Water simulation is queue-based and limits work per update to reduce lag.
+• Water rendering and transparency were improved.
+• Water textures now use Minecraft-style filtering and continuous world UVs.
+
+TNT & PERFORMANCE
+• TNT behavior has been optimized to reduce freezes when explosions happen.
+• Explosion block updates are processed together to reduce repeated rendering work.
+• Performance systems now limit expensive world and water updates per frame.
+
+VISUALS & TEXTURES
+• Block textures and lighting were improved for a darker Minecraft-style look.
+• Underground lighting and fog transition more naturally with depth.
+• Shadows, render quality, brightness, and lighting quality can be adjusted in Settings.
+• Water and world materials received visual cleanup.
+
+CLOUDS & SKY
+• Added larger, more visible block-style clouds.
+• Cloud shapes and placement are randomized for a less repetitive sky.
+• Added a glowing square sun positioned high in the sky.
+• Sky and underground color transitions were improved.
+
+PLAYER & MOVEMENT
+• Movement, camera handling, spawning, and controls have been polished.
+• Desktop pointer-lock behavior is handled more reliably.
+• Added mobile-friendly movement controls and Mobile Mode.
+
+MOBILE
+• Added touch-friendly controls for smaller screens.
+• Added a hybrid joystick layout for movement.
+• Mobile UI positioning was improved for phones and tablets.
+• Crosshair, hotbar, and in-world UI visibility are handled more cleanly.
+
+CHAT
+• Desktop chat can be triggered with `/`.
+• Chat messages can remain visible in the top-left without constantly opening the full chat.
+• Full-screen chat was improved for desktop and mobile.
+• Chat visibility and input behavior were cleaned up.
+
+MULTIPLAYER
+• Added multiplayer server and room support.
+• Added public and private server options.
+• Added server names, private codes, player names, and server lists.
+• Shared block changes can sync between players.
+• Multiplayer chat supports join messages and player communication.
+• Multiplayer systems continue to receive performance and stability improvements.
+
+UI & MENUS
+• Main menu has been redesigned with a more Minecraft-like appearance.
+• News is now a dedicated button with a scrollable News & Updates center.
+• Website announcements use a larger title/reason layout and scrollable messages.
+• Friends has its own button beside News.
+• Settings uses a full-screen, scrollable layout with graphics and performance controls.
+
+SOCIAL & ACCOUNTS
+• Added account and friend-system groundwork.
+• Friends and player presence features can be accessed from the main menu.
+• Developer/account controls are separated from normal player UI.
+
+NEWS & UPDATES
+• Added a dedicated News Center for update notes.
+• News entries open into a larger details view.
+• Website announcements can be delivered separately from normal update notes.
+• This patch adds the complete patch notes to the News Center.
+
+BUG FIXES & TECHNICAL IMPROVEMENTS
+• Fixed and improved world-save persistence and loading.
+• Improved UI visibility when entering and leaving worlds.
+• Improved mobile/desktop control switching.
+• Reduced unnecessary work during world updates.
+• Improved rendering, lighting, water, and multiplayer stability.
+
+Thanks for playing WebMinecraftT!`;
+
 let firebaseReady = null;
 
 function waitForFirebase(timeout = 15000) {
@@ -242,6 +336,54 @@ function showAnnouncement(data) {
     document.body.appendChild(overlay);
 }
 
+function addPatchNotesToNews() {
+    const list = document.getElementById("newsList");
+    const center = document.getElementById("newsCenter");
+    const details = document.getElementById("newsDetails");
+    if (!list || !center || !details || document.getElementById("fullPatchNotesNews")) return Boolean(list && center && details);
+
+    const card = document.createElement("button");
+    card.id = "fullPatchNotesNews";
+    card.className = "newsItem";
+    card.type = "button";
+
+    const version = document.createElement("div");
+    version.className = "newsItemVersion";
+    version.textContent = "LATEST • Patch Notes";
+    const title = document.createElement("div");
+    title.className = "newsItemTitle";
+    title.textContent = "Full WebMinecraftT Patch Notes";
+    const body = document.createElement("div");
+    body.className = "newsItemBody";
+    body.textContent = "All major world, gameplay, water, TNT, visual, mobile, chat, multiplayer, UI, social, news, performance, and bug-fix updates in one entry.";
+    card.append(version, title, body);
+
+    card.addEventListener("click", event => {
+        event.stopPropagation();
+        const detailVersion = details.querySelector("#newsDetailsVersion");
+        const detailTitle = details.querySelector("#newsDetailsTitle");
+        const detailBody = details.querySelector("#newsDetailsBody");
+        if (!detailVersion || !detailTitle || !detailBody) return;
+        detailVersion.textContent = version.textContent;
+        detailTitle.textContent = title.textContent;
+        detailBody.textContent = PATCH_NOTES;
+        details.style.display = "flex";
+        details.setAttribute("aria-hidden", "false");
+    });
+
+    list.prepend(card);
+    return true;
+}
+
+function watchForNewsCenter() {
+    if (addPatchNotesToNews()) return;
+    let attempts = 0;
+    const timer = setInterval(() => {
+        attempts++;
+        if (addPatchNotesToNews() || attempts >= 150) clearInterval(timer);
+    }, 100);
+}
+
 async function loadAnnouncement() {
     const firebase = await waitForFirebase();
     const db = firebase?.firestore?.();
@@ -255,6 +397,7 @@ async function loadAnnouncement() {
 }
 
 function init() {
+    watchForNewsCenter();
     loadAnnouncement();
 }
 
