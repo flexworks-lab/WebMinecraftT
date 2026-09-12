@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
 import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
-import { setupInventory, giveBrokenBlock, getSelectedItemId, consumeSelected } from "./inventory.js";
+import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
 import { tryIgniteTNT, registerTNTPhysicsScene } from "./tnt.js";
 import "./worldSave.js";
 import "./heldBlock3D.js";
@@ -139,7 +139,6 @@ export function setupInteraction(scene, camera) {
         sendPlayerAction("mine");
         sendBlockChange(target.x, target.y, target.z, BLOCK.AIR);
         notifyBlockChange(target.x, target.y, target.z, BLOCK.AIR);
-        giveBrokenBlock(type);
         createBreakParticles(scene, new THREE.Vector3(target.x, target.y, target.z), type, BLOCK);
     }
     function placeBlock() {
