@@ -12,12 +12,15 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && exists(/databases/$(database)/documents/adminUsers/$(request.auth.token.email))
-        && get(/databases/$(database)/documents/adminUsers/$(request.auth.token.email)).data.enabled == true;
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+        && get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.enabled == true;
     }
 
-    match /adminUsers/{email} {
-      allow get: if isDeveloper() || (request.auth != null && request.auth.token.email == email);
+    match /admins/{email} {
+      allow get: if isDeveloper()
+        || (request.auth != null
+          && request.auth.token.email_verified == true
+          && request.auth.token.email == email);
       allow list: if isDeveloper();
       allow create, update, delete: if isDeveloper();
     }
