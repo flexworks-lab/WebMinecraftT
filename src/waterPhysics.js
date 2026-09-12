@@ -2,33 +2,36 @@ import * as THREE from "three";
 import { getBlockAt, getBlockTypes, CHUNK_SIZE } from "./world.js";
 import { waterTexture } from "./blocks.js";
 
-// Performance-first Minecraft-style water simulation.
-// Water is local to chunks, and only cells affected by flow changes are updated.
+// Minecraft-style water simulation tuned for a browser voxel world.
+// Only active cells are evaluated; stable water does no simulation work.
 const MAX_FLOW = 8;
-const FLOW_INTERVAL = 200;
-const MAX_CELLS_PER_STEP = 500;
+const FLOW_INTERVAL = 125;
+const MAX_CELLS_PER_STEP = 750;
 const MAX_MESH_CELLS_PER_CHUNK = 4000;
-const MAX_CHUNK_REBUILDS_PER_UPDATE = 2;
-const MAX_WATER_CELLS = 50000;
+const MAX_CHUNK_REBUILDS_PER_UPDATE = 4;
+const MAX_WATER_CELLS = 75000;
+const DROP_SEARCH_DISTANCE = 4;
+const DROP_CACHE_LIMIT = 2500;
 
 const water = new Map();
 const cellsByChunk = new Map();
-const active = new Set();
+const activeQueue = [];
+const activeSet = new Set();
 const naturalSources = new Set();
 const dirtyChunks = new Set();
 const chunkMeshes = new Map();
 const BLOCK = getBlockTypes();
 let gameScene = null;
 let sceneScanned = false;
+let queueHead = 0;
 let lastStep = performance.now();
+let dropCache = new Map();
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const key = (x, y, z) => `${x},${y},${z}`;
 const parseKey = value => value.split(",").map(Number);
 const chunkKey = (x, z) => `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
 
-// Lambert is cheaper than Phong and still reacts to scene lighting.
-// Use the real water texture with a blue tint and keep water fairly opaque.
 const waterMaterial = new THREE.MeshLambertMaterial({
     map: waterTexture,
     color: 0x3c8fc0,
@@ -39,13 +42,35 @@ const waterMaterial = new THREE.MeshLambertMaterial({
 });
 waterMaterial.forceSinglePass = true;
 
+function enqueue(x, y, z) {
+    if (y < -32 || y > 95) return;
+    const k = key(x, y, z);
+    if (activeSet.has(k)) return;
+    activeSet.add(k);
+    activeQueue.push(k);
+}
+
+function compactQueue() {
+    if (queueHead < 2048 || queueHead * 2 < activeQueue.length) return;
+    activeQueue.splice(0, queueHead);
+    queueHead = 0;
+}
+
+function activateNeighbors(x, y, z) {
+    enqueue(x + 1, y, z);
+    enqueue(x - 1, y, z);
+    enqueue(x, y, z + 1);
+    enqueue(x, y, z - 1);
+    enqueue(x, y + 1, z);
+    enqueue(x, y - 1, z);
+}
+
 function markChunkDirty(x, z) {
     dirtyChunks.add(chunkKey(x, z));
 }
 
 function markCellDirty(x, z) {
     markChunkDirty(x, z);
-
     const cx = Math.floor(x / CHUNK_SIZE);
     const cz = Math.floor(z / CHUNK_SIZE);
     if (cx !== Math.floor((x + 1) / CHUNK_SIZE)) markChunkDirty(x + 1, z);
@@ -54,47 +79,35 @@ function markCellDirty(x, z) {
     if (cz !== Math.floor((z - 1) / CHUNK_SIZE)) markChunkDirty(x, z - 1);
 }
 
-function activateNeighbors(x, y, z) {
-    active.add(key(x + 1, y, z));
-    active.add(key(x - 1, y, z));
-    active.add(key(x, y, z + 1));
-    active.add(key(x, y, z - 1));
-    active.add(key(x, y + 1, z));
-    active.add(key(x, y - 1, z));
-}
-
 function setWater(x, y, z, level) {
-    if (level <= 0 || water.size >= MAX_WATER_CELLS) return false;
-
+    if (level <= 0 || y < -32 || y > 95) return false;
     const k = key(x, y, z);
     const existing = water.get(k);
     const old = existing?.level || 0;
     if (level <= old) return false;
 
-    if (existing) {
-        existing.level = level;
-    } else {
+    if (existing) existing.level = level;
+    else {
+        if (water.size >= MAX_WATER_CELLS) return false;
         water.set(k, { x, y, z, level });
-
         const ck = chunkKey(x, z);
         let cells = cellsByChunk.get(ck);
-        if (!cells) {
-            cells = new Set();
-            cellsByChunk.set(ck, cells);
-        }
+        if (!cells) { cells = new Set(); cellsByChunk.set(ck, cells); }
         cells.add(k);
     }
 
-    active.add(k);
+    enqueue(x, y, z);
     markCellDirty(x, z);
     return true;
 }
 
-function removeWater(x, y, z) {
+function removeWater(x, y, z, force = false) {
     const k = key(x, y, z);
-    if (!water.has(k) || naturalSources.has(k)) return false;
+    if (!water.has(k) || (!force && naturalSources.has(k))) return false;
 
     water.delete(k);
+    naturalSources.delete(k);
+
     const ck = chunkKey(x, z);
     const cells = cellsByChunk.get(ck);
     if (cells) {
@@ -108,9 +121,8 @@ function removeWater(x, y, z) {
 }
 
 function setWaterLevel(x, y, z, level) {
-    const k = key(x, y, z);
     if (level <= 0) return removeWater(x, y, z);
-
+    const k = key(x, y, z);
     const cell = water.get(k);
     if (!cell) return setWater(x, y, z, level);
 
@@ -119,13 +131,13 @@ function setWaterLevel(x, y, z, level) {
             cell.level = MAX_FLOW;
             markCellDirty(x, z);
         }
-        active.add(k);
+        enqueue(x, y, z);
         return true;
     }
 
     if (cell.level === level) return false;
     cell.level = level;
-    active.add(k);
+    enqueue(x, y, z);
     markCellDirty(x, z);
     activateNeighbors(x, y, z);
     return true;
@@ -138,7 +150,6 @@ function isOpen(x, y, z) {
 function registerExistingWaterMesh(mesh) {
     if (!mesh || mesh.userData?.isDynamicWater) return;
     mesh.visible = false;
-
     const position = mesh.geometry?.getAttribute("position");
     if (!position) return;
 
@@ -150,30 +161,23 @@ function registerExistingWaterMesh(mesh) {
         const k = key(x, y, z);
         if (seen.has(k)) continue;
         seen.add(k);
-
-        if (!naturalSources.has(k)) {
-            naturalSources.add(k);
-            setWater(x, y, z, MAX_FLOW);
-        }
+        naturalSources.add(k);
+        setWater(x, y, z, MAX_FLOW);
     }
 }
 
 function scanSceneForWater() {
     if (!gameScene || sceneScanned) return;
     sceneScanned = true;
-
     gameScene.traverse(object => {
         if (!object.isMesh || object.userData?.isDynamicWater) return;
-        if (object.userData?.isWater || object.name?.toLowerCase().includes("water")) {
-            registerExistingWaterMesh(object);
-        }
+        if (object.userData?.isWater || object.name?.toLowerCase().includes("water")) registerExistingWaterMesh(object);
     });
 }
 
 function removeChunkMesh(ck) {
     const mesh = chunkMeshes.get(ck);
     if (!mesh) return;
-
     gameScene.remove(mesh);
     mesh.geometry.dispose();
     chunkMeshes.delete(ck);
@@ -181,7 +185,6 @@ function removeChunkMesh(ck) {
 
 function rebuildChunk(ck) {
     if (!gameScene) return;
-
     const cells = cellsByChunk.get(ck);
     if (!cells || !cells.size) {
         removeChunkMesh(ck);
@@ -205,7 +208,6 @@ function rebuildChunk(ck) {
         const topY = y - 0.5 + height;
         const above = water.get(key(x, y + 1, z))?.level || 0;
 
-        // A full water column hides the top face underneath it.
         if (above <= 0) {
             positions.push(
                 x - 0.5, topY, z - 0.5,
@@ -222,11 +224,9 @@ function rebuildChunk(ck) {
         for (const [dx, dz] of DIRS) {
             const neighbor = water.get(key(x + dx, y, z + dz))?.level || 0;
             if (neighbor >= level) continue;
-
             const sideHeight = Math.max(0.125, neighbor / MAX_FLOW);
             const nh = y - 0.5 + sideHeight;
-            let p;
-            let normal;
+            let p, normal;
 
             if (dx === 1) {
                 p = [[x + 0.5,y - 0.5,z - 0.5],[x + 0.5,nh,z - 0.5],[x + 0.5,nh,z + 0.5],[x + 0.5,y - 0.5,z + 0.5]];
@@ -245,7 +245,7 @@ function rebuildChunk(ck) {
             for (const v of p) positions.push(...v);
             normals.push(...normal,...normal,...normal,...normal);
             uvs.push(0,0, 1,0, 1,1, 0,1);
-            indices.push(vertex,vertex + 1,vertex + 2,vertex,vertex + 2,vertex + 3);
+            indices.push(vertex,vertex+1,vertex+2,vertex,vertex+2,vertex+3);
             vertex += 4;
         }
     }
@@ -265,14 +265,12 @@ function rebuildChunk(ck) {
     mesh.userData.waterChunk = ck;
     mesh.matrixAutoUpdate = false;
     mesh.updateMatrix();
-
     chunkMeshes.set(ck, mesh);
     gameScene.add(mesh);
 }
 
 function rebuildDirtyChunks(limit = MAX_CHUNK_REBUILDS_PER_UPDATE) {
     if (!gameScene || !dirtyChunks.size) return;
-
     let count = 0;
     for (const ck of dirtyChunks) {
         dirtyChunks.delete(ck);
@@ -281,110 +279,182 @@ function rebuildDirtyChunks(limit = MAX_CHUNK_REBUILDS_PER_UPDATE) {
     }
 }
 
-function getDesiredFlow(x, y, z) {
-    const k = key(x, y, z);
-    if (naturalSources.has(k)) return MAX_FLOW;
-    if (!isOpen(x, y, z)) return 0;
+function findNearestDropDistance(x, y, z) {
+    const cacheKey = `${x},${y},${z}`;
+    const cached = dropCache.get(cacheKey);
+    if (cached !== undefined) return cached;
 
-    // Water directly above creates a full-height falling column.
-    const above = water.get(key(x, y + 1, z))?.level || 0;
-    if (above > 0) return MAX_FLOW;
-
-    // Otherwise water spreads sideways and loses one level per cell.
-    let desired = 0;
-    for (const [dx, dz] of DIRS) {
-        const neighbor = water.get(key(x + dx, y, z))?.level || 0;
-        if (neighbor > 1) desired = Math.max(desired, neighbor - 1);
+    let result = Infinity;
+    if (!isOpen(x, y, z)) {
+        result = Infinity;
+    } else if (isOpen(x, y - 1, z)) {
+        result = 0;
+    } else {
+        const queue = [[x, z, 0]];
+        const visited = new Set([`${x},${z}`]);
+        let head = 0;
+        while (head < queue.length) {
+            const [cx, cz, distance] = queue[head++];
+            if (distance >= DROP_SEARCH_DISTANCE) continue;
+            for (const [dx, dz] of DIRS) {
+                const nx = cx + dx;
+                const nz = cz + dz;
+                const d = distance + 1;
+                const k = `${nx},${nz}`;
+                if (visited.has(k) || !isOpen(nx, y, nz)) continue;
+                visited.add(k);
+                if (isOpen(nx, y - 1, nz)) {
+                    result = d;
+                    queue.length = 0;
+                    break;
+                }
+                queue.push([nx, nz, d]);
+            }
+        }
     }
-    return desired;
+
+    if (dropCache.size >= DROP_CACHE_LIMIT) dropCache.clear();
+    dropCache.set(cacheKey, result);
+    return result;
 }
 
-function spread(x, y, z, level) {
-    if (level <= 1) return;
-    const nextLevel = level - 1;
-
+function getPreferredHorizontalDirections(x, y, z) {
+    const candidates = [];
+    let bestWeight = Infinity;
     for (const [dx, dz] of DIRS) {
         const nx = x + dx;
         const nz = z + dz;
-
-        // Falling water gets full strength in the column below.
-        if (isOpen(nx, y - 1, nz) && !water.has(key(nx, y - 1, nz))) {
-            setWater(nx, y - 1, nz, MAX_FLOW);
-            continue;
-        }
-
         if (!isOpen(nx, y, nz)) continue;
+        const weight = findNearestDropDistance(nx, y, nz);
+        if (weight < bestWeight) bestWeight = weight;
+        candidates.push({ dx, dz, weight });
+    }
+    return candidates.filter(candidate => candidate.weight === bestWeight);
+}
+
+function tryFlowDown(x, y, z) {
+    if (!isOpen(x, y - 1, z)) return false;
+    const below = water.get(key(x, y - 1, z))?.level || 0;
+    if (below < MAX_FLOW) setWaterLevel(x, y - 1, z, MAX_FLOW);
+    return true;
+}
+
+function spreadHorizontal(x, y, z, level) {
+    if (level <= 1) return;
+    const nextLevel = level - 1;
+    for (const { dx, dz } of getPreferredHorizontalDirections(x, y, z)) {
+        const nx = x + dx;
+        const nz = z + dz;
         const current = water.get(key(nx, y, nz))?.level || 0;
         if (current < nextLevel) setWater(nx, y, nz, nextLevel);
     }
+}
+
+function tryCreateSource(x, y, z) {
+    if (!isOpen(x, y, z) || getBlockAt(x, y - 1, z) === BLOCK.AIR) return false;
+    let sourceCount = 0;
+    for (const [dx, dz] of DIRS) {
+        if (naturalSources.has(key(x + dx, y, z + dz))) sourceCount++;
+    }
+    if (sourceCount < 2) return false;
+    const k = key(x, y, z);
+    naturalSources.add(k);
+    setWater(x, y, z, MAX_FLOW);
+    return true;
 }
 
 function updateFlowCell(x, y, z) {
     const k = key(x, y, z);
     const cell = water.get(k);
 
-    if (naturalSources.has(k)) {
-        setWaterLevel(x, y, z, MAX_FLOW);
-        spread(x, y, z, MAX_FLOW);
+    if (cell && !isOpen(x, y, z)) {
+        removeWater(x, y, z, true);
         return;
     }
 
-    const desired = getDesiredFlow(x, y, z);
-
-    // No source above or beside us: let the flow disappear.
-    if (!cell) {
+    tryCreateSource(x, y, z);
+    const currentCell = water.get(k);
+    if (!currentCell) {
+        let desired = 0;
+        for (const [dx, dz] of DIRS) {
+            const neighbor = water.get(key(x + dx, y, z + dz))?.level || 0;
+            if (neighbor > 1) desired = Math.max(desired, neighbor - 1);
+        }
         if (desired > 0) setWater(x, y, z, desired);
         return;
     }
 
-    if (desired <= 0) {
+    if (naturalSources.has(k)) {
+        setWaterLevel(x, y, z, MAX_FLOW);
+        if (tryFlowDown(x, y, z)) return;
+        spreadHorizontal(x, y, z, MAX_FLOW);
+        return;
+    }
+
+    if (tryFlowDown(x, y, z)) return;
+
+    const above = water.get(key(x, y + 1, z))?.level || 0;
+    if (above > 0) {
+        setWaterLevel(x, y, z, MAX_FLOW);
+        return;
+    }
+
+    let bestLevel = 0;
+    for (const [dx, dz] of DIRS) {
+        const neighbor = water.get(key(x + dx, y, z + dz))?.level || 0;
+        bestLevel = Math.max(bestLevel, neighbor - 1);
+    }
+
+    if (bestLevel <= 0) {
         removeWater(x, y, z);
         return;
     }
 
-    setWaterLevel(x, y, z, desired);
-    if (desired > 1) spread(x, y, z, desired);
+    bestLevel = Math.min(MAX_FLOW - 1, bestLevel);
+    setWaterLevel(x, y, z, bestLevel);
+    spreadHorizontal(x, y, z, bestLevel);
 }
 
 function stepWater() {
-    const current = [];
-    let count = 0;
+    const budget = Math.min(MAX_CELLS_PER_STEP, activeQueue.length - queueHead);
+    let processed = 0;
+    dropCache.clear();
 
-    for (const k of active) {
-        current.push(k);
-        if (++count >= MAX_CELLS_PER_STEP) break;
-    }
-    for (const k of current) active.delete(k);
-
-    for (const k of current) {
+    while (processed < budget && queueHead < activeQueue.length) {
+        const k = activeQueue[queueHead++];
+        activeSet.delete(k);
         const [x, y, z] = parseKey(k);
         updateFlowCell(x, y, z);
+        processed++;
     }
+
+    compactQueue();
 }
 
 export function setupWaterPhysics(scene) {
     gameScene = scene;
     scanSceneForWater();
-
-    while (dirtyChunks.size) {
-        rebuildDirtyChunks(32);
+    for (const k of naturalSources) {
+        const [x, y, z] = parseKey(k);
+        enqueue(x, y, z);
     }
+    while (dirtyChunks.size) rebuildDirtyChunks(32);
 }
 
 export function updateWaterPhysics() {
     if (!gameScene) return;
-
     const now = performance.now();
-    if (now - lastStep >= FLOW_INTERVAL && active.size) {
+    if (now - lastStep >= FLOW_INTERVAL && activeQueue.length > queueHead) {
         lastStep = now;
         stepWater();
     }
-
     rebuildDirtyChunks();
 }
 
-export function notifyWaterBlockChanged(x, y, z) {
-    active.add(key(x,y,z));
+export function notifyWaterBlockChanged(x, y, z, type = BLOCK.AIR) {
+    if (type !== BLOCK.AIR && water.has(key(x, y, z))) removeWater(x, y, z, true);
+    dropCache.clear();
+    enqueue(x, y, z);
     activateNeighbors(x, y, z);
     markCellDirty(x, z);
     markCellDirty(x + 1, z);
@@ -393,18 +463,11 @@ export function notifyWaterBlockChanged(x, y, z) {
     markCellDirty(x, z - 1);
 }
 
-// Block breaking/placing in interaction.js broadcasts this event after the
-// world has changed. Listen for it so water immediately reacts to newly opened
-// spaces, just like Minecraft water updates around a broken block.
 if (typeof window !== "undefined") {
     window.addEventListener("webminecraft:blockchange", event => {
-        const detail = event?.detail;
-        if (!detail) return;
-        const x = Number(detail.x);
-        const y = Number(detail.y);
-        const z = Number(detail.z);
-        if (![x, y, z].every(Number.isFinite)) return;
-        notifyWaterBlockChanged(Math.floor(x), Math.floor(y), Math.floor(z));
+        const detail = event.detail || {};
+        if (!Number.isFinite(detail.x) || !Number.isFinite(detail.y) || !Number.isFinite(detail.z)) return;
+        notifyWaterBlockChanged(detail.x, detail.y, detail.z, detail.type ?? BLOCK.AIR);
     });
 }
 
@@ -417,6 +480,6 @@ THREE.Scene.prototype.add = function (...objects) {
 
 function waterLoop() {
     updateWaterPhysics();
-    setTimeout(waterLoop, 150);
+    setTimeout(waterLoop, 100);
 }
-setTimeout(waterLoop, 150);
+setTimeout(waterLoop, 100);
