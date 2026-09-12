@@ -1,9 +1,12 @@
 const NEWS_COLLECTION = "news";
-const NEWS_SEEN_KEY = "webminecraft-news-seen-live";
+const NEWS_SEEN_KEY = "webminecraft-news-seen-live-v2";
+const PREVIEW_LENGTH = 110;
 
 let firebaseReady = null;
-let newsSnapshot = null;
+let latestDocs = [];
+let latestSignatureValue = "";
 let attached = false;
+let selectedLiveId = "";
 
 function waitForFirebase(timeout = 15000) {
     if (firebaseReady) return firebaseReady;
@@ -17,7 +20,10 @@ function waitForFirebase(timeout = 15000) {
                     return;
                 }
             } catch {}
-            if (Date.now() - started >= timeout) { resolve(null); return; }
+            if (Date.now() - started >= timeout) {
+                resolve(null);
+                return;
+            }
             setTimeout(check, 100);
         };
         check();
@@ -35,19 +41,45 @@ function escapeHtml(value) {
 }
 
 function getTimestampValue(data) {
-    try { return data?.updatedAt?.toMillis?.() || 0; } catch { return 0; }
+    try {
+        return data?.updatedAt?.toMillis?.() || data?.createdAt?.toMillis?.() || 0;
+    } catch {
+        return 0;
+    }
+}
+
+function previewText(value) {
+    const text = String(value ?? "").replace(/\s+/g, " ").trim();
+    if (text.length <= PREVIEW_LENGTH) return text;
+    return `${text.slice(0, PREVIEW_LENGTH).trimEnd()}…`;
 }
 
 function latestSignature(docs) {
-    return docs.map(doc => `${doc.id}:${getTimestampValue(doc.data())}`).join("|");
+    return docs.map(doc => {
+        const data = doc.data() || {};
+        return [
+            doc.id,
+            getTimestampValue(data),
+            String(data.version || ""),
+            String(data.title || ""),
+            String(data.body || ""),
+            data.active === false ? "0" : "1"
+        ].join(":");
+    }).join("|");
 }
 
 function getSeenSignature() {
-    try { return localStorage.getItem(NEWS_SEEN_KEY) || ""; } catch { return ""; }
+    try {
+        return localStorage.getItem(NEWS_SEEN_KEY) || "";
+    } catch {
+        return "";
+    }
 }
 
 function setSeenSignature(value) {
-    try { localStorage.setItem(NEWS_SEEN_KEY, value); } catch {}
+    try {
+        localStorage.setItem(NEWS_SEEN_KEY, value);
+    } catch {}
 }
 
 function setRedDot(show) {
@@ -61,42 +93,78 @@ function getSortedDocs(snapshot) {
         .sort((a, b) => getTimestampValue(b.data()) - getTimestampValue(a.data()));
 }
 
+function getLiveEntry(doc) {
+    const data = doc.data() || {};
+    return {
+        id: doc.id,
+        version: String(data.version || "NEWS"),
+        title: String(data.title || "Untitled News"),
+        body: String(data.body || "")
+    };
+}
+
+function showLiveEntry(item, card) {
+    selectedLiveId = item.id;
+
+    const version = document.getElementById("newsCurrentVersion");
+    const currentTitle = document.getElementById("newsCurrentTitle");
+    const detailsTitle = document.getElementById("newsDetailsTitle");
+    const detailsBody = document.getElementById("newsDetailsBody");
+    if (!version || !currentTitle || !detailsTitle || !detailsBody) return;
+
+    document.querySelectorAll("#newsList .newsItem").forEach(node => node.classList.remove("active"));
+    card?.classList.add("active");
+
+    version.textContent = item.version;
+    currentTitle.textContent = item.title;
+    detailsTitle.textContent = item.title;
+    detailsBody.textContent = item.body;
+    detailsBody.scrollTop = 0;
+}
+
 function appendOrRefreshLiveNews(docs) {
     const list = document.getElementById("newsList");
     if (!list) return;
 
     list.querySelectorAll(".liveNewsItem").forEach(node => node.remove());
-    const cards = [];
-    const entries = docs.map(doc => ({
-        id: doc.id,
-        version: String(doc.data()?.version || "NEWS"),
-        title: String(doc.data()?.title || "Untitled News"),
-        body: String(doc.data()?.body || "")
-    }));
+
+    const entries = docs.map(getLiveEntry);
+    const cards = new Map();
 
     entries.forEach(item => {
         const card = document.createElement("button");
         card.className = "newsItem liveNewsItem";
         card.type = "button";
-        card.innerHTML = `<div class="newsItemVersion">${escapeHtml(item.version)}</div><div class="newsItemTitle">${escapeHtml(item.title)}</div><div class="newsItemBody">${escapeHtml(item.body.split("\\n")[0])}</div>`;
+        card.dataset.newsId = item.id;
+        card.innerHTML = `<div class="newsItemVersion">${escapeHtml(item.version)}</div><div class="newsItemTitle">${escapeHtml(item.title)}</div><div class="newsItemBody">${escapeHtml(previewText(item.body))}</div>`;
         card.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
-            const version = document.getElementById("newsReadingVersion");
-            const title = document.getElementById("newsReadingTitle");
-            const body = document.getElementById("newsReadingBody");
-            if (!version || !title || !body) return;
-            document.querySelectorAll("#newsList .newsItem").forEach(node => node.classList.remove("active"));
-            card.classList.add("active");
-            version.textContent = item.version;
-            title.textContent = item.title;
-            body.textContent = item.body;
-            body.scrollTop = 0;
+            showLiveEntry(item, card);
         });
-        cards.push(card);
+        cards.set(item.id, card);
     });
 
-    entries.slice().reverse().forEach((_, index) => list.prepend(cards[entries.length - 1 - index]));
+    entries.slice().reverse().forEach(item => list.prepend(cards.get(item.id));
+
+    if (selectedLiveId) {
+        const selected = entries.find(item => item.id === selectedLiveId);
+        if (selected) {
+            showLiveEntry(selected, cards.get(selected.id));
+            return;
+        }
+        selectedLiveId = "";
+    }
+}
+
+function bindNewsButton() {
+    const button = document.getElementById("newsButton");
+    if (!button || button.dataset.liveNewsClickBound === "1") return;
+    button.dataset.liveNewsClickBound = "1";
+    button.addEventListener("click", () => {
+        setSeenSignature(latestSignatureValue);
+        setRedDot(false);
+    }, true);
 }
 
 function installLiveNews() {
@@ -105,29 +173,28 @@ function installLiveNews() {
     if (!list) return;
     attached = true;
 
-    const firebasePromise = waitForFirebase();
-    firebasePromise.then(firebase => {
+    bindNewsButton();
+
+    waitForFirebase().then(firebase => {
         const db = firebase?.firestore?.();
         if (!db) return;
+
         try {
             db.collection(NEWS_COLLECTION).onSnapshot(snapshot => {
-                const docs = getSortedDocs(snapshot);
-                newsSnapshot = docs;
-                appendOrRefreshLiveNews(docs);
+                latestDocs = getSortedDocs(snapshot);
+                latestSignatureValue = latestSignature(latestDocs);
 
-                const signature = latestSignature(docs);
-                if (!signature) return;
-                setRedDot(getSeenSignature() !== signature);
+                appendOrRefreshLiveNews(latestDocs);
+                bindNewsButton();
 
-                const button = document.getElementById("newsButton");
-                if (button && !button.dataset.liveNewsClickBound) {
-                    button.dataset.liveNewsClickBound = "1";
-                    button.addEventListener("click", () => {
-                        setSeenSignature(latestSignature(newsSnapshot || []));
-                        setRedDot(false);
-                    }, true);
+                if (latestSignatureValue) {
+                    setRedDot(getSeenSignature() !== latestSignatureValue);
+                } else {
+                    setRedDot(false);
                 }
-            }, error => console.warn("Live news load failed:", error));
+            }, error => {
+                console.warn("Live news load failed:", error);
+            });
         } catch (error) {
             console.warn("Live news listener failed:", error);
         }
@@ -137,6 +204,7 @@ function installLiveNews() {
 function watchNewsUi() {
     installLiveNews();
     if (attached) return;
+
     const observer = new MutationObserver(() => {
         installLiveNews();
         if (attached) observer.disconnect();
@@ -144,5 +212,8 @@ function watchNewsUi() {
     observer.observe(document.body, { childList: true, subtree: true });
 }
 
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watchNewsUi, { once: true });
-else watchNewsUi();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", watchNewsUi, { once: true });
+} else {
+    watchNewsUi();
+}
