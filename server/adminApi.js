@@ -86,7 +86,7 @@ async function firestoreAdminEnabled(email, token) {
     if (!email || !token) return false;
     const id = encodeURIComponent(email);
     try {
-        const response = await fetch(`${FIRESTORE_BASE}/adminUsers/${id}`, {
+        const response = await fetch(`${FIRESTORE_BASE}/admins/${id}`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) return false;
