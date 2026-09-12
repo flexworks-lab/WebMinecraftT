@@ -5,6 +5,11 @@ let auth = null;
 let currentUser = null;
 let friendCode = "";
 let friendRefreshTimer = null;
+let friendRequestUnsubscribe = null;
+let friendRequestListenerUid = null;
+let friendRequestInitialLoad = true;
+let friendRequestKnown = new Map();
+let friendNotificationCount = 0;
 
 function loadFirebaseScript(src) {
     if (!window.__webMinecraftFirebaseLoads) window.__webMinecraftFirebaseLoads = new Map();
@@ -71,8 +76,18 @@ async function initFirebase() {
         auth.onAuthStateChanged(user => {
             currentUser = user || null;
             friendCode = currentUser ? makeFriendCode(currentUser.uid) : "";
-            if (user) syncUserProfile(user);
-            else { if (friendRefreshTimer) clearTimeout(friendRefreshTimer); friendRefreshTimer = null; }
+            friendRequestInitialLoad = true;
+            friendRequestKnown.clear();
+            friendNotificationCount = 0;
+            updateFriendBadge();
+            if (user) {
+                syncUserProfile(user);
+                startFriendRequestListener(user);
+            } else {
+                stopFriendRequestListener();
+                if (friendRefreshTimer) clearTimeout(friendRefreshTimer);
+                friendRefreshTimer = null;
+            }
             updateAccountUi();
         });
         firebaseReady = true;
@@ -87,6 +102,16 @@ function addStyles() {
     style.textContent = `
 #accountButton{position:fixed;top:92px;right:20px;left:auto;z-index:90;min-width:48px;height:48px;padding:0 14px;border:2px solid #111;border-top-color:#888;border-left-color:#888;border-radius:3px;background:#4c4c4c;color:#fff;font:bold 13px Arial,sans-serif;cursor:pointer;box-shadow:0 3px 0 #171717}
 #accountButton:hover{background:#5e5e5e}
+#accountButton.friendRequestAlert{animation:friendButtonPulse .75s steps(2,end) infinite}
+.friendRequestBadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:6px;padding:0 4px;border:2px solid #111;background:#b53a3a;color:#fff;font:bold 10px Arial,sans-serif;vertical-align:middle;box-shadow:1px 1px 0 #000}
+#friendRequestToast{position:fixed;top:92px;right:20px;width:min(360px,calc(100vw - 40px));z-index:500;display:flex;align-items:center;gap:12px;padding:13px;background:linear-gradient(#3f3f3f,#292929);border:2px solid #111;border-top-color:#999;border-left-color:#999;box-shadow:5px 5px 0 rgba(0,0,0,.65);color:#fff;font-family:Arial,sans-serif;cursor:pointer;transform:translateX(calc(100% + 40px));opacity:0;pointer-events:none}
+#friendRequestToast.show{animation:friendToastIn .28s cubic-bezier(.2,.9,.25,1) forwards}
+#friendRequestToast.hide{animation:friendToastOut .22s ease forwards}
+.friendToastIcon{width:42px;height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;background:#6d8d4e;border:2px solid #111;border-top-color:#a6c886;border-left-color:#a6c886;font:bold 22px Arial,sans-serif;box-shadow:2px 2px 0 #111}
+.friendToastBody{min-width:0;flex:1}.friendToastTitle{font:15px MinecraftFont,monospace;text-shadow:2px 2px 0 #000;margin-bottom:4px}.friendToastText{font-size:12px;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.friendToastHint{margin-top:5px;color:#9dcc76;font-size:10px}
+@keyframes friendToastIn{0%{transform:translateX(calc(100% + 40px));opacity:0}70%{transform:translateX(-8px);opacity:1}100%{transform:translateX(0);opacity:1}}
+@keyframes friendToastOut{0%{transform:translateX(0);opacity:1}100%{transform:translateX(calc(100% + 40px));opacity:0}}
+@keyframes friendButtonPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 #accountModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:250;padding:20px}
 #accountPanel{width:min(480px,94vw);max-height:90vh;overflow:auto;background:linear-gradient(#282828,#1b1b1b);border:2px solid #101010;border-top-color:#707070;border-left-color:#707070;box-shadow:7px 7px 0 rgba(0,0,0,.55);padding:26px 24px 22px;color:#fff;font-family:Arial,sans-serif}
 #accountTitle{margin:0 0 6px;font-family:MinecraftFont,monospace;font-size:28px;text-align:center;text-shadow:2px 2px 0 #000}
@@ -116,7 +141,7 @@ function addStyles() {
 .friendEmpty{padding:10px;color:#888;background:#181818;border:1px solid #333;font-size:11px}
 #accountClose{background:#454545}
 #accountLoading{font-size:12px;color:#aaa;text-align:center;padding:10px 0}
-@media(max-width:560px){#accountButton{top:76px;right:12px;left:auto}.settingsOpenPlaceholder{top:12px;right:12px}}
+@media(max-width:560px){#accountButton{top:76px;right:12px}.friendRequestBadge{min-width:17px;height:17px}#friendRequestToast{top:76px;right:12px;width:calc(100vw - 24px)}}
 `;
     document.head.appendChild(style);
 }
@@ -124,7 +149,9 @@ function addStyles() {
 function createUi() {
     if (document.getElementById("accountButton")) return;
     addStyles();
-    const button = document.createElement("button"); button.id = "accountButton"; button.type = "button"; button.textContent = "Account"; button.addEventListener("click", openAccountModal); document.body.appendChild(button);
+    const button = document.createElement("button");
+    button.id = "accountButton"; button.type = "button"; button.textContent = "Account";
+    button.addEventListener("click", openAccountModal); document.body.appendChild(button);
     const modal = document.createElement("div"); modal.id = "accountModal";
     modal.innerHTML = `
 <div id="accountPanel">
@@ -134,7 +161,8 @@ function createUi() {
     document.body.appendChild(modal);
     const close = () => modal.style.display = "none";
     modal.addEventListener("click", event => { if (event.target === modal) close(); });
-    modal.querySelector("#accountClose").addEventListener("click", close); modal.querySelector("#accountCloseUser").addEventListener("click", close);
+    modal.querySelector("#accountClose").addEventListener("click", close);
+    modal.querySelector("#accountCloseUser").addEventListener("click", close);
     modal.querySelector("#accountLogout").addEventListener("click", async () => { if (!auth) return; try { await auth.signOut(); } catch (error) { setMessage(error); } });
     modal.querySelector("#friendCopy").addEventListener("click", async () => { try { await navigator.clipboard.writeText(getFriendCode()); modal.querySelector("#friendCopy").textContent = "Copied!"; setTimeout(() => modal.querySelector("#friendCopy").textContent = "Copy Friend Code", 1200); } catch { setMessage("Could not copy the friend code."); } });
     modal.querySelector("#friendAdd").addEventListener("click", sendFriendRequest);
@@ -191,14 +219,19 @@ async function sendFriendRequest() {
             if (status === "pending") return setMessage("A friend request is already pending.");
         }
         await db.collection("friendRequests").doc(requestId).set({ fromUid: currentUser.uid, toUid: target.uid, fromName: currentUser.displayName || "Player", toName: target.displayName || "Player", status: "pending", createdAt: new Date(), updatedAt: new Date() });
-        input.value = ""; setMessage(`Friend request sent to ${target.displayName || "Player"}.`); refreshFriends();
+        input.value = "";
+        setMessage(`Friend request sent to ${target.displayName || "Player"}.`);
+        refreshFriends();
     } catch (error) { console.warn("Friend request failed:", error); setMessage("Could not send the friend request. Check your Firestore rules."); }
 }
 
 async function updateFriendRequest(id, accept) {
     if (!currentUser || !window.firebase?.firestore) return;
-    try { await window.firebase.firestore().collection("friendRequests").doc(id).update({ status: accept ? "accepted" : "declined", updatedAt: new Date() }); refreshFriends(); }
-    catch { setMessage("Could not update that friend request."); }
+    try {
+        await window.firebase.firestore().collection("friendRequests").doc(id).update({ status: accept ? "accepted" : "declined", updatedAt: new Date() });
+        friendRequestKnown.delete(id);
+        refreshFriends();
+    } catch { setMessage("Could not update that friend request."); }
 }
 
 async function refreshFriends() {
@@ -206,9 +239,8 @@ async function refreshFriends() {
     const db = window.firebase.firestore(), requestEl = document.getElementById("friendRequests"), listEl = document.getElementById("friendList");
     if (!requestEl || !listEl) return;
     try {
-        const [incoming, sent, fromFriends, toFriends] = await Promise.all([
+        const [incoming, fromFriends, toFriends] = await Promise.all([
             db.collection("friendRequests").where("toUid", "==", currentUser.uid).get(),
-            db.collection("friendRequests").where("fromUid", "==", currentUser.uid).get(),
             db.collection("friendRequests").where("fromUid", "==", currentUser.uid).get(),
             db.collection("friendRequests").where("toUid", "==", currentUser.uid).get()
         ]);
@@ -217,11 +249,120 @@ async function refreshFriends() {
         requestEl.querySelectorAll("[data-friend-accept]").forEach(b => b.addEventListener("click", () => updateFriendRequest(b.dataset.friendAccept, true)));
         requestEl.querySelectorAll("[data-friend-decline]").forEach(b => b.addEventListener("click", () => updateFriendRequest(b.dataset.friendDecline, false)));
         const all = new Map();
-        for (const doc of [...fromFriends.docs, ...toFriends.docs]) { const x = doc.data(); if (x.status !== "accepted") continue; const uid = x.fromUid === currentUser.uid ? x.toUid : x.fromUid; const name = x.fromUid === currentUser.uid ? x.toName : x.fromName; if (uid) all.set(uid, { uid, name: name || "Player" }); }
+        for (const doc of [...fromFriends.docs, ...toFriends.docs]) {
+            const x = doc.data(); if (x.status !== "accepted") continue;
+            const uid = x.fromUid === currentUser.uid ? x.toUid : x.fromUid;
+            const name = x.fromUid === currentUser.uid ? x.toName : x.fromName;
+            if (uid) all.set(uid, { uid, name: name || "Player" });
+        }
         listEl.innerHTML = all.size ? [...all.values()].map(x => `<div class="friendRow"><div class="friendRowName">${escapeHtml(x.name)}</div><span class="friendRowCode">Friend</span></div>`).join("") : '<div class="friendEmpty">No friends yet.</div>';
-        const sentPending = sent.docs.some(d => d.data().status === "pending");
-        if (sentPending) setMessage("Friend request sent.");
-    } catch (error) { console.warn("Could not load friends:", error); requestEl.innerHTML = '<div class="friendEmpty">Friends are unavailable right now.</div>'; listEl.innerHTML = '<div class="friendEmpty">Friends are unavailable right now.</div>'; }
+    } catch (error) {
+        console.warn("Could not load friends:", error);
+        requestEl.innerHTML = '<div class="friendEmpty">Friends are unavailable right now.</div>';
+        listEl.innerHTML = '<div class="friendEmpty">Friends are unavailable right now.</div>';
+    }
+}
+
+function startFriendRequestListener(user) {
+    stopFriendRequestListener();
+    if (!user?.uid || !window.firebase?.firestore) return;
+    const db = window.firebase.firestore();
+    friendRequestListenerUid = user.uid;
+    friendRequestInitialLoad = true;
+    friendRequestKnown = new Map();
+    try {
+        friendRequestUnsubscribe = db.collection("friendRequests")
+            .where("toUid", "==", user.uid)
+            .onSnapshot(snapshot => {
+                if (friendRequestListenerUid !== user.uid) return;
+                let newRequestShown = false;
+                for (const change of snapshot.docChanges()) {
+                    const data = change.doc.data() || {};
+                    const wasPending = friendRequestKnown.get(change.doc.id) === "pending";
+                    if (change.type === "removed") {
+                        friendRequestKnown.delete(change.doc.id);
+                        continue;
+                    }
+                    friendRequestKnown.set(change.doc.id, data.status || "");
+                    if (!friendRequestInitialLoad && change.type === "added" && data.status === "pending") {
+                        showFriendRequestNotification(data);
+                        newRequestShown = true;
+                    } else if (!friendRequestInitialLoad && change.type === "modified" && data.status === "pending" && !wasPending) {
+                        showFriendRequestNotification(data);
+                        newRequestShown = true;
+                    }
+                }
+                if (friendRequestInitialLoad) friendRequestInitialLoad = false;
+                updateFriendBadge(snapshot.docs.filter(doc => doc.data()?.status === "pending").length, newRequestShown);
+                refreshFriends();
+            }, error => {
+                console.warn("Friend request listener failed:", error);
+            });
+    } catch (error) { console.warn("Could not start friend request listener:", error); }
+}
+
+function stopFriendRequestListener() {
+    try { friendRequestUnsubscribe?.(); } catch {}
+    friendRequestUnsubscribe = null;
+    friendRequestListenerUid = null;
+    friendRequestKnown.clear();
+    friendRequestInitialLoad = true;
+    friendNotificationCount = 0;
+    updateFriendBadge();
+}
+
+function updateFriendBadge(count = friendNotificationCount, pulse = false) {
+    friendNotificationCount = Math.max(0, Number(count) || 0);
+    const button = document.getElementById("accountButton");
+    if (!button) return;
+    button.classList.toggle("friendRequestAlert", pulse || friendNotificationCount > 0);
+    const old = button.querySelector(".friendRequestBadge"); old?.remove();
+    if (friendNotificationCount > 0) {
+        const badge = document.createElement("span"); badge.className = "friendRequestBadge"; badge.textContent = friendNotificationCount > 99 ? "99+" : String(friendNotificationCount); button.appendChild(badge);
+    }
+}
+
+function showFriendRequestNotification(data) {
+    const sender = escapeHtml(data?.fromName || "Player");
+    const toast = document.getElementById("friendRequestToast") || createFriendRequestToast();
+    const title = toast.querySelector(".friendToastTitle"), text = toast.querySelector(".friendToastText");
+    if (title) title.textContent = "Friend Request";
+    if (text) text.textContent = `${sender} sent you a friend request`;
+    toast.classList.remove("hide");
+    void toast.offsetWidth;
+    toast.classList.add("show");
+    updateFriendBadge(Math.max(friendNotificationCount, 1), true);
+    playFriendRequestSound();
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => hideFriendRequestToast(toast), 7000);
+}
+
+function createFriendRequestToast() {
+    const toast = document.createElement("div");
+    toast.id = "friendRequestToast";
+    toast.innerHTML = `<div class="friendToastIcon">+</div><div class="friendToastBody"><div class="friendToastTitle">Friend Request</div><div class="friendToastText">Someone sent you a friend request</div><div class="friendToastHint">Click to open your account</div></div>`;
+    toast.addEventListener("click", () => { hideFriendRequestToast(toast); openAccountModal(); });
+    document.body.appendChild(toast);
+    return toast;
+}
+
+function hideFriendRequestToast(toast = document.getElementById("friendRequestToast")) {
+    if (!toast) return;
+    toast.classList.remove("show");
+    toast.classList.add("hide");
+}
+
+function playFriendRequestSound() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        const ctx = new AudioContextClass();
+        const gain = ctx.createGain(); const osc = ctx.createOscillator();
+        osc.type = "square"; osc.frequency.setValueAtTime(660, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.11);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.045, ctx.currentTime + 0.012); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+        osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.2);
+        setTimeout(() => ctx.close?.(), 350);
+    } catch {}
 }
 
 function escapeHtml(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#039;"); }
@@ -232,11 +373,17 @@ function updateAccountUi() {
     if (loading && firebaseReady) loading.style.display = "none";
     if (currentUser) {
         loginView.style.display = "none"; userView.style.display = "block";
-        button.textContent = currentUser.displayName ? `Hi, ${currentUser.displayName.split(" ")[0]}` : "Account";
+        button.textContent = "";
+        const label = document.createElement("span"); label.textContent = currentUser.displayName ? `Hi, ${currentUser.displayName.split(" ")[0]}` : "Account"; button.appendChild(label);
         const avatar = document.getElementById("accountAvatar");
         if (avatar) avatar.src = currentUser.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%234a4a4a'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23aaa'/%3E%3Cpath d='M14 57c2-12 10-18 18-18s16 6 18 18' fill='%23aaa'/%3E%3C/svg%3E";
-        document.getElementById("accountName").textContent = currentUser.displayName || "Player"; document.getElementById("accountEmail").textContent = currentUser.email || ""; renderFriendCode(); refreshFriends();
-    } else { loginView.style.display = "block"; userView.style.display = "none"; button.textContent = "Account"; }
+        document.getElementById("accountName").textContent = currentUser.displayName || "Player";
+        document.getElementById("accountEmail").textContent = currentUser.email || "";
+        renderFriendCode(); refreshFriends();
+        updateFriendBadge();
+    } else {
+        loginView.style.display = "block"; userView.style.display = "none"; button.textContent = "Account"; updateFriendBadge();
+    }
 }
 
 createUi();
