@@ -1,6 +1,6 @@
 // Firebase web configuration for WebMinecraftT.
 // This config is safe to include in the browser. Firebase Authentication and
-autor security rules control access to your project's data.
+your Firebase security rules control access to your project's data.
 import "./browserWorldFallback.js";
 
 export const firebaseConfig = {
