@@ -63,10 +63,7 @@ const snowTexture = createTexture("#cbd6da", ["#c0ccd1", "#e3e9eb", "#adbcc2", "
 const tntBottomTexture = loadTexture(texturePath("tnt_bottom.png"), "TNT bottom");
 const tntSideTexture = loadTexture(texturePath("tnt_side.png"), "TNT side");
 const tntTopTexture = loadTexture(texturePath("tnt_top.png"), "TNT top");
-
-// Water is intentionally a single, subtle color instead of a repeating pixel
-// texture so large water areas read as one continuous surface rather than tiles.
-const waterTexture = createTexture("#214f6c", [], 0, 26);
+const waterTexture = loadTexture(texturePath("Water_(texture)_JE4.png"), "Water texture");
 
 // Keep the darker block palette while adding a small material floor so textures
 // never become completely black when underground lighting gets very low.
@@ -109,7 +106,7 @@ const tntBottomMaterial = new THREE.MeshPhongMaterial({ map: tntBottomTexture, c
 
 const waterMaterial = new THREE.MeshPhongMaterial({
     map: waterTexture,
-    color: 0x214f6c,
+    color: 0x3c8fc0,
     transparent: true,
     opacity: 0.76,
     depthWrite: false,
