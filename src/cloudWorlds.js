@@ -1,22 +1,55 @@
 const DELETED_KEY = "webminecraft_deleted_worlds";
-const CLOUD_DELETED_COLLECTION = "deletedWorlds";
 const PENDING_DELETE_KEY = "webminecraft_pending_cloud_deletes";
+const MAX_NAME = 40;
+const CHUNK_SIZE = 16;
 
-let authPromise = null;
+let firebasePromise = null;
 let syncRunning = false;
 let deleteRetryRunning = false;
 
-function waitForFirebase(timeout = 12000) {
-    if (authPromise) return authPromise;
-    authPromise = new Promise(resolve => {
+function normalizeSeed(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? (Math.floor(Math.abs(number)) >>> 0) : null;
+}
+
+function loadFirebaseDatabaseScript() {
+    if (window.__webMinecraftFirebaseDatabaseLoad) return window.__webMinecraftFirebaseDatabaseLoad;
+    const version = "12.18.0";
+    const src = `https://www.gstatic.com/firebasejs/${version}/firebase-database-compat.js`;
+    window.__webMinecraftFirebaseDatabaseLoad = new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            if (window.firebase?.database) return resolve();
+            existing.addEventListener("load", () => resolve(), { once: true });
+            existing.addEventListener("error", () => reject(new Error(`Could not load ${src}`)), { once: true });
+            return;
+        }
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Could not load ${src}`));
+        document.head.appendChild(script);
+    });
+    return window.__webMinecraftFirebaseDatabaseLoad;
+}
+
+async function waitForFirebase(timeout = 12000) {
+    if (firebasePromise) return firebasePromise;
+    firebasePromise = new Promise(resolve => {
         const started = Date.now();
-        const check = () => {
+        const check = async () => {
             try {
-                if (window.firebase?.apps?.length && window.firebase.auth && window.firebase.firestore) {
-                    resolve(window.firebase.auth());
-                    return;
+                if (window.firebase?.apps?.length && window.firebase.auth) {
+                    await loadFirebaseDatabaseScript();
+                    if (window.firebase.database) {
+                        resolve({ auth: window.firebase.auth(), db: window.firebase.database() });
+                        return;
+                    }
                 }
-            } catch {}
+            } catch (error) {
+                console.warn("Realtime Database SDK setup failed:", error);
+            }
             if (Date.now() - started >= timeout) {
                 resolve(null);
                 return;
@@ -25,22 +58,19 @@ function waitForFirebase(timeout = 12000) {
         };
         check();
     });
-    return authPromise;
+    return firebasePromise;
 }
 
-function normalizeSeed(value) {
-    const number = Number(value);
-    return Number.isFinite(number) ? (Math.floor(Math.abs(number)) >>> 0) : null;
-}
-
-function firestore() {
-    return window.firebase?.firestore?.() || null;
+async function getUserAndDb() {
+    const services = await waitForFirebase();
+    const user = services?.auth?.currentUser || null;
+    return user && services?.db ? { user, db: services.db } : null;
 }
 
 function getDeletedSeeds() {
     try {
         const values = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]");
-        return new Set(Array.isArray(values) ? values.map(Number).filter(Number.isFinite) : []);
+        return new Set(Array.isArray(values) ? values.map(normalizeSeed).filter(v => v !== null) : []);
     } catch {
         return new Set();
     }
@@ -91,23 +121,22 @@ function forgetPendingDelete(seed) {
     setPendingDeletes(pending);
 }
 
-async function getUser() {
-    const auth = await waitForFirebase();
-    return auth?.currentUser || null;
+function worldMetaRef(db, uid, seed) {
+    return db.ref(`users/${uid}/worlds/${seed}`);
 }
 
-function worldRef(uid, seed) {
-    return firestore().collection("users").doc(uid).collection("worlds").doc(String(seed));
+function worldDataRef(db, uid, seed) {
+    return db.ref(`users/${uid}/worldData/${seed}`);
 }
 
-function deletedRef(uid, seed) {
-    return firestore().collection("users").doc(uid).collection(CLOUD_DELETED_COLLECTION).doc(String(seed));
+function deletedRef(db, uid, seed) {
+    return db.ref(`users/${uid}/deletedWorlds/${seed}`);
 }
 
 function chunkKeyFromBlockKey(key) {
     const [x, , z] = String(key).split(",").map(Number);
     if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
-    return `${Math.floor(x / 16)},${Math.floor(z / 16)}`;
+    return `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
 }
 
 function splitBlocksIntoChunks(blocks) {
@@ -122,40 +151,46 @@ function splitBlocksIntoChunks(blocks) {
     return chunks;
 }
 
-async function isCloudDeleted(user, seed) {
-    const snap = await deletedRef(user.uid, seed).get();
-    return snap.exists;
+function serverTimestamp() {
+    return window.firebase?.database?.ServerValue?.TIMESTAMP || Date.now();
+}
+
+async function isCloudDeleted(db, user, seed) {
+    const snap = await deletedRef(db, user.uid, seed).once("value");
+    return snap.exists();
 }
 
 async function uploadWorld(world) {
-    const user = await getUser();
+    const services = await getUserAndDb();
     const seed = normalizeSeed(world?.seed);
-    const db = firestore();
-    if (!user || !db || !world || seed === null) return false;
+    if (!services || !world || seed === null) return false;
     if (getDeletedSeeds().has(seed)) return false;
-    if (await isCloudDeleted(user, seed)) return false;
+    if (await isCloudDeleted(services.db, services.user, seed)) return false;
 
     const updatedAt = world.updatedAt || new Date().toISOString();
-    const metaRef = worldRef(user.uid, seed);
-    await metaRef.set({
-        name: String(world.name || `World ${seed}`).trim() || `World ${seed}`,
+    const chunks = splitBlocksIntoChunks(world.blocks || {});
+    const meta = {
+        name: String(world.name || `World ${seed}`).trim().slice(0, MAX_NAME) || `World ${seed}`,
         seed,
         createdAt: world.createdAt || updatedAt,
         updatedAt,
         deleted: false
-    }, { merge: true });
+    };
 
-    const chunks = splitBlocksIntoChunks(world.blocks || {});
-    const oldChunks = await metaRef.collection("data").get();
+    const root = `users/${services.user.uid}`;
+    const updates = {};
+    updates[`worlds/${seed}`] = meta;
+    updates[`deletedWorlds/${seed}`] = null;
+
+    const existingSnap = await worldDataRef(services.db, services.user.uid, seed).once("value");
+    const existing = existingSnap.val() || {};
     const wanted = new Set(chunks.keys());
-
-    for (const doc of oldChunks.docs) {
-        if (!wanted.has(doc.id)) await doc.ref.delete();
+    for (const chunk of Object.keys(existing)) {
+        if (!wanted.has(chunk)) updates[`worldData/${seed}/${chunk}`] = null;
     }
-    for (const [chunk, blocks] of chunks) {
-        await metaRef.collection("data").doc(chunk).set({ blocks, updatedAt }, { merge: false });
-    }
+    for (const [chunk, blocks] of chunks) updates[`worldData/${seed}/${chunk}`] = { blocks, updatedAt };
 
+    await services.db.ref(root).update(updates);
     return true;
 }
 
@@ -163,7 +198,7 @@ export async function saveCloudWorld(world) {
     try {
         return await uploadWorld(world);
     } catch (error) {
-        console.warn("Cloud world save failed:", error);
+        console.warn("Realtime Database world save failed:", error);
         return false;
     }
 }
@@ -173,31 +208,28 @@ export async function loadCloudWorld(seed, localWorld = null) {
     if (normalizedSeed === null || getDeletedSeeds().has(normalizedSeed)) return null;
 
     try {
-        const user = await getUser();
-        const db = firestore();
-        if (!user || !db) return localWorld;
+        const services = await getUserAndDb();
+        if (!services) return localWorld;
 
-        if (await isCloudDeleted(user, normalizedSeed)) {
+        if (await isCloudDeleted(services.db, services.user, normalizedSeed)) {
             rememberDeletedSeed(normalizedSeed);
             return null;
         }
 
-        const ref = worldRef(user.uid, normalizedSeed);
-        const metaSnap = await ref.get();
-        if (!metaSnap.exists) return localWorld;
-
-        const meta = metaSnap.data() || {};
+        const metaSnap = await worldMetaRef(services.db, services.user.uid, normalizedSeed).once("value");
+        if (!metaSnap.exists()) return localWorld;
+        const meta = metaSnap.val() || {};
         if (meta.deleted === true) {
             rememberDeletedSeed(normalizedSeed);
             return null;
         }
 
-        const dataSnap = await ref.collection("data").get();
+        const dataSnap = await worldDataRef(services.db, services.user.uid, normalizedSeed).once("value");
+        const data = dataSnap.val() || {};
         const blocks = {};
-        for (const doc of dataSnap.docs) {
-            const data = doc.data() || {};
-            if (!data.blocks || typeof data.blocks !== "object") continue;
-            Object.assign(blocks, data.blocks);
+        for (const chunk of Object.values(data)) {
+            if (!chunk?.blocks || typeof chunk.blocks !== "object") continue;
+            Object.assign(blocks, chunk.blocks);
         }
 
         return {
@@ -209,44 +241,37 @@ export async function loadCloudWorld(seed, localWorld = null) {
             blocks
         };
     } catch (error) {
-        console.warn("Cloud world load failed:", error);
+        console.warn("Realtime Database world load failed:", error);
         return localWorld;
     }
 }
 
-export async function deleteCloudWorld(seed, permanent = true) {
+export async function deleteCloudWorld(seed) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return false;
 
     rememberDeletedSeed(normalizedSeed);
+    const services = await getUserAndDb();
+    if (!services) {
+        rememberPendingDelete(normalizedSeed);
+        return false;
+    }
 
     try {
-        const user = await getUser();
-        const db = firestore();
-        if (!user || !db) {
-            rememberPendingDelete(normalizedSeed);
-            return false;
-        }
-
-        const ref = worldRef(user.uid, normalizedSeed);
-        const chunks = await ref.collection("data").get();
-        for (const doc of chunks.docs) await doc.ref.delete();
-
-        if (permanent) {
-            await ref.delete();
-        } else {
-            await ref.set({ deleted: true, seed: normalizedSeed, updatedAt: new Date().toISOString() }, { merge: true });
-        }
-
-        await deletedRef(user.uid, normalizedSeed).set({
+        const root = `users/${services.user.uid}`;
+        const updates = {};
+        updates[`worlds/${normalizedSeed}`] = null;
+        updates[`worldData/${normalizedSeed}`] = null;
+        updates[`deletedWorlds/${normalizedSeed}`] = {
             seed: normalizedSeed,
-            deletedAt: window.firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+            deletedAt: serverTimestamp()
+        };
+        await services.db.ref(root).update(updates);
         forgetPendingDelete(normalizedSeed);
         return true;
     } catch (error) {
         rememberPendingDelete(normalizedSeed);
-        console.warn("Cloud world delete failed; will retry automatically:", error);
+        console.warn("Realtime Database world delete failed; will retry automatically:", error);
         return false;
     }
 }
@@ -255,9 +280,8 @@ export async function retryCloudWorldDeletes() {
     if (deleteRetryRunning) return;
     deleteRetryRunning = true;
     try {
-        const pending = [...getPendingDeletes()];
-        for (const seed of pending) {
-            try { await deleteCloudWorld(seed); } catch {}
+        for (const seed of [...getPendingDeletes()]) {
+            try { if (await deleteCloudWorld(seed)) forgetPendingDelete(seed); } catch {}
         }
     } finally {
         deleteRetryRunning = false;
@@ -270,39 +294,34 @@ export async function clearCloudWorldDeletion(seed) {
 
     clearDeletedSeed(normalizedSeed);
     forgetPendingDelete(normalizedSeed);
+    const services = await getUserAndDb();
+    if (!services) return false;
 
     try {
-        const user = await getUser();
-        const db = firestore();
-        if (!user || !db) return false;
-        await deletedRef(user.uid, normalizedSeed).delete();
+        await deletedRef(services.db, services.user.uid, normalizedSeed).remove();
         return true;
     } catch (error) {
-        console.warn("Could not clear cloud world deletion:", error);
+        console.warn("Could not clear Realtime Database world deletion:", error);
         return false;
     }
 }
 
 export async function listCloudWorlds() {
     try {
-        const user = await getUser();
-        const db = firestore();
-        if (!user || !db) return [];
-
+        const services = await getUserAndDb();
+        if (!services) return [];
         const [worldSnap, deletedSnap] = await Promise.all([
-            firestore().collection("users").doc(user.uid).collection("worlds").get(),
-            firestore().collection("users").doc(user.uid).collection(CLOUD_DELETED_COLLECTION).get()
+            worldMetaRef(services.db, services.user.uid, "").parent.once("value"),
+            services.db.ref(`users/${services.user.uid}/deletedWorlds`).once("value")
         ]);
-
-        const deleted = new Set(deletedSnap.docs.map(doc => Number(doc.id)));
-        return worldSnap.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(world => {
-                const seed = normalizeSeed(world.seed ?? world.id);
-                return seed !== null && !deleted.has(seed) && world.deleted !== true;
-            });
+        const worlds = worldSnap.val() || {};
+        const deleted = deletedSnap.val() || {};
+        return Object.entries(worlds).map(([id, world]) => ({ id, ...(world || {}) })).filter(world => {
+            const seed = normalizeSeed(world.seed ?? world.id);
+            return seed !== null && !deleted[seed] && world.deleted !== true;
+        });
     } catch (error) {
-        console.warn("Could not list cloud worlds:", error);
+        console.warn("Could not list Realtime Database worlds:", error);
         return [];
     }
 }
@@ -313,9 +332,8 @@ export async function syncCloudWorlds() {
     try {
         const storage = window.webMinecraftWorldStorage;
         if (!storage?.saveLocalWorld) return;
-
-        const user = await getUser();
-        if (!user) return;
+        const services = await getUserAndDb();
+        if (!services) return;
 
         await retryCloudWorldDeletes();
         const cloudWorlds = await listCloudWorlds();
@@ -323,10 +341,16 @@ export async function syncCloudWorlds() {
             const seed = normalizeSeed(cloudWorld.seed ?? cloudWorld.id);
             if (seed === null || getDeletedSeeds().has(seed)) continue;
             const local = await storage.getLocalWorld(seed).catch(() => null);
-            if (local && new Date(local.updatedAt || 0).getTime() > new Date(cloudWorld.updatedAt || 0).getTime()) continue;
+            const cloudTime = new Date(cloudWorld.updatedAt || 0).getTime();
+            const localTime = new Date(local?.updatedAt || 0).getTime();
+            if (local && localTime > cloudTime) {
+                await saveCloudWorld(local).catch(() => {});
+                continue;
+            }
             const loaded = await loadCloudWorld(seed, local);
             if (loaded) await storage.saveLocalWorld(loaded).catch(() => {});
         }
+        window.dispatchEvent(new CustomEvent("webminecraft:cloudworldssynced"));
     } finally {
         syncRunning = false;
     }
@@ -339,9 +363,9 @@ window.webMinecraftRetryCloudDeletes = retryCloudWorldDeletes;
 window.webMinecraftClearCloudWorldDeletion = clearCloudWorldDeletion;
 window.webMinecraftListCloudWorlds = listCloudWorlds;
 
-waitForFirebase().then(auth => {
-    if (!auth?.onAuthStateChanged) return;
-    auth.onAuthStateChanged(user => {
+waitForFirebase().then(services => {
+    if (!services?.auth?.onAuthStateChanged) return;
+    services.auth.onAuthStateChanged(user => {
         if (user) {
             setTimeout(() => syncCloudWorlds().catch(() => {}), 250);
             setTimeout(() => retryCloudWorldDeletes().catch(() => {}), 500);
