@@ -379,14 +379,6 @@ function syncHotbar() {
                     const texture = document.createElement("span");
                     texture.className = "hotbarTexture";
                     texture.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
-                    texture.style.backgroundPosition = "center";
-                    texture.style.backgroundSize = "100% 100%";
-                    texture.style.backgroundRepeat = "no-repeat";
-                    texture.style.imageRendering = "pixelated";
-                    texture.style.position = "absolute";
-                    texture.style.inset = "5px";
-                    texture.style.pointerEvents = "none";
-                    texture.style.zIndex = "1";
                     slotEl.appendChild(texture);
                 } else {
                     textureEl.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
@@ -479,7 +471,6 @@ function updateHeldBlock() {
 
 export function getSelectedItemId(slotIndex) { return inventory[slotIndex]?.itemId ?? null; }
 export function consumeSelected(slotIndex) { return removeItem(slotIndex, 1); }
-export function giveBrokenBlock(itemId) { return addItem(itemId, 1); }
 
 export function setupInventory(camera) {
     loadInventory();
@@ -522,4 +513,7 @@ function closeInventory() {
     document.body.classList.remove("inventory-open");
     document.getElementById("inventoryScreen")?.classList.remove("open");
     updateHeldBlock();
+    if (!document.body.classList.contains("mobile-mode") && document.body.classList.contains("webminecraft-in-world")) {
+        try { document.body.requestPointerLock?.(); } catch {}
+    }
 }
