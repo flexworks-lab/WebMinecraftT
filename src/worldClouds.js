@@ -29,7 +29,7 @@ const cloudMaterial = new THREE.MeshBasicMaterial({
     opacity: 1,
     depthWrite: false,
     depthTest: true,
-    fog: false,
+    fog: true,
     toneMapped: false
 });
 const cloudGeometry = new THREE.BoxGeometry(CLOUD_BLOCK_SIZE, CLOUD_HEIGHT, CLOUD_BLOCK_SIZE);
