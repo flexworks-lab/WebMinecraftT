@@ -27,10 +27,11 @@ const parseKey = value => value.split(",").map(Number);
 const chunkKey = (x, z) => `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
 
 // Lambert is cheaper than Phong and still reacts to scene lighting.
+// Keep water dark and fairly opaque so it does not read as clear individual tiles.
 const waterMaterial = new THREE.MeshLambertMaterial({
-    color: 0x438fbd,
+    color: 0x245a78,
     transparent: true,
-    opacity: 0.68,
+    opacity: 0.76,
     depthWrite: false,
     side: THREE.DoubleSide
 });
