@@ -5,8 +5,8 @@ const ROOT_NAME = "ShortGrassVegetation";
 const SCAN_RADIUS = 40;
 const SCAN_INTERVAL = 700;
 const MAX_GRASS = 1800;
-const GRASS_HEIGHT = 0.72;
-const GRASS_WIDTH = 0.62;
+const GRASS_HEIGHT = 0.82;
+const GRASS_WIDTH = 0.68;
 
 let root = null;
 let cameraRef = null;
@@ -127,12 +127,12 @@ function scan() {
             const x = cx + dx;
             const z = cz + dz;
             const chance = hash2D(x, z, seed, 31);
-            if (chance > 0.30) continue;
+            if (chance > 0.16) continue;
 
             const surface = findSurfaceY(x, z, cameraY);
             if (!surface || surface.type !== types.GRASS || getBlockAt(x, surface.y + 1, z) !== types.AIR) continue;
 
-            const scale = 0.72 + hash2D(x, z, seed, 59) * 0.33;
+            const scale = 0.84 + hash2D(x, z, seed, 59) * 0.30;
             const rotation = hash2D(x, z, seed, 83) * Math.PI * 2;
             const y = surface.y + 0.505;
             matrix.makeRotationY(rotation);
