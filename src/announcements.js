@@ -70,24 +70,24 @@ function addStyles() {
     justify-content:center;
     padding:18px;
     box-sizing:border-box;
-    background:rgba(0,0,0,.74);
-    backdrop-filter:blur(4px);
-    -webkit-backdrop-filter:blur(4px);
+    background:rgba(0,0,0,.76);
+    backdrop-filter:blur(5px);
+    -webkit-backdrop-filter:blur(5px);
     animation:siteAnnouncementFade .16s ease-out;
 }
 #siteAnnouncement{
-    width:min(700px,96vw);
-    max-height:min(86vh,760px);
+    width:min(760px,96vw);
+    max-height:min(88vh,820px);
     box-sizing:border-box;
     display:flex;
     flex-direction:column;
     overflow:hidden;
-    background:linear-gradient(180deg,#343434 0%,#252525 42%,#1b1b1b 100%);
-    border:2px solid #111;
-    border-top-color:#999;
-    border-left-color:#999;
-    border-radius:6px;
-    box-shadow:0 18px 50px rgba(0,0,0,.72),0 4px 0 rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.08);
+    background:linear-gradient(180deg,#3a3a3a 0%,#282828 38%,#1b1b1b 100%);
+    border:2px solid #101010;
+    border-top-color:#aaa;
+    border-left-color:#aaa;
+    border-radius:7px;
+    box-shadow:0 24px 70px rgba(0,0,0,.8),0 5px 0 rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1);
     color:#fff;
     font-family:Arial,sans-serif;
     animation:siteAnnouncementPop .18s ease-out;
@@ -95,79 +95,82 @@ function addStyles() {
 #siteAnnouncementHeader{
     flex:0 0 auto;
     position:relative;
-    padding:17px 54px 15px 20px;
+    padding:20px 24px 17px;
     border-bottom:2px solid #111;
-    background:linear-gradient(180deg,#4a3735,#342625);
+    background:linear-gradient(180deg,#51403d,#372827);
     font-family:MinecraftFont,monospace;
-    font-size:clamp(17px,2.4vw,23px);
-    letter-spacing:.2px;
-    text-shadow:2px 2px 0 #000;
+    font-size:clamp(22px,3vw,32px);
+    line-height:1.05;
+    letter-spacing:.4px;
+    text-shadow:3px 3px 0 #000,0 0 10px rgba(255,255,255,.08);
 }
-#siteAnnouncementHeader::before{
+#siteAnnouncementHeader::after{
     content:"";
     position:absolute;
-    left:20px;
-    right:20px;
+    left:24px;
+    right:24px;
     bottom:-2px;
     height:2px;
-    background:rgba(255,255,255,.08);
+    background:rgba(255,255,255,.1);
 }
 #siteAnnouncementReason{
     flex:0 0 auto;
     margin:0;
-    padding:16px 20px 8px;
-    color:#b9dc8f;
+    padding:22px 24px 9px;
+    color:#d4efae;
     font-family:MinecraftFont,monospace;
-    font-size:13px;
-    line-height:1.35;
-    text-shadow:1px 1px 0 #111;
+    font-size:clamp(18px,2.5vw,27px);
+    font-weight:700;
+    line-height:1.2;
+    letter-spacing:.3px;
+    text-shadow:2px 2px 0 #111;
 }
 #siteAnnouncementReason::before{
     content:"• ";
-    color:#d8efb4;
+    color:#efffcf;
 }
 #siteAnnouncementMessage{
     flex:1 1 auto;
     min-height:0;
-    margin:0 4px 0 0;
-    padding:6px 20px 18px;
+    margin:0 5px 0 0;
+    padding:8px 24px 20px;
     overflow-y:auto;
     overflow-x:hidden;
-    color:#ececec;
-    font-size:15px;
-    line-height:1.62;
+    color:#eeeeee;
+    font-size:16px;
+    line-height:1.7;
     white-space:pre-wrap;
     overflow-wrap:anywhere;
     scrollbar-width:thin;
-    scrollbar-color:#6f6f6f #202020;
+    scrollbar-color:#737373 #1e1e1e;
 }
-#siteAnnouncementMessage::-webkit-scrollbar{width:11px}
-#siteAnnouncementMessage::-webkit-scrollbar-track{background:#202020;border-left:1px solid #111}
-#siteAnnouncementMessage::-webkit-scrollbar-thumb{background:#666;border:2px solid #202020;border-radius:6px}
-#siteAnnouncementMessage::-webkit-scrollbar-thumb:hover{background:#7b7b7b}
+#siteAnnouncementMessage::-webkit-scrollbar{width:12px}
+#siteAnnouncementMessage::-webkit-scrollbar-track{background:#1d1d1d;border-left:1px solid #101010}
+#siteAnnouncementMessage::-webkit-scrollbar-thumb{background:#707070;border:2px solid #1d1d1d;border-radius:7px}
+#siteAnnouncementMessage::-webkit-scrollbar-thumb:hover{background:#858585}
 #siteAnnouncementFooter{
     flex:0 0 auto;
     display:flex;
     justify-content:flex-end;
-    padding:12px 18px 16px;
+    padding:13px 22px 17px;
     border-top:2px solid #111;
-    background:#222;
+    background:linear-gradient(180deg,#292929,#222);
 }
 #siteAnnouncementClose{
-    width:min(190px,100%);
-    min-height:46px;
-    padding:9px 14px;
+    width:min(200px,100%);
+    min-height:48px;
+    padding:10px 16px;
     border:2px solid #111;
-    border-top-color:#999;
-    border-left-color:#999;
+    border-top-color:#aaa;
+    border-left-color:#aaa;
     border-radius:3px;
-    background:linear-gradient(#707070,#555);
+    background:linear-gradient(#777,#555);
     color:#fff;
     font-family:MinecraftFont,monospace;
-    font-size:12px;
+    font-size:13px;
     cursor:pointer;
     text-shadow:2px 2px 0 #222;
-    box-shadow:inset 1px 1px 0 rgba(255,255,255,.12),inset -2px -2px 0 rgba(0,0,0,.25),0 3px 0 rgba(0,0,0,.45);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.14),inset -2px -2px 0 rgba(0,0,0,.28),0 3px 0 rgba(0,0,0,.45);
 }
 #siteAnnouncementClose:not(:disabled):hover{filter:brightness(1.1)}
 #siteAnnouncementClose:not(:disabled):active{transform:translateY(2px);box-shadow:inset 1px 1px 0 rgba(0,0,0,.25)}
@@ -175,11 +178,11 @@ function addStyles() {
 @keyframes siteAnnouncementFade{from{opacity:0}to{opacity:1}}
 @keyframes siteAnnouncementPop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:600px){
-    #siteAnnouncementOverlay{padding:10px}
-    #siteAnnouncement{width:100%;max-height:92vh;border-radius:4px}
-    #siteAnnouncementHeader{padding:15px 16px 13px}
-    #siteAnnouncementReason{padding:14px 16px 7px;font-size:12px}
-    #siteAnnouncementMessage{padding:6px 16px 14px;font-size:14px;line-height:1.55}
+    #siteAnnouncementOverlay{padding:9px}
+    #siteAnnouncement{width:100%;max-height:94vh;border-radius:4px}
+    #siteAnnouncementHeader{padding:17px 17px 14px;font-size:clamp(20px,7vw,27px)}
+    #siteAnnouncementReason{padding:18px 17px 8px;font-size:clamp(17px,6vw,24px)}
+    #siteAnnouncementMessage{padding:7px 17px 15px;font-size:14px;line-height:1.58}
     #siteAnnouncementFooter{padding:10px 12px 12px}
     #siteAnnouncementClose{width:100%}
 }
