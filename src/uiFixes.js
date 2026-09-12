@@ -1,3 +1,4 @@
+import "./friendsUi.js";
 import { touchInput } from "./controls.js";
 
 const WORLD_DB_NAME = "webminecraft-local-worlds";
