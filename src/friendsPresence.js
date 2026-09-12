@@ -7,6 +7,7 @@ let presenceRef = null;
 let stateTimer = null;
 let heartbeatTimer = null;
 let renderTimer = null;
+let authRetryTimer = null;
 let authStarted = false;
 let lastState = null;
 let lastPresence = {};
@@ -97,6 +98,10 @@ function stop() {
         clearInterval(renderTimer);
         renderTimer = null;
     }
+    if (authRetryTimer) {
+        clearTimeout(authRetryTimer);
+        authRetryTimer = null;
+    }
     try { presenceRef?.off("value", handlePresence); } catch {}
     presenceRef = null;
     try { ownPresenceRef?.remove(); } catch {}
@@ -142,7 +147,8 @@ function start(user) {
     const db = getFirebase();
     if (!db) {
         const retryUser = currentUser;
-        setTimeout(() => {
+        authRetryTimer = setTimeout(() => {
+            authRetryTimer = null;
             const retryDb = getFirebase();
             if (retryDb && retryUser) start(retryUser);
         }, 500);
@@ -154,24 +160,29 @@ function start(user) {
         console.warn("Friend presence listener failed:", error);
     });
 
-    // Check the menu/server state frequently so changes appear to friends almost immediately.
     void updateOwnPresence(true);
     stateTimer = setInterval(() => {
         void updateOwnPresence();
     }, 250);
 
-    // Keep the presence record fresh while the page remains open.
     heartbeatTimer = setInterval(() => {
         void updateOwnPresence(true);
     }, 5000);
 
-    // Friend-list rendering may replace rows, so re-apply the live status without a DOM observer.
     renderTimer = setInterval(scheduleFriendRows, 250);
     scheduleFriendRows();
 }
 
 function init() {
-    if (authStarted || !window.firebase?.auth) return;
+    if (authStarted) return;
+    if (!window.firebase?.auth) {
+        authRetryTimer = setTimeout(() => {
+            authRetryTimer = null;
+            init();
+        }, 200);
+        return;
+    }
+
     authStarted = true;
     window.firebase.auth().onAuthStateChanged(user => {
         start(user || null);
