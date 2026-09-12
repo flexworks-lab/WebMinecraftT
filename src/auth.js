@@ -100,10 +100,11 @@ function addStyles() {
     const style = document.createElement("style");
     style.id = "accountStyles";
     style.textContent = `
-#accountButton{position:fixed;top:92px;right:20px;left:auto;z-index:90;min-width:48px;height:48px;padding:0 14px;border:2px solid #111;border-top-color:#888;border-left-color:#888;border-radius:3px;background:#4c4c4c;color:#fff;font:bold 13px Arial,sans-serif;cursor:pointer;box-shadow:0 3px 0 #171717}
+#accountButton{position:fixed;top:92px;right:20px;left:auto;z-index:90;min-width:48px;height:48px;padding:0 10px;border:2px solid #111;border-top-color:#888;border-left-color:#888;border-radius:3px;background:#4c4c4c;color:#fff;font:bold 13px Arial,sans-serif;cursor:pointer;box-shadow:0 3px 0 #171717;display:flex;align-items:center;justify-content:center;gap:7px}
 #accountButton:hover{background:#5e5e5e}
+.accountButtonAvatar{width:25px;height:25px;flex:0 0 25px;border-radius:50%;object-fit:cover;background:#4a4a4a;border:1px solid #111;box-shadow:1px 1px 0 rgba(0,0,0,.55)}
 #accountButton.friendRequestAlert{animation:friendButtonPulse .75s steps(2,end) infinite}
-.friendRequestBadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:6px;padding:0 4px;border:2px solid #111;background:#b53a3a;color:#fff;font:bold 10px Arial,sans-serif;vertical-align:middle;box-shadow:1px 1px 0 #000}
+.friendRequestBadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:0;padding:0 4px;border:2px solid #111;background:#b53a3a;color:#fff;font:bold 10px Arial,sans-serif;vertical-align:middle;box-shadow:1px 1px 0 #000}
 #friendRequestToast{position:fixed;top:92px;right:20px;width:min(360px,calc(100vw - 40px));z-index:500;display:flex;align-items:center;gap:12px;padding:13px;background:linear-gradient(#3f3f3f,#292929);border:2px solid #111;border-top-color:#999;border-left-color:#999;box-shadow:5px 5px 0 rgba(0,0,0,.65);color:#fff;font-family:Arial,sans-serif;cursor:pointer;transform:translateX(calc(100% + 40px));opacity:0;pointer-events:none}
 #friendRequestToast.show{animation:friendToastIn .28s cubic-bezier(.2,.9,.25,1) forwards}
 #friendRequestToast.hide{animation:friendToastOut .22s ease forwards}
@@ -374,9 +375,14 @@ function updateAccountUi() {
     if (currentUser) {
         loginView.style.display = "none"; userView.style.display = "block";
         button.textContent = "";
+        const avatar = document.createElement("img");
+        avatar.className = "accountButtonAvatar";
+        avatar.alt = "";
+        avatar.src = currentUser.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%234a4a4a'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23aaa'/%3E%3Cpath d='M14 57c2-12 10-18 18-18s16 6 18 18' fill='%23aaa'/%3E%3C/svg%3E";
+        button.appendChild(avatar);
         const label = document.createElement("span"); label.textContent = currentUser.displayName ? `Hi, ${currentUser.displayName.split(" ")[0]}` : "Account"; button.appendChild(label);
-        const avatar = document.getElementById("accountAvatar");
-        if (avatar) avatar.src = currentUser.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%234a4a4a'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23aaa'/%3E%3Cpath d='M14 57c2-12 10-18 18-18s16 6 18 18' fill='%23aaa'/%3E%3C/svg%3E";
+        const modalAvatar = document.getElementById("accountAvatar");
+        if (modalAvatar) modalAvatar.src = currentUser.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%234a4a4a'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23aaa'/%3E%3Cpath d='M14 57c2-12 10-18 18-18s16 6 18 18' fill='%23aaa'/%3E%3C/svg%3E";
         document.getElementById("accountName").textContent = currentUser.displayName || "Player";
         document.getElementById("accountEmail").textContent = currentUser.email || "";
         renderFriendCode(); refreshFriends();
