@@ -172,10 +172,10 @@ function createInventoryUI() {
     const style = document.createElement("style");
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
-#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.64);z-index:150;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
+#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.64);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
 #inventoryScreen.open{display:flex}
 body.inventory-open #hotbar.textured-hotbar{display:none!important}
-#inventoryPanel{width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#3b3b3b;border:3px solid #151515;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.58),inset 2px 2px 0 #5b5b5b;image-rendering:pixelated;overflow:hidden}
+#inventoryPanel{position:relative;z-index:1000000;width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#3b3b3b;border:3px solid #151515;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.58),inset 2px 2px 0 #5b5b5b;image-rendering:pixelated;overflow:hidden}
 #inventoryTopBar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 4px 6px;flex:0 0 auto}
 #inventoryTitle{font-size:22px;font-weight:700;text-shadow:2px 2px 0 #171717}
 #inventoryClose{width:38px;height:36px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#696969;color:#fff;font-size:27px;line-height:25px;cursor:pointer;box-shadow:inset -2px -2px 0 #444}
@@ -340,8 +340,7 @@ function renderInventory() {
     if (!hotbar) return;
     hotbar.innerHTML = "";
     for (let i = 0; i < HOTBAR_SIZE; i++) hotbar.appendChild(renderSlot(inventory[i], i, { hotbar: true }));
-    const remainder = inventory.slice(HOTBAR_SIZE);
-    if (selectedTab === "survival") renderSurvival(remainder);
+    if (selectedTab === "survival") renderSurvival();
     syncHotbar();
 }
 
@@ -355,11 +354,30 @@ function renderSurvival() {
 }
 
 function syncHotbar() {
-    document.querySelectorAll("#hotbar .slot").forEach((slotEl) => {
+    document.querySelectorAll("#hotbar .slot").forEach((slotEl, index) => {
         let countEl = slotEl.querySelector(".hotbarCount");
         if (!countEl) { countEl = document.createElement("span"); countEl.className = "hotbarCount"; slotEl.appendChild(countEl); }
-        countEl.textContent = "";
-        slotEl.querySelectorAll(".hotbarTexture").forEach(texture => texture.remove());
+        const slot = inventory[index];
+        const textureEl = slotEl.querySelector(".hotbarTexture");
+        if (slot?.itemId) {
+            const item = getItem(slot.itemId);
+            if (item?.texture) {
+                if (!textureEl) {
+                    const texture = document.createElement("span");
+                    texture.className = "hotbarTexture";
+                    texture.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
+                    slotEl.appendChild(texture);
+                } else {
+                    textureEl.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
+                }
+            } else if (textureEl) {
+                textureEl.remove();
+            }
+            countEl.textContent = slot.count > 1 ? slot.count : "";
+        } else {
+            if (textureEl) textureEl.remove();
+            countEl.textContent = "";
+        }
     });
     updateHeldBlock();
 }
