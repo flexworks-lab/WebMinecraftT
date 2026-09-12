@@ -26,12 +26,6 @@ function setupTexturedHotbar() {
         }
         document.body.appendChild(hotbar);
     }
-    const BASE = import.meta.env.BASE_URL;
-    const textures = [
-        "Grass_Block_(top_texture)_JE2.png", "dirt.png", "stone.png", "sand.png",
-        "oak_log_top.png", "oak-leaves-normal-original-default.png",
-        "tnt_side.png", "Flint_and_Steel_JE4_BE2.png", "stone.png"
-    ];
     while (hotbar.querySelectorAll(".slot").length < 9) {
         const slot = document.createElement("div");
         slot.className = "slot";
@@ -43,10 +37,9 @@ function setupTexturedHotbar() {
     hotbar.style.removeProperty("opacity");
     hotbar.style.setProperty("pointer-events", "auto", "important");
     hotbar.querySelectorAll(".slot").forEach((slot, index) => {
-        const texture = textures[index] || textures[0];
         slot.title = `${index + 1}`;
         slot.setAttribute("aria-label", `Hotbar slot ${index + 1}`);
-        slot.innerHTML = `<span class="hotbarTexture" style="background-image:url('${BASE}textures/${encodeURIComponent(texture)}')"></span><span class="hotbarNumber">${index + 1}</span>`;
+        slot.innerHTML = `<span class="hotbarNumber">${index + 1}</span>`;
     });
     if (!document.getElementById("webMinecraftTexturedHotbarStyles")) {
         const style = document.createElement("style");
@@ -54,11 +47,11 @@ function setupTexturedHotbar() {
         style.textContent = `
 #hotbar.textured-hotbar{position:fixed!important;left:50%!important;bottom:20px!important;transform:translateX(-50%)!important;display:flex!important;gap:0!important;padding:4px!important;background:rgba(25,25,25,.96)!important;border:3px solid #111!important;box-shadow:inset 2px 2px 0 #777,inset -2px -2px 0 #333,0 3px 0 rgba(0,0,0,.65)!important;z-index:10000!important;image-rendering:pixelated;pointer-events:auto!important}
 body:not(.webminecraft-in-world) #hotbar.textured-hotbar{display:none!important}
+body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #savedWorlds{z-index:20000!important}
 #savedWorlds:not([style*="display: none"]) ~ #hotbar.textured-hotbar{display:none!important}
 #hotbar.textured-hotbar .slot{position:relative;width:52px!important;height:52px!important;flex:0 0 52px!important;padding:0!important;margin:0!important;border:2px solid #555!important;background:#222!important;overflow:hidden;cursor:pointer;image-rendering:pixelated}
 #hotbar.textured-hotbar .slot.selected{border:3px solid #fff!important;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111!important;z-index:2}
-#hotbar.textured-hotbar .hotbarTexture{position:absolute;inset:3px;display:block;background-position:center;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;pointer-events:none}
 #hotbar.textured-hotbar .hotbarNumber{position:absolute;left:2px;top:1px;min-width:13px;height:14px;padding:0 2px;color:#fff;font:11px/14px Arial,sans-serif;font-weight:700;text-align:center;text-shadow:1px 1px 0 #000;background:rgba(0,0,0,.45);pointer-events:none;z-index:3}
 #hotbar.textured-hotbar .hotbarCount{position:absolute;right:3px;bottom:1px;color:#fff;font:bold 13px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none;z-index:3}
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{left:50%!important;bottom:8px!important;transform:translateX(-50%)!important;z-index:10000!important;max-width:calc(100vw - 92px)!important;overflow-x:auto!important;scrollbar-width:none}
@@ -218,109 +211,77 @@ function getTargetBlock(scene, camera, BLOCK) {
     raycaster.far = Infinity;
     if (!hit || hit.distance > INTERACTION_DISTANCE) return null;
     const normal = hit.face.normal.clone().normalize();
-    const point = hit.point.clone().sub(normal.clone().multiplyScalar(0.01));
-    const x = Math.floor(point.x + 0.5);
-    const y = Math.floor(point.y + 0.5);
-    const z = Math.floor(point.z + 0.5);
-    const type = getBlockAt(x, y, z);
-    if (!type || type === BLOCK.AIR) return null;
-    return { x, y, z, type, normal, hit };
+    const point = hit.point.clone();
+    const voxel = {
+        x: Math.floor(point.x - normal.x * 0.01),
+        y: Math.floor(point.y - normal.y * 0.01),
+        z: Math.floor(point.z - normal.z * 0.01)
+    };
+    return { hit, normal, x: voxel.x, y: voxel.y, z: voxel.z };
 }
 
 function createSelectionOutline() {
-    const outline = new THREE.LineSegments(
-        new THREE.BufferGeometry(),
-        new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.95, depthTest: false })
-    );
-    outline.visible = false;
-    outline.renderOrder = 1000;
-    return outline;
+    const group = new THREE.Group();
+    group.name = "blockSelectionOutline";
+    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.9 });
+    const geometry = new THREE.BufferGeometry();
+    const vertices = new Float32Array([
+        -0.501,-0.501,-0.501, 0.501,-0.501,-0.501, 0.501,-0.501,-0.501, 0.501,0.501,-0.501,
+        0.501,0.501,-0.501, -0.501,0.501,-0.501, -0.501,0.501,-0.501, -0.501,-0.501,-0.501,
+        -0.501,-0.501,0.501, 0.501,-0.501,0.501, 0.501,-0.501,0.501, 0.501,0.501,0.501,
+        0.501,0.501,0.501, -0.501,0.501,0.501, -0.501,0.501,0.501, -0.501,-0.501,0.501,
+        -0.501,-0.501,-0.501, -0.501,-0.501,0.501, 0.501,-0.501,-0.501, 0.501,-0.501,0.501,
+        0.501,0.501,-0.501, 0.501,0.501,0.501, -0.501,0.501,-0.501, -0.501,0.501,0.501
+    ]);
+    geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+    const lines = new THREE.LineSegments(geometry, edgeMaterial);
+    lines.name = "selectionEdges";
+    group.add(lines);
+    group.visible = false;
+    return group;
 }
 
 function updateSelectionOutline(outline, target, camera) {
-    const center = new THREE.Vector3(target.x, target.y, target.z);
-    const toCamera = camera.position.clone().sub(center);
-    const distance = toCamera.length();
-    if (distance < 0.0001) return;
-    toCamera.multiplyScalar(1 / distance);
+    outline.position.set(target.x, target.y, target.z);
+    const facing = target.normal;
+    const lines = outline.getObjectByName("selectionEdges");
+    if (!lines) return;
+    lines.material.opacity = 0.9;
+    let show = "all";
+    const dot = camera.getWorldDirection(new THREE.Vector3()).dot(facing);
+    if (Math.abs(dot) < 0.22) show = "partial";
+    lines.visible = true;
+}
 
-    const min = -0.511;
-    const max = 0.511;
-    const faces = [
-        { n: new THREE.Vector3( 1, 0, 0), c: [[max,min,min],[max,max,min],[max,max,max],[max,min,max]] },
-        { n: new THREE.Vector3(-1, 0, 0), c: [[min,min,max],[min,max,max],[min,max,min],[min,min,min]] },
-        { n: new THREE.Vector3( 0, 1, 0), c: [[min,max,min],[min,max,max],[max,max,max],[max,max,min]] },
-        { n: new THREE.Vector3( 0,-1, 0), c: [[min,min,max],[min,min,min],[max,min,min],[max,min,max]] },
-        { n: new THREE.Vector3( 0, 0, 1), c: [[max,min,max],[max,max,max],[min,max,max],[min,min,max]] },
-        { n: new THREE.Vector3( 0, 0,-1), c: [[min,min,min],[min,max,min],[max,max,min],[max,min,min]] }
-    ];
+function playerOverlapsBlock(block) {
+    const player = camera.position;
+    return Math.abs(player.x - block.x) < 0.8 && Math.abs(player.z - block.z) < 0.8 && player.y > block.y - 0.9 && player.y < block.y + 2.1;
+}
 
-    const positions = [];
-    const addEdge = (a, b) => positions.push(a[0],a[1],a[2],b[0],b[1],b[2]);
-
-    for (const face of faces) {
-        if (face.n.dot(toCamera) <= 0.08) continue;
-        const c = face.c.map(v => [v[0] + center.x, v[1] + center.y, v[2] + center.z]);
-        addEdge(c[0], c[1]);
-        addEdge(c[1], c[2]);
-        addEdge(c[2], c[3]);
-        addEdge(c[3], c[0]);
+function createBreakParticles(scene, position, type, BLOCK) {
+    const count = type === BLOCK.TNT ? 12 : 6;
+    const group = new THREE.Group();
+    group.position.copy(position);
+    for (let i = 0; i < count; i++) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0xaaaaaa }));
+        mesh.position.set((Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8);
+        mesh.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 1.5, Math.random() * 1.5, (Math.random() - 0.5) * 1.5);
+        group.add(mesh);
     }
-
-    outline.geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    outline.geometry.computeBoundingSphere();
-}
-
-function getParticleColor(blockType, BLOCK) {
-    if (blockType === BLOCK.GRASS) return 0x67a74d;
-    if (blockType === BLOCK.DIRT) return 0x8b5a34;
-    if (blockType === BLOCK.STONE) return 0x7d7d7d;
-    if (blockType === BLOCK.COBBLESTONE) return 0x6f6f6f;
-    if (blockType === BLOCK.GRAVEL) return 0x88847d;
-    if (blockType === BLOCK.SAND) return 0xd9c486;
-    if (blockType === BLOCK.SANDSTONE) return 0xc9ad70;
-    if (blockType === BLOCK.OAK || blockType === BLOCK.OAK_PLANKS) return 0x9a6b3f;
-    if (blockType === BLOCK.LEAVES) return 0x4d8d3d;
-    if (blockType === BLOCK.COAL_ORE) return 0x555555;
-    if (blockType === BLOCK.IRON_ORE) return 0x9a8d84;
-    if (blockType === BLOCK.SNOW) return 0xe9f1f5;
-    if (blockType === BLOCK.BEDROCK) return 0x3e3e3e;
-    if (blockType === BLOCK.TNT) return 0xd33a2c;
-    return 0xb0b0b0;
-}
-
-function createBreakParticles(scene, center, blockType, BLOCK) {
-    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const particles = [];
+    scene.add(group);
     const start = performance.now();
-    for (let i = 0; i < 10; i++) {
-        const particle = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: getParticleColor(blockType, BLOCK), transparent: true, opacity: 1 }));
-        particle.position.copy(center).add(new THREE.Vector3((Math.random() - 0.5) * 0.7, (Math.random() - 0.5) * 0.7, (Math.random() - 0.5) * 0.7));
-        particle.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 2.5, 1 + Math.random() * 2.2, (Math.random() - 0.5) * 2.5);
-        particle.userData.createdAt = start;
-        scene.add(particle);
-        particles.push(particle);
-    }
-    const update = time => {
-        let alive = false;
-        for (const particle of particles) {
-            if (!particle.parent) continue;
-            const age = time - particle.userData.createdAt;
-            if (age >= 500) { particle.parent.remove(particle); particle.material.dispose(); continue; }
-            alive = true;
-            particle.userData.velocity.y -= 5.5 / 60;
-            particle.position.addScaledVector(particle.userData.velocity, 1 / 60);
-            particle.rotation.x += 0.12;
-            particle.rotation.y += 0.1;
-            particle.material.opacity = Math.max(0, 1 - age / 500);
-        }
-        if (alive) requestAnimationFrame(update);
+    const animate = now => {
+        const t = (now - start) / 700;
+        if (t >= 1) { scene.remove(group); group.traverse(obj => obj.geometry?.dispose()); return; }
+        group.children.forEach(mesh => {
+            mesh.position.addScaledVector(mesh.userData.velocity, 1 / 60);
+            mesh.userData.velocity.y -= 0.03;
+            mesh.rotation.x += 0.1;
+            mesh.rotation.y += 0.1;
+            mesh.material.opacity = 1 - t;
+            mesh.material.transparent = true;
+        });
+        requestAnimationFrame(animate);
     };
-    requestAnimationFrame(update);
-}
-
-function playerOverlapsBlock(position, camera) {
-    const halfWidth = 0.3;
-    const playerHeight = 1.8;
-    return camera.position.x - halfWidth < position.x + 0.5 && camera.position.x + halfWidth > position.x - 0.5 && camera.position.y - playerHeight < position.y + 0.5 && camera.position.y > position.y - 0.5 && camera.position.z - halfWidth < position.z + 0.5 && camera.position.z + halfWidth > position.z - 0.5;
+    requestAnimationFrame(animate);
 }
