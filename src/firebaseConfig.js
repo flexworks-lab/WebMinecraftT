@@ -4,7 +4,7 @@
 import "./browserWorldFallback.js";
 
 export const firebaseConfig = {
-    apiKey: "AIzaSyByaINh47IFMYmnc9Ty49aHTfTBe2u-jyU",
+    apiKey: "AIzaSyByaINh47IFMYnc9Ty49aHTfTBe2u-jyU",
     authDomain: "webminecraft-f9064.firebaseapp.com",
     projectId: "webminecraft-f9064",
     storageBucket: "webminecraft-f9064.firebasestorage.app",
@@ -30,3 +30,4 @@ import("./accountDevControls.js").catch(error => console.warn("Account developer
 import("./announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
 import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
 import("./friendsLive.js").catch(error => console.warn("Live friends UI failed to load:", error));
+import("./friendsPresence.js").catch(error => console.warn("Live friend presence failed to load:", error));
