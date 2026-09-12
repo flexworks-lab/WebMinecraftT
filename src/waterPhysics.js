@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { getBlockAt, getBlockTypes, CHUNK_SIZE } from "./world.js";
+import { waterTexture } from "./blocks.js";
 
 // Performance-first Minecraft-style water simulation.
 // Water is local to chunks, and only cells affected by flow changes are updated.
@@ -27,9 +28,10 @@ const parseKey = value => value.split(",").map(Number);
 const chunkKey = (x, z) => `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
 
 // Lambert is cheaper than Phong and still reacts to scene lighting.
-// Keep water dark and fairly opaque so it does not read as clear individual tiles.
+// Use the real water texture with a blue tint and keep water fairly opaque.
 const waterMaterial = new THREE.MeshLambertMaterial({
-    color: 0x245a78,
+    map: waterTexture,
+    color: 0x3c8fc0,
     transparent: true,
     opacity: 0.76,
     depthWrite: false,
@@ -188,6 +190,7 @@ function rebuildChunk(ck) {
 
     const positions = [];
     const normals = [];
+    const uvs = [];
     const indices = [];
     let vertex = 0;
     let cellCount = 0;
@@ -211,6 +214,7 @@ function rebuildChunk(ck) {
                 x - 0.5, topY, z + 0.5
             );
             normals.push(0,1,0, 0,1,0, 0,1,0, 0,1,0);
+            uvs.push(0,0, 1,0, 1,1, 0,1);
             indices.push(vertex, vertex + 1, vertex + 2, vertex, vertex + 2, vertex + 3);
             vertex += 4;
         }
@@ -240,6 +244,7 @@ function rebuildChunk(ck) {
 
             for (const v of p) positions.push(...v);
             normals.push(...normal,...normal,...normal,...normal);
+            uvs.push(0,0, 1,0, 1,1, 0,1);
             indices.push(vertex,vertex + 1,vertex + 2,vertex,vertex + 2,vertex + 3);
             vertex += 4;
         }
@@ -251,6 +256,7 @@ function rebuildChunk(ck) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     geometry.computeBoundingSphere();
 
