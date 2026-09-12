@@ -12,10 +12,10 @@ async function isAdminUser() {
     if (!user) return false;
     if (isDeveloper()) return true;
     try {
-        const email = String(user.email || "").trim().toLowerCase();
+        const uid = String(user.uid || "").trim();
         const firestore = window.firebase?.firestore?.();
-        if (!email || !firestore) return false;
-        const doc = await firestore.collection(ADMIN_COLLECTION).doc(email).get();
+        if (!uid || !firestore) return false;
+        const doc = await firestore.collection(ADMIN_COLLECTION).doc(uid).get();
         return doc.exists && doc.data()?.enabled === true;
     } catch (error) {
         console.warn("Could not check admin access:", error);
