@@ -1,5 +1,6 @@
 const ADMIN_API = "https://webminecraft-server.onrender.com";
 const DEV_EMAIL = "worthmarcus19@gmail.com";
+const ADMIN_COLLECTION = "admins";
 let adminInstalled = false;
 let adminModal = null;
 let adminPoll = null;
@@ -17,9 +18,16 @@ async function isAdminUser() {
     if (!user) return false;
     if (isDeveloper()) return true;
     try {
-        const doc = await window.firebase.firestore().collection("adminUsers").doc(String(user.email).toLowerCase()).get();
+        const email = String(user.email || "").trim().toLowerCase();
+        if (!email) return false;
+        const firestore = window.firebase?.firestore?.();
+        if (!firestore) return false;
+        const doc = await firestore.collection(ADMIN_COLLECTION).doc(email).get();
         return doc.exists && doc.data()?.enabled === true;
-    } catch { return false; }
+    } catch (error) {
+        console.warn("Could not check admin access:", error);
+        return false;
+    }
 }
 
 async function adminToken() {
@@ -32,7 +40,7 @@ async function adminRequest(path, options = {}) {
     const token = await adminToken();
     const response = await fetch(`${ADMIN_API}${path}`, {
         ...options,
-        headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, "Content-Type": "application/json` },
         cache: "no-store"
     });
     const data = await response.json().catch(() => ({}));
