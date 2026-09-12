@@ -143,17 +143,21 @@ export function setupInteraction(scene, camera) {
     }
     function placeBlock() {
         const itemId = getSelectedItemId(selectedSlot);
-        if (!itemId) return;
+        if (!itemId || itemId > BLOCK.TNT) return;
         if (tryIgniteTNT(scene, camera, itemId)) {
             if (consumeSelected(selectedSlot)) sendPlayerAction("place");
             return;
         }
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) return;
-        const point = target.hit.point.clone().add(target.normal.clone().multiplyScalar(0.51));
-        const x = Math.floor(point.x + 0.5);
-        const y = Math.floor(point.y + 0.5);
-        const z = Math.floor(point.z + 0.5);
+        const normal = target.normal.clone().set(
+            Math.round(target.normal.x),
+            Math.round(target.normal.y),
+            Math.round(target.normal.z)
+        );
+        const x = target.x + normal.x;
+        const y = target.y + normal.y;
+        const z = target.z + normal.z;
         if (getBlockAt(x, y, z) !== BLOCK.AIR) return;
         if (playerOverlapsBlock({ x, y, z }, camera)) return;
         if (!setBlockAt(x, y, z, itemId)) return;
