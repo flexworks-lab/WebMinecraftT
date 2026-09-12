@@ -6,6 +6,7 @@ let ownPresenceRef = null;
 let presenceRef = null;
 let lastState = null;
 let stateTimer = null;
+let renderTimer = null;
 let authStarted = false;
 let lastPresence = {};
 let listRenderScheduled = false;
@@ -35,6 +36,16 @@ function getState() {
     return Boolean(window.__webminecraftMultiplayerActive) ? "server" : "menu";
 }
 
+function addStatusStyles() {
+    if (document.getElementById("friendPresenceStyles")) return;
+    const style = document.createElement("style");
+    style.id = "friendPresenceStyles";
+    style.textContent = `
+.friendFullStatus{margin-top:4px;font-size:11px;font-weight:700;line-height:1.2;white-space:nowrap}
+`;
+    document.head.appendChild(style);
+}
+
 function scheduleFriendRows() {
     if (listRenderScheduled) return;
     listRenderScheduled = true;
@@ -47,19 +58,28 @@ function scheduleFriendRows() {
 function renderFriendRows() {
     const list = document.getElementById("friendsList");
     if (!list) return;
+    addStatusStyles();
 
     list.querySelectorAll("[data-unfriend]").forEach(button => {
         const row = button.closest(".friendFullRow");
-        const meta = row?.querySelector(".friendFullMeta");
+        const details = row?.querySelector(".friendFullName")?.parentElement;
         const uid = button.dataset.unfriend;
-        if (!meta || !uid) return;
+        if (!details || !uid) return;
 
         const item = lastPresence[uid];
         let text = "⚪ Offline";
         if (item?.online) {
             text = item.state === "server" ? "🟢 In a server" : "🟡 Main Menu";
         }
-        if (meta.textContent !== text) meta.textContent = text;
+
+        let status = details.querySelector(".friendFullStatus");
+        if (!status) {
+            status = document.createElement("div");
+            status.className = "friendFullStatus";
+            details.appendChild(status);
+        }
+        status.textContent = `Current status: ${text}`;
+        status.style.color = item?.online ? "#b7df8b" : "#999";
     });
 }
 
@@ -67,6 +87,10 @@ function stop() {
     if (stateTimer) {
         clearInterval(stateTimer);
         stateTimer = null;
+    }
+    if (renderTimer) {
+        clearInterval(renderTimer);
+        renderTimer = null;
     }
     try { presenceRef?.off("value", handlePresence); } catch {}
     presenceRef = null;
@@ -112,9 +136,10 @@ function start(user) {
 
     const db = getFirebase();
     if (!db) {
+        const retryUser = currentUser;
         setTimeout(() => {
             const retryDb = getFirebase();
-            if (retryDb && currentUser) start(currentUser);
+            if (retryDb && retryUser) start(retryUser);
         }, 500);
         return;
     }
@@ -127,8 +152,9 @@ function start(user) {
     void updateOwnPresence(true);
     stateTimer = setInterval(() => {
         void updateOwnPresence();
-        scheduleFriendRows();
     }, 5000);
+    renderTimer = setInterval(scheduleFriendRows, 500);
+    scheduleFriendRows();
 }
 
 function init() {
