@@ -201,6 +201,12 @@ function installLiveNews() {
 }
 
 function installGameTitleImage() {
+    const subtitle = document.getElementById("menuSubtitle");
+    if (subtitle) {
+        subtitle.style.display = "none";
+        subtitle.setAttribute("aria-hidden", "true");
+    }
+
     if (document.getElementById("webminecraftTitleImage")) return;
     const title = document.getElementById("menuTitle");
     if (!title) return;
@@ -212,16 +218,19 @@ function installGameTitleImage() {
     image.decoding = "async";
     image.loading = "eager";
     image.style.display = "block";
-    image.style.width = "min(700px, 96vw)";
+    image.style.width = "min(620px, 92vw)";
     image.style.maxWidth = "100%";
     image.style.height = "auto";
-    image.style.maxHeight = "180px";
+    image.style.maxHeight = "155px";
     image.style.objectFit = "contain";
     image.style.objectPosition = "center";
-    image.style.margin = "0 auto 16px";
+    image.style.margin = "0 auto 4px";
     image.style.filter = "drop-shadow(0 5px 3px rgba(0,0,0,.65))";
 
     title.replaceWith(image);
+
+    const splash = document.getElementById("menuSplash");
+    if (splash) splash.style.marginBottom = "8px";
 }
 
 function watchNewsUi() {
