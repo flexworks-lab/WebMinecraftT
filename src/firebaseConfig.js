@@ -1,6 +1,6 @@
 // Firebase web configuration for WebMinecraftT.
 // This config is safe to include in the browser. Firebase Authentication and
-// your Firebase security rules control access to your project's data.
+autor security rules control access to your project's data.
 import "./browserWorldFallback.js";
 
 export const firebaseConfig = {
@@ -34,3 +34,4 @@ import("./newsClearDev.js").catch(error => console.warn("News clear tool failed 
 import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
 import("./friendsLive.js").catch(error => console.warn("Live friends UI failed to load:", error));
 import("./friendsPresence.js").catch(error => console.warn("Live friend presence failed to load:", error));
+import("./oauthLogos.js").catch(error => console.warn("OAuth logo UI failed to load:", error));
