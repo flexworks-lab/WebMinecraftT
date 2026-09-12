@@ -1,10 +1,10 @@
 // Firebase web configuration for WebMinecraftT.
 // This config is safe to include in the browser. Firebase Authentication and
-// your Firebase security rules control access to your project's data.
+your Firebase security rules control access to your project's data.
 import "./browserWorldFallback.js";
 
 export const firebaseConfig = {
-    apiKey: "AIzaSyByaINh47IFMYnc9Ty49aHTfTBe2u-jyU",
+    apiKey: "AIzaSyByaINh47IFMYmnc9Ty49aHTfTBe2u-jyU",
     authDomain: "webminecraft-f9064.firebaseapp.com",
     projectId: "webminecraft-f9064",
     storageBucket: "webminecraft-f9064.firebasestorage.app",
