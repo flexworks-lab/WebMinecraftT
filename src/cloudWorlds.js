@@ -6,6 +6,7 @@ const CHUNK_SIZE = 16;
 let firebasePromise = null;
 let syncRunning = false;
 let deleteRetryRunning = false;
+let worldListenerStartedForUid = null;
 
 function normalizeSeed(value) {
     const number = Number(value);
@@ -268,6 +269,7 @@ export async function deleteCloudWorld(seed) {
         };
         await services.db.ref(root).update(updates);
         forgetPendingDelete(normalizedSeed);
+        window.dispatchEvent(new CustomEvent("webminecraft:cloudworldschanged", { detail: { type: "deleted", seed: normalizedSeed } }));
         return true;
     } catch (error) {
         rememberPendingDelete(normalizedSeed);
@@ -356,6 +358,25 @@ export async function syncCloudWorlds() {
     }
 }
 
+async function startLiveWorldListener(services) {
+    const uid = services?.user?.uid;
+    if (!uid || worldListenerStartedForUid === uid) return;
+    worldListenerStartedForUid = uid;
+    const worldsRef = services.db.ref(`users/${uid}/worlds`);
+    const deletedWorldsRef = services.db.ref(`users/${uid}/deletedWorlds`);
+    const notify = async (type, snapshot) => {
+        const seed = normalizeSeed(snapshot?.key);
+        window.dispatchEvent(new CustomEvent("webminecraft:cloudworldschanged", {
+            detail: { type, seed, world: snapshot?.val() || null }
+        }));
+        try { await syncCloudWorlds(); } catch {}
+    };
+    worldsRef.on("child_added", snapshot => notify("added", snapshot));
+    worldsRef.on("child_changed", snapshot => notify("changed", snapshot));
+    worldsRef.on("child_removed", snapshot => notify("deleted", snapshot));
+    deletedWorldsRef.on("child_added", snapshot => notify("deleted", snapshot));
+}
+
 window.webMinecraftCloudSync = syncCloudWorlds;
 window.webMinecraftSaveCloudWorld = saveCloudWorld;
 window.webMinecraftDeleteCloudWorld = deleteCloudWorld;
@@ -367,6 +388,7 @@ waitForFirebase().then(services => {
     if (!services?.auth?.onAuthStateChanged) return;
     services.auth.onAuthStateChanged(user => {
         if (user) {
+            startLiveWorldListener(services).catch(() => {});
             setTimeout(() => syncCloudWorlds().catch(() => {}), 250);
             setTimeout(() => retryCloudWorldDeletes().catch(() => {}), 500);
         }
