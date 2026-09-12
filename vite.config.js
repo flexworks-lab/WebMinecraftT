@@ -66,7 +66,7 @@ const gameplayUiPlugin = {
         if (id.endsWith("/src/main.js")) {
             code = code.replace(
                 'import * as THREE from "three";',
-                'import * as THREE from "three";\nimport { initMultiplayerAvatars } from "./multiplayerAvatars.js";'
+                'import * as THREE from "three";\nimport { initMultiplayerAvatars } from "./multiplayerAvatars.js";\nimport { initShortGrass } from "./shortGrass.js";'
             );
             code = code.replace(
                 "const scene = new THREE.Scene();",
@@ -87,6 +87,7 @@ const gameplayUiPlugin = {
                 'if (performanceHud) performanceHud.style.display = display;\n}',
                 'if (performanceHud) performanceHud.style.display = display;\n    updateCoordinatesHud();\n}'
             );
+            code = code.replace(/createWorld\(scene\);/g, "createWorld(scene);\n    initShortGrass(scene, camera);");
             return { code, map: null };
         }
 
