@@ -17,15 +17,57 @@ waterTexture.needsUpdate = true;
 let waterFrameCount = 1;
 let waterStripAxis = "x";
 let animationStarted = false;
+let waterTextureSanitized = false;
 
-function setupWaterAnimation() {
+function sanitizeWaterTexture() {
+    if (waterTextureSanitized) return true;
+
     const image = waterTexture.image;
     const width = Number(image?.naturalWidth || image?.videoWidth || image?.width || 0);
     const height = Number(image?.naturalHeight || image?.videoHeight || image?.height || 0);
     if (!width || !height) return false;
 
-    // Water_(texture)_JE4.png is a frame strip. Each frame is expected to be
-    // square, so the long dimension tells us both the direction and frame count.
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+
+    try {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(image, 0, 0, width, height);
+        const pixels = ctx.getImageData(0, 0, width, height);
+
+        for (let i = 0; i < pixels.data.length; i += 4) {
+            const r = pixels.data[i];
+            const g = pixels.data[i + 1];
+            const b = pixels.data[i + 2];
+            const a = pixels.data[i + 3];
+
+            // Remove only near-black pixels from the water sheet. These can
+            // otherwise appear as black translucent blocks on the flowing water.
+            if (a > 0 && r < 18 && g < 18 && b < 18) pixels.data[i + 3] = 0;
+        }
+
+        ctx.putImageData(pixels, 0, 0);
+        waterTexture.image = canvas;
+        waterTexture.needsUpdate = true;
+        waterTextureSanitized = true;
+        return true;
+    } catch (error) {
+        console.warn("[WebMinecraftT] Could not sanitize water texture", error);
+        return false;
+    }
+}
+
+function setupWaterAnimation() {
+    if (!sanitizeWaterTexture()) return false;
+
+    const image = waterTexture.image;
+    const width = Number(image?.naturalWidth || image?.videoWidth || image?.width || 0);
+    const height = Number(image?.naturalHeight || image?.videoHeight || image?.height || 0);
+    if (!width || !height) return false;
+
     if (width >= height * 2) {
         waterStripAxis = "x";
         waterFrameCount = Math.max(1, Math.round(width / height));
@@ -73,15 +115,25 @@ function startWaterAnimation() {
     requestAnimationFrame(animate);
 }
 
-if (!setupWaterAnimation()) {
+const prepareWaterTexture = () => {
+    if (setupWaterAnimation()) {
+        startWaterAnimation();
+        return true;
+    }
+    return false;
+};
+
+if (!prepareWaterTexture()) {
     const originalOnLoad = waterTexture.onUpdate;
     waterTexture.onUpdate = (...args) => {
         originalOnLoad?.(...args);
-        setupWaterAnimation();
-        startWaterAnimation();
+        prepareWaterTexture();
     };
-} else {
-    startWaterAnimation();
+
+    const retry = () => {
+        if (!prepareWaterTexture()) window.setTimeout(retry, 100);
+    };
+    window.setTimeout(retry, 100);
 }
 
 function applyWaterMaterial(material) {
@@ -93,6 +145,8 @@ function applyWaterMaterial(material) {
         mat.color?.set(BLUE_WATER);
         mat.transparent = true;
         mat.opacity = Math.max(0.76, Number(mat.opacity) || 0);
+        mat.alphaTest = 0.02;
+        mat.depthTest = true;
         mat.depthWrite = false;
         mat.side = THREE.DoubleSide;
         mat.needsUpdate = true;
