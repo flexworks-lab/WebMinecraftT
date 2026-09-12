@@ -110,7 +110,9 @@ export function setupInteraction(scene, camera) {
     });
     document.addEventListener("mousedown", event => {
         if (document.body.classList.contains("mobile-mode")) return;
-        if (document.pointerLockElement !== document.body) return;
+        if (!document.body.classList.contains("webminecraft-in-world")) return;
+        if (document.body.classList.contains("inventory-open")) return;
+        if (event.target instanceof Element && event.target.closest("#hotbar, #inventoryScreen, button, input, select, textarea, a")) return;
         if (event.button === 0) breakBlock();
         if (event.button === 2) placeBlock();
     });
@@ -267,23 +269,28 @@ function createBreakParticles(scene, position, type, BLOCK) {
     for (let i = 0; i < count; i++) {
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0xaaaaaa }));
         mesh.position.set((Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8);
-        mesh.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 1.5, Math.random() * 1.5, (Math.random() - 0.5) * 1.5);
+        mesh.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 1.4, Math.random() * 1.4 + 0.3, (Math.random() - 0.5) * 1.4);
         group.add(mesh);
     }
     scene.add(group);
     const start = performance.now();
-    const animate = now => {
-        const t = (now - start) / 700;
-        if (t >= 1) { scene.remove(group); group.traverse(obj => obj.geometry?.dispose()); return; }
+    const tick = now => {
+        const age = (now - start) / 1000;
+        if (age >= 0.45) {
+            scene.remove(group);
+            group.traverse(object => {
+                if (object.isMesh) {
+                    object.geometry.dispose();
+                    object.material.dispose();
+                }
+            });
+            return;
+        }
         group.children.forEach(mesh => {
-            mesh.position.addScaledVector(mesh.userData.velocity, 1 / 60);
-            mesh.userData.velocity.y -= 0.03;
-            mesh.rotation.x += 0.1;
-            mesh.rotation.y += 0.1;
-            mesh.material.opacity = 1 - t;
-            mesh.material.transparent = true;
+            mesh.position.addScaledVector(mesh.userData.velocity, 0.016);
+            mesh.userData.velocity.y -= 3.5 * 0.016;
         });
-        requestAnimationFrame(animate);
+        requestAnimationFrame(tick);
     };
-    requestAnimationFrame(animate);
+    requestAnimationFrame(tick);
 }
