@@ -28,7 +28,6 @@ import("./adminManagement.js").catch(error => console.warn("Admin management fai
 import("./adminControls.js").catch(error => console.warn("Admin controls failed to load:", error));
 import("./accountDevControls.js").catch(error => console.warn("Account developer controls failed to load:", error));
 import("./announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
-import("./newsLive.js").catch(error => console.warn("Live News tabs failed to load:", error));
 import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
 import("./friendsLive.js").catch(error => console.warn("Live friends UI failed to load:", error));
 import("./friendsPresence.js").catch(error => console.warn("Live friend presence failed to load:", error));
