@@ -32,30 +32,15 @@
     },
     "friendRequests": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$uid": {
-        "$requestId": {
-          ".validate": "newData.hasChildren(['requestId', 'fromUid', 'toUid', 'fromName', 'toName', 'fromCode', 'status', 'createdAt'])"
-        }
-      }
+      ".write": "auth != null"
     },
     "sentFriendRequests": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$uid": {
-        "$requestId": {
-          ".validate": "newData.hasChildren(['requestId', 'fromUid', 'toUid', 'fromName', 'toName', 'fromCode', 'status', 'createdAt'])"
-        }
-      }
+      ".write": "auth != null"
     },
     "friends": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$uid": {
-        "$friendUid": {
-          ".validate": "newData.hasChildren(['uid', 'name', 'friendCode'])"
-        }
-      }
+      ".write": "auth != null"
     }
   }
 }
