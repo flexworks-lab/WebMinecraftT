@@ -39,6 +39,20 @@ function loadFirebaseScript(src) {
     return promise;
 }
 
+async function syncUserProfile(user) {
+    if (!user?.uid || !user?.email || !window.firebase?.firestore) return;
+    try {
+        await window.firebase.firestore().collection("profiles").doc(user.uid).set({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || "",
+            updatedAt: new Date()
+        }, { merge: true });
+    } catch (error) {
+        console.warn("Could not sync account profile:", error);
+    }
+}
+
 async function initFirebase() {
     if (firebaseReady) return true;
     if (!isFirebaseConfigured()) return false;
@@ -59,6 +73,7 @@ async function initFirebase() {
         auth = window.firebase.auth(app);
         auth.onAuthStateChanged(user => {
             currentUser = user || null;
+            if (user) syncUserProfile(user);
             updateAccountUi();
         });
         firebaseReady = true;
