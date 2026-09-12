@@ -312,9 +312,11 @@ export async function listCloudWorlds() {
     try {
         const services = await getUserAndDb();
         if (!services) return [];
+        const worldsRef = services.db.ref(`users/${services.user.uid}/worlds`);
+        const deletedRefForUser = services.db.ref(`users/${services.user.uid}/deletedWorlds`);
         const [worldSnap, deletedSnap] = await Promise.all([
-            worldMetaRef(services.db, services.user.uid, "").parent.once("value"),
-            services.db.ref(`users/${services.user.uid}/deletedWorlds`).once("value")
+            worldsRef.once("value"),
+            deletedRefForUser.once("value")
         ]);
         const worlds = worldSnap.val() || {};
         const deleted = deletedSnap.val() || {};
