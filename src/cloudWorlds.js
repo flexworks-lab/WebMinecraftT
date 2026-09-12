@@ -4,9 +4,11 @@ const MAX_NAME = 40;
 const CHUNK_SIZE = 16;
 
 let firebasePromise = null;
+let authStatePromise = null;
 let syncRunning = false;
 let deleteRetryRunning = false;
 let worldListenerStartedForUid = null;
+let worldListenerServices = null;
 
 function normalizeSeed(value) {
     const number = Number(value);
@@ -62,10 +64,36 @@ async function waitForFirebase(timeout = 12000) {
     return firebasePromise;
 }
 
+async function waitForAuthState(services, timeout = 12000) {
+    if (!services?.auth) return null;
+    if (authStatePromise) return authStatePromise;
+    authStatePromise = new Promise(resolve => {
+        let settled = false;
+        const finish = user => {
+            if (settled) return;
+            settled = true;
+            resolve(user || null);
+        };
+        const timer = setTimeout(() => finish(services.auth.currentUser || null), timeout);
+        try {
+            const unsubscribe = services.auth.onAuthStateChanged(user => {
+                clearTimeout(timer);
+                try { unsubscribe?.(); } catch {}
+                finish(user);
+            });
+        } catch {
+            clearTimeout(timer);
+            finish(services.auth.currentUser || null);
+        }
+    });
+    return authStatePromise;
+}
+
 async function getUserAndDb() {
     const services = await waitForFirebase();
-    const user = services?.auth?.currentUser || null;
-    return user && services?.db ? { user, db: services.db } : null;
+    if (!services?.db || !services?.auth) return null;
+    const user = await waitForAuthState(services);
+    return user ? { user, db: services.db } : null;
 }
 
 function getDeletedSeeds() {
@@ -360,10 +388,26 @@ export async function syncCloudWorlds() {
     }
 }
 
+function stopLiveWorldListener() {
+    if (!worldListenerServices) return;
+    try {
+        const uid = worldListenerStartedForUid;
+        if (uid) {
+            worldListenerServices.db.ref(`users/${uid}/worlds`).off();
+            worldListenerServices.db.ref(`users/${uid}/deletedWorlds`).off();
+        }
+    } catch {}
+    worldListenerStartedForUid = null;
+    worldListenerServices = null;
+}
+
 async function startLiveWorldListener(services) {
     const uid = services?.user?.uid;
-    if (!uid || worldListenerStartedForUid === uid) return;
+    if (!uid) return;
+    if (worldListenerStartedForUid === uid) return;
+    stopLiveWorldListener();
     worldListenerStartedForUid = uid;
+    worldListenerServices = services;
     const worldsRef = services.db.ref(`users/${uid}/worlds`);
     const deletedWorldsRef = services.db.ref(`users/${uid}/deletedWorlds`);
     const notify = async (type, snapshot) => {
@@ -385,15 +429,23 @@ window.webMinecraftDeleteCloudWorld = deleteCloudWorld;
 window.webMinecraftRetryCloudDeletes = retryCloudWorldDeletes;
 window.webMinecraftClearCloudWorldDeletion = clearCloudWorldDeletion;
 window.webMinecraftListCloudWorlds = listCloudWorlds;
+window.webMinecraftWaitForAuth = async () => {
+    const services = await waitForFirebase();
+    return waitForAuthState(services);
+};
 
 waitForFirebase().then(services => {
     if (!services?.auth?.onAuthStateChanged) return;
     services.auth.onAuthStateChanged(user => {
+        authStatePromise = Promise.resolve(user || null);
         if (user) {
-            startLiveWorldListener(services).catch(() => {});
+            startLiveWorldListener({ ...services, user }).catch(() => {});
             setTimeout(() => syncCloudWorlds().catch(() => {}), 250);
             setTimeout(() => retryCloudWorldDeletes().catch(() => {}), 500);
+        } else {
+            stopLiveWorldListener();
         }
+        window.dispatchEvent(new CustomEvent("webminecraft:authstatechanged", { detail: { user } }));
     });
 });
 
