@@ -2,16 +2,9 @@ import * as THREE from "three";
 import { getBlockAt, getBlockTypes, CHUNK_SIZE } from "./world.js";
 import { waterTexture } from "./blocks.js";
 
-// Minecraft-style water for WebMinecraftT.
-//
-// Design goals:
-// - source water is full-strength and effectively infinite
-// - water falls before attempting horizontal flow
-// - horizontal flow loses one level per block (8 -> 7 -> ... -> 1)
-// - two adjacent source blocks can create a new source when supported
-// - flowing water retracts when its support disappears
-// - updates are queued and chunk-meshed, so stable water does no work
-// - newly streamed chunk water is registered automatically
+// Minecraft-style water simulation + renderer.
+// Flowing water uses the real water texture on its top and sides, with
+// world-aligned UVs and lightly sloped surfaces so streams read as fluid.
 
 const MAX_LEVEL = 8;
 const MIN_Y = -32;
@@ -39,16 +32,7 @@ let scene = null;
 let installed = false;
 let lastStep = performance.now();
 let queueHead = 0;
-
-const fluidMaterial = new THREE.MeshLambertMaterial({
-    map: waterTexture,
-    color: 0x3c8fc0,
-    transparent: true,
-    opacity: 0.78,
-    depthWrite: false,
-    side: THREE.DoubleSide
-});
-fluidMaterial.forceSinglePass = true;
+let animationFrame = 0;
 
 waterTexture.wrapS = THREE.RepeatWrapping;
 waterTexture.wrapT = THREE.RepeatWrapping;
@@ -56,6 +40,21 @@ waterTexture.magFilter = THREE.NearestFilter;
 waterTexture.minFilter = THREE.NearestFilter;
 waterTexture.colorSpace = THREE.SRGBColorSpace;
 waterTexture.needsUpdate = true;
+
+const fluidMaterial = new THREE.MeshPhongMaterial({
+    map: waterTexture,
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    shininess: 75,
+    specular: 0x6da8c0,
+    emissive: 0x071a22,
+    emissiveIntensity: 0.1,
+    vertexColors: true
+});
+fluidMaterial.forceSinglePass = true;
 
 const key = (x, y, z) => `${x},${y},${z}`;
 const parseKey = k => k.split(",").map(Number);
@@ -133,6 +132,7 @@ function addCell(x, y, z, level, source = false) {
     if (water.size >= MAX_WATER_CELLS) return false;
     const cell = { x, y, z, level };
     water.set(k, cell);
+
     const ck = chunkKey(x, z);
     let set = chunkCells.get(ck);
     if (!set) {
@@ -140,6 +140,7 @@ function addCell(x, y, z, level, source = false) {
         chunkCells.set(ck, set);
     }
     set.add(k);
+
     if (source) sources.add(k);
     enqueue(x, y, z);
     markCell(x, z);
@@ -153,11 +154,13 @@ function removeCell(x, y, z, force = false) {
 
     water.delete(k);
     sources.delete(k);
+
     const set = chunkCells.get(chunkKey(x, z));
     if (set) {
         set.delete(k);
         if (!set.size) chunkCells.delete(chunkKey(x, z));
     }
+
     markCell(x, z);
     activateNeighbors(x, y, z);
     return true;
@@ -259,6 +262,7 @@ function findDropDistance(x, y, z) {
 function horizontalTargets(x, y, z) {
     let best = Infinity;
     const targets = [];
+
     for (const [dx, dz] of DIRS) {
         const nx = x + dx;
         const nz = z + dz;
@@ -284,7 +288,6 @@ function tryCreateSource(x, y, z) {
     }
     if (adjacentSources < 2) return false;
 
-    sources.add(k);
     addCell(x, y, z, MAX_LEVEL, true);
     return true;
 }
@@ -316,13 +319,16 @@ function updateCell(x, y, z) {
             cell.level = MAX_LEVEL;
             markCell(x, z);
         }
+
         if (isAir(x, y - 1, z)) {
             addCell(x, y - 1, z, MAX_LEVEL, false);
             return;
         }
+
         for (const target of horizontalTargets(x, y, z)) {
-            const next = Math.max(1, MAX_LEVEL - 1);
-            if (getLevel(target.x, y, target.z) < next) addCell(target.x, y, target.z, next, false);
+            if (getLevel(target.x, y, target.z) < MAX_LEVEL - 1) {
+                addCell(target.x, y, target.z, MAX_LEVEL - 1, false);
+            }
         }
         return;
     }
@@ -350,13 +356,52 @@ function updateCell(x, y, z) {
 
     const newLevel = Math.min(MAX_LEVEL - 1, bestFromNeighbors);
     setLevel(x, y, z, newLevel);
+
     for (const target of horizontalTargets(x, y, z)) {
-        if (getLevel(target.x, y, target.z) < newLevel - 1) setLevel(target.x, y, target.z, newLevel - 1);
+        if (getLevel(target.x, y, target.z) < newLevel - 1) {
+            setLevel(target.x, y, target.z, newLevel - 1);
+        }
     }
+}
+
+function levelHeight(level) {
+    return Math.max(0.0625, level / MAX_LEVEL);
+}
+
+function cornerHeight(x, y, z, dx, dz, currentLevel) {
+    if (currentLevel >= MAX_LEVEL) return levelHeight(MAX_LEVEL);
+
+    const sx = dx > 0 ? 0 : -1;
+    const sz = dz > 0 ? 0 : -1;
+    const samples = [currentLevel];
+    const candidates = [
+        getLevel(x + sx, y, z),
+        getLevel(x, y, z + sz),
+        getLevel(x + sx, y, z + sz)
+    ];
+
+    for (const level of candidates) {
+        if (level > 0) samples.push(level);
+    }
+
+    const average = samples.reduce((sum, level) => sum + level, 0) / samples.length;
+    return levelHeight(average);
+}
+
+function pushQuad(positions, normals, uvs, colors, indices, points, normal, uvPoints, shade, vertex) {
+    for (const point of points) positions.push(...point);
+    for (let i = 0; i < 4; i++) {
+        normals.push(...normal);
+        colors.push(shade, shade, shade);
+    }
+    for (const uv of uvPoints) uvs.push(...uv);
+    indices.push(vertex, vertex + 1, vertex + 2, vertex, vertex + 2, vertex + 3);
+    return vertex + 4;
 }
 
 function buildChunk(ck) {
     if (!scene) return;
+
     const cells = chunkCells.get(ck);
     const old = meshes.get(ck);
     if (old) {
@@ -369,6 +414,7 @@ function buildChunk(ck) {
     const positions = [];
     const normals = [];
     const uvs = [];
+    const colors = [];
     const indices = [];
     let vertex = 0;
     let count = 0;
@@ -379,20 +425,34 @@ function buildChunk(ck) {
         if (++count > 4500) break;
 
         const { x, y, z, level } = cell;
-        const top = y - 0.5 + Math.max(0.125, level / MAX_LEVEL);
         const above = getLevel(x, y + 1, z);
+        const current = levelHeight(level);
+        const baseY = y - 0.5;
+        const flowShade = 0.94 + 0.06 * (level / MAX_LEVEL);
 
         if (above <= 0) {
-            positions.push(
-                x - 0.5, top, z - 0.5,
-                x + 0.5, top, z - 0.5,
-                x + 0.5, top, z + 0.5,
-                x - 0.5, top, z + 0.5
+            const hNW = baseY + cornerHeight(x, y, z, -1, -1, level);
+            const hNE = baseY + cornerHeight(x, y, z, 1, -1, level);
+            const hSE = baseY + cornerHeight(x, y, z, 1, 1, level);
+            const hSW = baseY + cornerHeight(x, y, z, -1, 1, level);
+
+            vertex = pushQuad(
+                positions,
+                normals,
+                uvs,
+                colors,
+                indices,
+                [
+                    [x - 0.5, hNW, z - 0.5],
+                    [x + 0.5, hNE, z - 0.5],
+                    [x + 0.5, hSE, z + 0.5],
+                    [x - 0.5, hSW, z + 0.5]
+                ],
+                [0, 1, 0],
+                [[0, 0], [1, 0], [1, 1], [0, 1]],
+                flowShade,
+                vertex
             );
-            normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
-            uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
-            indices.push(vertex, vertex + 1, vertex + 2, vertex, vertex + 2, vertex + 3);
-            vertex += 4;
         }
 
         for (const [dx, dz] of DIRS) {
@@ -400,29 +460,63 @@ function buildChunk(ck) {
             if (neighbor >= level) continue;
 
             const sideLevel = neighbor > 0 ? neighbor : 0;
-            const sideTop = y - 0.5 + Math.max(0.0625, sideLevel / MAX_LEVEL);
+            const sideTop = baseY + levelHeight(sideLevel);
+            const topA = current;
+            const topB = current;
             let points;
             let normal;
 
             if (dx === 1) {
-                points = [[x + 0.5, y - 0.5, z - 0.5], [x + 0.5, sideTop, z - 0.5], [x + 0.5, sideTop, z + 0.5], [x + 0.5, y - 0.5, z + 0.5]];
+                points = [
+                    [x + 0.5, baseY, z - 0.5],
+                    [x + 0.5, sideTop, z - 0.5],
+                    [x + 0.5, sideTop, z + 0.5],
+                    [x + 0.5, baseY, z + 0.5]
+                ];
                 normal = [1, 0, 0];
             } else if (dx === -1) {
-                points = [[x - 0.5, y - 0.5, z + 0.5], [x - 0.5, sideTop, z + 0.5], [x - 0.5, sideTop, z - 0.5], [x - 0.5, y - 0.5, z - 0.5]];
+                points = [
+                    [x - 0.5, baseY, z + 0.5],
+                    [x - 0.5, sideTop, z + 0.5],
+                    [x - 0.5, sideTop, z - 0.5],
+                    [x - 0.5, baseY, z - 0.5]
+                ];
                 normal = [-1, 0, 0];
             } else if (dz === 1) {
-                points = [[x + 0.5, y - 0.5, z + 0.5], [x + 0.5, sideTop, z + 0.5], [x - 0.5, sideTop, z + 0.5], [x - 0.5, y - 0.5, z + 0.5]];
+                points = [
+                    [x + 0.5, baseY, z + 0.5],
+                    [x + 0.5, sideTop, z + 0.5],
+                    [x - 0.5, sideTop, z + 0.5],
+                    [x - 0.5, baseY, z + 0.5]
+                ];
                 normal = [0, 0, 1];
             } else {
-                points = [[x - 0.5, y - 0.5, z - 0.5], [x - 0.5, sideTop, z - 0.5], [x + 0.5, sideTop, z - 0.5], [x + 0.5, y - 0.5, z - 0.5]];
+                points = [
+                    [x - 0.5, baseY, z - 0.5],
+                    [x - 0.5, sideTop, z - 0.5],
+                    [x + 0.5, sideTop, z - 0.5],
+                    [x + 0.5, baseY, z - 0.5]
+                ];
                 normal = [0, 0, -1];
             }
 
-            for (const point of points) positions.push(...point);
-            normals.push(...normal, ...normal, ...normal, ...normal);
-            uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
-            indices.push(vertex, vertex + 1, vertex + 2, vertex, vertex + 2, vertex + 3);
-            vertex += 4;
+            const horizontalAxis = dx !== 0;
+            const uvPoints = horizontalAxis
+                ? [[0, 0], [0, topA], [1, topB], [1, 0]]
+                : [[0, 0], [0, topA], [1, topB], [1, 0]];
+
+            vertex = pushQuad(
+                positions,
+                normals,
+                uvs,
+                colors,
+                indices,
+                points,
+                normal,
+                uvPoints,
+                Math.max(0.82, flowShade - 0.08),
+                vertex
+            );
         }
     }
 
@@ -432,6 +526,7 @@ function buildChunk(ck) {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(indices);
     geometry.computeBoundingSphere();
 
@@ -457,6 +552,7 @@ function step() {
     dropCache.clear();
     const budget = Math.min(MAX_CELLS_PER_STEP, active.length - queueHead);
     let done = 0;
+
     while (done < budget && queueHead < active.length) {
         const k = active[queueHead++];
         activeSet.delete(k);
@@ -464,12 +560,14 @@ function step() {
         updateCell(x, y, z);
         done++;
     }
+
     compactQueue();
 }
 
 function installSceneHook() {
     if (installed) return;
     installed = true;
+
     const originalAdd = THREE.Scene.prototype.add;
     THREE.Scene.prototype.add = function (...objects) {
         const result = originalAdd.apply(this, objects);
@@ -478,33 +576,50 @@ function installSceneHook() {
     };
 }
 
+function animateTexture() {
+    const speed = 0.018;
+    waterTexture.offset.x = (performance.now() * speed * 0.001) % 1;
+    waterTexture.offset.y = (performance.now() * speed * 0.00065) % 1;
+    animationFrame = window.setTimeout(animateTexture, 90);
+}
+
 export function setupWaterPhysics(sceneRef) {
     scene = sceneRef;
     installSceneHook();
     initialScan();
+
     for (const k of sources) {
         const [x, y, z] = parseKey(k);
         enqueue(x, y, z);
     }
+
     while (dirtyChunks.size) rebuildDirty(32);
+
+    if (typeof window !== "undefined" && !animationFrame) animateTexture();
 }
 
 export function notifyWaterBlockChanged(x, y, z, type = BLOCK.AIR) {
-    const k = key(Math.floor(x), Math.floor(y), Math.floor(z));
-    if (type !== BLOCK.AIR && water.has(k)) removeCell(x, y, z, true);
+    const cellX = Math.floor(x);
+    const cellY = Math.floor(y);
+    const cellZ = Math.floor(z);
+    const k = key(cellX, cellY, cellZ);
+
+    if (type !== BLOCK.AIR && water.has(k)) removeCell(cellX, cellY, cellZ, true);
     dropCache.clear();
-    enqueue(x, y, z);
-    activateNeighbors(x, y, z);
-    markCell(x, z);
+    enqueue(cellX, cellY, cellZ);
+    activateNeighbors(cellX, cellY, cellZ);
+    markCell(cellX, cellZ);
 }
 
 export function updateWaterPhysics() {
     if (!scene) return;
+
     const now = performance.now();
     if (now - lastStep >= FLOW_INTERVAL && queueHead < active.length) {
         lastStep = now;
         step();
     }
+
     rebuildDirty();
 }
 
@@ -514,9 +629,7 @@ if (typeof window !== "undefined") {
         if (!Number.isFinite(detail.x) || !Number.isFinite(detail.y) || !Number.isFinite(detail.z)) return;
         notifyWaterBlockChanged(detail.x, detail.y, detail.z, detail.type ?? BLOCK.AIR);
     });
-}
 
-if (typeof window !== "undefined") {
     const loop = () => {
         updateWaterPhysics();
         window.setTimeout(loop, 100);
