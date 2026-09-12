@@ -63,7 +63,10 @@ const snowTexture = createTexture("#cbd6da", ["#c0ccd1", "#e3e9eb", "#adbcc2", "
 const tntBottomTexture = loadTexture(texturePath("tnt_bottom.png"), "TNT bottom");
 const tntSideTexture = loadTexture(texturePath("tnt_side.png"), "TNT side");
 const tntTopTexture = loadTexture(texturePath("tnt_top.png"), "TNT top");
-const waterTexture = createTexture("#2b78aa", ["#1e628f", "#3f91c0", "#6bb9dc", "#245f86"], 30, 26);
+
+// Water is intentionally a single, subtle color instead of a repeating pixel
+// texture so large water areas read as one continuous surface rather than tiles.
+const waterTexture = createTexture("#214f6c", [], 0, 26);
 
 // Keep the darker block palette while adding a small material floor so textures
 // never become completely black when underground lighting gets very low.
@@ -103,7 +106,17 @@ const snowMaterial = new THREE.MeshPhongMaterial({ map: snowTexture, color: text
 const tntSideMaterial = new THREE.MeshPhongMaterial({ map: tntSideTexture, color: textureShade, ...materialOptions });
 const tntTopMaterial = new THREE.MeshPhongMaterial({ map: tntTopTexture, color: textureShade, ...materialOptions });
 const tntBottomMaterial = new THREE.MeshPhongMaterial({ map: tntBottomTexture, color: textureShade, ...materialOptions });
-const waterMaterial = new THREE.MeshPhongMaterial({ map: waterTexture, transparent: true, opacity: 0.58, depthWrite: false, side: THREE.DoubleSide, emissive: 0x12364a, emissiveIntensity: 0.28 });
+
+const waterMaterial = new THREE.MeshPhongMaterial({
+    map: waterTexture,
+    color: 0x214f6c,
+    transparent: true,
+    opacity: 0.76,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    emissive: 0x0b2432,
+    emissiveIntensity: 0.18
+});
 
 const grassMaterial = [grassSideMaterial, grassSideMaterial, grassTopMaterial, dirtMaterial, grassSideMaterial, grassSideMaterial];
 const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTopMaterial, oakSideMaterial, oakSideMaterial];
