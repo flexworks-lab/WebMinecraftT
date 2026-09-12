@@ -4,8 +4,9 @@
 import "./browserWorldFallback.js";
 
 export const firebaseConfig = {
-    apiKey: "AIzaSyByaINh47IFMYmnc9ty49aHTfTBe2u-jyU",
+    apiKey: "AIzaSyByaINh47IFMYmnc9Ty49aHTfTBe2u-jyU",
     authDomain: "webminecraft-f9064.firebaseapp.com",
+    databaseURL: "https://webminecraft-f9064-default-rtdb.firebaseio.com",
     projectId: "webminecraft-f9064",
     storageBucket: "webminecraft-f9064.firebasestorage.app",
     messagingSenderId: "781747330238",
@@ -14,7 +15,7 @@ export const firebaseConfig = {
 };
 
 export function isFirebaseConfigured() {
-    return Object.values(firebaseConfig).every(Boolean);
+    return Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
 }
 
 import("./multiplayerServerEvents.js").catch(error => console.warn("Multiplayer server event bridge failed to load:", error));
