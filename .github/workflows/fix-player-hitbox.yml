@@ -1,0 +1,45 @@
+name: Fix player hitbox
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'Set player hitbox to fit 1x1 spaces'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make player hitbox smaller
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/player.js')
+          s = p.read_text()
+          old = 'const PLAYER_WIDTH = 0.98;'
+          new = 'const PLAYER_WIDTH = 0.80;'
+          if old not in s:
+              raise SystemExit('Expected PLAYER_WIDTH line was not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/player.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Set player hitbox to fit 1x1 spaces"
+          git push
+
+      - name: Remove temporary workflow
+        if: success()
+        run: |
+          git rm .github/workflows/fix-player-hitbox.yml
+          git commit -m "Remove temporary hitbox workflow"
+          git push
