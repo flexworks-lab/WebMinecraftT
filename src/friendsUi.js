@@ -6,6 +6,7 @@ let firebaseReadyPromise = null;
 let currentUser = null;
 let database = null;
 let friendRequestUnsubscribe = null;
+let friendsUnsubscribe = null;
 let initialized = false;
 
 function waitForFirebase() {
@@ -252,7 +253,6 @@ async function addFriend() {
         const incomingRef = database.ref(`friendRequests/${target.uid}/${requestId}`);
         const sentRef = database.ref(`sentFriendRequests/${currentUser.uid}/${requestId}`);
         const friendRef = database.ref(`friends/${currentUser.uid}/${target.uid}`);
-        const reverseFriendRef = database.ref(`friends/${target.uid}/${currentUser.uid}`);
 
         const [existingIncoming, existingSent, existingFriend] = await Promise.all([
             incomingRef.once("value"),
@@ -325,6 +325,33 @@ async function respondToRequest(request, accept) {
     }
 }
 
+function renderRequestsSnapshot(snapshot) {
+    const requestsEl = document.getElementById("friendsRequests");
+    if (!requestsEl) return;
+    const requests = [];
+    snapshot.forEach(child => {
+        const value = child.val() || {};
+        if (value.status === "pending") requests.push({ id: child.key, ...value });
+    });
+    requests.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    requestsEl.innerHTML = requests.length
+        ? requests.map(x => `<div class="friendFullRow"><div><div class="friendFullName">${esc(x.fromName || "Player")}</div><div class="friendFullMeta">Friend request</div></div><div class="friendFullActions"><button class="friendSmallAction accept" data-accept="${esc(x.id)}">Accept</button><button class="friendSmallAction decline" data-decline="${esc(x.id)}">Decline</button></div></div>`).join("")
+        : '<div class="friendEmpty">No pending requests.</div>';
+    requestsEl.querySelectorAll("[data-accept]").forEach(btn => btn.addEventListener("click", () => respondToRequest(requests.find(x => x.id === btn.dataset.accept), true)));
+    requestsEl.querySelectorAll("[data-decline]").forEach(btn => btn.addEventListener("click", () => respondToRequest(requests.find(x => x.id === btn.dataset.decline), false)));
+}
+
+function renderFriendsSnapshot(snapshot) {
+    const listEl = document.getElementById("friendsList");
+    if (!listEl) return;
+    const friends = [];
+    snapshot.forEach(child => friends.push({ id: child.key, ...(child.val() || {}) }));
+    friends.sort((a, b) => String(a.name || "Player").localeCompare(String(b.name || "Player")));
+    listEl.innerHTML = friends.length
+        ? friends.map(x => `<div class="friendFullRow"><div><div class="friendFullName">${esc(x.name || "Player")}</div><div class="friendFullMeta">Friend</div></div></div>`).join("")
+        : '<div class="friendEmpty">No friends yet.</div>';
+}
+
 async function refreshFriends() {
     if (!currentUser || !database) return;
     const requestsEl = document.getElementById("friendsRequests");
@@ -335,24 +362,8 @@ async function refreshFriends() {
             database.ref(`friendRequests/${currentUser.uid}`).once("value"),
             database.ref(`friends/${currentUser.uid}`).once("value")
         ]);
-        const requests = [];
-        requestsSnap.forEach(child => {
-            const value = child.val() || {};
-            if (value.status === "pending") requests.push({ id: child.key, ...value });
-        });
-        requests.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-        requestsEl.innerHTML = requests.length
-            ? requests.map(x => `<div class="friendFullRow"><div><div class="friendFullName">${esc(x.fromName || "Player")}</div><div class="friendFullMeta">Friend request</div></div><div class="friendFullActions"><button class="friendSmallAction accept" data-accept="${esc(x.id)}">Accept</button><button class="friendSmallAction decline" data-decline="${esc(x.id)}">Decline</button></div></div>`).join("")
-            : '<div class="friendEmpty">No pending requests.</div>';
-        requestsEl.querySelectorAll("[data-accept]").forEach(btn => btn.addEventListener("click", () => respondToRequest(requests.find(x => x.id === btn.dataset.accept), true)));
-        requestsEl.querySelectorAll("[data-decline]").forEach(btn => btn.addEventListener("click", () => respondToRequest(requests.find(x => x.id === btn.dataset.decline), false)));
-
-        const friends = [];
-        friendsSnap.forEach(child => friends.push({ id: child.key, ...(child.val() || {}) }));
-        friends.sort((a, b) => String(a.name || "Player").localeCompare(String(b.name || "Player")));
-        listEl.innerHTML = friends.length
-            ? friends.map(x => `<div class="friendFullRow"><div><div class="friendFullName">${esc(x.name || "Player")}</div><div class="friendFullMeta">Friend</div></div></div>`).join("")
-            : '<div class="friendEmpty">No friends yet.</div>';
+        renderRequestsSnapshot(requestsSnap);
+        renderFriendsSnapshot(friendsSnap);
     } catch (error) {
         console.warn("Could not load RTDB friends:", error);
         requestsEl.innerHTML = '<div class="friendEmpty">Friends are unavailable right now.</div>';
@@ -363,22 +374,39 @@ async function refreshFriends() {
 function startRequestListener() {
     stopRequestListener();
     if (!currentUser || !database) return;
-    const ref = database.ref(`friendRequests/${currentUser.uid}`);
-    const handler = snapshot => {
+
+    const requestRef = database.ref(`friendRequests/${currentUser.uid}`);
+    const friendRef = database.ref(`friends/${currentUser.uid}`);
+
+    const requestHandler = snapshot => {
         let pending = 0;
         snapshot.forEach(child => {
             if (child.val()?.status === "pending") pending++;
         });
         updateBadge(pending);
-        if (document.getElementById(FRIENDS_MODAL_ID)?.classList.contains("open")) refreshFriends();
+        if (document.getElementById(FRIENDS_MODAL_ID)?.classList.contains("open")) {
+            renderRequestsSnapshot(snapshot);
+        }
     };
-    ref.on("value", handler, error => console.warn("RTDB friend listener failed:", error));
-    friendRequestUnsubscribe = () => ref.off("value", handler);
+
+    const friendHandler = snapshot => {
+        if (document.getElementById(FRIENDS_MODAL_ID)?.classList.contains("open")) {
+            renderFriendsSnapshot(snapshot);
+        }
+    };
+
+    requestRef.on("value", requestHandler, error => console.warn("RTDB friend request listener failed:", error));
+    friendRef.on("value", friendHandler, error => console.warn("RTDB friends listener failed:", error));
+
+    friendRequestUnsubscribe = () => requestRef.off("value", requestHandler);
+    friendsUnsubscribe = () => friendRef.off("value", friendHandler);
 }
 
 function stopRequestListener() {
     try { friendRequestUnsubscribe?.(); } catch {}
+    try { friendsUnsubscribe?.(); } catch {}
     friendRequestUnsubscribe = null;
+    friendsUnsubscribe = null;
     updateBadge(0);
 }
 
