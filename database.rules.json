@@ -22,6 +22,37 @@
           }
         }
       }
+    },
+    "publicProfiles": {
+      ".read": "auth != null",
+      ".indexOn": ["friendCode"],
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "friendRequests": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$requestId": {
+          ".write": "auth != null && (auth.uid === $uid || (newData.exists() && newData.child('fromUid').val() === auth.uid))"
+        }
+      }
+    },
+    "sentFriendRequests": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$requestId": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "friends": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$friendUid": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === $friendUid)"
+        }
+      }
     }
   }
 }
