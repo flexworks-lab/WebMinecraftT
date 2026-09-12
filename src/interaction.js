@@ -116,7 +116,9 @@ export function setupInteraction(scene, camera) {
         if (event.button === 0) breakBlock();
         if (event.button === 2) placeBlock();
     });
-    document.addEventListener("contextmenu", event => event.preventDefault());
+    document.addEventListener("contextmenu", event => {
+        if (document.body.classList.contains("webminecraft-in-world")) event.preventDefault();
+    });
     function pollTouchActions() {
         const mobile = document.body.classList.contains("mobile-mode");
         const punch = mobile && !!touchInput.punchPressed;
@@ -257,9 +259,14 @@ function updateSelectionOutline(outline, target, camera) {
     lines.visible = true;
 }
 
-function playerOverlapsBlock(block) {
+function playerOverlapsBlock(block, camera) {
     const player = camera.position;
-    return Math.abs(player.x - block.x) < 0.8 && Math.abs(player.z - block.z) < 0.8 && player.y > block.y - 0.9 && player.y < block.y + 2.1;
+    const playerHalfWidth = 0.38;
+    const playerBottom = player.y - 1.62;
+    const playerTop = player.y + 0.12;
+    const verticalOverlap = playerTop > block.y - 0.5 && playerBottom < block.y + 0.5;
+    const horizontalOverlap = Math.abs(player.x - block.x) < 0.5 + playerHalfWidth && Math.abs(player.z - block.z) < 0.5 + playerHalfWidth;
+    return horizontalOverlap && verticalOverlap;
 }
 
 function createBreakParticles(scene, position, type, BLOCK) {
@@ -269,28 +276,31 @@ function createBreakParticles(scene, position, type, BLOCK) {
     for (let i = 0; i < count; i++) {
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0xaaaaaa }));
         mesh.position.set((Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8);
-        mesh.userData.velocity = new THREE.Vector3((Math.random() - 0.5) * 1.4, Math.random() * 1.4 + 0.3, (Math.random() - 0.5) * 1.4);
         group.add(mesh);
     }
     scene.add(group);
-    const start = performance.now();
-    const tick = now => {
-        const age = (now - start) / 1000;
+    const started = performance.now();
+    function animateParticles(now) {
+        const age = (now - started) / 1000;
         if (age >= 0.45) {
             scene.remove(group);
             group.traverse(object => {
-                if (object.isMesh) {
-                    object.geometry.dispose();
-                    object.material.dispose();
+                if (object.geometry) object.geometry.dispose();
+                if (object.material) {
+                    if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
+                    else object.material.dispose();
                 }
             });
             return;
         }
         group.children.forEach(mesh => {
-            mesh.position.addScaledVector(mesh.userData.velocity, 0.016);
-            mesh.userData.velocity.y -= 3.5 * 0.016;
+            mesh.position.y += 0.012;
+            mesh.rotation.x += 0.08;
+            mesh.rotation.y += 0.06;
+            mesh.material.opacity = 1 - age / 0.45;
+            mesh.material.transparent = true;
         });
-        requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
+        requestAnimationFrame(animateParticles);
+    }
+    requestAnimationFrame(animateParticles);
 }
