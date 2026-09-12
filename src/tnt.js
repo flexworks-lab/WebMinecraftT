@@ -12,20 +12,15 @@ const TNT_GRAVITY = 22;
 const TNT_MAX_FALL_SPEED = 28;
 const SAND_GRAVITY = 22;
 const SAND_MAX_FALL_SPEED = 28;
-
-// Explosions only touch a small number of blocks each frame so the game never has
-// to rebuild a large area in one frame.
-const EXPLOSION_BLOCKS_PER_FRAME = 16;
 const MAX_TNT_CHAIN_DELAY = 300;
 const MAX_ACTIVE_EXPLOSIONS = 12;
 
-// Precompute the radius once. Every TNT uses the same cheap list.
 const EXPLOSION_OFFSETS = [];
 for (let dx = -EXPLOSION_RADIUS; dx <= EXPLOSION_RADIUS; dx++) {
     for (let dy = -EXPLOSION_RADIUS; dy <= EXPLOSION_RADIUS; dy++) {
         for (let dz = -EXPLOSION_RADIUS; dz <= EXPLOSION_RADIUS; dz++) {
             const distance = Math.hypot(dx, dy, dz);
-            if (distance <= EXPLOSION_RADIUS) EXPLOSION_OFFSETS.push({ dx, dy, dz, distance });
+            if (distance <= EXPLOSION_RADIUS) EXPLOSION_OFFSETS.push({ dx, dy, dz });
         }
     }
 }
@@ -41,7 +36,6 @@ let physicsLoopStarted = false;
 let lastPhysicsTime = performance.now();
 
 function makeKey(x, y, z) { return `${x},${y},${z}`; }
-
 function notifyBlockChange(x, y, z, type) {
     window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type } }));
 }
@@ -154,22 +148,18 @@ function setFlashState(mesh, originalColors, flashState) {
         }
     });
 }
-
 function startFuse(scene, x, y, z, broadcastIgnite = true, allowAir = false) {
     const key = makeKey(x, y, z), BLOCK = getBlockTypes();
     if (primed.has(key)) return false;
     const currentType = getBlockAt(x, y, z);
     if (currentType !== BLOCK.TNT && !(allowAir && currentType === BLOCK.AIR)) return false;
-
     if (currentType === BLOCK.TNT) {
         if (!setBlockAt(x, y, z, BLOCK.AIR)) return false;
         notifyBlockChange(x, y, z, BLOCK.AIR);
         if (broadcastIgnite) sendBlockChange(x, y, z, BLOCK.AIR);
     } else if (!allowAir) return false;
-
     primed.add(key);
     if (broadcastIgnite) sendTNTIgnite(x, y, z);
-
     const mesh = createDynamicBlock(scene, x, y, z, tntMaterial, "primedTNT");
     mesh.userData.isPrimedTNT = true;
     const marker = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffdd55 }));
@@ -198,99 +188,59 @@ function startFuse(scene, x, y, z, broadcastIgnite = true, allowAir = false) {
     };
     requestAnimationFrame(tick); return true;
 }
-
 function makeExplosionEffect(scene, x, y, z) {
-    // One expanding mesh + one light instead of many physics particles.
     const flash = new THREE.PointLight(0xff9a42, 7, 9);
-    flash.position.set(x, y + 0.5, z);
-    scene.add(flash);
-
+    flash.position.set(x, y + 0.5, z); scene.add(flash);
     const geometry = new THREE.SphereGeometry(0.35, 8, 6);
     const material = new THREE.MeshBasicMaterial({ color: 0xff9a42, transparent: true, opacity: 0.72, depthWrite: false });
     const effect = new THREE.Mesh(geometry, material);
-    effect.position.set(x, y + 0.5, z);
-    scene.add(effect);
-
+    effect.position.set(x, y + 0.5, z); scene.add(effect);
     const start = performance.now();
     const update = time => {
-        const age = time - start;
-        const progress = Math.min(age / 220, 1);
+        const progress = Math.min((time - start) / 220, 1);
         const scale = 0.6 + progress * (EXPLOSION_RADIUS * 0.8);
         effect.scale.setScalar(scale);
         material.opacity = 0.72 * (1 - progress);
         flash.intensity = 7 * (1 - progress);
-        if (progress >= 1) {
-            scene.remove(effect);
-            geometry.dispose();
-            material.dispose();
-            scene.remove(flash);
-            flash.dispose();
-            return;
-        }
+        if (progress >= 1) { scene.remove(effect); geometry.dispose(); material.dispose(); scene.remove(flash); flash.dispose(); return; }
         requestAnimationFrame(update);
     };
     requestAnimationFrame(update);
 }
 
-function processExplosionBatch(explosion) {
-    if (!explosion.scene) return true;
+function processExplosion(explosion) {
     const { scene, BLOCK, offsets } = explosion;
-    const end = Math.min(explosion.index + EXPLOSION_BLOCKS_PER_FRAME, offsets.length);
-
-    for (; explosion.index < end; explosion.index++) {
-        const offset = offsets[explosion.index];
+    for (const offset of offsets) {
         const x = explosion.cx + offset.dx;
         const y = explosion.cy + offset.dy;
         const z = explosion.cz + offset.dz;
-        const key = makeKey(x, y, z);
-        if (explosion.touchedBlocks.has(key)) continue;
-
         const type = getBlockAt(x, y, z);
         if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
-
-        // TNT inside the radius chains after a short delay instead of doing another
-        // explosion in the same frame.
         if (type === BLOCK.TNT && !(x === explosion.cx && y === explosion.cy && z === explosion.cz)) {
-            explosion.touchedBlocks.add(key);
-            const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
-            setTimeout(() => startFuse(scene, x, y, z), delay);
+            const key = makeKey(x, y, z);
+            if (!explosion.chainTNT.has(key)) {
+                explosion.chainTNT.add(key);
+                const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
+                setTimeout(() => startFuse(scene, x, y, z), delay);
+            }
             continue;
         }
-
-        // Every block inside the radius is removed. No expensive per-block explosion
-        // probability calculations are needed.
-        explosion.touchedBlocks.add(key);
         if (setBlockAt(x, y, z, BLOCK.AIR)) {
             sendBlockChange(x, y, z, BLOCK.AIR);
             notifyBlockChange(x, y, z, BLOCK.AIR);
         }
     }
-
-    if (explosion.index < offsets.length) {
-        requestAnimationFrame(() => processExplosionBatch(explosion));
-        return false;
-    }
-
     activeExplosions.delete(explosion);
     makeExplosionEffect(scene, explosion.cx, explosion.cy, explosion.cz);
-    return true;
 }
 
 function explode(scene, cx, cy, cz) {
     if (activeExplosions.size >= MAX_ACTIVE_EXPLOSIONS) return;
     const BLOCK = getBlockTypes();
-    const explosion = {
-        scene,
-        cx,
-        cy,
-        cz,
-        BLOCK,
-        offsets: EXPLOSION_OFFSETS,
-        index: 0,
-        touchedBlocks: new Set()
-    };
+    const explosion = { scene, cx, cy, cz, BLOCK, offsets: EXPLOSION_OFFSETS, chainTNT: new Set() };
     activeExplosions.add(explosion);
-    processExplosionBatch(explosion);
+    // All blocks in the radius are removed immediately in this same frame.
+    processExplosion(explosion);
 }
 
 window.addEventListener("webminecraft:tntignite", event => {
