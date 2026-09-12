@@ -6,6 +6,7 @@ import { setupInteraction } from "./interaction.js";
 import { initSavedWorlds } from "./worlds.js";
 import { setWorldSeedForPersistence } from "./worldSave.js";
 import { setupWorldClouds, setWorldCloudSeed } from "./worldClouds.js";
+import { setupWaterPhysics } from "./waterPhysics.js";
 import "./background.js";
 import "./auth.js";
 import "./chat.js";
@@ -70,6 +71,7 @@ function makeNewSeed() {
 const urlSeed = normalizeSeed(params.get("seed"));
 if (urlSeed !== null) setWorldSeed(urlSeed);
 createWorld(scene);
+setupWaterPhysics(scene);
 setupWorldClouds(scene, camera);
 setWorldCloudSeed(getWorldSeed());
 const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobile";
@@ -260,6 +262,7 @@ async function copyText(text) {
 async function startWorldWithSeed(seed) {
     setWorldSeed(seed);
     createWorld(scene);
+    setupWaterPhysics(scene);
     setWorldCloudSeed(seed);
     setWorldUrl(seed);
     spawnPlayer();
