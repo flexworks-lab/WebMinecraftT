@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "worlds": {
+          "$seed": {
+            ".validate": "newData.hasChildren(['seed', 'name', 'createdAt', 'updatedAt']) && newData.child('seed').isNumber() && newData.child('name').isString() && newData.child('name').val().length <= 40"
+          }
+        },
+        "worldData": {
+          "$seed": {
+            "$chunk": {
+              ".validate": "newData.hasChildren(['blocks', 'updatedAt'])"
+            }
+          }
+        },
+        "deletedWorlds": {
+          "$seed": {
+            ".validate": "newData.hasChildren(['seed', 'deletedAt']) && newData.child('seed').isNumber()"
+          }
+        }
+      }
+    }
+  }
+}
