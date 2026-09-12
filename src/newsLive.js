@@ -145,7 +145,7 @@ function appendOrRefreshLiveNews(docs) {
         cards.set(item.id, card);
     });
 
-    entries.slice().reverse().forEach(item => list.prepend(cards.get(item.id));
+    entries.slice().reverse().forEach(item => list.prepend(cards.get(item.id)));
 
     if (selectedLiveId) {
         const selected = entries.find(item => item.id === selectedLiveId);
