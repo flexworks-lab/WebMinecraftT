@@ -213,9 +213,9 @@ function getTargetBlock(scene, camera, BLOCK) {
     const normal = hit.face.normal.clone().normalize();
     const point = hit.point.clone();
     const voxel = {
-        x: Math.floor(point.x - normal.x * 0.01),
-        y: Math.floor(point.y - normal.y * 0.01),
-        z: Math.floor(point.z - normal.z * 0.01)
+        x: Math.floor(point.x - normal.x * 0.01 + 0.5),
+        y: Math.floor(point.y - normal.y * 0.01 + 0.5),
+        z: Math.floor(point.z - normal.z * 0.01 + 0.5)
     };
     return { hit, normal, x: voxel.x, y: voxel.y, z: voxel.z };
 }
@@ -247,9 +247,8 @@ function updateSelectionOutline(outline, target, camera) {
     const lines = outline.getObjectByName("selectionEdges");
     if (!lines) return;
     lines.material.opacity = 0.9;
-    let show = "all";
     const dot = camera.getWorldDirection(new THREE.Vector3()).dot(facing);
-    if (Math.abs(dot) < 0.22) show = "partial";
+    if (Math.abs(dot) < 0.22) lines.material.opacity = 0.9;
     lines.visible = true;
 }
 
