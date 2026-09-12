@@ -17,6 +17,7 @@ let initialized = false;
 let openWorldCallback = null;
 let worldsCache = [];
 let storageReady = null;
+let liveCloudRefreshRunning = false;
 
 function seedOf(value) {
     const n = Number(value);
@@ -172,8 +173,6 @@ async function putRecord(world) {
     if (saved) clearFallback(normalized.seed);
     else if (!fallbackWrite(normalized)) throw new Error("Could not save the world. Browser storage may be full or disabled.");
 
-    // Re-check after every await. A delete is a permanent tombstone until the
-    // user explicitly creates a new world with that seed.
     if (deletedSeeds().has(normalized.seed)) {
         await removeStoredData(normalized.seed);
         throw new Error("World was deleted while it was being saved.");
@@ -191,7 +190,7 @@ async function removeStoredData(seed) {
 async function deleteRecord(seed) {
     const s = seedOf(seed);
     if (s === null) return;
-    markDeleted(s); // FIRST, before any asynchronous deletion work.
+    markDeleted(s);
     await removeStoredData(s);
     writeIndex(readIndex().filter(w => seedOf(w.seed) !== s));
 }
@@ -206,8 +205,6 @@ async function allRecords() {
 }
 
 async function migrateOldFallback() {
-    // Migrate complete worlds from the previous Cache Storage fallback without
-    // touching IndexedDB, which is the source of the old quota/opening failures.
     try {
         if (window.caches) {
             const old = await caches.open("webminecraft-world-fallback-v1");
@@ -249,7 +246,7 @@ function buildUI() {
     addStyle();
     overlay = document.createElement("div");
     overlay.id = "savedWorlds";
-    overlay.innerHTML = `<div class="sw2-wrap"><div class="sw2-head"><h1 class="sw2-title">Saved Worlds <span class="sw2-count"></span></h1><button class="sw2-btn" data-act="reload">↻ Reload</button><button class="sw2-btn sw2-green" data-act="new">+ New World</button><button class="sw2-btn" data-act="back">← Back</button></div><div class="sw2-body"><div class="sw2-grid"></div><aside class="sw2-panel"><div class="sw2-panel-head"><h2></h2><button class="sw2-btn" data-act="close">×</button></div><div class="sw2-panel-body"><p class="sw2-label">World seed</p><div class="sw2-seed" data-seed>—</div><p class="sw2-help">Your complete world, including block changes, is stored in this browser automatically.</p><button class="sw2-btn" style="width:100%;margin:5px 0" data-act="copy">Copy Seed</button><button class="sw2-btn sw2-green" style="width:100%;margin:5px 0" data-act="play">Play World</button><button class="sw2-btn sw2-red" style="width:100%;margin:5px 0" data-act="delete">Delete World</button><div data-message style="min-height:20px;margin-top:8px;font-size:12px"></div></div></aside><div class="sw2-modal"><div class="sw2-modal-card"><h2>Create New World</h2><p class="sw2-help">Give the world a name. The seed below is unique and can be copied later.</p><p class="sw2-label">Seed</p><div class="sw2-seed" data-new-seed></div><input class="sw2-field" maxlength="40" placeholder="World name" data-name><div data-create-message style="min-height:20px;font-size:12px;margin-top:8px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px"><button class="sw2-btn sw2-green" data-act="create">Create & Play</button><button class="sw2-btn" data-act="cancel">Cancel</button></div></div></div></div>`;
+    overlay.innerHTML = `<div class="sw2-wrap"><div class="sw2-head"><h1 class="sw2-title">Saved Worlds <span class="sw2-count"></span></h1><button class="sw2-btn" data-act="reload">↻ Reload</button><button class="sw2-btn sw2-green" data-act="new">+ New World</button><button class="sw2-btn" data-act="back">← Back</button></div><div class="sw2-body"><div class="sw2-grid"></div><aside class="sw2-panel"><div class="sw2-panel-head"><h2></h2><button class="sw2-btn" data-act="close">×</button></div><div class="sw2-panel-body"><p class="sw2-label">World seed</p><div class="sw2-seed" data-seed>—</div><p class="sw2-help">Your complete world, including block changes, is stored in this browser and synced to your account when signed in.</p><button class="sw2-btn" style="width:100%;margin:5px 0" data-act="copy">Copy Seed</button><button class="sw2-btn sw2-green" style="width:100%;margin:5px 0" data-act="play">Play World</button><button class="sw2-btn sw2-red" style="width:100%;margin:5px 0" data-act="delete">Delete World</button><div data-message style="min-height:20px;margin-top:8px;font-size:12px"></div></div></aside><div class="sw2-modal"><div class="sw2-modal-card"><h2>Create New World</h2><p class="sw2-help">Give the world a name. The seed below is unique and can be copied later.</p><p class="sw2-label">Seed</p><div class="sw2-seed" data-new-seed></div><input class="sw2-field" maxlength="40" placeholder="World name" data-name><div data-create-message style="min-height:20px;font-size:12px;margin-top:8px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px"><button class="sw2-btn sw2-green" data-act="create">Create & Play</button><button class="sw2-btn" data-act="cancel">Cancel</button></div></div></div></div>`;
     document.body.appendChild(overlay);
     list = overlay.querySelector(".sw2-grid");
     details = overlay.querySelector(".sw2-panel");
@@ -304,7 +301,7 @@ function render(worlds) {
         list.innerHTML = `<div class="sw2-empty"><h2>No saved worlds</h2><p>Create a world and your block changes will be saved here automatically.</p><button class="sw2-btn sw2-green" data-act="new">+ Create New World</button></div>`;
         return;
     }
-    list.innerHTML = worldsCache.map((world, i) => `<article class="sw2-card"><h3>${esc(world.name || `World ${i+1}`)}</h3><span class="sw2-badge">Browser Save</span><div class="sw2-meta">Seed: ${esc(world.seed)}<br>${esc(formatSaved(world.updatedAt))}</div><div class="sw2-actions"><button class="sw2-btn sw2-green" data-play-seed="${world.seed}">Play</button><button class="sw2-btn" data-details-seed="${world.seed}">Details</button></div></article>`).join("");
+    list.innerHTML = worldsCache.map((world, i) => `<article class="sw2-card"><h3>${esc(world.name || `World ${i+1}`)}</h3><span class="sw2-badge">Synced</span><div class="sw2-meta">Seed: ${esc(world.seed)}<br>${esc(formatSaved(world.updatedAt))}</div><div class="sw2-actions"><button class="sw2-btn sw2-green" data-play-seed="${world.seed}">Play</button><button class="sw2-btn" data-details-seed="${world.seed}">Details</button></div></article>`).join("");
     list.querySelectorAll("[data-play-seed]").forEach(button => button.addEventListener("click", () => playWorld(worldsCache.find(w => w.seed === seedOf(button.dataset.playSeed)))));
     list.querySelectorAll("[data-details-seed]").forEach(button => button.addEventListener("click", () => openDetails(worldsCache.find(w => w.seed === seedOf(button.dataset.detailsSeed)))));
 }
@@ -347,7 +344,6 @@ async function deleteSelected() {
     button.disabled = true;
     button.textContent = "Deleting...";
     try {
-        // Local tombstone is written first so no queued save can resurrect it.
         await deleteRecord(seed);
         worldsCache = worldsCache.filter(w => seedOf(w.seed) !== seed);
         render(worldsCache);
@@ -405,6 +401,10 @@ async function createWorld() {
         if (typeof window.webMinecraftClearCloudWorldDeletion === "function") {
             try { await window.webMinecraftClearCloudWorldDeletion(seed); } catch {}
         }
+        if (typeof window.webMinecraftSaveCloudWorld === "function") {
+            const cloudSaved = await window.webMinecraftSaveCloudWorld(world);
+            if (!cloudSaved) console.warn("World created locally but could not be uploaded to the account yet.");
+        }
         worldsCache = [world, ...worldsCache.filter(w => w.seed !== seed)];
         render(worldsCache);
         closeCreate();
@@ -428,6 +428,36 @@ async function retryCloudDeletes() {
         try { if (!(await cloudDelete(seed))) remaining.push(seed); } catch { remaining.push(seed); }
     }
     try { localStorage.setItem(key, JSON.stringify(remaining)); } catch {}
+}
+
+async function refreshFromLiveCloud() {
+    if (liveCloudRefreshRunning) return;
+    if (navigator.onLine === false) return;
+    const listCloud = window.webMinecraftListCloudWorlds;
+    if (typeof listCloud !== "function") return;
+    liveCloudRefreshRunning = true;
+    try {
+        const cloudWorlds = await listCloud();
+        const localWorlds = await allRecords();
+        const localBySeed = new Map(localWorlds.map(world => [world.seed, world]));
+        const merged = cloudWorlds.map(cloud => {
+            const seed = seedOf(cloud.seed ?? cloud.id);
+            const local = localBySeed.get(seed);
+            return normalize({
+                ...(local || {}),
+                seed,
+                name: cloud.name || local?.name,
+                createdAt: cloud.createdAt || local?.createdAt,
+                updatedAt: cloud.updatedAt || local?.updatedAt,
+                blocks: local?.blocks || {}
+            });
+        }).filter(Boolean);
+        render(merged);
+    } catch (error) {
+        console.warn("Live saved-world refresh failed:", error);
+    } finally {
+        liveCloudRefreshRunning = false;
+    }
 }
 
 async function reload() {
@@ -492,6 +522,12 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
     storageReady = initSavedWorldStorage();
     const playButton = document.getElementById("playButton");
     if (playButton) playButton.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); openMenu(); }, true);
+    window.addEventListener("webminecraft:cloudworldschanged", () => {
+        refreshFromLiveCloud().catch(() => {});
+    });
+    window.addEventListener("webminecraft:cloudworldssynced", () => {
+        if (overlay?.style.display === "block") refreshFromLiveCloud().catch(() => {});
+    });
     window.addEventListener("keydown", event => {
         if (event.code === "Escape" && overlay?.style.display === "block") {
             if (details?.classList.contains("open")) closeDetails();
@@ -499,10 +535,4 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
             else closeMenu();
         }
     });
-    window.webMinecraftWorldStorage = {
-        getLocalWorld,
-        saveLocalWorld,
-        deleteLocalWorld,
-        isWorldDeleted
-    };
 }
