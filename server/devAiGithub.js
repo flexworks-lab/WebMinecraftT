@@ -78,6 +78,17 @@ function trimForAI(text, max = 30000) {
     return `${text.slice(0, max)}\n\n/* [truncated for developer AI] */`;
 }
 
+function extractOutputText(data) {
+    if (typeof data?.output_text === "string" && data.output_text.trim()) return data.output_text.trim();
+    const parts = [];
+    for (const item of Array.isArray(data?.output) ? data.output : []) {
+        for (const content of Array.isArray(item?.content) ? item.content : []) {
+            if (typeof content?.text === "string" && content.text.trim()) parts.push(content.text.trim());
+        }
+    }
+    return parts.join("\n\n").trim();
+}
+
 async function askOpenAI(instructions, input, model) {
     const key = process.env.OPENAI_API_KEY || "";
     if (!key) throw new Error("OPENAI_API_KEY is not configured on the server.");
@@ -88,8 +99,11 @@ async function askOpenAI(instructions, input, model) {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(`OpenAI API ${response.status}: ${data?.error?.message || "request failed"}`);
-    const text = typeof data?.output_text === "string" ? data.output_text.trim() : "";
-    if (!text) throw new Error("OpenAI returned no text for the code change.");
+    const text = extractOutputText(data);
+    if (!text) {
+        const outputTypes = Array.isArray(data?.output) ? data.output.map(item => item?.type || "unknown").join(", ") : "none";
+        throw new Error(`OpenAI returned no text for the code change (output types: ${outputTypes}).`);
+    }
     return text;
 }
 
