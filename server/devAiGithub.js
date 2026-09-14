@@ -3,18 +3,8 @@ const GITHUB_REPO = process.env.GITHUB_REPO || "flexworks-lab/WebMinecraftT";
 const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || "main";
 const GITHUB_API = "https://api.github.com";
 
-const BLOCKED = [
-    /^\.env(?:\.|$)/i,
-    /(^|\/)\.git(\/|$)/i,
-    /(^|\/)(?:secrets?|credentials?)(?:\/|\.|$)/i,
-    /service-account.*\.json$/i,
-    /firebase-admin.*\.json$/i,
-    /(^|\/)node_modules(\/|$)/i,
-];
-
-const ALLOWED_EXTENSIONS = new Set([
-    ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".css", ".html", ".md", ".txt", ".yml", ".yaml"
-]);
+const BLOCKED = [/^\.env(?:\.|$)/i, /(^|\/)\.git(\/|$)/i, /(^|\/)(?:secrets?|credentials?)(?:\/|\.|$)/i, /service-account.*\.json$/i, /firebase-admin.*\.json$/i, /(^|\/)node_modules(\/|$)/i];
+const ALLOWED_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".css", ".html", ".md", ".txt", ".yml", ".yaml"]);
 
 function isSafePath(filePath) {
     if (typeof filePath !== "string" || !filePath || filePath.length > 220) return false;
@@ -27,16 +17,7 @@ function isSafePath(filePath) {
 
 async function githubRequest(path, options = {}) {
     if (!GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured on the server.");
-    const response = await fetch(`${GITHUB_API}${path}`, {
-        ...options,
-        headers: {
-            accept: "application/vnd.github+json",
-            authorization: `Bearer ${GITHUB_TOKEN}`,
-            "x-github-api-version": "2022-11-28",
-            "content-type": "application/json",
-            ...(options.headers || {}),
-        },
-    });
+    const response = await fetch(`${GITHUB_API}${path}`, { ...options, headers: { accept: "application/vnd.github+json", authorization: `Bearer ${GITHUB_TOKEN}`, "x-github-api-version": "2022-11-28", "content-type": "application/json", ...(options.headers || {}) } });
     const text = await response.text();
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
@@ -60,10 +41,7 @@ async function getBaseSha(owner, repo) {
 
 async function getTree(owner, repo, sha) {
     const data = await githubRequest(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${sha}?recursive=1`);
-    return (data.tree || [])
-        .filter(item => item.type === "blob" && isSafePath(item.path))
-        .map(item => item.path)
-        .slice(0, 1200);
+    return (data.tree || []).filter(item => item.type === "blob" && isSafePath(item.path)).map(item => item.path).slice(0, 1200);
 }
 
 async function getFile(owner, repo, path, ref) {
@@ -92,11 +70,7 @@ function extractOutputText(data) {
 async function askOpenAI(instructions, input, model) {
     const key = process.env.OPENAI_API_KEY || "";
     if (!key) throw new Error("OPENAI_API_KEY is not configured on the server.");
-    const response = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-        body: JSON.stringify({ model, instructions, input, max_output_tokens: 7000 }),
-    });
+    const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ model, instructions, input, max_output_tokens: 12000 }) });
     const data = await response.json();
     if (!response.ok) throw new Error(`OpenAI API ${response.status}: ${data?.error?.message || "request failed"}`);
     const text = extractOutputText(data);
@@ -108,31 +82,25 @@ async function askOpenAI(instructions, input, model) {
 }
 
 function parseJson(text) {
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-    try { return JSON.parse(cleaned); } catch {
-        const start = cleaned.indexOf("{");
-        const end = cleaned.lastIndexOf("}");
-        if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
-        throw new Error("Developer AI did not return valid change data.");
+    const cleaned = String(text || "").replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    try { return JSON.parse(cleaned); } catch {}
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+        try { return JSON.parse(cleaned.slice(start, end + 1)); } catch {}
     }
+    throw new Error("Developer AI did not return valid JSON change data.");
 }
 
 export async function applyDeveloperChange({ instruction, messages, model }) {
     if (!GITHUB_TOKEN) return { configured: false, message: "Add GITHUB_TOKEN to the server environment to let Dev AI edit GitHub." };
-
     const { owner, repo } = repoParts();
     const baseSha = await getBaseSha(owner, repo);
     const tree = await getTree(owner, repo, baseSha);
     const recent = Array.isArray(messages) ? messages.slice(-8) : [];
 
     const selectionText = await askOpenAI(
-        [
-            "You are selecting files for an AI code change in a browser Minecraft-style game.",
-            "Return JSON only: {\"files\":[\"path\",...],\"summary\":\"short summary\"}.",
-            "Choose only files from the supplied repository tree. Select the smallest set that can implement the request.",
-            "Never select .env, credentials, secrets, node_modules, or generated build output.",
-            "Select at most 8 files. If a new file is needed, include its intended path even if it is not in the tree.",
-        ].join("\n"),
+        ["You are selecting files for an AI code change in a browser Minecraft-style game.", "Return JSON only: {\"files\":[\"path\",...],\"summary\":\"short summary\"}.", "Choose only files from the supplied repository tree. Select the smallest set that can implement the request.", "Never select .env, credentials, secrets, node_modules, or generated build output.", "Select at most 8 files. If a new file is needed, include its intended path even if it is not in the tree."].join("\n"),
         `USER REQUEST:\n${instruction}\n\nRECENT CHAT:\n${JSON.stringify(recent)}\n\nREPOSITORY FILE TREE:\n${tree.join("\n")}`,
         model
     );
@@ -142,11 +110,8 @@ export async function applyDeveloperChange({ instruction, messages, model }) {
 
     const files = [];
     for (const path of selectedPaths) {
-        if (tree.includes(path)) {
-            files.push(await getFile(owner, repo, path, GITHUB_BASE_BRANCH));
-        } else {
-            files.push({ path, content: "", sha: null, newFile: true });
-        }
+        if (tree.includes(path)) files.push(await getFile(owner, repo, path, GITHUB_BASE_BRANCH));
+        else files.push({ path, content: "", sha: null, newFile: true });
     }
 
     const fileContext = files.map(file => `===== FILE: ${file.path} =====\n${trimForAI(file.content)}`).join("\n\n");
@@ -154,20 +119,25 @@ export async function applyDeveloperChange({ instruction, messages, model }) {
         [
             "You are the coding agent for WebMinecraftT.",
             "Make the requested change using the actual files supplied below.",
-            "Return JSON only with this exact shape:",
-            "{\"summary\":\"...\",\"files\":[{\"path\":\"...\",\"action\":\"update\"|\"create\",\"content\":\"complete file contents\"}]}",
-            "Return complete replacement contents, not diffs or snippets.",
-            "Only modify files from the supplied file list. Do not invent APIs that are clearly incompatible with the existing project.",
+            "Return ONLY one JSON object. No Markdown, no code fences, no explanation before or after it.",
+            "Exact shape: {\"summary\":\"short summary\",\"files\":[{\"path\":\"existing path\",\"action\":\"update\",\"content\":\"COMPLETE FILE CONTENT\"}]}",
+            "The files array MUST contain at least 1 object and no more than 8 objects.",
+            "Every object must have path, action, and content.",
+            "For existing files use action=update. For new files use action=create.",
+            "Content must be the complete replacement file, not a diff, snippet, or shortened version.",
+            "Only modify files from the supplied file list.",
+            "If one file is enough, return exactly one file object.",
             "Do not add secrets, tokens, passwords, or external credentials.",
             "Keep unrelated code unchanged whenever practical.",
-            "The result must be ready to commit directly.",
         ].join("\n"),
         `REQUEST:\n${instruction}\n\nCURRENT FILES:\n${fileContext}`,
         model
     );
     const changes = parseJson(changeText);
     const proposed = Array.isArray(changes?.files) ? changes.files : [];
-    if (!proposed.length || proposed.length > 8) throw new Error("Dev AI returned an invalid number of file changes.");
+    if (!proposed.length || proposed.length > 8) {
+        throw new Error(`Dev AI returned an invalid number of file changes: ${proposed.length}. It must return between 1 and 8 file objects.`);
+    }
 
     const allowed = new Map(files.map(file => [file.path, file]));
     const finalChanges = [];
@@ -182,11 +152,7 @@ export async function applyDeveloperChange({ instruction, messages, model }) {
     }
 
     const safeBranch = `dev-ai/${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    await githubRequest(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs`, {
-        method: "POST",
-        body: JSON.stringify({ ref: `refs/heads/${safeBranch}`, sha: baseSha }),
-    });
-
+    await githubRequest(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs`, { method: "POST", body: JSON.stringify({ ref: `refs/heads/${safeBranch}`, sha: baseSha }) });
     const commitShas = [];
     for (const change of finalChanges) {
         const encodedPath = change.path.split("/").map(encodeURIComponent).join("/");
@@ -196,24 +162,6 @@ export async function applyDeveloperChange({ instruction, messages, model }) {
         commitShas.push(result.commit?.sha || null);
     }
 
-    const prResponse = await githubRequest(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls`, {
-        method: "POST",
-        body: JSON.stringify({
-            title: `Dev AI: ${String(changes.summary || "Game change").slice(0, 90)}`,
-            head: safeBranch,
-            base: GITHUB_BASE_BRANCH,
-            body: `Created by WebMinecraftT Dev AI.\n\nRequest:\n${instruction}\n\nChanged files:\n${finalChanges.map(file => `- ${file.path}`).join("\n")}`,
-        }),
-    });
-
-    return {
-        configured: true,
-        changed: true,
-        summary: String(changes.summary || "Requested game change prepared."),
-        files: finalChanges.map(file => file.path),
-        branch: safeBranch,
-        commit: commitShas.filter(Boolean).at(-1) || null,
-        pullRequest: prResponse?.html_url || null,
-        note: "The change was committed to a Dev AI branch and opened as a pull request. Merge the pull request to deploy it to the main game branch.",
-    };
+    const prResponse = await githubRequest(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls`, { method: "POST", body: JSON.stringify({ title: `Dev AI: ${String(changes.summary || "Game change").slice(0, 90)}`, head: safeBranch, base: GITHUB_BASE_BRANCH, body: `Created by WebMinecraftT Dev AI.\n\nRequest:\n${instruction}\n\nChanged files:\n${finalChanges.map(file => `- ${file.path}`).join("\n")}` }) });
+    return { configured: true, changed: true, summary: String(changes.summary || "Requested game change prepared."), files: finalChanges.map(file => file.path), branch: safeBranch, commit: commitShas.filter(Boolean).at(-1) || null, pullRequest: prResponse?.html_url || null, note: "The change was committed to a Dev AI branch and opened as a pull request. Merge the pull request to deploy it to the main game branch." };
 }
