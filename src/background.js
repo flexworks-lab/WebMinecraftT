@@ -2,6 +2,7 @@ import "./welcome.js";
 import "./playerList.js";
 import "./worldSync.js";
 import { touchInput } from "./controls.js";
+import "./mobileFlightControls.js";
 import "./uiFixes.js";
 import "./waterPhysics.js";
 import "./waterTextureFix.js";
