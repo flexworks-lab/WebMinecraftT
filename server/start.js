@@ -6,12 +6,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const serverPath = path.join(here, "server.js");
 
 // Prepare the live multiplayer server before starting it. This keeps the
-// existing server file simple while adding the authenticated developer API.
+// existing server file simple while adding authenticated developer APIs.
 try {
     const source = fs.readFileSync(serverPath, "utf8");
     const adminImport = 'import { handleAdminRequest as __webMinecraftHandleAdmin } from "./adminApi.js";\n';
+    const devAIImport = 'import { handleDevAIRequest as __webMinecraftHandleDevAI } from "./devAiApi.js";\n';
     let fixed = source;
     if (!fixed.includes("__webMinecraftHandleAdmin")) fixed = adminImport + fixed;
+    if (!fixed.includes("__webMinecraftHandleDevAI")) fixed = devAIImport + fixed;
     fixed = fixed.replace(
         'broadcast(room, { type: "block_change", x, y, z, type });',
         'broadcast(room, { type: "block_change", x, y, z, blockType: type });'
@@ -33,7 +35,7 @@ try {
     );
     fixed = fixed.replace(
         'const httpServer = http.createServer((request, response) => {',
-        'const httpServer = http.createServer(async (request, response) => {\n    if (request.url?.startsWith("/admin/")) {\n        const handled = await __webMinecraftHandleAdmin(request, response, rooms, cleanRoom);\n        if (handled) return;\n    }'
+        'const httpServer = http.createServer(async (request, response) => {\n    if (request.url?.startsWith("/admin/")) {\n        const handled = await __webMinecraftHandleAdmin(request, response, rooms, cleanRoom);\n        if (handled) return;\n    }\n    if (request.url === "/api/dev-ai") {\n        const handled = await __webMinecraftHandleDevAI(request, response);\n        if (handled) return;\n    }'
     );
     fs.writeFileSync(serverPath, fixed, "utf8");
 } catch (error) {
