@@ -8,8 +8,13 @@ import {
     gravelMaterial,
     sandMaterial,
     sandstoneMaterial,
+    bedrockMaterial,
+    coalMaterial,
+    ironMaterial,
     oakLogMaterial,
+    oakPlankMaterial,
     leavesMaterial,
+    snowMaterial,
     tntMaterial
 } from "./blocks.js";
 
@@ -23,6 +28,11 @@ const ITEM_MATERIALS = {
     7: cobblestoneMaterial,
     8: gravelMaterial,
     9: sandstoneMaterial,
+    10: bedrockMaterial,
+    11: coalMaterial,
+    12: ironMaterial,
+    13: oakPlankMaterial,
+    14: snowMaterial,
     15: tntMaterial
 };
 
