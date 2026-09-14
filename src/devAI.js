@@ -88,6 +88,14 @@ function createUI() {
     panel.querySelector("#devAIClose").addEventListener("click", closePanel);
     panel.addEventListener("click", event => { if (event.target === panel) closePanel(); });
     panel.querySelector("#devAISend").addEventListener("click", sendMessage);
+
+    // Keep the game from seeing keyboard input while the Dev AI box is focused.
+    // This fixes Space being treated as a game key instead of inserting a space.
+    const stopGameKeyboard = event => event.stopPropagation();
+    inputEl.addEventListener("keydown", stopGameKeyboard);
+    inputEl.addEventListener("keyup", stopGameKeyboard);
+    inputEl.addEventListener("keypress", stopGameKeyboard);
+
     inputEl.addEventListener("keydown", event => {
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
