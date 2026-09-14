@@ -157,7 +157,7 @@ function renderMessages() {
     const chat = activeChat();
     messagesEl.innerHTML = "";
     if (!chat?.messages.length) {
-        renderMessage("assistant", "I’m ready. Tell me what you want to add, fix, remove, optimize, or change in WebMinecraft. Try natural wording too—I’ll interpret typos and shorthand.");
+        renderMessage("assistant", "Hey! I’m here. We can just talk normally, or you can ask me to help with WebMinecraft. I’ll only change the game when you ask me to.");
         return;
     }
     for (const message of chat.messages) renderMessage(message.role, message.content, false);
@@ -218,7 +218,7 @@ async function sendMessage() {
                 game: "WebMinecraftT",
                 mode,
                 applyChange: mode !== "chat",
-                instruction: "Use the userRequest field as the actual request. Understand casual wording, shorthand, typos, prior chat context, and references to earlier decisions. For code edits, inspect the real project files and make only the changes needed. Never claim code was changed, committed, tested, or deployed unless it actually happened."
+                instruction: "Use the userRequest field as the actual request. Understand casual wording, shorthand, typos, prior chat context, and references to earlier decisions. For normal conversation, talk naturally like a helpful assistant. Only modify code when the user clearly asks to add, remove, fix, change, edit, or implement something. Never claim code was changed, committed, tested, or deployed unless it actually happened."
             }),
             cache: "no-store"
         });
@@ -260,10 +260,10 @@ function createUI() {
     panel.id = "devAIModal";
     panel.innerHTML = `
 <div id="devAIPanel" role="dialog" aria-modal="true" aria-labelledby="devAITitle">
-<header id="devAIHeader"><div><h2 id="devAITitle">Developer AI</h2><div id="devAISubtitle">Your WebMinecraft coding assistant</div></div><button id="devAIClose" type="button" aria-label="Close">×</button></header>
+<header id="devAIHeader"><div><h2 id="devAITitle">Developer AI</h2><div id="devAISubtitle">Talk normally or build WebMinecraft</div></div><button id="devAIClose" type="button" aria-label="Close">×</button></header>
 <div id="devAILayout">
 <aside id="devAISidebar"><div id="devAISideTop"><button id="devAINew" type="button">＋ New chat</button><button id="devAISearch" type="button" title="Search chats">⌕</button></div><input id="devAISearchInput" aria-label="Search chats" placeholder="Search chats…" style="display:none;margin:0 10px 8px;padding:9px;border:1px solid #3d4650;border-radius:7px;background:#171c21;color:#fff"><div id="devAIChatList"></div></aside>
-<main id="devAIContent"><div id="devAIToolbar"><select id="devAIMode" aria-label="AI mode"><option value="auto">Auto</option><option value="chat">Chat only</option><option value="edit">Edit game</option></select><div id="devAIStatus">Ready</div></div><div id="devAIChat"></div><div id="devAIComposer"><textarea id="devAIInput" maxlength="12000" placeholder="Tell me what you want changed…"></textarea><button id="devAISend" type="button">Send</button></div></main>
+<main id="devAIContent"><div id="devAIToolbar"><select id="devAIMode" aria-label="AI mode"><option value="auto">Auto</option><option value="chat">Normal chat</option><option value="edit">Edit game</option></select><div id="devAIStatus">Ready</div></div><div id="devAIChat"></div><div id="devAIComposer"><textarea id="devAIInput" maxlength="12000" placeholder="Talk to me or tell me what you want changed…"></textarea><button id="devAISend" type="button">Send</button></div></main>
 </div></div>`;
     document.body.appendChild(panel);
 
