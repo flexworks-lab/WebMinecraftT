@@ -22,7 +22,7 @@ const worldTerrainPlugin = {
             'if (y >= surfaceY - 1) return BLOCK.SAND;\n        if (y >= surfaceY - 5) return BLOCK.SANDSTONE;'
         );
         code = code.replace(
-            /const waveA = Math\.sin\(\(x \+ z\) \* 0\.19\) \* 0\.042;\n\s*const waveB = Math\.sin\(\(x \* 0\.31 - z \* 0\.17\) \+ 1\.7\) \* 0\.025;\n\s*const waveC = Math\.cos\(\(x \* 0\.13 \+ z \* 0\.27\) - 0\.6\) \* 0\.02;/,
+            /const waveA = Math\\.sin\\(\\(x \\+ z\\) \\* 0\\.19\\) \\* 0\\.042;\\n\\s*const waveB = Math\\.sin\\(\\(x \\* 0\\.31 - z \\* 0\\.17\\) \\+ 1\\.7\\) \\* 0\\.025;\\n\\s*const waveC = Math\\.cos\\(\\(x \\* 0\\.13 \\+ z \\* 0\\.27\\) - 0\\.6\\) \\* 0\\.02;/,
             'const waveA = 0;\n            const waveB = 0;\n            const waveC = 0;'
         );
         code = code.replace("x - 0.5, y + waveA + waveC, z - 0.5", "x - 0.5, y, z - 0.5");
@@ -51,6 +51,26 @@ const gameplayUiPlugin = {
             code = code.replace(
                 'texture: "Grass_Block_(top_texture)_JE2.png"',
                 'texture: "grass_block_side.png"'
+            );
+            code = code.replace(
+                '{ id: 10, name: "Bedrock", texture: null, color: "#4b4b4b", category: "natural" }',
+                '{ id: 10, name: "Bedrock", texture: "bedrock.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 11, name: "Coal Ore", texture: null, color: "#343434", category: "natural" }',
+                '{ id: 11, name: "Coal Ore", texture: "coal_ore.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 12, name: "Iron Ore", texture: null, color: "#8c8c8c", category: "natural" }',
+                '{ id: 12, name: "Iron Ore", texture: "iron_ore.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 13, name: "Oak Planks", texture: null, color: "#b48754", category: "natural" }',
+                '{ id: 13, name: "Oak Planks", texture: "oak_planks.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 14, name: "Snow", texture: null, color: "#e9f4ff", category: "natural" }',
+                '{ id: 14, name: "Snow", texture: "snow.png", category: "natural" }'
             );
             return { code, map: null };
         }
@@ -93,7 +113,7 @@ const gameplayUiPlugin = {
 
         if (id.endsWith("/src/player.js")) {
             code = code.replace(
-                /function updateMultiplayerAvatars\(scene\) \{[\s\S]*?\n\}\n\nfunction syncMultiplayerState/,
+                /function updateMultiplayerAvatars\\(scene\\) \\{[\\s\\S]*?\\n\\}\\n\\nfunction syncMultiplayerState/,
                 'function updateMultiplayerAvatars(scene) {}\n\nfunction syncMultiplayerState'
             );
             return { code, map: null };
