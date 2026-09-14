@@ -1,3 +1,5 @@
+import { applyDeveloperChange } from "./devAiGithub.js";
+
 const DEV_EMAIL = "worthmarcus19@gmail.com";
 const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY || "AIzaSyByaINh47IFMYmnc9Ty49aHTfTBe2u-jyU";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
@@ -69,13 +71,40 @@ export async function handleDevAIRequest(request, response) {
         const body = JSON.parse(await readBody(request) || "{}");
         const messages = normalizeMessages(body.messages);
         if (!messages.length) { json(response, 400, { error: "No message was provided." }); return true; }
+        const latestInstruction = String(body.instruction || messages.at(-1)?.content || "").trim().slice(0, 8000);
+        const wantsChange = body.applyChange !== false;
+
+        if (wantsChange && latestInstruction) {
+            try {
+                const result = await applyDeveloperChange({ instruction: latestInstruction, messages, model: OPENAI_MODEL });
+                if (result.configured && result.changed) {
+                    const reply = [
+                        "Done — I made the requested code change.",
+                        `\n${result.summary}`,
+                        `\nChanged files:\n${result.files.map(path => `- ${path}`).join("\n")}`,
+                        result.pullRequest ? `\nPull request: ${result.pullRequest}` : "",
+                        `\n${result.note}`,
+                    ].join("\n");
+                    json(response, 200, { reply, changed: true, files: result.files, branch: result.branch, commit: result.commit, pullRequest: result.pullRequest });
+                    return true;
+                }
+                if (!result.configured) {
+                    json(response, 503, { error: result.message });
+                    return true;
+                }
+            } catch (error) {
+                console.error("Developer AI GitHub change failed:", error);
+                json(response, 502, { error: error?.message || "The developer AI could not apply the requested change." });
+                return true;
+            }
+        }
 
         const instructions = [
             "You are the private developer AI for WebMinecraftT, a browser Minecraft-style game for PC and mobile.",
             "The owner wants practical implementation help for the actual game project.",
             "The project uses Vite, Three.js, JavaScript modules, Firebase, and an optional Node multiplayer server.",
-            "When the owner asks for a change, explain the implementation briefly and provide concrete file/code guidance.",
-            "Do not claim that code was changed, committed, deployed, or tested unless it actually was.",
+            "The server can now apply requested code changes to GitHub when GITHUB_TOKEN is configured.",
+            "Do not claim that code was changed, committed, deployed, or tested unless the server actually did it.",
             "If a request is ambiguous, make the smallest reasonable assumption and say what you assumed.",
             "Keep answers concise and focused on the game."
         ].join("\n");
@@ -98,7 +127,7 @@ export async function handleDevAIRequest(request, response) {
             json(response, 502, { error: "The AI returned a response without any text." });
             return true;
         }
-        json(response, 200, { reply });
+        json(response, 200, { reply, changed: false });
         return true;
     } catch (error) {
         console.error("Developer AI request failed:", error);
