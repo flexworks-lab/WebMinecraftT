@@ -43,7 +43,7 @@ const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURICo
 
 let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
 let visible = false;
-let selectedItemId = 1;
+let selectedItemId = 0;
 let action = null;
 let actionStartedAt = 0;
 
@@ -92,7 +92,7 @@ function isWorldVisible() {
     const main = document.getElementById("mainMenu");
     const seed = document.getElementById("seedMenu");
     const saved = document.getElementById("savedWorlds");
-    return (ITEM_MATERIALS[selectedItemId] || selectedItemId === 16) && inWorld
+    return inWorld
         && (!main || getComputedStyle(main).display === "none")
         && (!seed || getComputedStyle(seed).display === "none")
         && (!saved || getComputedStyle(saved).display === "none");
@@ -123,7 +123,6 @@ function updateBlock() {
     clearHeldMesh();
 
     if (selectedItemId === 16) {
-        // Flint & Steel is a thin held item, not a cube.
         const geometry = new THREE.PlaneGeometry(0.48, 0.72);
         const material = new THREE.MeshBasicMaterial({
             map: flintSteelTexture,
@@ -152,8 +151,8 @@ function updateBlock() {
 function readSelectedItem(slot) {
     try {
         const inv = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
-        return Number(inv?.[slot]?.itemId) || 1;
-    } catch { return 1; }
+        return Number(inv?.[slot]?.itemId) || 0;
+    } catch { return 0; }
 }
 
 function triggerAction(type) {
