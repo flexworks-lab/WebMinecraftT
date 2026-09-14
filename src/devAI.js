@@ -101,6 +101,7 @@ function addStyles() {
 #devAISideTop{padding:10px;border-bottom:1px solid #242b31;display:flex;gap:7px}
 #devAINew{flex:1;height:38px;border:1px solid #788592;border-radius:7px;background:#e8eef4;color:#12161b;font-weight:700;cursor:pointer}
 #devAISearch{width:34px;height:38px;border:1px solid #3d4650;border-radius:7px;background:#222930;color:#fff;cursor:pointer}
+#devAISearchInput{display:none;margin:0 10px 8px;padding:9px;border:1px solid #3d4650;border-radius:7px;background:#171c21;color:#fff;outline:none}
 #devAIChatList{overflow:auto;flex:1;padding:8px}
 .devAIChatRow{display:flex;align-items:center;gap:4px;margin-bottom:5px}
 .devAIChatPick{flex:1;text-align:left;border:1px solid transparent;border-radius:7px;background:transparent;color:#dfe6ec;padding:9px 10px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -112,12 +113,12 @@ function addStyles() {
 #devAIToolbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #29313a}
 #devAIMode{height:34px;border:1px solid #49545f;border-radius:7px;background:#20272e;color:#eef3f7;padding:0 10px}
 #devAIStatus{margin-left:auto;min-height:16px;color:#8d99a5;font-size:11px}
-#devAIChat{flex:1;min-height:0;overflow:auto;padding:18px 18px 26px;display:flex;flex-direction:column;gap:14px}
+#devAIChat{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:18px 18px 26px;display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain;scroll-behavior:smooth}
 .devAIMessage{max-width:min(860px,90%);padding:11px 13px;border:1px solid #313b45;border-radius:10px;background:#1b2127;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .devAIMessage.user{align-self:flex-end;background:#29445c;border-color:#3f617e}
 .devAIMessage.assistant{align-self:flex-start}
 .devAIName{font-size:10px;color:#8d99a5;margin-bottom:5px;font-family:MinecraftFont,monospace}
-#devAIComposer{padding:12px;border-top:1px solid #29313a;background:rgba(13,16,19,.92);display:flex;gap:9px}
+#devAIComposer{flex:0 0 auto;padding:12px;border-top:1px solid #29313a;background:rgba(13,16,19,.96);display:flex;gap:9px;position:relative;z-index:2}
 #devAIInput{flex:1;min-height:64px;max-height:190px;resize:vertical;box-sizing:border-box;padding:12px 13px;border:1px solid #46515c;border-radius:9px;background:#0d1013;color:#fff;font:13px Arial,sans-serif;outline:none}
 #devAIInput:focus{border-color:#718190}
 #devAISend{width:112px;border:1px solid #80936f;border-radius:9px;background:linear-gradient(#718f58,#526b43);color:#fff;font-family:MinecraftFont,monospace;font-size:11px;cursor:pointer;text-shadow:2px 2px #222}
@@ -137,7 +138,11 @@ function renderChats() {
         const pick = document.createElement("button");
         pick.className = "devAIChatPick";
         pick.type = "button";
-        pick.innerHTML = `<span>${escapeHtml(chat.title)}</span><small>${chat.messages.length ? `${chat.messages.length} messages` : "Empty chat"}</small>`;
+        const title = document.createElement("span");
+        title.textContent = chat.title;
+        const meta = document.createElement("small");
+        meta.textContent = chat.messages.length ? `${chat.messages.length} messages` : "Empty chat";
+        pick.append(title, meta);
         pick.addEventListener("click", () => { activeChatId = chat.id; renderAll(); inputEl?.focus(); });
         const del = document.createElement("button");
         del.className = "devAIDelete";
@@ -150,14 +155,12 @@ function renderChats() {
     }
 }
 
-function escapeHtml(text) { return String(text).replace(/[&<>\"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[char])); }
-
 function renderMessages() {
     if (!messagesEl) return;
     const chat = activeChat();
     messagesEl.innerHTML = "";
     if (!chat?.messages.length) {
-        renderMessage("assistant", "Hey! I’m here. We can just talk normally, or you can ask me to help with WebMinecraft. I’ll only change the game when you ask me to.");
+        renderMessage("assistant", "I’m ready. Tell me what you want to add, fix, remove, optimize, or change in WebMinecraft. Try natural wording too—I’ll interpret typos and shorthand.", false);
         return;
     }
     for (const message of chat.messages) renderMessage(message.role, message.content, false);
@@ -218,7 +221,7 @@ async function sendMessage() {
                 game: "WebMinecraftT",
                 mode,
                 applyChange: mode !== "chat",
-                instruction: "Use the userRequest field as the actual request. Understand casual wording, shorthand, typos, prior chat context, and references to earlier decisions. For normal conversation, talk naturally like a helpful assistant. Only modify code when the user clearly asks to add, remove, fix, change, edit, or implement something. Never claim code was changed, committed, tested, or deployed unless it actually happened."
+                instruction: "Use the userRequest field as the actual request. Understand casual wording, shorthand, typos, prior chat context, and references to earlier decisions. For code edits, inspect the real project files and make only the changes needed. Never claim code was changed, committed, tested, or deployed unless it actually happened."
             }),
             cache: "no-store"
         });
@@ -260,10 +263,10 @@ function createUI() {
     panel.id = "devAIModal";
     panel.innerHTML = `
 <div id="devAIPanel" role="dialog" aria-modal="true" aria-labelledby="devAITitle">
-<header id="devAIHeader"><div><h2 id="devAITitle">Developer AI</h2><div id="devAISubtitle">Talk normally or build WebMinecraft</div></div><button id="devAIClose" type="button" aria-label="Close">×</button></header>
+<header id="devAIHeader"><div><h2 id="devAITitle">Developer AI</h2><div id="devAISubtitle">Your WebMinecraft coding assistant</div></div><button id="devAIClose" type="button" aria-label="Close">×</button></header>
 <div id="devAILayout">
-<aside id="devAISidebar"><div id="devAISideTop"><button id="devAINew" type="button">＋ New chat</button><button id="devAISearch" type="button" title="Search chats">⌕</button></div><input id="devAISearchInput" aria-label="Search chats" placeholder="Search chats…" style="display:none;margin:0 10px 8px;padding:9px;border:1px solid #3d4650;border-radius:7px;background:#171c21;color:#fff"><div id="devAIChatList"></div></aside>
-<main id="devAIContent"><div id="devAIToolbar"><select id="devAIMode" aria-label="AI mode"><option value="auto">Auto</option><option value="chat">Normal chat</option><option value="edit">Edit game</option></select><div id="devAIStatus">Ready</div></div><div id="devAIChat"></div><div id="devAIComposer"><textarea id="devAIInput" maxlength="12000" placeholder="Talk to me or tell me what you want changed…"></textarea><button id="devAISend" type="button">Send</button></div></main>
+<aside id="devAISidebar"><div id="devAISideTop"><button id="devAINew" type="button">＋ New chat</button><button id="devAISearch" type="button" title="Search chats">⌕</button></div><input id="devAISearchInput" aria-label="Search chats" placeholder="Search chats…"><div id="devAIChatList"></div></aside>
+<main id="devAIContent"><div id="devAIToolbar"><select id="devAIMode" aria-label="AI mode"><option value="auto">Auto</option><option value="chat">Chat only</option><option value="edit">Edit game</option></select><div id="devAIStatus">Ready</div></div><div id="devAIChat"></div><div id="devAIComposer"><textarea id="devAIInput" maxlength="12000" placeholder="Tell me what you want changed…"></textarea><button id="devAISend" type="button">Send</button></div></main>
 </div></div>`;
     document.body.appendChild(panel);
 
