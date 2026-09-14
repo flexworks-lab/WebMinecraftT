@@ -76,6 +76,19 @@ async function askOpenAI({ instructions, input, maxOutputTokens = 2200 }) {
     return reply;
 }
 
+function clearlyRequestsCodeChange(text) {
+    const value = String(text || "").trim().toLowerCase();
+    if (!value) return false;
+    const patterns = [
+        /\b(add|remove|delete|change|edit|fix|update|create|make|implement|rewrite|replace|modify|improve|optimize|rework|redo|patch)\b/,
+        /\b(code|script|file|github|commit|pull request|pr|bug|build|deploy|website|game)\b.*\b(change|fix|update|add|remove|make|create|implement|edit|modify)\b/,
+        /^\s*\/\b(fix|edit|add|remove|build|optimize)\b/,
+    ];
+    const isQuestion = /^(what|why|how|when|where|who|can|could|would|is|are|do|does|did|should)\b/.test(value);
+    if (isQuestion && !/\bfix\b|\bchange\b|\badd\b|\bremove\b|\bedit\b|\bmake\b/.test(value)) return false;
+    return patterns.some(pattern => pattern.test(value));
+}
+
 const PROJECT_KNOWLEDGE = [
     "WebMinecraftT is a browser Minecraft-style game for desktop and mobile.",
     "Frontend uses Vite, Three.js and JavaScript ES modules.",
@@ -110,25 +123,22 @@ export async function handleDevAIRequest(request, response) {
         const userRequest = String(body.userRequest || lastUserMessage(messages) || "").trim().slice(0, 12000);
         if (!userRequest) { json(response, 400, { error: "No user request was provided." }); return true; }
         const mode = ["auto", "chat", "edit"].includes(body.mode) ? body.mode : "auto";
-        const wantsChange = mode === "edit" || (mode === "auto" && body.applyChange !== false);
+        const wantsChange = mode === "edit" || (mode === "auto" && clearlyRequestsCodeChange(userRequest));
 
-        // Chat mode is deliberately the fast path: no GitHub tree scan or file generation.
         if (!wantsChange) {
             const instructions = [
-                "You are the private developer AI for WebMinecraftT.",
+                "You are the private developer AI for WebMinecraftT, but right now you are in NORMAL CONVERSATION mode.",
                 PROJECT_KNOWLEDGE,
-                "Answer like a strong senior game-development assistant.",
-                "Interpret the owner's natural wording instead of requiring programming terminology.",
+                "Talk naturally and casually like a helpful assistant. You can discuss the game, coding, ideas, names, explanations, planning, or unrelated everyday topics.",
+                "Do not turn ordinary conversation into a code change. Do not create a GitHub branch or pull request in normal conversation mode.",
+                "Only discuss a code change when the user explicitly asks for one; the UI has a separate Edit game mode for direct edits.",
+                "Interpret typos, shorthand, slang, and incomplete sentences naturally.",
                 "Use recent conversation context when the owner says 'that', 'it', 'again', 'same as before', etc.",
                 "When you are uncertain, state the assumption briefly instead of pretending certainty.",
                 "Do not claim that code was changed or tested.",
-                "Be useful and concise."
+                "Be friendly, natural, and concise without sounding robotic."
             ].join("\n");
-            const reply = await askOpenAI({
-                instructions,
-                input: messages,
-                maxOutputTokens: 1800
-            });
+            const reply = await askOpenAI({ instructions, input: messages, maxOutputTokens: 1800 });
             json(response, 200, { reply, changed: false });
             return true;
         }
