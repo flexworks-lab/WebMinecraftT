@@ -84,7 +84,7 @@ function createTouchControls() {
         <div id="touchActions"></div>
         <div id="touchAimKnob" aria-hidden="true"></div>
         <div id="touchLookArea"></div>
-        <div id="touchHint">Drag the screen to look • Tap a block to mine</div>
+        <div id="touchHint">Drag to look • Tap a block to mine</div>
     `;
 
     const actions = root.querySelector("#touchActions");
@@ -234,142 +234,32 @@ function createTouchControls() {
     const style = document.createElement("style");
     style.id = "mobileGameplayControlsStyles";
     style.textContent = `
-#touchControls{
-    display:none;
-    position:fixed;
-    inset:0;
-    z-index:40;
-    pointer-events:none;
-    user-select:none;
-    -webkit-user-select:none;
-    touch-action:none;
-    -webkit-touch-callout:none;
-}
+#touchControls{display:none;position:fixed;inset:0;z-index:40;pointer-events:none;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-touch-callout:none}
 body.mobile-mode #touchControls{display:block}
-#touchLookArea{
-    position:absolute;
-    left:31%;
-    right:0;
-    top:0;
-    bottom:0;
-    pointer-events:auto;
-    touch-action:none;
-    z-index:1;
-    -webkit-tap-highlight-color:transparent;
-}
-#touchMovePad{
-    position:absolute;
-    left:max(18px,env(safe-area-inset-left));
-    bottom:max(28px,env(safe-area-inset-bottom));
-    width:168px;
-    height:168px;
-    display:grid;
-    grid-template-columns:repeat(3,56px);
-    grid-template-rows:repeat(3,56px);
-    z-index:5;
-    pointer-events:none;
-}
-#moveForward{grid-column:2;grid-row:1}
-#moveLeft{grid-column:1;grid-row:2}
-#moveBack{grid-column:2;grid-row:3}
-#moveRight{grid-column:3;grid-row:2}
-.moveKey{
-    width:52px;
-    height:52px;
-    margin:2px;
-    border:2px solid rgba(255,255,255,.32);
-    background:rgba(20,20,20,.46);
-    color:#fff;
-    font:700 22px Arial,sans-serif;
-    border-radius:10px;
-    pointer-events:auto;
-    touch-action:none;
-    -webkit-tap-highlight-color:transparent;
-    box-shadow:0 3px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.12);
-}
-.moveKey:active,.moveKey.pressed{background:rgba(120,120,120,.7);transform:translateY(1px)}
-#touchActions{
-    position:absolute;
-    right:max(18px,env(safe-area-inset-right));
-    bottom:max(26px,env(safe-area-inset-bottom));
-    width:185px;
-    height:205px;
-    z-index:6;
-    pointer-events:none;
-}
-.touchControl{
-    position:absolute;
-    width:70px;
-    height:52px;
-    border:2px solid rgba(255,255,255,.34);
-    border-radius:10px;
-    background:rgba(20,20,20,.5);
-    color:#fff;
-    font:700 11px Arial,sans-serif;
-    letter-spacing:.6px;
-    text-shadow:1px 1px 1px #000;
-    pointer-events:auto;
-    touch-action:none;
-    -webkit-tap-highlight-color:transparent;
-    box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.11);
-}
-.touchControl.pressed{background:rgba(112,112,112,.76);transform:translateY(1px)}
+#touchLookArea{position:absolute;left:31%;right:0;top:0;bottom:0;pointer-events:auto;touch-action:none;z-index:1;-webkit-tap-highlight-color:transparent}
+#touchMovePad{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:max(28px,env(safe-area-inset-bottom));width:168px;height:168px;display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,56px);z-index:5;pointer-events:none;filter:drop-shadow(3px 3px 0 rgba(0,0,0,.65))}
+#moveForward{grid-column:2;grid-row:1}#moveLeft{grid-column:1;grid-row:2}#moveBack{grid-column:2;grid-row:3}#moveRight{grid-column:3;grid-row:2}
+.moveKey{width:52px;height:52px;margin:2px;border:2px solid #111;border-right-color:#555;border-bottom-color:#555;background:#7b7b7b;color:#fff;font:700 22px Arial,sans-serif;border-radius:2px;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;box-shadow:inset 2px 2px 0 rgba(255,255,255,.22),inset -2px -2px 0 rgba(0,0,0,.28);text-shadow:2px 2px 0 #333}
+.moveKey:active,.moveKey.pressed{background:#9a9a9a;border-color:#111;transform:translate(1px,1px);box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -1px -1px 0 rgba(0,0,0,.3)}
+#touchActions{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:max(26px,env(safe-area-inset-bottom));width:185px;height:205px;z-index:6;pointer-events:none;filter:drop-shadow(3px 3px 0 rgba(0,0,0,.65))}
+.touchControl{position:absolute;width:70px;height:52px;border:2px solid #111;border-right-color:#555;border-bottom-color:#555;border-radius:2px;background:#7b7b7b;color:#fff;font:700 11px Arial,sans-serif;letter-spacing:.5px;text-shadow:2px 2px 0 #333;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;box-shadow:inset 2px 2px 0 rgba(255,255,255,.22),inset -2px -2px 0 rgba(0,0,0,.28)}
+.touchControl.pressed{background:#9a9a9a;transform:translate(1px,1px);box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -1px -1px 0 rgba(0,0,0,.3)}
 #touchJump{right:0;top:0;width:82px;height:64px;font-size:12px}
-#touchBreak{right:0;top:76px}
-#touchPlace{right:0;top:134px}
-#touchSprint{left:0;top:76px}
-#touchFly{left:0;top:134px}
-#touchAimKnob{
-    position:fixed;
-    width:32px;
-    height:32px;
-    margin:-16px 0 0 -16px;
-    border-radius:50%;
-    border:2px solid rgba(255,255,255,.52);
-    background:rgba(255,255,255,.14);
-    box-shadow:0 0 0 6px rgba(255,255,255,.06);
-    pointer-events:none;
-    z-index:4;
-    opacity:0;
-    transition:opacity .08s ease;
-}
+#touchBreak{right:0;top:76px}#touchPlace{right:0;top:134px}#touchSprint{left:0;top:76px}#touchFly{left:0;top:134px}
+#touchFly.pressed{background:#6f914b;border-right-color:#3f572d;border-bottom-color:#3f572d}
+#touchAimKnob{position:fixed;width:32px;height:32px;margin:-16px 0 0 -16px;border-radius:0;border:2px solid rgba(255,255,255,.75);background:rgba(255,255,255,.08);box-shadow:0 0 0 2px rgba(0,0,0,.55);pointer-events:none;z-index:4;opacity:0;transition:opacity .08s ease}
 #touchAimKnob.visible{opacity:1}
-#touchHint{
-    position:absolute;
-    top:max(10px,env(safe-area-inset-top));
-    left:50%;
-    transform:translateX(-50%);
-    width:90%;
-    text-align:center;
-    color:rgba(255,255,255,.48);
-    font:11px Arial,sans-serif;
-    pointer-events:none;
-    z-index:7;
-}
-@media(max-width:680px){
-    #touchMovePad{transform:scale(.94);transform-origin:bottom left;}
-    #touchActions{transform:scale(.94);transform-origin:bottom right;}
-}
-@media(orientation:portrait){
-    #touchMovePad{left:max(12px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));transform:scale(.88);}
-    #touchActions{right:max(12px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));transform:scale(.88);}
-    #touchLookArea{left:28%;}
-    #touchHint{font-size:10px;}
-}
+#touchHint{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:90%;text-align:center;color:rgba(255,255,255,.5);font:11px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none;z-index:7}
+@media(max-width:680px){#touchMovePad{transform:scale(.94);transform-origin:bottom left}#touchActions{transform:scale(.94);transform-origin:bottom right}}
+@media(orientation:portrait){#touchMovePad{left:max(12px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));transform:scale(.88)}#touchActions{right:max(12px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));transform:scale(.88)}#touchLookArea{left:28%}#touchHint{font-size:10px}}
 body.mobile-mode #settingsButton{z-index:70;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right))}
-html,body,.mobile-mode,canvas{
-    touch-action:none;
-    overscroll-behavior:none;
-}
+html,body,.mobile-mode,canvas{touch-action:none;overscroll-behavior:none}
 @media(max-width:680px){body.mobile-mode canvas{touch-action:none!important}}
 `;
     document.head.appendChild(style);
 
-    if (navigator.maxTouchPoints > 0 || "ontouchstart" in window) {
-        document.body.classList.add("mobile-mode");
-    }
+    if (navigator.maxTouchPoints > 0 || "ontouchstart" in window) document.body.classList.add("mobile-mode");
 
-    // Keep mobile browsers from turning gameplay gestures into page zoom/scroll.
     const blockBrowserGestures = event => {
         if (!document.body.classList.contains("mobile-mode")) return;
         event.preventDefault();
