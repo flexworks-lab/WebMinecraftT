@@ -22,7 +22,7 @@ const worldTerrainPlugin = {
             'if (y >= surfaceY - 1) return BLOCK.SAND;\n        if (y >= surfaceY - 5) return BLOCK.SANDSTONE;'
         );
         code = code.replace(
-            /const waveA = Math\\.sin\\(\\(x \\+ z\\) \\* 0\\.19\\) \\* 0\\.042;\\n\\s*const waveB = Math\\.sin\\(\\(x \\* 0\\.31 - z \\* 0\\.17\\) \\+ 1\\.7\\) \\* 0\\.025;\\n\\s*const waveC = Math\\.cos\\(\\(x \\* 0\\.13 \\+ z \\* 0\\.27\\) - 0\\.6\\) \\* 0\\.02;/,
+            /const waveA = Math\.sin\(\(x \+ z\) \* 0\.19\) \* 0\.042;\n\s*const waveB = Math\.sin\(\(x \* 0\.31 - z \* 0\.17\) \+ 1\.7\) \* 0\.025;\n\s*const waveC = Math\.cos\(\(x \* 0\.13 \+ z \* 0\.27\) - 0\.6\) \* 0\.02;/,
             'const waveA = 0;\n            const waveB = 0;\n            const waveC = 0;'
         );
         code = code.replace("x - 0.5, y + waveA + waveC, z - 0.5", "x - 0.5, y, z - 0.5");
@@ -113,7 +113,7 @@ const gameplayUiPlugin = {
 
         if (id.endsWith("/src/player.js")) {
             code = code.replace(
-                /function updateMultiplayerAvatars\\(scene\\) \\{[\\s\\S]*?\\n\\}\\n\\nfunction syncMultiplayerState/,
+                /function updateMultiplayerAvatars\(scene\) \{[\s\S]*?\n\}\n\nfunction syncMultiplayerState/,
                 'function updateMultiplayerAvatars(scene) {}\n\nfunction syncMultiplayerState'
             );
             return { code, map: null };
