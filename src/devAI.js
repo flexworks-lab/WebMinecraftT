@@ -17,10 +17,7 @@ function waitForFirebase(timeout = 12000) {
     return new Promise(resolve => {
         const started = Date.now();
         const check = () => {
-            try {
-                const firebase = window.firebase;
-                if (firebase?.auth) return resolve(firebase);
-            } catch {}
+            try { const firebase = window.firebase; if (firebase?.auth) return resolve(firebase); } catch {}
             if (Date.now() - started >= timeout) return resolve(null);
             setTimeout(check, 80);
         };
@@ -36,52 +33,22 @@ async function getDeveloperToken() {
 }
 
 function loadChats() {
-    try {
-        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-        chats = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-    } catch { chats = []; }
+    try { const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); chats = Array.isArray(parsed) ? parsed.filter(Boolean) : []; }
+    catch { chats = []; }
     if (!chats.length) createChat(false);
     activeChatId = activeChatId && chats.some(chat => chat.id === activeChatId) ? activeChatId : chats[0].id;
 }
 
-function saveChats() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chats.slice(0, 40))); } catch {}
-}
+function saveChats() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chats.slice(0, 40))); } catch {} }
 
 function createChat(save = true) {
     const now = Date.now();
-    const chat = {
-        id: `chat-${now}-${Math.random().toString(36).slice(2, 8)}`,
-        title: "New chat",
-        createdAt: now,
-        updatedAt: now,
-        messages: []
-    };
-    chats.unshift(chat);
-    activeChatId = chat.id;
-    if (save) saveChats();
-    renderAll();
-    inputEl?.focus();
-    return chat;
+    const chat = { id: `chat-${now}-${Math.random().toString(36).slice(2, 8)}`, title: "New chat", createdAt: now, updatedAt: now, messages: [] };
+    chats.unshift(chat); activeChatId = chat.id; if (save) saveChats(); renderAll(); inputEl?.focus(); return chat;
 }
-
 function activeChat() { return chats.find(chat => chat.id === activeChatId) || null; }
-
-function updateTitle(chat, text) {
-    if (!chat || chat.title !== "New chat") return;
-    const clean = text.replace(/\s+/g, " ").trim();
-    if (clean) chat.title = clean.length > 42 ? `${clean.slice(0, 42)}…` : clean;
-}
-
-function deleteChat(id) {
-    const index = chats.findIndex(chat => chat.id === id);
-    if (index < 0) return;
-    chats.splice(index, 1);
-    if (!chats.length) createChat(false);
-    activeChatId = chats[Math.min(index, chats.length - 1)].id;
-    saveChats();
-    renderAll();
-}
+function updateTitle(chat, text) { if (!chat || chat.title !== "New chat") return; const clean = text.replace(/\s+/g, " ").trim(); if (clean) chat.title = clean.length > 42 ? `${clean.slice(0, 42)}…` : clean; }
+function deleteChat(id) { const index = chats.findIndex(chat => chat.id === id); if (index < 0) return; chats.splice(index, 1); if (!chats.length) createChat(false); activeChatId = chats[Math.min(index, chats.length - 1)].id; saveChats(); renderAll(); }
 
 function addStyles() {
     if (document.getElementById("devAIStyles")) return;
@@ -113,7 +80,11 @@ function addStyles() {
 #devAIToolbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #29313a}
 #devAIMode{height:34px;border:1px solid #49545f;border-radius:7px;background:#20272e;color:#eef3f7;padding:0 10px}
 #devAIStatus{margin-left:auto;min-height:16px;color:#8d99a5;font-size:11px}
-#devAIChat{flex:1 1 auto;min-height:0;overflow-y:scroll;overflow-x:hidden;padding:18px 18px 26px;display:flex;flex-direction:column;gap:14px;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable;scroll-behavior:smooth;touch-action:pan-y}
+#devAIChat{flex:1 1 auto;min-height:0;overflow-y:scroll;overflow-x:hidden;padding:18px 18px 26px;display:flex;flex-direction:column;gap:14px;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable;scroll-behavior:auto;touch-action:pan-y;cursor:default}
+#devAIChat::-webkit-scrollbar{width:14px}
+#devAIChat::-webkit-scrollbar-track{background:#0b0e11}
+#devAIChat::-webkit-scrollbar-thumb{background:#59636e;border-radius:8px;border:3px solid #0b0e11}
+#devAIChat::-webkit-scrollbar-thumb:hover{background:#788692}
 .devAIMessage{flex:0 0 auto;max-width:min(860px,90%);padding:11px 13px;border:1px solid #313b45;border-radius:10px;background:#1b2127;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .devAIMessage.user{align-self:flex-end;background:#29445c;border-color:#3f617e}
 .devAIMessage.assistant{align-self:flex-start}
@@ -133,30 +104,22 @@ function renderChats() {
     const query = String(searchEl?.value || "").trim().toLowerCase();
     chatsEl.innerHTML = "";
     for (const chat of chats.filter(item => !query || item.title.toLowerCase().includes(query) || item.messages.some(m => String(m.content).toLowerCase().includes(query)))) {
-        const row = document.createElement("div");
-        row.className = `devAIChatRow${chat.id === activeChatId ? " active" : ""}`;
-        const pick = document.createElement("button");
-        pick.className = "devAIChatPick";
-        pick.type = "button";
-        const title = document.createElement("span");
-        title.textContent = chat.title;
-        const meta = document.createElement("small");
-        meta.textContent = chat.messages.length ? `${chat.messages.length} messages` : "Empty chat";
-        pick.append(title, meta);
-        pick.addEventListener("click", () => { activeChatId = chat.id; renderAll(); inputEl?.focus(); });
-        const del = document.createElement("button");
-        del.className = "devAIDelete";
-        del.type = "button";
-        del.title = "Delete chat";
-        del.textContent = "×";
-        del.addEventListener("click", event => { event.stopPropagation(); deleteChat(chat.id); });
-        row.append(pick, del);
-        chatsEl.appendChild(row);
+        const row = document.createElement("div"); row.className = `devAIChatRow${chat.id === activeChatId ? " active" : ""}`;
+        const pick = document.createElement("button"); pick.className = "devAIChatPick"; pick.type = "button";
+        const title = document.createElement("span"); title.textContent = chat.title;
+        const meta = document.createElement("small"); meta.textContent = chat.messages.length ? `${chat.messages.length} messages` : "Empty chat";
+        pick.append(title, meta); pick.addEventListener("click", () => { activeChatId = chat.id; renderAll(false); inputEl?.focus(); });
+        const del = document.createElement("button"); del.className = "devAIDelete"; del.type = "button"; del.title = "Delete chat"; del.textContent = "×";
+        del.addEventListener("click", event => { event.stopPropagation(); deleteChat(chat.id); }); row.append(pick, del); chatsEl.appendChild(row);
     }
 }
 
-function renderMessages() {
+function renderMessages(keepScroll = false, forceBottom = false) {
     if (!messagesEl) return;
+    const oldScrollTop = messagesEl.scrollTop;
+    const oldScrollHeight = messagesEl.scrollHeight;
+    const oldClientHeight = messagesEl.clientHeight;
+    const wasNearBottom = oldScrollHeight - oldClientHeight - oldScrollTop < 80;
     const chat = activeChat();
     messagesEl.innerHTML = "";
     if (!chat?.messages.length) {
@@ -164,161 +127,59 @@ function renderMessages() {
         return;
     }
     for (const message of chat.messages) renderMessage(message.role, message.content, false);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    if (forceBottom || (!keepScroll && wasNearBottom)) messagesEl.scrollTop = messagesEl.scrollHeight;
+    else messagesEl.scrollTop = Math.min(oldScrollTop, Math.max(0, messagesEl.scrollHeight - messagesEl.clientHeight));
 }
 
 function renderMessage(role, text, persist = true) {
     if (!messagesEl) return;
-    const row = document.createElement("div");
-    row.className = `devAIMessage ${role}`;
-    const name = document.createElement("div");
-    name.className = "devAIName";
-    name.textContent = role === "user" ? "YOU" : "DEV AI";
-    const body = document.createElement("div");
-    body.textContent = text;
-    row.append(name, body);
-    messagesEl.appendChild(row);
+    const row = document.createElement("div"); row.className = `devAIMessage ${role}`;
+    const name = document.createElement("div"); name.className = "devAIName"; name.textContent = role === "user" ? "YOU" : "DEV AI";
+    const body = document.createElement("div"); body.textContent = text; row.append(name, body); messagesEl.appendChild(row);
     if (persist) messagesEl.scrollTop = messagesEl.scrollHeight;
 }
-
-function setStatus(text, error = false) {
-    if (!statusEl) return;
-    statusEl.textContent = text;
-    statusEl.style.color = error ? "#ef8c7f" : "#8d99a5";
-}
-
-function setBusy(value) {
-    busy = value;
-    const button = panel?.querySelector("#devAISend");
-    if (button) button.disabled = value;
-}
+function setStatus(text, error = false) { if (!statusEl) return; statusEl.textContent = text; statusEl.style.color = error ? "#ef8c7f" : "#8d99a5"; }
+function setBusy(value) { busy = value; const button = panel?.querySelector("#devAISend"); if (button) button.disabled = value; }
 
 async function sendMessage() {
-    if (busy) return;
-    const text = inputEl?.value?.trim();
-    if (!text) return;
-    const token = await getDeveloperToken();
-    if (!token) return setStatus("Developer access denied.", true);
-    const chat = activeChat() || createChat(false);
-    const mode = modeEl?.value || "auto";
-
-    inputEl.value = "";
-    updateTitle(chat, text);
-    chat.messages.push({ role: "user", content: text });
-    chat.updatedAt = Date.now();
-    saveChats();
-    renderAll();
-    setBusy(true);
-    setStatus(mode === "chat" ? "Thinking…" : mode === "edit" ? "Inspecting project and preparing change…" : "Understanding request…");
-
+    if (busy) return; const text = inputEl?.value?.trim(); if (!text) return;
+    const token = await getDeveloperToken(); if (!token) return setStatus("Developer access denied.", true);
+    const chat = activeChat() || createChat(false); const mode = modeEl?.value || "auto";
+    inputEl.value = ""; updateTitle(chat, text); chat.messages.push({ role: "user", content: text }); chat.updatedAt = Date.now(); saveChats();
+    renderAll(true); setBusy(true); setStatus(mode === "chat" ? "Thinking…" : mode === "edit" ? "Inspecting project and preparing change…" : "Understanding request…");
     try {
-        const response = await fetch(AI_API, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-                messages: chat.messages.slice(-24),
-                userRequest: text,
-                game: "WebMinecraftT",
-                mode,
-                applyChange: mode !== "chat",
-                instruction: "Use the userRequest field as the actual request. Understand casual wording, shorthand, typos, prior chat context, and references to earlier decisions. For code edits, inspect the real project files and make only the changes needed. Never claim code was changed, committed, tested, or deployed unless it actually happened."
-            }),
-            cache: "no-store"
-        });
-        let data = null;
-        try { data = await response.json(); } catch {}
+        const response = await fetch(AI_API, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ messages: chat.messages.slice(-24), userRequest: text, game: "WebMinecraftT", mode, applyChange: mode !== "chat", instruction: "Use the userRequest field as the actual request. Understand casual wording, shorthand, typos, prior chat context, and references to earlier decisions. For code edits, inspect the real project files and make only the changes needed. Never claim code was changed, committed, tested, or deployed unless it actually happened." }), cache: "no-store" });
+        let data = null; try { data = await response.json(); } catch {}
         if (!response.ok) throw new Error(data?.error || `AI server returned ${response.status}.`);
-        const answer = String(data?.reply || data?.message || data?.content || "No response received.");
-        chat.messages.push({ role: "assistant", content: answer });
-        chat.updatedAt = Date.now();
-        saveChats();
-        renderAll();
-        setStatus(data?.changed ? "Change prepared in GitHub." : "Ready for your next request.");
+        const answer = String(data?.reply || data?.message || data?.content || "No response received."); chat.messages.push({ role: "assistant", content: answer }); chat.updatedAt = Date.now(); saveChats(); renderAll(true, true); setStatus(data?.changed ? "Change prepared in GitHub." : "Ready for your next request.");
     } catch (error) {
-        console.error("Developer AI failed:", error);
-        chat.messages.push({ role: "assistant", content: `I could not complete that request. ${error?.message || "The AI server could not be reached."}` });
-        chat.updatedAt = Date.now();
-        saveChats();
-        renderAll();
-        setStatus(error?.message || "Developer AI could not connect.", true);
-    } finally {
-        setBusy(false);
-        inputEl?.focus();
-    }
+        console.error("Developer AI failed:", error); chat.messages.push({ role: "assistant", content: `I could not complete that request. ${error?.message || "The AI server could not be reached."}` }); chat.updatedAt = Date.now(); saveChats(); renderAll(true, true); setStatus(error?.message || "Developer AI could not connect.", true);
+    } finally { setBusy(false); inputEl?.focus(); }
 }
 
 function createUI() {
-    if (panel) return;
-    addStyles();
-    loadChats();
-
-    const button = document.createElement("button");
-    button.id = "devAIButton";
-    button.type = "button";
-    button.textContent = "Dev AI";
-    button.addEventListener("click", openPanel);
-    document.body.appendChild(button);
-
-    panel = document.createElement("div");
-    panel.id = "devAIModal";
-    panel.innerHTML = `
+    if (panel) return; addStyles(); loadChats();
+    const button = document.createElement("button"); button.id = "devAIButton"; button.type = "button"; button.textContent = "Dev AI"; button.addEventListener("click", openPanel); document.body.appendChild(button);
+    panel = document.createElement("div"); panel.id = "devAIModal"; panel.innerHTML = `
 <div id="devAIPanel" role="dialog" aria-modal="true" aria-labelledby="devAITitle">
 <header id="devAIHeader"><div><h2 id="devAITitle">Developer AI</h2><div id="devAISubtitle">Your WebMinecraft coding assistant</div></div><button id="devAIClose" type="button" aria-label="Close">×</button></header>
-<div id="devAILayout">
-<aside id="devAISidebar"><div id="devAISideTop"><button id="devAINew" type="button">＋ New chat</button><button id="devAISearch" type="button" title="Search chats">⌕</button></div><input id="devAISearchInput" aria-label="Search chats" placeholder="Search chats…"><div id="devAIChatList"></div></aside>
-<main id="devAIContent"><div id="devAIToolbar"><select id="devAIMode" aria-label="AI mode"><option value="auto">Auto</option><option value="chat">Chat only</option><option value="edit">Edit game</option></select><div id="devAIStatus">Ready</div></div><div id="devAIChat"></div><div id="devAIComposer"><textarea id="devAIInput" maxlength="12000" placeholder="Tell me what you want changed…"></textarea><button id="devAISend" type="button">Send</button></div></main>
-</div></div>`;
+<div id="devAILayout"><aside id="devAISidebar"><div id="devAISideTop"><button id="devAINew" type="button">＋ New chat</button><button id="devAISearch" type="button" title="Search chats">⌕</button></div><input id="devAISearchInput" aria-label="Search chats" placeholder="Search chats…"><div id="devAIChatList"></div></aside>
+<main id="devAIContent"><div id="devAIToolbar"><select id="devAIMode" aria-label="AI mode"><option value="auto">Auto</option><option value="chat">Chat only</option><option value="edit">Edit game</option></select><div id="devAIStatus">Ready</div></div><div id="devAIChat"></div><div id="devAIComposer"><textarea id="devAIInput" maxlength="12000" placeholder="Tell me what you want changed…"></textarea><button id="devAISend" type="button">Send</button></div></main></div></div>`;
     document.body.appendChild(panel);
-
-    chatsEl = panel.querySelector("#devAIChatList");
-    messagesEl = panel.querySelector("#devAIChat");
-    inputEl = panel.querySelector("#devAIInput");
-    statusEl = panel.querySelector("#devAIStatus");
-    modeEl = panel.querySelector("#devAIMode");
-    searchEl = panel.querySelector("#devAISearchInput");
-
+    chatsEl = panel.querySelector("#devAIChatList"); messagesEl = panel.querySelector("#devAIChat"); inputEl = panel.querySelector("#devAIInput"); statusEl = panel.querySelector("#devAIStatus"); modeEl = panel.querySelector("#devAIMode"); searchEl = panel.querySelector("#devAISearchInput");
     panel.querySelector("#devAIClose").addEventListener("click", closePanel);
     panel.addEventListener("click", event => { if (event.target === panel) closePanel(); });
     panel.querySelector("#devAINew").addEventListener("click", () => createChat());
     panel.querySelector("#devAISend").addEventListener("click", sendMessage);
     panel.querySelector("#devAISearch").addEventListener("click", () => { searchEl.style.display = searchEl.style.display === "none" ? "block" : "none"; if (searchEl.style.display === "block") searchEl.focus(); else searchEl.value = ""; renderChats(); });
     searchEl.addEventListener("input", renderChats);
-
     const stopGameKeyboard = event => event.stopPropagation();
-    inputEl.addEventListener("keydown", stopGameKeyboard);
-    inputEl.addEventListener("keyup", stopGameKeyboard);
-    inputEl.addEventListener("keypress", stopGameKeyboard);
-    inputEl.addEventListener("keydown", event => {
-        if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendMessage(); }
-    });
+    inputEl.addEventListener("keydown", stopGameKeyboard); inputEl.addEventListener("keyup", stopGameKeyboard); inputEl.addEventListener("keypress", stopGameKeyboard);
+    inputEl.addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendMessage(); } });
 }
 
-function renderAll() { renderChats(); renderMessages(); }
-
-async function openPanel() {
-    createUI();
-    const token = await getDeveloperToken();
-    if (!token) return alert("Developer access denied.");
-    panel.style.display = "flex";
-    document.exitPointerLock?.();
-    renderAll();
-    inputEl.focus();
-}
-
+function renderAll(keepScroll = false, forceBottom = false) { renderChats(); renderMessages(keepScroll, forceBottom); }
+async function openPanel() { createUI(); const token = await getDeveloperToken(); if (!token) return alert("Developer access denied."); panel.style.display = "flex"; document.exitPointerLock?.(); renderAll(); inputEl.focus(); }
 function closePanel() { if (panel) panel.style.display = "none"; }
-
-async function init() {
-    createUI();
-    const firebase = await waitForFirebase();
-    const sync = user => {
-        const allowed = String(user?.email || "").toLowerCase() === DEV_EMAIL;
-        const button = document.getElementById("devAIButton");
-        if (button) button.style.display = allowed ? "block" : "none";
-        if (!allowed) closePanel();
-    };
-    sync(firebase?.auth?.()?.currentUser || null);
-    firebase?.auth?.()?.onAuthStateChanged?.(sync);
-}
-
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
-else init();
+async function init() { createUI(); const firebase = await waitForFirebase(); const sync = user => { const allowed = String(user?.email || "").toLowerCase() === DEV_EMAIL; const button = document.getElementById("devAIButton"); if (button) button.style.display = allowed ? "block" : "none"; if (!allowed) closePanel(); }; sync(firebase?.auth?.()?.currentUser || null); firebase?.auth?.()?.onAuthStateChanged?.(sync); }
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true }); else init();
