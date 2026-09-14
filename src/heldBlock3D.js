@@ -44,6 +44,7 @@ const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURICo
 let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
 let visible = false;
 let selectedItemId = 0;
+let selectedSlot = 0;
 let action = null;
 let actionStartedAt = 0;
 
@@ -155,6 +156,13 @@ function readSelectedItem(slot) {
     } catch { return 0; }
 }
 
+function refreshSelectedItem() {
+    const nextItemId = readSelectedItem(selectedSlot);
+    if (nextItemId === selectedItemId) return;
+    selectedItemId = nextItemId;
+    updateBlock();
+}
+
 function triggerAction(type) {
     if (!visible) return;
     action = type;
@@ -212,6 +220,7 @@ function init() {
     hand.rotation.z = -0.12;
     heldRoot.add(hand);
 
+    selectedItemId = readSelectedItem(selectedSlot);
     updateBlock();
     updateVisibility();
 
@@ -222,8 +231,8 @@ function init() {
     });
 
     window.addEventListener("webminecraft:selectedslot", event => {
-        selectedItemId = readSelectedItem(Number(event.detail?.slot ?? 0));
-        updateBlock();
+        selectedSlot = Number(event.detail?.slot ?? 0);
+        refreshSelectedItem();
         updateVisibility();
     });
 
@@ -241,7 +250,11 @@ function init() {
 
     const observer = new MutationObserver(updateVisibility);
     observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    setInterval(updateVisibility, 250);
+
+    setInterval(() => {
+        refreshSelectedItem();
+        updateVisibility();
+    }, 100);
 
     function render() {
         requestAnimationFrame(render);
