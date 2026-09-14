@@ -38,8 +38,15 @@ async function verifyDeveloperToken(token) {
 
 function normalizeMessages(messages) {
     if (!Array.isArray(messages)) return [];
-    return messages.filter(message => message && (message.role === "user" || message.role === "assistant"))
-        .slice(-20).map(message => ({ role: message.role, content: String(message.content || "").slice(0, 8000) }));
+    return messages
+        .filter(message => message && (message.role === "user" || message.role === "assistant"))
+        .slice(-24)
+        .map(message => ({ role: message.role, content: String(message.content || "").slice(0, 12000) }));
+}
+
+function lastUserMessage(messages) {
+    for (let i = messages.length - 1; i >= 0; i--) if (messages[i]?.role === "user") return messages[i].content;
+    return "";
 }
 
 function extractOutputText(data) {
@@ -52,6 +59,34 @@ function extractOutputText(data) {
     }
     return parts.join("\n\n").trim();
 }
+
+async function askOpenAI({ instructions, input, maxOutputTokens = 2200 }) {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${OPENAI_API_KEY}` },
+        body: JSON.stringify({ model: OPENAI_MODEL, instructions, input, max_output_tokens: maxOutputTokens }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        console.error("OpenAI developer AI error:", data);
+        throw new Error(data?.error?.message || "The AI service returned an error.");
+    }
+    const reply = extractOutputText(data);
+    if (!reply) throw new Error("The AI returned a response without any text.");
+    return reply;
+}
+
+const PROJECT_KNOWLEDGE = [
+    "WebMinecraftT is a browser Minecraft-style game for desktop and mobile.",
+    "Frontend uses Vite, Three.js and JavaScript ES modules.",
+    "Firebase is used for authentication and some persistent/social systems.",
+    "A Node.js server handles multiplayer and the private developer AI endpoint.",
+    "The owner prefers direct practical changes, simple wording, and keeping existing behavior unless a request explicitly changes it.",
+    "Important project areas include world generation, chunks/rendering, controls, player movement, block interaction, inventory, water, clouds, multiplayer, chat, world saving, mobile UI, and settings.",
+    "Developer AI changes are sent to GitHub through a branch and pull request rather than silently changing main.",
+    "Never invent file names, systems, test results, commits, deployment status, or features that were not verified.",
+    "Understand shorthand, spelling mistakes, incomplete sentences, and references such as 'make it darker', 'like before', 'fix that', and 'don't change anything else'."
+].join("\n");
 
 export async function handleDevAIRequest(request, response) {
     if (request.url !== "/api/dev-ai") return false;
@@ -71,67 +106,61 @@ export async function handleDevAIRequest(request, response) {
         const body = JSON.parse(await readBody(request) || "{}");
         const messages = normalizeMessages(body.messages);
         if (!messages.length) { json(response, 400, { error: "No message was provided." }); return true; }
-        const latestInstruction = String(body.instruction || messages.at(-1)?.content || "").trim().slice(0, 8000);
-        const wantsChange = body.applyChange !== false;
 
-        if (wantsChange && latestInstruction) {
-            try {
-                const result = await applyDeveloperChange({ instruction: latestInstruction, messages, model: OPENAI_MODEL });
-                if (result.configured && result.changed) {
-                    const reply = [
-                        "Done — I made the requested code change.",
-                        `\n${result.summary}`,
-                        `\nChanged files:\n${result.files.map(path => `- ${path}`).join("\n")}`,
-                        result.pullRequest ? `\nPull request: ${result.pullRequest}` : "",
-                        `\n${result.note}`,
-                    ].join("\n");
-                    json(response, 200, { reply, changed: true, files: result.files, branch: result.branch, commit: result.commit, pullRequest: result.pullRequest });
-                    return true;
-                }
-                if (!result.configured) {
-                    json(response, 503, { error: result.message });
-                    return true;
-                }
-            } catch (error) {
-                console.error("Developer AI GitHub change failed:", error);
-                json(response, 502, { error: error?.message || "The developer AI could not apply the requested change." });
+        const userRequest = String(body.userRequest || lastUserMessage(messages) || "").trim().slice(0, 12000);
+        if (!userRequest) { json(response, 400, { error: "No user request was provided." }); return true; }
+        const mode = ["auto", "chat", "edit"].includes(body.mode) ? body.mode : "auto";
+        const wantsChange = mode === "edit" || (mode === "auto" && body.applyChange !== false);
+
+        // Chat mode is deliberately the fast path: no GitHub tree scan or file generation.
+        if (!wantsChange) {
+            const instructions = [
+                "You are the private developer AI for WebMinecraftT.",
+                PROJECT_KNOWLEDGE,
+                "Answer like a strong senior game-development assistant.",
+                "Interpret the owner's natural wording instead of requiring programming terminology.",
+                "Use recent conversation context when the owner says 'that', 'it', 'again', 'same as before', etc.",
+                "When you are uncertain, state the assumption briefly instead of pretending certainty.",
+                "Do not claim that code was changed or tested.",
+                "Be useful and concise."
+            ].join("\n");
+            const reply = await askOpenAI({
+                instructions,
+                input: messages,
+                maxOutputTokens: 1800
+            });
+            json(response, 200, { reply, changed: false });
+            return true;
+        }
+
+        try {
+            const result = await applyDeveloperChange({ instruction: userRequest, messages, model: OPENAI_MODEL });
+            if (result.configured && result.changed) {
+                const reply = [
+                    "Done — I prepared the requested code change.",
+                    `\n${result.summary}`,
+                    `\nChanged files:\n${result.files.map(path => `- ${path}`).join("\n")}`,
+                    result.pullRequest ? `\nPull request: ${result.pullRequest}` : "",
+                    `\n${result.note}`,
+                ].join("\n");
+                json(response, 200, { reply, changed: true, files: result.files, branch: result.branch, commit: result.commit, pullRequest: result.pullRequest });
                 return true;
             }
-        }
-
-        const instructions = [
-            "You are the private developer AI for WebMinecraftT, a browser Minecraft-style game for PC and mobile.",
-            "The owner wants practical implementation help for the actual game project.",
-            "The project uses Vite, Three.js, JavaScript modules, Firebase, and an optional Node multiplayer server.",
-            "The server can now apply requested code changes to GitHub when GITHUB_TOKEN is configured.",
-            "Do not claim that code was changed, committed, deployed, or tested unless the server actually did it.",
-            "If a request is ambiguous, make the smallest reasonable assumption and say what you assumed.",
-            "Keep answers concise and focused on the game."
-        ].join("\n");
-
-        const aiResponse = await fetch("https://api.openai.com/v1/responses", {
-            method: "POST",
-            headers: { "content-type": "application/json", authorization: `Bearer ${OPENAI_API_KEY}` },
-            body: JSON.stringify({ model: OPENAI_MODEL, instructions, input: messages, max_output_tokens: 1800 }),
-        });
-        const aiData = await aiResponse.json();
-        if (!aiResponse.ok) {
-            console.error("OpenAI developer AI error:", aiData);
-            json(response, 502, { error: "The AI service returned an error." });
+            if (!result.configured) {
+                json(response, 503, { error: result.message });
+                return true;
+            }
+        } catch (error) {
+            console.error("Developer AI GitHub change failed:", error);
+            json(response, 502, { error: error?.message || "The developer AI could not apply the requested change." });
             return true;
         }
 
-        const reply = extractOutputText(aiData);
-        if (!reply) {
-            console.error("OpenAI developer AI returned no text:", JSON.stringify(aiData));
-            json(response, 502, { error: "The AI returned a response without any text." });
-            return true;
-        }
-        json(response, 200, { reply, changed: false });
+        json(response, 502, { error: "The developer AI did not produce a code change." });
         return true;
     } catch (error) {
         console.error("Developer AI request failed:", error);
-        json(response, 500, { error: "Developer AI request failed." });
+        json(response, 500, { error: error?.message || "Developer AI request failed." });
         return true;
     }
 }
