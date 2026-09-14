@@ -147,13 +147,21 @@ export function setupInteraction(scene, camera) {
     }
     function placeBlock() {
         const itemId = getSelectedItemId(selectedSlot);
-        if (!itemId || itemId > BLOCK.TNT) return;
+        if (!itemId) return;
+        if (itemId === 16) {
+            if (tryIgniteTNT(scene, camera, itemId)) {
+                consumeSelected(selectedSlot);
+                sendPlayerAction("place");
+            }
+            return;
+        }
+        if (itemId > BLOCK.TNT) return;
+        const target = getTargetBlock(scene, camera, BLOCK);
+        if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId)) {
             if (consumeSelected(selectedSlot)) sendPlayerAction("place");
             return;
         }
-        const target = getTargetBlock(scene, camera, BLOCK);
-        if (!target) return;
         const normal = target.normal.clone().set(
             Math.round(target.normal.x),
             Math.round(target.normal.y),
