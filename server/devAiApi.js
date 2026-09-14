@@ -5,11 +5,7 @@ const OPENAI_MODEL = process.env.OPENAI_DEV_MODEL || "gpt-5.6-luna";
 const MAX_BODY = 256 * 1024;
 
 function json(response, status, payload) {
-    response.writeHead(status, {
-        "content-type": "application/json; charset=utf-8",
-        "access-control-allow-origin": "*",
-        "cache-control": "no-store",
-    });
+    response.writeHead(status, { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*", "cache-control": "no-store" });
     response.end(JSON.stringify(payload));
 }
 
@@ -18,10 +14,7 @@ function readBody(request) {
         let body = "";
         request.on("data", chunk => {
             body += chunk.toString("utf8");
-            if (body.length > MAX_BODY) {
-                reject(new Error("Request body is too large."));
-                request.destroy();
-            }
+            if (body.length > MAX_BODY) { reject(new Error("Request body is too large.")); request.destroy(); }
         });
         request.on("end", () => resolve(body));
         request.on("error", reject);
@@ -43,46 +36,39 @@ async function verifyDeveloperToken(token) {
 
 function normalizeMessages(messages) {
     if (!Array.isArray(messages)) return [];
-    return messages
-        .filter(message => message && (message.role === "user" || message.role === "assistant"))
-        .slice(-20)
-        .map(message => ({ role: message.role, content: String(message.content || "").slice(0, 8000) }));
+    return messages.filter(message => message && (message.role === "user" || message.role === "assistant"))
+        .slice(-20).map(message => ({ role: message.role, content: String(message.content || "").slice(0, 8000) }));
+}
+
+function extractOutputText(data) {
+    if (typeof data?.output_text === "string" && data.output_text.trim()) return data.output_text.trim();
+    const parts = [];
+    for (const item of Array.isArray(data?.output) ? data.output : []) {
+        for (const content of Array.isArray(item?.content) ? item.content : []) {
+            if (typeof content?.text === "string" && content.text.trim()) parts.push(content.text.trim());
+        }
+    }
+    return parts.join("\n\n").trim();
 }
 
 export async function handleDevAIRequest(request, response) {
     if (request.url !== "/api/dev-ai") return false;
     if (request.method === "OPTIONS") {
-        response.writeHead(204, {
-            "access-control-allow-origin": "*",
-            "access-control-allow-methods": "POST, OPTIONS",
-            "access-control-allow-headers": "Content-Type, Authorization",
-        });
+        response.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-methods": "POST, OPTIONS", "access-control-allow-headers": "Content-Type, Authorization" });
         response.end();
         return true;
     }
-    if (request.method !== "POST") {
-        json(response, 405, { error: "Method not allowed." });
-        return true;
-    }
+    if (request.method !== "POST") { json(response, 405, { error: "Method not allowed." }); return true; }
 
     try {
         const auth = String(request.headers.authorization || "");
         const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-        if (!(await verifyDeveloperToken(token))) {
-            json(response, 403, { error: "Developer access denied." });
-            return true;
-        }
-        if (!OPENAI_API_KEY) {
-            json(response, 503, { error: "Add OPENAI_API_KEY to the server environment first." });
-            return true;
-        }
+        if (!(await verifyDeveloperToken(token))) { json(response, 403, { error: "Developer access denied." }); return true; }
+        if (!OPENAI_API_KEY) { json(response, 503, { error: "Add OPENAI_API_KEY to the server environment first." }); return true; }
 
         const body = JSON.parse(await readBody(request) || "{}");
         const messages = normalizeMessages(body.messages);
-        if (!messages.length) {
-            json(response, 400, { error: "No message was provided." });
-            return true;
-        }
+        if (!messages.length) { json(response, 400, { error: "No message was provided." }); return true; }
 
         const instructions = [
             "You are the private developer AI for WebMinecraftT, a browser Minecraft-style game for PC and mobile.",
@@ -96,10 +82,7 @@ export async function handleDevAIRequest(request, response) {
 
         const aiResponse = await fetch("https://api.openai.com/v1/responses", {
             method: "POST",
-            headers: {
-                "content-type": "application/json",
-                authorization: `Bearer ${OPENAI_API_KEY}`,
-            },
+            headers: { "content-type": "application/json", authorization: `Bearer ${OPENAI_API_KEY}` },
             body: JSON.stringify({ model: OPENAI_MODEL, instructions, input: messages, max_output_tokens: 1800 }),
         });
         const aiData = await aiResponse.json();
@@ -108,7 +91,14 @@ export async function handleDevAIRequest(request, response) {
             json(response, 502, { error: "The AI service returned an error." });
             return true;
         }
-        json(response, 200, { reply: String(aiData?.output_text || "I did not receive a response from the AI.").trim() });
+
+        const reply = extractOutputText(aiData);
+        if (!reply) {
+            console.error("OpenAI developer AI returned no text:", JSON.stringify(aiData));
+            json(response, 502, { error: "The AI returned a response without any text." });
+            return true;
+        }
+        json(response, 200, { reply });
         return true;
     } catch (error) {
         console.error("Developer AI request failed:", error);
