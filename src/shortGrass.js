@@ -17,6 +17,7 @@ let running = false;
 let lastScan = 0;
 let lastSeed = null;
 let observer = null;
+let blockChangeHandler = null;
 
 function hash2D(x, z, seed, salt = 0) {
     let h = Math.imul((x | 0) ^ 0x9e3779b9, 374761393);
@@ -100,10 +101,10 @@ function findSurfaceY(x, z, cameraY) {
 }
 
 function scan() {
-    if (!root || !cameraRef) return;
+    if (!root || !cameraRef || !mesh) return;
     root.visible = document.body.classList.contains("webminecraft-in-world");
     if (!root.visible) {
-        if (mesh) mesh.count = 0;
+        mesh.count = 0;
         return;
     }
 
@@ -130,7 +131,11 @@ function scan() {
             if (chance > 0.16) continue;
 
             const surface = findSurfaceY(x, z, cameraY);
-            if (!surface || surface.type !== types.GRASS || getBlockAt(x, surface.y + 1, z) !== types.AIR) continue;
+            if (!surface || surface.type !== types.GRASS) continue;
+
+            // Short grass occupies the block space immediately above the grass block.
+            // Any non-air block there means the vegetation must be hidden.
+            if (getBlockAt(x, surface.y + 1, z) !== types.AIR) continue;
 
             const scale = 0.84 + hash2D(x, z, seed, 59) * 0.30;
             const rotation = hash2D(x, z, seed, 83) * Math.PI * 2;
@@ -171,6 +176,16 @@ export function initShortGrass(scene, camera) {
             if (root) root.visible = document.body.classList.contains("webminecraft-in-world");
         });
         observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    }
+
+    if (!blockChangeHandler) {
+        blockChangeHandler = () => {
+            // Rebuild immediately after mining/placing so grass never renders
+            // through a newly placed block. The regular scan remains as a fallback.
+            lastScan = performance.now();
+            scan();
+        };
+        window.addEventListener("webminecraft:blockchange", blockChangeHandler);
     }
 
     if (!running) {
