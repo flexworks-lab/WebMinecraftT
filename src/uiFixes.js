@@ -10,55 +10,21 @@ function addGameplayLayoutStyles() {
     const style = document.createElement("style");
     style.id = "webMinecraftGameplayLayoutFixes";
     style.textContent = `
-/* Keep the in-game controls in separate screen zones. */
-body.mobile-mode.webminecraft-in-world #settingsButton{
-    top:18px !important;
-    right:18px !important;
-    z-index:90 !important;
-}
-body.mobile-mode.webminecraft-in-world #touchChatButton{
-    top:76px !important;
-    right:18px !important;
-    bottom:auto !important;
-    z-index:91 !important;
-}
-body.mobile-mode.webminecraft-in-world #touchActions{
-    right:18px !important;
-    bottom:24px !important;
-    z-index:43 !important;
-}
-body.mobile-mode.webminecraft-in-world #touchMovePad{
-    left:18px !important;
-    bottom:24px !important;
-    z-index:43 !important;
-}
-body.mobile-mode.webminecraft-in-world #touchLookArea{
-    left:34% !important;
-    right:0 !important;
-    top:0 !important;
-    bottom:0 !important;
-}
-body.mobile-mode.webminecraft-in-world #hotbar{
-    bottom:18px !important;
-    z-index:12 !important;
-}
-body.mobile-mode.webminecraft-in-world #crosshair{
-    z-index:10 !important;
-}
-
-/* Keep small screens from squeezing controls into the hotbar. */
+body.mobile-mode.webminecraft-in-world #settingsButton{top:18px !important;right:18px !important;z-index:90 !important}
+body.mobile-mode.webminecraft-in-world #touchChatButton{top:76px !important;right:18px !important;bottom:auto !important;z-index:91 !important}
+body.mobile-mode.webminecraft-in-world #touchActions{right:18px !important;bottom:24px !important;z-index:43 !important}
+body.mobile-mode.webminecraft-in-world #touchMovePad{left:18px !important;bottom:24px !important;z-index:43 !important}
+body.mobile-mode.webminecraft-in-world #touchLookArea{left:34% !important;right:0 !important;top:0 !important;bottom:0 !important}
+body.mobile-mode.webminecraft-in-world #hotbar{bottom:18px !important;z-index:12 !important}
+body.mobile-mode.webminecraft-in-world #crosshair{z-index:10 !important}
 @media(max-width:700px){
-    body.mobile-mode.webminecraft-in-world #hotbar{transform:translateX(-50%) scale(.88);transform-origin:center bottom;}
-    body.mobile-mode.webminecraft-in-world #touchActions{transform:scale(.9);transform-origin:right bottom;}
-    body.mobile-mode.webminecraft-in-world #touchMovePad{transform:scale(.9);transform-origin:left bottom;}
+body.mobile-mode.webminecraft-in-world #hotbar{transform:translateX(-50%) scale(.88);transform-origin:center bottom}
+body.mobile-mode.webminecraft-in-world #touchActions{transform:scale(.9);transform-origin:right bottom}
+body.mobile-mode.webminecraft-in-world #touchMovePad{transform:scale(.9);transform-origin:left bottom}
 }
-
-/* Saved-world header actions stay separated instead of colliding on narrow screens. */
-#savedWorldDeleteAll{background:linear-gradient(#8d5353,#6e4040) !important;}
-@media(max-width:700px){
-    #savedWorldDeleteAll{width:100%;}
-}
-.savedWorldCardDelete{background:linear-gradient(#8d5353,#6e4040) !important;}
+#savedWorldDeleteAll{background:linear-gradient(#8d5353,#6e4040) !important}
+@media(max-width:700px){#savedWorldDeleteAll{width:100%}}
+.savedWorldCardDelete{background:linear-gradient(#8d5353,#6e4040) !important}
 `;
     document.head.appendChild(style);
 }
@@ -113,16 +79,10 @@ function addDeleteAllButton() {
         const countText = document.getElementById("savedWorldsCount")?.textContent || "saved worlds";
         if (!window.confirm(`Delete all ${countText}? This cannot be undone.`)) return;
         button.disabled = true;
-        try {
-            await deleteAllWorlds();
-            window.location.reload();
-        } catch (error) {
-            button.disabled = false;
-            window.alert(error?.message || "Could not delete saved worlds.");
-        }
+        try { await deleteAllWorlds(); window.location.reload(); }
+        catch (error) { button.disabled = false; window.alert(error?.message || "Could not delete saved worlds."); }
     });
-    if (backButton) header.insertBefore(button, backButton);
-    else header.appendChild(button);
+    if (backButton) header.insertBefore(button, backButton); else header.appendChild(button);
 }
 
 function addPerWorldDeleteButtons() {
@@ -142,8 +102,7 @@ function addPerWorldDeleteButtons() {
         button.type = "button";
         button.textContent = "Delete";
         button.addEventListener("click", async event => {
-            event.preventDefault();
-            event.stopPropagation();
+            event.preventDefault(); event.stopPropagation();
             const name = card.querySelector("h3")?.textContent || "this world";
             if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
             button.disabled = true;
@@ -151,14 +110,8 @@ function addPerWorldDeleteButtons() {
                 await deleteWorldSeed(seed);
                 card.remove();
                 const count = document.getElementById("savedWorldsCount");
-                if (count) {
-                    const total = grid.querySelectorAll(".savedWorldCard").length;
-                    count.textContent = `${total} saved world${total === 1 ? "" : "s"}`;
-                }
-            } catch (error) {
-                button.disabled = false;
-                window.alert(error?.message || "Could not delete this world.");
-            }
+                if (count) { const total = grid.querySelectorAll(".savedWorldCard").length; count.textContent = `${total} saved world${total === 1 ? "" : "s"}`; }
+            } catch (error) { button.disabled = false; window.alert(error?.message || "Could not delete this world."); }
         });
         actions.appendChild(button);
     }
@@ -170,46 +123,72 @@ function setupWorldManagement() {
     const overlay = document.getElementById("savedWorlds");
     if (!overlay || overlay.dataset.managementFixesInstalled) return;
     overlay.dataset.managementFixesInstalled = "1";
-    const observer = new MutationObserver(() => {
-        addDeleteAllButton();
-        addPerWorldDeleteButtons();
-    });
+    const observer = new MutationObserver(() => { addDeleteAllButton(); addPerWorldDeleteButtons(); });
     const header = document.getElementById("savedWorldsHeader");
     const grid = document.getElementById("savedWorldsGrid");
     if (header) observer.observe(header, { childList:true, subtree:true });
     if (grid) observer.observe(grid, { childList:true, subtree:true });
 }
 
-function setupMobileForwardBackFix() {
+function setupMobileJoystick() {
     const attach = () => {
-        const forward = document.getElementById("moveForward");
-        const back = document.getElementById("moveBack");
-        if (!forward || !back) return;
-        if (forward.dataset.directionFixInstalled) return;
-        forward.dataset.directionFixInstalled = "1";
-        back.dataset.directionFixInstalled = "1";
+        const pad = document.getElementById("touchMovePad");
+        if (!pad || pad.dataset.joystickInstalled) return;
+        pad.dataset.joystickInstalled = "1";
+        pad.innerHTML = `<div id="mobileJoystickBase" aria-label="Movement joystick"><div id="mobileJoystickThumb"></div></div>`;
+        const base = pad.querySelector("#mobileJoystickBase");
+        const thumb = pad.querySelector("#mobileJoystickThumb");
+        let pointerId = null;
+        const radius = 58;
 
-        let forwardDown = false;
-        let backDown = false;
-        const update = () => {
-            if (forwardDown && !backDown) touchInput.moveZ = Math.abs(touchInput.moveZ) || 1;
-            else if (backDown && !forwardDown) touchInput.moveZ = -Math.abs(touchInput.moveZ) || -1;
+        const update = (clientX, clientY) => {
+            const rect = base.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let dx = clientX - cx;
+            let dy = clientY - cy;
+            const distance = Math.hypot(dx, dy);
+            if (distance > radius) { dx = dx / distance * radius; dy = dy / distance * radius; }
+            touchInput.moveX = dx / radius;
+            touchInput.moveZ = dy / radius;
+            thumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
         };
+        const reset = () => {
+            pointerId = null;
+            touchInput.moveX = 0;
+            touchInput.moveZ = 0;
+            thumb.style.transform = "translate(-50%, -50%)";
+            base.classList.remove("active");
+        };
+        base.addEventListener("pointerdown", event => {
+            event.preventDefault(); event.stopPropagation();
+            if (pointerId !== null) return;
+            pointerId = event.pointerId;
+            base.setPointerCapture?.(event.pointerId);
+            base.classList.add("active");
+            update(event.clientX, event.clientY);
+        }, { passive:false });
+        base.addEventListener("pointermove", event => {
+            if (event.pointerId !== pointerId) return;
+            event.preventDefault(); update(event.clientX, event.clientY);
+        }, { passive:false });
+        base.addEventListener("pointerup", reset);
+        base.addEventListener("pointercancel", reset);
+        base.addEventListener("lostpointercapture", reset);
 
-        forward.addEventListener("pointerdown", () => { forwardDown = true; update(); });
-        back.addEventListener("pointerdown", () => { backDown = true; update(); });
-        const releaseForward = () => { forwardDown = false; };
-        const releaseBack = () => { backDown = false; };
-        forward.addEventListener("pointerup", releaseForward);
-        forward.addEventListener("pointercancel", releaseForward);
-        forward.addEventListener("lostpointercapture", releaseForward);
-        back.addEventListener("pointerup", releaseBack);
-        back.addEventListener("pointercancel", releaseBack);
-        back.addEventListener("lostpointercapture", releaseBack);
-
-        window.setInterval(update, 16);
+        const style = document.createElement("style");
+        style.id = "mobileJoystickStyles";
+        style.textContent = `
+body.mobile-mode.webminecraft-in-world #touchMovePad{width:132px !important;height:132px !important;display:block !important;pointer-events:none !important;filter:none !important}
+#touchMovePad .moveKey{display:none !important}
+#mobileJoystickBase{position:absolute;left:0;bottom:0;width:132px;height:132px;border-radius:50%;box-sizing:border-box;border:3px solid rgba(255,255,255,.32);background:rgba(0,0,0,.32);box-shadow:inset 0 0 0 2px rgba(0,0,0,.35),0 3px 8px rgba(0,0,0,.45);pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
+#mobileJoystickBase.active{background:rgba(0,0,0,.4)}
+#mobileJoystickThumb{position:absolute;left:50%;top:50%;width:62px;height:62px;border-radius:50%;box-sizing:border-box;border:3px solid rgba(255,255,255,.55);background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 2px rgba(0,0,0,.28),0 2px 6px rgba(0,0,0,.45);pointer-events:none;transform:translate(-50%,-50%)}
+@media(max-width:700px){body.mobile-mode.webminecraft-in-world #touchMovePad{transform:none !important}}
+@media(orientation:portrait){body.mobile-mode.webminecraft-in-world #touchMovePad{width:118px !important;height:118px !important}#mobileJoystickBase{width:118px;height:118px}}
+`;
+        document.head.appendChild(style);
     };
-
     attach();
     const observer = new MutationObserver(attach);
     observer.observe(document.body, { childList:true, subtree:true });
@@ -218,7 +197,7 @@ function setupMobileForwardBackFix() {
 function init() {
     addGameplayLayoutStyles();
     setupWorldManagement();
-    setupMobileForwardBackFix();
+    setupMobileJoystick();
     const observer = new MutationObserver(() => setupWorldManagement());
     observer.observe(document.body, { childList:true, subtree:true });
 }
