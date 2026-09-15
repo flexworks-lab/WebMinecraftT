@@ -1,7 +1,5 @@
 // Isolated UI fixes for News + developer live-server controls.
-// The server list is re-rendered during polling, which can replace the chat
-// input node. Capture the old node from MutationObserver records before it is
-// lost, then restore its exact text into the new input.
+// Keep developer server-chat drafts alive while the server list polls/re-renders.
 
 let observerInstalled = false;
 const adminDrafts = new Map();
@@ -19,10 +17,25 @@ function serverIdFromInput(input) {
     return serverIdFromCard(input?.closest?.(".devServerCard"));
 }
 
+function isAdminChatInput(input) {
+    return input instanceof HTMLInputElement && input.classList.contains("devServerChatInput");
+}
+
 function rememberAdminDraft(input) {
-    if (!(input instanceof HTMLInputElement) || !input.classList.contains("devServerChatInput")) return;
+    if (!isAdminChatInput(input)) return;
     const id = serverIdFromInput(input);
     if (id) adminDrafts.set(id, input.value);
+}
+
+function rememberVisibleDrafts() {
+    for (const input of document.querySelectorAll(".devServerChatInput")) {
+        const id = serverIdFromInput(input);
+        if (!id) continue;
+        // Once a developer has started typing, keep the exact current value.
+        if (document.activeElement === input || input.value !== "") {
+            adminDrafts.set(id, input.value);
+        }
+    }
 }
 
 function captureRemovedInputs(records) {
@@ -31,11 +44,8 @@ function captureRemovedInputs(records) {
             if (!(removed instanceof Element)) continue;
             const inputs = [];
             if (removed.matches?.(".devServerChatInput")) inputs.push(removed);
-            inputs.push(...removed.querySelectorAll?.(".devServerChatInput") || []);
-            for (const input of inputs) {
-                const id = serverIdFromInput(input);
-                if (id) adminDrafts.set(id, input.value);
-            }
+            inputs.push(...(removed.querySelectorAll?.(".devServerChatInput") || []));
+            for (const input of inputs) rememberAdminDraft(input);
         }
     }
 }
@@ -45,13 +55,41 @@ function restoreAdminDrafts() {
         const id = serverIdFromInput(input);
         if (!id || !adminDrafts.has(id)) continue;
         const draft = adminDrafts.get(id) ?? "";
-        if (input.value !== draft) input.value = draft;
+        if (input.value !== draft) {
+            const active = document.activeElement === input;
+            input.value = draft;
+            if (active) {
+                try { input.setSelectionRange(input.value.length, input.value.length); } catch {}
+            }
+        }
+    }
+}
+
+function clearDraftForInput(input) {
+    if (!isAdminChatInput(input)) return;
+    const id = serverIdFromInput(input);
+    if (id) adminDrafts.delete(id);
+}
+
+function handlePotentialSend(event) {
+    const target = event.target;
+    if (target instanceof Element) {
+        const sendButton = target.closest(".devServerChatSend");
+        if (sendButton) {
+            const card = sendButton.closest(".devServerCard");
+            const input = card?.querySelector(".devServerChatInput");
+            clearDraftForInput(input);
+            return;
+        }
+    }
+    if (event.type === "keydown" && event.key === "Enter" && isAdminChatInput(target)) {
+        clearDraftForInput(target);
     }
 }
 
 function cleanupDrafts() {
     for (const [id, draft] of adminDrafts) {
-        if (draft === "" && !document.querySelector(`.devServerCard[data-server-id="${CSS.escape(id)}"]`)) {
+        if (!draft && !document.querySelector(`.devServerCard[data-server-id="${CSS.escape(id)}"]`)) {
             adminDrafts.delete(id);
         }
     }
@@ -96,14 +134,18 @@ function install() {
     observerInstalled = true;
     improveAdminServerUI();
 
-    document.addEventListener("input", event => rememberAdminDraft(event.target), true);
     document.addEventListener("beforeinput", event => rememberAdminDraft(event.target), true);
+    document.addEventListener("input", event => rememberAdminDraft(event.target), true);
+    document.addEventListener("keyup", event => rememberAdminDraft(event.target), true);
     document.addEventListener("focusin", event => rememberAdminDraft(event.target), true);
+    document.addEventListener("focusout", event => rememberAdminDraft(event.target), true);
+    document.addEventListener("click", handlePotentialSend, true);
+    document.addEventListener("keydown", handlePotentialSend, true);
 
     const observer = new MutationObserver(records => {
-        // IMPORTANT: read removed nodes first. Their input.value still exists
-        // here, even though the node is no longer attached to the document.
+        // Capture removed inputs before they become unreachable.
         captureRemovedInputs(records);
+        rememberVisibleDrafts();
         restoreAdminDrafts();
         applyNewsFix();
         cleanupDrafts();
@@ -111,11 +153,16 @@ function install() {
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    setInterval(() => {
+    // Extra guard against any refresh that replaces the input between DOM
+    // mutation callbacks. This runs often enough that typing never visibly
+    // disappears, while still leaving server refreshes free to update chat.
+    const guard = setInterval(() => {
+        rememberVisibleDrafts();
         restoreAdminDrafts();
         applyNewsFix();
-    }, 100);
+    }, 25);
 
+    window.addEventListener("beforeunload", () => clearInterval(guard), { once: true });
     applyNewsFix();
     restoreAdminDrafts();
 }
