@@ -1,3 +1,5 @@
+import { isSurvivalWorld } from "./survivalMode.js";
+
 const STORAGE_KEY = "webminecraft-progression-v1";
 
 function loadProgress() {
@@ -41,7 +43,7 @@ function initProgressionHud() {
 .progressTitle{font:700 12px monospace;margin-bottom:6px;letter-spacing:.6px}.progressRow{display:flex;justify-content:space-between;gap:8px}.progressRow.muted{margin-top:5px;color:#bbb;font-size:10px}.progressBar{height:6px;margin-top:5px;background:#111;border:1px solid #000;border-radius:3px;overflow:hidden}.progressBar i{display:block;width:0;height:100%;background:linear-gradient(90deg,#6fa34d,#b7d96f);transition:width .25s ease}
 #webMinecraftAchievementToast{position:fixed;left:50%;top:13%;transform:translate(-50%,-18px) scale(.98);opacity:0;z-index:10020;padding:10px 16px;border:2px solid #111;border-top-color:#999;border-left-color:#999;border-radius:7px;background:rgba(22,22,22,.94);color:#fff;font:700 13px Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.45);pointer-events:none;text-shadow:1px 1px 0 #000;transition:opacity .18s ease,transform .18s ease}
 #webMinecraftAchievementToast.show{opacity:1;transform:translate(-50%,0) scale(1)}
-body:not(.webminecraft-in-world) #webMinecraftProgressHud,body:not(.webminecraft-in-world) #webMinecraftAchievementToast{display:none}
+body:not(.webminecraft-in-world) #webMinecraftProgressHud,body:not(.webminecraft-in-world) #webMinecraftAchievementToast,body.webminecraft-creative #webMinecraftProgressHud,body.webminecraft-creative #webMinecraftAchievementToast{display:none}
 @media(max-width:600px){#webMinecraftProgressHud{top:8px;right:8px;width:155px;padding:7px 8px;font-size:10px}.progressTitle{font-size:11px}}
 `;
     document.head.appendChild(style);
@@ -78,6 +80,7 @@ body:not(.webminecraft-in-world) #webMinecraftProgressHud,body:not(.webminecraft
 
     function handleBlockChange(event) {
         if (!document.body.classList.contains("webminecraft-in-world")) return;
+        if (!isSurvivalWorld()) return;
         const now = performance.now();
         streak = now - lastActionAt < 2200 ? streak + 1 : 1;
         lastActionAt = now;
