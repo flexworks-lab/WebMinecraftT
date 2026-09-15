@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { sendBlockChange } from "./multiplayerClient.js";
 import { sendTNTIgnite } from "./tntMultiplayer.js";
-import { blockGeometry, tntMaterial, sandMaterial } from "./blocks.js";
+import { blockGeometry, tntMaterial, sandMaterial, gravelMaterial } from "./blocks.js";
 
 const FLINT_AND_STEEL_ITEM_ID = 16;
 const FUSE_MS = 2500;
@@ -12,6 +12,8 @@ const TNT_GRAVITY = 22;
 const TNT_MAX_FALL_SPEED = 28;
 const SAND_GRAVITY = 22;
 const SAND_MAX_FALL_SPEED = 28;
+const GRAVEL_GRAVITY = 22;
+const GRAVEL_MAX_FALL_SPEED = 28;
 const MAX_TNT_CHAIN_DELAY = 300;
 const MAX_ACTIVE_EXPLOSIONS = 12;
 
@@ -29,6 +31,7 @@ const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
 const primed = new Set();
 const fallingSand = new Map();
+const fallingGravel = new Map();
 const activeExplosions = new Set();
 let suppressPhysicsBlockEvent = false;
 let lastScene = null;
@@ -74,16 +77,38 @@ function activateFallingSand(scene, x, y, z) {
     }
     return true;
 }
+function activateFallingGravel(scene, x, y, z) {
+    const key = makeKey(x, y, z), BLOCK = getBlockTypes();
+    if (fallingGravel.has(key) || getBlockAt(x, y, z) !== BLOCK.GRAVEL) return false;
+    if (isSolidBlock(getBlockAt(x, y - 1, z), BLOCK)) return false;
+    const mesh = createDynamicBlock(scene, x, y, z, [gravelMaterial], "gravel");
+    fallingGravel.set(key, { x, y, z, velocity: 0, mesh });
+    if (!setBlockFromPhysics(x, y, z, BLOCK.AIR)) {
+        fallingGravel.delete(key); disposeDynamicMesh(mesh); return false;
+    }
+    return true;
+}
 function tryTrackSandAt(scene, x, y, z) {
     const BLOCK = getBlockTypes();
     if (getBlockAt(x, y, z) !== BLOCK.SAND) return;
     activateFallingSand(scene, x, y, z);
 }
+function tryTrackGravelAt(scene, x, y, z) {
+    const BLOCK = getBlockTypes();
+    if (getBlockAt(x, y, z) !== BLOCK.GRAVEL) return;
+    activateFallingGravel(scene, x, y, z);
+}
 function processBlockChangeForPhysics(scene, detail) {
     if (suppressPhysicsBlockEvent || !scene || !detail) return;
-    const { x, y, z, type } = detail, BLOCK = getBlockTypes();
+    const { x, y, z, type }, BLOCK = getBlockTypes();
     if (type === BLOCK.SAND) { tryTrackSandAt(scene, x, y, z); return; }
-    if (type === BLOCK.AIR) for (let offset = 1; offset <= 4; offset++) tryTrackSandAt(scene, x, y + offset, z);
+    if (type === BLOCK.GRAVEL) { tryTrackGravelAt(scene, x, y, z); return; }
+    if (type === BLOCK.AIR) {
+        for (let offset = 1; offset <= 4; offset++) {
+            tryTrackSandAt(scene, x, y + offset, z);
+            tryTrackGravelAt(scene, x, y + offset, z);
+        }
+    }
 }
 function getLandingY(x, startY, nextY, z, BLOCK) {
     const highestSupportY = Math.floor(startY - 0.5 + 0.00001);
@@ -109,12 +134,28 @@ function updateFallingSand(deltaTime) {
         if (nextY < -60) { fallingSand.delete(key); disposeDynamicMesh(entity.mesh); }
     }
 }
+function updateFallingGravel(deltaTime) {
+    if (!lastScene || fallingGravel.size === 0) return;
+    const BLOCK = getBlockTypes(), dt = Math.min(Math.max(deltaTime, 0), 0.05);
+    for (const [key, entity] of fallingGravel) {
+        if (!entity.mesh?.parent) { fallingGravel.delete(key); continue; }
+        entity.velocity = Math.min(entity.velocity + GRAVEL_GRAVITY * dt, GRAVEL_MAX_FALL_SPEED);
+        const startY = entity.y, nextY = startY - entity.velocity * dt;
+        const landingY = getLandingY(entity.x, startY, nextY, entity.z, BLOCK);
+        if (landingY !== null && landingY <= startY) {
+            entity.y = landingY; entity.mesh.position.y = landingY; fallingGravel.delete(key); disposeDynamicMesh(entity.mesh);
+            setBlockFromPhysics(entity.x, landingY, entity.z, BLOCK.GRAVEL); continue;
+        }
+        entity.y = nextY; entity.mesh.position.y = nextY;
+        if (nextY < -60) { fallingGravel.delete(key); disposeDynamicMesh(entity.mesh); }
+    }
+}
 function startPhysicsLoop() {
     if (physicsLoopStarted) return;
     physicsLoopStarted = true;
     const loop = time => {
         const deltaTime = Math.min((time - lastPhysicsTime) / 1000, 0.05);
-        lastPhysicsTime = time; updateFallingSand(deltaTime); requestAnimationFrame(loop);
+        lastPhysicsTime = time; updateFallingSand(deltaTime); updateFallingGravel(deltaTime); requestAnimationFrame(loop);
     };
     lastPhysicsTime = performance.now(); requestAnimationFrame(loop);
 }
@@ -258,5 +299,5 @@ export function tryIgniteTNT(scene, camera, itemId) {
     if (!target || target.type !== BLOCK.TNT) return false;
     return startFuse(scene, target.x, target.y, target.z, true, false);
 }
-export function updateTNTPhysics(scene, deltaTime) { lastScene = scene; updateFallingSand(deltaTime); }
+export function updateTNTPhysics(scene, deltaTime) { lastScene = scene; updateFallingSand(deltaTime); updateFallingGravel(deltaTime); }
 export function registerTNTPhysicsScene(scene) { lastScene = scene; startPhysicsLoop(); }
