@@ -12,10 +12,17 @@ function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt
 function styles(){
  if(document.getElementById("adminManagementStyles"))return;
  const s=document.createElement("style");s.id="adminManagementStyles";s.textContent=`
-#adminManagementSection{display:block!important;margin-bottom:14px;padding:14px;background:#202020;border:1px solid #444;color:#fff}
-#adminManagementSection h3{margin:0 0 8px;font-family:MinecraftFont,monospace;font-size:15px}
-.adminManageRow{display:flex;gap:8px;margin:10px 0}.adminManageInput{flex:1;min-width:0;background:#111;color:#fff;border:2px solid #555;padding:9px;font-size:12px;outline:none}.adminManageInput:focus{border-color:#aaa}
-.adminManageStatus{min-height:18px;font-size:11px;color:#9fce72;margin:5px 0}.adminManageStatus.error{color:#e38a7b}.adminManageList{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto}.adminManageItem{display:flex;align-items:center;gap:8px;padding:8px;background:#151515;border:1px solid #444;font-size:11px}.adminManageIdentity{flex:1;min-width:0}.adminManageEmail{font-weight:700;word-break:break-all}.adminManageUid{margin-top:3px;color:#888;word-break:break-all;font-size:9px}.adminManageToggle{background:#633f3b;color:#fff;border:1px solid #111;padding:6px 9px;font-size:9px;cursor:pointer;white-space:nowrap}.adminManageToggle.on{background:#526f3c}.adminManageRemove{background:#8b3f3f;color:#fff;border:1px solid #111;padding:6px 9px;font-size:9px;cursor:pointer;white-space:nowrap}@media(max-width:650px){.adminManageRow{flex-direction:column}.adminManageRow .devButton{width:100%}.adminManageItem{align-items:stretch;flex-wrap:wrap}.adminManageIdentity{flex-basis:100%}}
+#adminManagementSection{position:relative;display:block!important;margin:0 0 18px;padding:0;overflow:hidden;background:linear-gradient(145deg,#242529,#17181b);border:1px solid #41434a;border-radius:14px;color:#fff;box-shadow:0 8px 25px rgba(0,0,0,.24)}
+#adminManagementSection:before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:3px;background:linear-gradient(90deg,#83b85b,#a8d878,#638e42);opacity:.9}
+.adminManageHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 18px 14px;border-bottom:1px solid #36383e;background:rgba(255,255,255,.02)}
+.adminManageTitleWrap{min-width:0}.adminManageTitle{margin:0;font-family:MinecraftFont,monospace;font-size:17px;line-height:1.2;text-shadow:2px 2px 0 #000}.adminManageSubtitle{margin:6px 0 0;color:#9b9da5;font-size:11px;line-height:1.5;max-width:620px}.adminManageBadge{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;padding:6px 9px;border-radius:999px;background:#20311d;border:1px solid #3f6632;color:#a7d67d;font-size:10px;font-weight:700;white-space:nowrap}
+.adminManageBody{padding:16px 18px 18px}.adminManageForm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px}.adminManageInput{width:100%;min-width:0;height:42px;background:#0f1012;color:#fff;border:1px solid #4a4d54;border-radius:9px;padding:0 12px;font-size:12px;outline:none;box-shadow:inset 0 1px 1px rgba(0,0,0,.25)}.adminManageInput::placeholder{color:#6e7179}.adminManageInput:focus{border-color:#7caa5b;box-shadow:0 0 0 3px rgba(124,170,91,.12)}
+.adminManageAdd{height:42px;padding:0 15px;border:1px solid #789b5a;border-radius:9px;background:linear-gradient(#6d914f,#526f3b);color:#fff;font-weight:800;font-size:12px;cursor:pointer;box-shadow:0 3px 0 #26341d;white-space:nowrap}.adminManageAdd:hover{filter:brightness(1.08)}.adminManageAdd:active{transform:translateY(1px);box-shadow:0 2px 0 #26341d}
+.adminManageStatus{min-height:18px;margin:8px 2px 10px;font-size:11px;color:#9fce72}.adminManageStatus.error{color:#e28a7d}
+.adminManageList{display:flex;flex-direction:column;gap:8px;max-height:250px;overflow:auto;padding-right:2px}.adminManageList::-webkit-scrollbar{width:8px}.adminManageList::-webkit-scrollbar-track{background:#151619}.adminManageList::-webkit-scrollbar-thumb{background:#41444b;border-radius:8px}
+.adminManageItem{display:flex;align-items:center;gap:11px;padding:11px 12px;background:#191a1d;border:1px solid #34363c;border-radius:11px}.adminManageItem:hover{border-color:#4b5058;background:#1d1e22}.adminManageAvatar{width:34px;height:34px;flex:0 0 34px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#719753,#4d6938);color:#fff;font-weight:900;font-size:12px}.adminManageIdentity{flex:1;min-width:0}.adminManageEmail{font-weight:800;font-size:11px;word-break:break-all}.adminManageUid{margin-top:3px;color:#777b84;word-break:break-all;font-size:9px}.adminManageActions{display:flex;gap:6px;flex:0 0 auto}.adminManageToggle,.adminManageRemove{height:32px;padding:0 10px;border-radius:8px;border:1px solid #3f4248;color:#fff;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}.adminManageToggle{background:#49312f;border-color:#68433f}.adminManageToggle.on{background:#2d4725;border-color:#4d713e;color:#bfe399}.adminManageToggle:hover,.adminManageRemove:hover{filter:brightness(1.08)}.adminManageRemove{background:#392527;border-color:#5a3638;color:#f2a0a0}
+.adminManageEmpty{padding:18px;text-align:center;background:#151619;border:1px dashed #383b42;border-radius:10px;color:#767982;font-size:11px}.adminManageFoot{display:flex;align-items:center;gap:7px;margin-top:11px;color:#767982;font-size:9px}.adminManageDot{width:6px;height:6px;border-radius:50%;background:#7fad59;box-shadow:0 0 0 3px rgba(127,173,89,.1)}
+@media(max-width:650px){.adminManageHeader{padding:16px 14px 13px}.adminManageBody{padding:14px}.adminManageForm{grid-template-columns:1fr}.adminManageAdd{width:100%}.adminManageItem{align-items:flex-start;flex-wrap:wrap}.adminManageIdentity{min-width:calc(100% - 45px)}.adminManageActions{width:100%;margin-left:45px}.adminManageToggle,.adminManageRemove{flex:1}.adminManageBadge{font-size:9px;padding:5px 7px}}
 `;document.head.appendChild(s);
 }
 
@@ -28,17 +35,17 @@ async function refresh(){
  try{
   const snap=await firestore.collection(ADMIN_COLLECTION).get();list.innerHTML="";
   const docs=snap.docs.filter(d=>String(d.id)!==String(currentUser()?.uid||""));
-  if(!docs.length){list.innerHTML='<div class="devHint">No admins added yet.</div>';return;}
+  if(!docs.length){list.innerHTML='<div class="adminManageEmpty">No additional admins yet.<br>Add an account above to give it moderation access.</div>';return;}
   const rows=await Promise.all(docs.map(async doc=>{
    const data=doc.data()||{},uid=String(data.uid||doc.id),enabled=data.enabled===true,email=await getProfileEmail(firestore,uid);
    const row=document.createElement("div");row.className="adminManageItem";
-   row.innerHTML=`<div class="adminManageIdentity"><div class="adminManageEmail">${esc(email||"Email not synced yet")}</div><div class="adminManageUid">UID: ${esc(uid)}</div></div><button class="adminManageToggle ${enabled?"on":""}" type="button">${enabled?"Turn Off":"Turn On"}</button><button class="adminManageRemove" type="button">Remove</button>`;
+   row.innerHTML=`<div class="adminManageAvatar">🛡</div><div class="adminManageIdentity"><div class="adminManageEmail">${esc(email||"Email not synced yet")}</div><div class="adminManageUid">UID: ${esc(uid)}</div></div><div class="adminManageActions"><button class="adminManageToggle ${enabled?"on":""}" type="button">${enabled?"Enabled":"Disabled"}</button><button class="adminManageRemove" type="button">Remove</button></div>`;
    row.querySelector(".adminManageToggle").onclick=async()=>{try{await firestore.collection(ADMIN_COLLECTION).doc(doc.id).set({uid,enabled:!enabled,updatedAt:new Date()},{merge:true});await refresh();}catch(e){alert(e?.message||"Could not change admin status.");}};
-   row.querySelector(".adminManageRemove").onclick=async()=>{if(!confirm(`Remove ${email||uid} from admins completely?`))return;try{await firestore.collection(ADMIN_COLLECTION).doc(doc.id).delete();await refresh();}catch(e){alert(e?.message||"Could not remove admin.");}};
+   row.querySelector(".adminManageRemove").onclick=async()=>{if(!confirm(`Remove ${email||uid} from Admin Controls completely?`))return;try{await firestore.collection(ADMIN_COLLECTION).doc(doc.id).delete();await refresh();}catch(e){alert(e?.message||"Could not remove admin.");}};
    return row;
   }));
   rows.forEach(row=>list.appendChild(row));
- }catch(e){list.innerHTML=`<div class="devHint">Could not load admins: ${esc(e?.message||"Unknown error")}</div>`;}
+ }catch(e){list.innerHTML=`<div class="adminManageEmpty">Could not load admins.<br>${esc(e?.message||"Unknown error")}</div>`;}
 }
 
 function install(){
@@ -46,15 +53,15 @@ function install(){
  if(!isDeveloper()){document.getElementById("adminManagementSection")?.remove();return;}
  if(document.getElementById("adminManagementSection"))return;
  styles();
- const section=document.createElement("section");section.className="devSection";section.id="adminManagementSection";section.innerHTML=`<h3>Admin Accounts</h3><p class="devHint">Give an account Admin Controls. Admins can view Live Multiplayer Servers, kick players, and moderate Discussions. They cannot shut down or delete servers.</p><div class="adminManageRow"><input id="adminManageUid" class="adminManageInput" type="text" maxlength="128" placeholder="Player Firebase UID" autocomplete="off"><button id="adminManageAdd" class="devButton good" type="button">Make Admin</button></div><div id="adminManageStatus" class="adminManageStatus"></div><div id="adminManageList" class="adminManageList"><div class="devHint">Loading admins...</div></div>`;
+ const section=document.createElement("section");section.className="devSection";section.id="adminManagementSection";section.innerHTML=`<div class="adminManageHeader"><div class="adminManageTitleWrap"><h3 class="adminManageTitle">Admin Controls</h3><p class="adminManageSubtitle">Manage trusted moderators for WebMinecraft. Admins can view live multiplayer servers, kick players, and moderate discussions. They cannot shut down or delete servers.</p></div><div class="adminManageBadge">● OWNER</div></div><div class="adminManageBody"><div class="adminManageForm"><input id="adminManageUid" class="adminManageInput" type="text" maxlength="128" placeholder="Enter a player's Firebase UID" autocomplete="off"><button id="adminManageAdd" class="adminManageAdd" type="button">+ Add Admin</button></div><div id="adminManageStatus" class="adminManageStatus"></div><div id="adminManageList" class="adminManageList"><div class="adminManageEmpty">Loading admins...</div></div><div class="adminManageFoot"><span class="adminManageDot"></span><span>Only the owner can add, disable, or remove administrators.</span></div></div>`;
  body.insertBefore(section,body.firstElementChild);
  const input=section.querySelector("#adminManageUid"),status=section.querySelector("#adminManageStatus");
  section.querySelector("#adminManageAdd").onclick=async()=>{
   const uid=input.value.trim();status.classList.remove("error");
   if(!/^[A-Za-z0-9_-]{1,128}$/.test(uid)){status.textContent="Enter a valid Firebase UID.";status.classList.add("error");return;}
-  if(uid===String(currentUser()?.uid||"")){status.textContent="The developer already has full access.";status.classList.add("error");return;}
+  if(uid===String(currentUser()?.uid||"")){status.textContent="The owner already has full access.";status.classList.add("error");return;}
   const firestore=db();if(!firestore){status.textContent="Firebase is not ready yet.";status.classList.add("error");return;}
-  try{await firestore.collection(ADMIN_COLLECTION).doc(uid).set({uid,enabled:true,createdAt:new Date(),updatedAt:new Date()},{merge:true});input.value="";status.textContent=`${uid} is now an admin.`;await refresh();}catch(e){status.textContent=e?.message||"Could not add admin.";status.classList.add("error");}
+  try{await firestore.collection(ADMIN_COLLECTION).doc(uid).set({uid,enabled:true,createdAt:new Date(),updatedAt:new Date()},{merge:true});input.value="";status.textContent=`${uid} now has Admin Controls.`;await refresh();}catch(e){status.textContent=e?.message||"Could not add admin.";status.classList.add("error");}
  };
  refresh();
 }
