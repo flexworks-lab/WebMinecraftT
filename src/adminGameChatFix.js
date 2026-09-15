@@ -30,9 +30,14 @@ function formatAdminPopupChat() {
         const strong = line.querySelector("strong");
         if (!strong || String(strong.textContent || "").trim().toLowerCase() !== "admin:") return;
 
-        strong.textContent = "admin";
-        strong.style.color = "#55ff55";
-        strong.style.textShadow = "1px 1px 2px #000";
+        const fullText = line.textContent || "";
+        const messageText = fullText.replace(/^admin:\s*/i, "");
+        line.innerHTML = "";
+
+        const label = document.createElement("strong");
+        label.textContent = "admin";
+        label.style.color = "#55ff55";
+        label.style.textShadow = "1px 1px 2px #000";
 
         const icon = document.createElement("span");
         icon.className = "adminChatVerify";
@@ -40,11 +45,11 @@ function formatAdminPopupChat() {
         icon.title = "Verified admin";
         icon.setAttribute("aria-label", "Verified admin");
 
-        const closeParen = document.createTextNode("):");
-        const openParen = document.createTextNode("(");
-        strong.insertAdjacentText("afterend", "(");
-        strong.insertAdjacentElement("afterend", icon);
-        icon.insertAdjacentText("afterend", "):");
+        line.appendChild(label);
+        line.appendChild(document.createTextNode("("));
+        line.appendChild(icon);
+        line.appendChild(document.createTextNode("): "));
+        line.appendChild(document.createTextNode(messageText));
         line.dataset.adminFormatted = "1";
     });
 }
