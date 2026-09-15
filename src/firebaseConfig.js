@@ -4,7 +4,7 @@
 import "./browserWorldFallback.js";
 
 export const firebaseConfig = {
-    apiKey: "AIzaSyByaINh47IFMYmnc9TY49aHTfTBe2u-jyU",
+    apiKey: "AIzaSyByaINh47IFMYmnc9Ty49aHTfTBe2u-jyU",
     authDomain: "webminecraft-f9064.firebaseapp.com",
     databaseURL: "https://webminecraft-f9064-default-rtdb.firebaseio.com",
     projectId: "webminecraft-f9064",
