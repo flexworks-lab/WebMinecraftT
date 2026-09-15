@@ -1,0 +1,218 @@
+name: Fix settings
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-settings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fix settings wiring
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          main = Path('src/main.js')
+          s = main.read_text()
+
+          old_defaults = 'const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };'
+          new_defaults = '''const defaults = {
+              graphicsQuality: "high",
+              renderDistance: "medium",
+              renderScale: 1,
+              lightingQuality: "high",
+              shadowQuality: "medium",
+              brightness: 1,
+              showPerformance: false,
+              showCoordinates: false,
+              shadows: true,
+              shadowQualityValue: 1024,
+              pixelRatio: 1
+          };'''
+          if old_defaults in s:
+              s = s.replace(old_defaults, new_defaults)
+
+          start = s.index('function getLightingProfile() {')
+          end = s.index('applySettings();', start) + len('applySettings();')
+          replacement = '''function getLightingProfile() {
+              if (settings.lightingQuality === "low") return { sun: 2.7, sky: 1.1, ambientFloor: 0.12, undergroundSun: 0.05 };
+              if (settings.lightingQuality === "medium") return { sun: 3.0, sky: 1.25, ambientFloor: 0.09, undergroundSun: 0.035 };
+              return { sun: 3.35, sky: 1.35, ambientFloor: 0.06, undergroundSun: 0.02 };
+          }
+          function syncDerivedSettings() {
+              const quality = settings.graphicsQuality || "high";
+              const qualityProfiles = {
+                  low: { pixelRatio: 0.75, shadowQualityValue: 0, lightingQuality: "low" },
+                  medium: { pixelRatio: 1, shadowQualityValue: 512, lightingQuality: "medium" },
+                  high: { pixelRatio: 1.15, shadowQualityValue: 1024, lightingQuality: "high" },
+                  fancy: { pixelRatio: 1.4, shadowQualityValue: 2048, lightingQuality: "high" }
+              };
+              const profile = qualityProfiles[quality] || qualityProfiles.high;
+              settings.pixelRatio = profile.pixelRatio * Number(settings.renderScale || 1);
+              settings.shadowQualityValue = profile.shadowQualityValue;
+              if (!settings.lightingQuality || settings.graphicsQuality !== quality) settings.lightingQuality = profile.lightingQuality;
+              if (settings.shadowQuality === "off") settings.shadows = false;
+              else {
+                  settings.shadows = true;
+                  const shadowMap = { low: 512, medium: 1024, high: 2048 };
+                  settings.shadowQualityValue = shadowMap[settings.shadowQuality] || profile.shadowQualityValue;
+              }
+          }
+          function applySettings() {
+              syncDerivedSettings();
+              renderer.shadowMap.enabled = !!settings.shadows;
+              sun.castShadow = !!settings.shadows;
+              const shadowSize = Math.max(256, Math.min(Number(settings.shadowQualityValue || 1024), 2048));
+              sun.shadow.mapSize.width = shadowSize;
+              sun.shadow.mapSize.height = shadowSize;
+              renderer.setPixelRatio(Math.min(Math.max(Number(settings.pixelRatio || 1), 0.5), 1.5));
+              renderer.toneMapping = THREE.ACESFilmicToneMapping;
+              renderer.shadowMap.type = THREE.PCFShadowMap;
+              for (const object of scene.children) {
+                  if (!object.isMesh) continue;
+                  object.castShadow = !!settings.shadows;
+                  object.receiveShadow = !!settings.shadows;
+              }
+              updateDepthLighting();
+              if (typeof window.setWebMinecraftRenderDistance === "function") window.setWebMinecraftRenderDistance(settings.renderDistance);
+              if (typeof window.setWebMinecraftPerformanceHud === "function") window.setWebMinecraftPerformanceHud(settings.showPerformance);
+              if (typeof window.setWebMinecraftCoordinates === "function") window.setWebMinecraftCoordinates(settings.showCoordinates);
+              updateSettingsControls();
+          }
+          applySettings();'''
+          s = s[:start] + replacement + s[end:]
+
+          old_controls = '''const shadowsToggle = document.getElementById("shadowsToggle");
+          const shadowQuality = document.getElementById("shadowQuality");
+          const pixelQuality = document.getElementById("pixelQuality");
+          const lightingQuality = document.getElementById("lightingQuality");
+          const brightnessControl = document.getElementById("brightnessControl");
+          if (shadowsToggle) { shadowsToggle.checked = settings.shadows; shadowsToggle.addEventListener("change", () => { settings.shadows = shadowsToggle.checked; saveSettings(); applySettings(); }); }
+          if (shadowQuality) { shadowQuality.value = String(settings.shadowQuality); shadowQuality.addEventListener("change", () => { settings.shadowQuality = Number(shadowQuality.value); saveSettings(); applySettings(); }); }
+          if (pixelQuality) { pixelQuality.value = String(settings.pixelRatio); pixelQuality.addEventListener("change", () => { settings.pixelRatio = Number(pixelQuality.value); saveSettings(); applySettings(); }); }
+          if (lightingQuality) { lightingQuality.value = settings.lightingQuality; lightingQuality.addEventListener("change", () => { settings.lightingQuality = lightingQuality.value; saveSettings(); applySettings(); }); }
+          if (brightnessControl) { brightnessControl.value = String(settings.brightness); brightnessControl.addEventListener("input", () => { settings.brightness = Number(brightnessControl.value); saveSettings(); applySettings(); }); }
+          '''
+          new_controls = '''const graphicsQuality = document.getElementById("graphicsQuality");
+          const renderDistance = document.getElementById("renderDistance");
+          const renderScale = document.getElementById("renderScale");
+          const lightingQuality = document.getElementById("lightingQuality");
+          const shadowQualityControl = document.getElementById("shadowQuality");
+          const brightness = document.getElementById("brightness");
+          const showPerformance = document.getElementById("showPerformance");
+          const showCoordinatesToggle = document.getElementById("showCoordinatesToggle");
+          const settingsTabs = Array.from(document.querySelectorAll(".settingsTab"));
+          const settingsGroups = Array.from(document.querySelectorAll(".settingsGroup"));
+
+          function updateSettingsControls() {
+              if (graphicsQuality) graphicsQuality.value = settings.graphicsQuality || "high";
+              if (renderDistance) renderDistance.value = settings.renderDistance || "medium";
+              if (renderScale) renderScale.value = String(settings.renderScale ?? 1);
+              if (lightingQuality) lightingQuality.value = settings.lightingQuality || "high";
+              if (shadowQualityControl) shadowQualityControl.value = settings.shadowQuality || "medium";
+              if (brightness) brightness.value = String(settings.brightness ?? 1);
+              if (showPerformance) showPerformance.checked = !!settings.showPerformance;
+              if (showCoordinatesToggle) showCoordinatesToggle.checked = !!settings.showCoordinates;
+          }
+          function settingChanged() { saveSettings(); applySettings(); }
+          graphicsQuality?.addEventListener("change", () => {
+              settings.graphicsQuality = graphicsQuality.value;
+              const map = { low: "low", medium: "medium", high: "high", fancy: "high" };
+              settings.lightingQuality = map[settings.graphicsQuality] || "high";
+              settingChanged();
+          });
+          renderDistance?.addEventListener("change", () => { settings.renderDistance = renderDistance.value; settingChanged(); });
+          renderScale?.addEventListener("input", () => { settings.renderScale = Number(renderScale.value); settingChanged(); });
+          lightingQuality?.addEventListener("change", () => { settings.lightingQuality = lightingQuality.value; settingChanged(); });
+          shadowQualityControl?.addEventListener("change", () => { settings.shadowQuality = shadowQualityControl.value; settingChanged(); });
+          brightness?.addEventListener("input", () => { settings.brightness = Number(brightness.value); settingChanged(); });
+          showPerformance?.addEventListener("change", () => { settings.showPerformance = showPerformance.checked; settingChanged(); });
+          showCoordinatesToggle?.addEventListener("change", () => { settings.showCoordinates = showCoordinatesToggle.checked; settingChanged(); });
+
+          const tabGroups = [
+              [settingsGroups[0], settingsGroups[1]],
+              [settingsGroups[0]],
+              [settingsGroups[2]]
+          ];
+          function activateSettingsTab(index) {
+              settingsTabs.forEach((tab, i) => tab.classList.toggle("active", i === index));
+              settingsGroups.forEach(group => { group.style.display = tabGroups[index]?.includes(group) ? "block" : "none"; });
+              const labels = ["Graphics", "Video", "Accessibility"];
+              const title = document.getElementById("settingsSectionTitle");
+              if (title) title.textContent = labels[index] || "Settings";
+          }
+          settingsTabs.forEach((tab, index) => tab.addEventListener("click", () => activateSettingsTab(index)));
+          activateSettingsTab(0);
+          updateSettingsControls();
+          '''
+          if old_controls in s:
+              s = s.replace(old_controls, new_controls)
+          else:
+              raise SystemExit('old settings wiring block not found')
+
+          # Fix the performance HUD so the new checkbox actually controls it.
+          old_hud = 'performanceHud.textContent = "FPS: -- | Chunks: -- | Calls: --";\ndocument.body.appendChild(performanceHud);\nsetMenuUiVisible(true);'
+          new_hud = '''performanceHud.textContent = "FPS: -- | Chunks: -- | Calls: --";
+          document.body.appendChild(performanceHud);
+          let coordinatesHud = document.getElementById("coordinatesHud");
+          if (!coordinatesHud) {
+              coordinatesHud = document.createElement("div");
+              coordinatesHud.id = "coordinatesHud";
+              coordinatesHud.style.cssText = "position:fixed;top:12px;left:12px;margin-top:48px;padding:6px 8px;background:rgba(0,0,0,.45);color:white;font:12px monospace;line-height:1.4;pointer-events:none;z-index:15;border-radius:5px;display:none;";
+              document.body.appendChild(coordinatesHud);
+          }
+          window.setWebMinecraftPerformanceHud = visible => { performanceHud.style.display = visible && gameStarted ? "block" : "none"; };
+          window.setWebMinecraftCoordinates = visible => { coordinatesHud.style.display = visible && gameStarted ? "block" : "none"; };
+          const updateHudExtras = () => {
+              if (gameStarted && settings.showCoordinates) coordinatesHud.textContent = `XYZ: ${camera.position.x.toFixed(1)} / ${camera.position.y.toFixed(1)} / ${camera.position.z.toFixed(1)}`;
+          };
+          setMenuUiVisible(true);'''
+          if old_hud in s:
+              s = s.replace(old_hud, new_hud)
+
+          old_interval = 'if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }'
+          new_interval = 'if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; updateHudExtras(); fpsFrames = 0; fpsTime = currentTime; }'
+          if old_interval in s:
+              s = s.replace(old_interval, new_interval)
+
+          main.write_text(s)
+
+          world = Path('src/world.js')
+          w = world.read_text()
+          w = w.replace('export const RENDER_DISTANCE = 6;\nexport const UNLOAD_DISTANCE = RENDER_DISTANCE + 2;', 'let RENDER_DISTANCE = 6;\nlet UNLOAD_DISTANCE = RENDER_DISTANCE + 2;\nexport function setRenderDistance(value) {\n    const map = { low: 4, medium: 6, high: 8 };\n    RENDER_DISTANCE = map[value] || 6;\n    UNLOAD_DISTANCE = RENDER_DISTANCE + 2;\n}')
+          world.write_text(w)
+
+          html = Path('index.html')
+          h = html.read_text()
+          h = h.replace('import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed } from "./world.js";', 'import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, setRenderDistance } from "./world.js";') if False else h
+          html.write_text(h)
+          PY
+
+      - name: Connect render distance setting and commit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/main.js')
+          s = p.read_text()
+          s = s.replace('import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed } from "./world.js";', 'import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, setRenderDistance } from "./world.js";')
+          s = s.replace('if (typeof window.setWebMinecraftRenderDistance === "function") window.setWebMinecraftRenderDistance(settings.renderDistance);', 'setRenderDistance(settings.renderDistance);')
+          s = s.replace('function setMobileMode(enabled)', 'function setMobileMode(enabled)')
+          p.write_text(s)
+          PY
+          git config user.name "Net_tech"
+          git config user.email "worthmarcus19@gmail.com"
+          git add src/main.js src/world.js
+          git commit -m "Fix all settings functionality"
+          git push
+
+      - name: Remove one-shot workflow
+        run: |
+          git rm .github/workflows/fix-settings.yml
+          git commit -m "Remove settings fix workflow"
+          git push
