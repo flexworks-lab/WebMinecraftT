@@ -10,6 +10,121 @@ for (const texture of [DOOR_TEXTURE, DOOR_TOP_TEXTURE]) {
     texture.colorSpace = THREE.SRGBColorSpace;
 }
 
+let doorCompositeDataUrl = null;
+let doorCompositeReady = false;
+let doorCompositeTexture = null;
+
+function loadDoorImage(file) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = texturePath(file);
+    });
+}
+
+async function buildFullDoorTexture() {
+    try {
+        const [bottom, top] = await Promise.all([
+            loadDoorImage("oak_door_bottom.png"),
+            loadDoorImage("oak_door_top.png")
+        ]);
+        const width = Math.max(bottom.naturalWidth || bottom.width, top.naturalWidth || top.width, 1);
+        const height = Math.max(bottom.naturalHeight || bottom.height, top.naturalHeight || top.height, 1);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height * 2;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(top, 0, 0, width, height);
+        ctx.drawImage(bottom, 0, height, width, height);
+        doorCompositeDataUrl = canvas.toDataURL("image/png");
+        doorCompositeReady = true;
+        if (doorCompositeTexture) {
+            doorCompositeTexture.image = canvas;
+            doorCompositeTexture.needsUpdate = true;
+        }
+        refreshDoorInventoryIcons();
+    } catch (error) {
+        console.warn("WebMinecraft: failed to combine oak door textures", error);
+    }
+}
+
+function refreshDoorInventoryIcons() {
+    if (!doorCompositeDataUrl) return;
+    document.querySelectorAll('[data-item-id="17"] .catalogTexture, [data-item-id="17"] .hotbarTexture, [data-item-id="17"] .inventoryTexture').forEach(element => {
+        element.style.backgroundImage = `url("${doorCompositeDataUrl}")`;
+        element.style.backgroundSize = "100% 100%";
+        element.style.backgroundPosition = "center";
+        element.style.backgroundRepeat = "no-repeat";
+        element.style.imageRendering = "pixelated";
+    });
+    document.querySelectorAll('.catalogTexture[style*="oak_door_bottom"], .hotbarTexture[style*="oak_door_bottom"], .inventoryTexture[style*="oak_door_bottom"]').forEach(element => {
+        element.style.backgroundImage = `url("${doorCompositeDataUrl}")`;
+        element.style.backgroundSize = "100% 100%";
+        element.style.backgroundPosition = "center";
+        element.style.backgroundRepeat = "no-repeat";
+        element.style.imageRendering = "pixelated";
+    });
+}
+
+function patchHeldDoorTexture() {
+    const originalLoad = THREE.TextureLoader.prototype.load;
+    if (originalLoad.__webMinecraftDoorPatched) return;
+    function patchedLoad(url, onLoad, onProgress, onError) {
+        if (typeof url === "string" && url.includes("oak_door_bottom.png")) {
+            const texture = originalLoad.call(this, url, onLoad, onProgress, onError);
+            const canvas = document.createElement("canvas");
+            canvas.width = 16;
+            canvas.height = 32;
+            const placeholder = canvas.getContext("2d");
+            if (placeholder) {
+                placeholder.clearRect(0, 0, 16, 32);
+                placeholder.fillStyle = "#6f4328";
+                placeholder.fillRect(0, 16, 16, 16);
+            }
+            const combined = new THREE.CanvasTexture(canvas);
+            combined.colorSpace = THREE.SRGBColorSpace;
+            combined.magFilter = THREE.NearestFilter;
+            combined.minFilter = THREE.NearestFilter;
+            combined.generateMipmaps = false;
+            doorCompositeTexture = combined;
+            if (doorCompositeReady) {
+                loadDoorImage("oak_door_bottom.png").then(() => {
+                    const image = new Image();
+                    image.onload = () => {
+                        const topImage = new Image();
+                        topImage.onload = () => {
+                            const ctx = canvas.getContext("2d");
+                            canvas.width = image.naturalWidth || image.width || 16;
+                            canvas.height = (image.naturalHeight || image.height || 16) * 2;
+                            ctx.imageSmoothingEnabled = false;
+                            ctx.drawImage(topImage, 0, 0, canvas.width, canvas.height / 2);
+                            ctx.drawImage(image, 0, canvas.height / 2, canvas.width, canvas.height / 2);
+                            combined.needsUpdate = true;
+                        };
+                        topImage.src = texturePath("oak_door_top.png");
+                    };
+                    image.src = texturePath("oak_door_bottom.png");
+                }).catch(() => {});
+            }
+            return combined;
+        }
+        return originalLoad.call(this, url, onLoad, onProgress, onError);
+    }
+    patchedLoad.__webMinecraftDoorPatched = true;
+    THREE.TextureLoader.prototype.load = patchedLoad;
+}
+
+patchHeldDoorTexture();
+buildFullDoorTexture();
+
+const inventoryIconObserver = new MutationObserver(() => refreshDoorInventoryIcons());
+if (document.body) inventoryIconObserver.observe(document.body, { childList: true, subtree: true });
+else window.addEventListener("DOMContentLoaded", () => inventoryIconObserver.observe(document.body, { childList: true, subtree: true }), { once: true });
+
 let scene = null;
 let camera = null;
 let selected = false;
