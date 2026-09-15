@@ -60,21 +60,10 @@ function addModePicker() {
     select.dataset.worldMode = "";
     select.innerHTML = `<option value="survival">Survival</option><option value="creative">Creative</option>`;
     const modes = [
-        { mode:"survival", icon:"⛏️", title:"Survival", desc:"Achievements enabled • normal movement" },
+        { mode:"survival", icon:"⛏️", title:"Survival", desc:"Achievements enabled • health • no flying" },
         { mode:"creative", icon:"🧱", title:"Creative", desc:"Achievements disabled • flying enabled" },
     ];
-
-    const cards = modes.map(({ mode, icon, title, desc }) => {
-        const card = document.createElement("button");
-        card.type = "button";
-        card.className = "sw2-mode-card";
-        card.dataset.mode = mode;
-        card.setAttribute("role", "radio");
-        card.innerHTML = `<span class="sw2-mode-check">✓</span><span class="sw2-mode-icon">${icon}</span><span class="sw2-mode-title">${title}</span><span class="sw2-mode-desc">${desc}</span>`;
-        card.addEventListener("click", () => setMode(mode));
-        picker.appendChild(card);
-        return card;
-    });
+    const cards = [];
 
     function setMode(mode) {
         select.value = mode;
@@ -83,16 +72,26 @@ function addModePicker() {
             card.classList.toggle("selected", selected);
             card.setAttribute("aria-checked", String(selected));
         });
-        select.dispatchEvent(new Event("change", { bubbles:true }));
     }
 
-    select.addEventListener("change", () => setMode(select.value));
+    for (const { mode, icon, title, desc } of modes) {
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "sw2-mode-card";
+        card.dataset.mode = mode;
+        card.setAttribute("role", "radio");
+        card.innerHTML = `<span class="sw2-mode-check">✓</span><span class="sw2-mode-icon">${icon}</span><span class="sw2-mode-title">${title}</span><span class="sw2-mode-desc">${desc}</span>`;
+        card.addEventListener("click", () => setMode(mode));
+        picker.appendChild(card);
+        cards.push(card);
+    }
+
     setMode("survival");
 
     const help = document.createElement("p");
     help.className = "sw2-help";
     help.style.margin = "10px 0 0";
-    help.textContent = "Survival gives you health, disables flight, and tracks your achievements. Creative is free-building with flight and no achievement progress.";
+    help.textContent = "Survival gives you health, disables flight, and tracks achievements. Creative is free-building with flight and no achievement progress.";
 
     const seed = modal.querySelector("[data-new-seed]");
     seed?.parentElement?.insertAdjacentElement("afterend", label);
