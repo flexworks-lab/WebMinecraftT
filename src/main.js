@@ -79,33 +79,54 @@ const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobil
 if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
-const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };
+const defaults = {
+    shadows: true,
+    shadowQuality: 1024,
+    pixelRatio: 1,
+    lightingQuality: "high",
+    brightness: 1,
+    graphicsQuality: "high",
+    renderDistance: "medium",
+    renderScale: 1,
+    showPerformance: false,
+    showCoordinates: false
+};
 let settings;
-try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
-catch { settings = { ...defaults }; }
-function saveSettings() { try { localStorage.setItem("webminecraft-settings", JSON.stringify(settings)); } catch {} }
+try {
+    const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null");
+    settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) };
+} catch {
+    settings = { ...defaults };
+}
+function saveSettings() {
+    try { localStorage.setItem("webminecraft-settings", JSON.stringify(settings)); } catch {}
+}
 function getLightingProfile() {
-    if (settings.lightingQuality === "performance") return { sun: 2.7, sky: 1.1, ambientFloor: 0.12, undergroundSun: 0.05 };
-    if (settings.lightingQuality === "balanced") return { sun: 3.0, sky: 1.25, ambientFloor: 0.09, undergroundSun: 0.035 };
+    if (settings.lightingQuality === "low") return { sun: 2.7, sky: 1.1, ambientFloor: 0.12, undergroundSun: 0.05 };
+    if (settings.lightingQuality === "medium") return { sun: 3.0, sky: 1.25, ambientFloor: 0.09, undergroundSun: 0.035 };
     return { sun: 3.35, sky: 1.35, ambientFloor: 0.06, undergroundSun: 0.02 };
 }
 function applySettings() {
-    renderer.shadowMap.enabled = settings.shadows;
-    sun.castShadow = settings.shadows;
+    renderer.shadowMap.enabled = settings.shadows && settings.shadowQuality > 0;
+    sun.castShadow = renderer.shadowMap.enabled;
     sun.shadow.mapSize.width = settings.shadowQuality;
     sun.shadow.mapSize.height = settings.shadowQuality;
-    renderer.setPixelRatio(Math.min(settings.pixelRatio, 1.5));
+    renderer.setPixelRatio(Math.min(Number(settings.renderScale ?? settings.pixelRatio ?? 1), 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMappingExposure = 0.9 + settings.brightness * 0.35;
     for (const object of scene.children) {
         if (!object.isMesh) continue;
-        object.castShadow = settings.shadows;
-        object.receiveShadow = settings.shadows;
+        object.castShadow = renderer.shadowMap.enabled;
+        object.receiveShadow = renderer.shadowMap.enabled;
     }
     updateDepthLighting();
+    if (performanceHud) performanceHud.style.display = settings.showPerformance ? "block" : "none";
 }
-function smoothStep(edge0, edge1, value) { const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1); return t * t * (3 - 2 * t); }
+function smoothStep(edge0, edge1, value) {
+    const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
+    return t * t * (3 - 2 * t);
+}
 function updateDepthLighting() {
     const y = camera.position.y;
     const underground = 1 - smoothStep(-1, 8, y);
@@ -115,14 +136,11 @@ function updateDepthLighting() {
     const sunlightFactor = THREE.MathUtils.lerp(1, profile.undergroundSun, underground);
     const skyFactor = THREE.MathUtils.lerp(1, profile.ambientFloor, underground);
     const exposure = THREE.MathUtils.lerp(1, 0.62, deepDark) * (0.9 + settings.brightness * 0.35);
-    const underwaterExposure = underwater ? 0.68 : 1;
-    const finalExposure = exposure * underwaterExposure;
     sun.intensity = profile.sun * sunlightFactor * (underwater ? 0.55 : 1);
     skyLight.intensity = profile.sky * skyFactor * (underwater ? 0.62 : 1);
     depthLight.intensity = underground * (0.08 + (1 - deepDark) * 0.08);
     depthLight.position.set(camera.position.x, camera.position.y + 1, camera.position.z);
-    renderer.toneMappingExposure = finalExposure;
-
+    renderer.toneMappingExposure = exposure * (underwater ? 0.68 : 1);
     if (underwater) {
         scene.background.lerpColors(skyColor, underwaterColor, 0.98);
         scene.fog.color.lerpColors(skyColor, underwaterColor, 0.98);
@@ -135,6 +153,8 @@ function updateDepthLighting() {
         scene.fog.far = THREE.MathUtils.lerp(120, 55, underground);
     }
 }
+
+let performanceHud;
 applySettings();
 
 const mainMenu = document.getElementById("mainMenu");
@@ -149,7 +169,6 @@ const seedLinkStatus = document.getElementById("seedLinkStatus");
 const copySeedButton = document.getElementById("copySeedButton");
 const copyWorldLinkButton = document.getElementById("copyWorldLinkButton");
 const openWorldButton = document.getElementById("openWorldButton");
-const openSeedButton = document.getElementById("openSeedButton");
 const mobileModeButton = document.getElementById("mobileModeButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsMenu = document.getElementById("settingsMenu");
@@ -158,19 +177,30 @@ const settingsCloseTop = document.getElementById("settingsCloseTop");
 const menuUpdates = document.getElementById("menuUpdates");
 const crosshair = document.getElementById("crosshair");
 const hotbar = document.getElementById("hotbar");
-function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); } }
-function closeSettingsMenu() { if (settingsMenu) { settingsMenu.style.display = "none"; if (gameStarted && !mobileMode) requestPointerLock(); } }
-function requestPointerLock() { if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) document.body.requestPointerLock?.(); }
-function setMobileMode(enabled) { const url = new URL(window.location.href); if (enabled) url.searchParams.set("mobile", "1"); else url.searchParams.delete("mobile"); url.searchParams.delete("mode"); window.location.href = url.toString(); }
+
+function openSettings() {
+    if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); }
+}
+function closeSettingsMenu() {
+    if (settingsMenu) { settingsMenu.style.display = "none"; if (gameStarted && !mobileMode) requestPointerLock(); }
+}
+function requestPointerLock() {
+    if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) document.body.requestPointerLock?.();
+}
+function setMobileMode(enabled) {
+    const url = new URL(window.location.href);
+    if (enabled) url.searchParams.set("mobile", "1"); else url.searchParams.delete("mobile");
+    url.searchParams.delete("mode");
+    window.location.href = url.toString();
+}
 function setMenuUiVisible(visible) {
     const display = visible ? "" : "none";
     if (crosshair) crosshair.style.display = display;
     if (hotbar) hotbar.style.display = display;
     if (settingsButton) settingsButton.style.display = display;
     if (menuUpdates) menuUpdates.style.display = visible ? "block" : "none";
-    if (performanceHud) performanceHud.style.display = display;
+    if (performanceHud) performanceHud.style.display = visible || !settings.showPerformance ? "none" : "block";
 }
-
 function findRandomSpawn() {
     const types = getBlockTypes();
     for (let attempt = 0; attempt < 700; attempt++) {
@@ -180,29 +210,20 @@ function findRandomSpawn() {
             if (getBlockAt(x, y, z) !== types.GRASS) continue;
             if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
             let safeLand = true;
-            for (let ox = -1; ox <= 1 && safeLand; ox++) {
-                for (let oz = -1; oz <= 1; oz++) {
-                    if (ox === 0 && oz === 0) continue;
-                    const below = getBlockAt(x + ox, y, z + oz);
-                    if (below !== types.GRASS && below !== types.DIRT) { safeLand = false; break; }
-                }
+            for (let ox = -1; ox <= 1 && safeLand; ox++) for (let oz = -1; oz <= 1; oz++) {
+                if (ox === 0 && oz === 0) continue;
+                const below = getBlockAt(x + ox, y, z + oz);
+                if (below !== types.GRASS && below !== types.DIRT) { safeLand = false; break; }
             }
-            if (safeLand) return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
+            if (safeLand) return { x: x + 0.5, y: y + 2.3, z: z + 0.5 };
             break;
         }
     }
-    for (let x = -16; x <= 16; x++) {
-        for (let z = -16; z <= 16; z++) {
-            for (let y = 60; y >= -31; y--) {
-                if (getBlockAt(x, y, z) !== types.GRASS) continue;
-                if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
-                return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
-            }
-        }
+    for (let x = -16; x <= 16; x++) for (let z = -16; z <= 16; z++) for (let y = 60; y >= -31; y--) {
+        if (getBlockAt(x, y, z) === types.GRASS && getBlockAt(x, y + 1, z) === types.AIR && getBlockAt(x, y + 2, z) === types.AIR) return { x: x + 0.5, y: y + 2.3, z: z + 0.5 };
     }
     return { x: 0.5, y: 80, z: 0.5 };
 }
-
 function spawnPlayer() {
     const spawn = findRandomSpawn();
     camera.up.set(0, 1, 0);
@@ -212,7 +233,6 @@ function spawnPlayer() {
     camera.rotation.order = "YXZ";
     camera.rotation.set(0, spawnYaw, 0);
     camera.updateMatrixWorld(true);
-    return true;
 }
 
 let seedMenuMode = "create";
@@ -221,9 +241,7 @@ function openSeedMenu(mode = "create") {
     seedMenuMode = mode;
     const currentSeed = mode === "create" ? makeNewSeed() : getWorldSeed();
     if (seedTitle) seedTitle.textContent = mode === "create" ? "Create World" : "Open World";
-    if (seedSubtitle) seedSubtitle.textContent = mode === "create"
-        ? "Your new world seed is below. Copy it to share the exact same world later."
-        : "Enter a seed number to return to the exact same world.";
+    if (seedSubtitle) seedSubtitle.textContent = mode === "create" ? "Your new world seed is below. Copy it to share the exact same world later." : "Enter a seed number to return to the exact same world.";
     if (seedInput) { seedInput.value = String(currentSeed); seedInput.focus(); seedInput.select(); }
     if (seedLinkStatus) seedLinkStatus.textContent = "";
     seedMenu.style.display = "flex";
@@ -246,13 +264,11 @@ function getSeedFromInput() {
 function setWorldUrl(seed) {
     const url = new URL(window.location.href);
     url.searchParams.set("seed", String(seed));
-    if (mobileMode) url.searchParams.set("mobile", "1");
-    else url.searchParams.delete("mobile");
+    if (mobileMode) url.searchParams.set("mobile", "1"); else url.searchParams.delete("mobile");
     window.history.replaceState({}, "", url.toString());
 }
 async function copyText(text) {
-    try { await navigator.clipboard.writeText(text); return true; }
-    catch {
+    try { await navigator.clipboard.writeText(text); return true; } catch {
         const helper = document.createElement("textarea");
         helper.value = text; helper.style.position = "fixed"; helper.style.opacity = "0";
         document.body.appendChild(helper); helper.select();
@@ -277,19 +293,11 @@ async function startWorldWithSeed(seed) {
 }
 
 initSavedWorlds({ onOpenWorld: startWorldWithSeed });
-
+if (playButton) playButton.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); openSeedMenu("create"); });
 if (multiplayerButton) multiplayerButton.addEventListener("click", async event => {
     event.preventDefault(); event.stopPropagation();
-    try {
-        const { openMultiplayerMenu } = await import("./multiplayerClient.js");
-        openMultiplayerMenu();
-    } catch (error) {
-        console.error("Failed to open multiplayer menu:", error);
-    }
-});
-if (openSeedButton) openSeedButton.addEventListener("click", event => {
-    event.preventDefault(); event.stopPropagation();
-    openSeedMenu("open");
+    try { const { openMultiplayerMenu } = await import("./multiplayerClient.js"); openMultiplayerMenu(); }
+    catch (error) { console.error("Failed to open multiplayer menu:", error); }
 });
 if (copySeedButton) copySeedButton.addEventListener("click", async () => {
     const seed = getSeedFromInput(); if (seed === null) return;
@@ -298,57 +306,53 @@ if (copySeedButton) copySeedButton.addEventListener("click", async () => {
 });
 if (copyWorldLinkButton) copyWorldLinkButton.addEventListener("click", async () => {
     const seed = getSeedFromInput(); if (seed === null) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("seed", String(seed));
-    if (mobileMode) url.searchParams.set("mobile", "1");
-    else url.searchParams.delete("mobile");
+    const url = new URL(window.location.href); url.searchParams.set("seed", String(seed));
+    if (mobileMode) url.searchParams.set("mobile", "1"); else url.searchParams.delete("mobile");
     if (await copyText(url.toString())) { if (seedLinkStatus) seedLinkStatus.textContent = "World link copied!"; }
     else if (seedLinkStatus) seedLinkStatus.textContent = "Could not copy automatically.";
 });
-if (openWorldButton) openWorldButton.addEventListener("click", () => {
-    const seed = getSeedFromInput(); if (seed === null) return;
-    startWorldWithSeed(seed);
-});
-if (seedInput) seedInput.addEventListener("keydown", event => {
-    if (event.key === "Enter") openWorldButton?.click();
-    if (event.key === "Escape") closeSeedMenu();
-});
+if (openWorldButton) openWorldButton.addEventListener("click", () => { const seed = getSeedFromInput(); if (seed !== null) startWorldWithSeed(seed); });
+if (seedInput) seedInput.addEventListener("keydown", event => { if (event.key === "Enter") openWorldButton?.click(); if (event.key === "Escape") closeSeedMenu(); });
 if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
 if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
-if (closeSettings) {
-    closeSettings.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-    closeSettings.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-}
-if (settingsCloseTop) {
-    settingsCloseTop.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-    settingsCloseTop.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-}
+for (const button of [closeSettings, settingsCloseTop]) if (button) button.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
+if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
+
 document.addEventListener("keydown", event => {
     if (event.code !== "Escape") return;
     if (settingsMenu?.style.display === "flex") closeSettingsMenu();
     else if (gameStarted) setTimeout(openSettings, 0);
 });
-if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
 
-const shadowsToggle = document.getElementById("shadowsToggle");
-const shadowQuality = document.getElementById("shadowQuality");
-const pixelQuality = document.getElementById("pixelQuality");
+const graphicsQuality = document.getElementById("graphicsQuality");
+const renderDistance = document.getElementById("renderDistance");
+const renderScale = document.getElementById("renderScale");
 const lightingQuality = document.getElementById("lightingQuality");
-const brightnessControl = document.getElementById("brightnessControl");
-if (shadowsToggle) { shadowsToggle.checked = settings.shadows; shadowsToggle.addEventListener("change", () => { settings.shadows = shadowsToggle.checked; saveSettings(); applySettings(); }); }
-if (shadowQuality) { shadowQuality.value = String(settings.shadowQuality); shadowQuality.addEventListener("change", () => { settings.shadowQuality = Number(shadowQuality.value); saveSettings(); applySettings(); }); }
-if (pixelQuality) { pixelQuality.value = String(settings.pixelRatio); pixelQuality.addEventListener("change", () => { settings.pixelRatio = Number(pixelQuality.value); saveSettings(); applySettings(); }); }
+const shadowQualityControl = document.getElementById("shadowQuality");
+const brightnessControl = document.getElementById("brightness");
+const showPerformance = document.getElementById("showPerformance");
+const showCoordinatesToggle = document.getElementById("showCoordinatesToggle");
+if (graphicsQuality) { graphicsQuality.value = settings.graphicsQuality; graphicsQuality.addEventListener("change", () => { settings.graphicsQuality = graphicsQuality.value; saveSettings(); }); }
+if (renderDistance) { renderDistance.value = settings.renderDistance; renderDistance.addEventListener("change", () => { settings.renderDistance = renderDistance.value; saveSettings(); }); }
+if (renderScale) { renderScale.value = String(settings.renderScale); renderScale.addEventListener("input", () => { settings.renderScale = Number(renderScale.value); settings.pixelRatio = settings.renderScale; saveSettings(); applySettings(); }); }
 if (lightingQuality) { lightingQuality.value = settings.lightingQuality; lightingQuality.addEventListener("change", () => { settings.lightingQuality = lightingQuality.value; saveSettings(); applySettings(); }); }
+if (shadowQualityControl) {
+    shadowQualityControl.value = settings.shadowQuality >= 1024 ? "high" : settings.shadowQuality >= 512 ? "medium" : settings.shadowQuality > 0 ? "low" : "off";
+    shadowQualityControl.addEventListener("change", () => { settings.shadowQuality = shadowQualityControl.value === "high" ? 1024 : shadowQualityControl.value === "medium" ? 512 : shadowQualityControl.value === "low" ? 256 : 0; settings.shadows = settings.shadowQuality > 0; saveSettings(); applySettings(); });
+}
 if (brightnessControl) { brightnessControl.value = String(settings.brightness); brightnessControl.addEventListener("input", () => { settings.brightness = Number(brightnessControl.value); saveSettings(); applySettings(); }); }
+if (showPerformance) { showPerformance.checked = settings.showPerformance; showPerformance.addEventListener("change", () => { settings.showPerformance = showPerformance.checked; saveSettings(); applySettings(); }); }
+if (showCoordinatesToggle) { showCoordinatesToggle.checked = settings.showCoordinates; showCoordinatesToggle.addEventListener("change", () => { settings.showCoordinates = showCoordinatesToggle.checked; saveSettings(); }); }
 
 setupControls();
 setupInteraction(scene, camera);
-const performanceHud = document.createElement("div");
+performanceHud = document.createElement("div");
 performanceHud.id = "performanceHud";
-performanceHud.style.cssText = "position:fixed;top:12px;left:12px;padding:6px 8px;background:rgba(0,0,0,.45);color:white;font:12px monospace;line-height:1.4;pointer-events:none;z-index:15;border-radius:5px;";
+performanceHud.style.cssText = "position:fixed;top:12px;left:12px;padding:6px 8px;background:rgba(0,0,0,.45);color:white;font:12px monospace;line-height:1.4;pointer-events:none;z-index:15;border-radius:5px;display:none;";
 performanceHud.textContent = "FPS: -- | Chunks: -- | Calls: --";
 document.body.appendChild(performanceHud);
+applySettings();
 setMenuUiVisible(true);
 window.addEventListener("resize", () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
@@ -367,12 +371,8 @@ const panoramaDistance = 48 + Math.random() * 112;
 const panoramaCenter = new THREE.Vector3(Math.round(Math.cos(panoramaAngle) * panoramaDistance / 16) * 16, 10, Math.round(Math.sin(panoramaAngle) * panoramaDistance / 16) * 16);
 const panoramaCamera = { position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z), targetY: 16, angle: Math.random() * Math.PI * 2, speed: 0.035, swayX: 0, swayY: 0, safeHeight: null };
 function getMenuCameraHeight() {
-    const x = Math.floor(panoramaCamera.position.x);
-    const z = Math.floor(panoramaCamera.position.z);
-    const types = getBlockTypes();
-    for (let y = 94; y >= -31; y--) {
-        if (getBlockAt(x, y, z) !== types.AIR) return y + 4.5;
-    }
+    const x = Math.floor(panoramaCamera.position.x), z = Math.floor(panoramaCamera.position.z), types = getBlockTypes();
+    for (let y = 94; y >= -31; y--) if (getBlockAt(x, y, z) !== types.AIR) return y + 4.5;
     return 32;
 }
 function updateMenuCamera(deltaTime) {
@@ -383,20 +383,11 @@ function updateMenuCamera(deltaTime) {
     panoramaCamera.swayX = THREE.MathUtils.lerp(panoramaCamera.swayX, menuLook.x, Math.min(deltaTime * 1.8, 1));
     panoramaCamera.swayY = THREE.MathUtils.lerp(panoramaCamera.swayY, menuLook.targetY, Math.min(deltaTime * 1.8, 1));
     updateChunkVisibility(panoramaCamera.position, camera);
-    if (panoramaCamera.safeHeight === null) {
-        panoramaCamera.safeHeight = getMenuCameraHeight();
-        panoramaCamera.position.y = Math.max(20, panoramaCamera.safeHeight);
-        panoramaCamera.targetY = Math.max(16, panoramaCamera.position.y - 10);
-    }
+    if (panoramaCamera.safeHeight === null) { panoramaCamera.safeHeight = getMenuCameraHeight(); panoramaCamera.position.y = Math.max(20, panoramaCamera.safeHeight); panoramaCamera.targetY = Math.max(16, panoramaCamera.position.y - 10); }
     camera.position.copy(panoramaCamera.position);
-    const lookDistance = 40;
-    const mouseYaw = panoramaCamera.swayX * 0.12;
-    const mousePitch = panoramaCamera.swayY * 0.055;
-    const lookAngle = panoramaCamera.angle + mouseYaw;
-    const lookTarget = new THREE.Vector3(panoramaCamera.position.x + Math.sin(lookAngle) * lookDistance, panoramaCamera.targetY - mousePitch * lookDistance, panoramaCamera.position.z + Math.cos(lookAngle) * lookDistance);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(lookTarget);
-    updateDepthLighting();
+    const lookAngle = panoramaCamera.angle + panoramaCamera.swayX * 0.12;
+    const lookTarget = new THREE.Vector3(camera.position.x + Math.sin(lookAngle) * 40, panoramaCamera.targetY - panoramaCamera.swayY * 0.055 * 40, camera.position.z + Math.cos(lookAngle) * 40);
+    camera.up.set(0, 1, 0); camera.lookAt(lookTarget); updateDepthLighting();
 }
 function updateSunPosition() {
     const dx = camera.position.x - lastSunX, dz = camera.position.z - lastSunZ;
@@ -408,13 +399,16 @@ function updateSunPosition() {
 }
 function animate() {
     requestAnimationFrame(animate);
-    const currentTime = performance.now();
-    const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
+    const currentTime = performance.now(), deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
     lastTime = currentTime;
     if (gameStarted) { updatePlayer(camera, scene, deltaTime); updateChunkVisibility(camera.position, camera); updateSunPosition(); updateDepthLighting(); }
     else updateMenuCamera(deltaTime);
     renderer.render(scene, camera);
     fpsFrames++;
-    if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
+    if (currentTime - fpsTime >= 500) {
+        const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)), stats = getPerformanceStats();
+        performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`;
+        fpsFrames = 0; fpsTime = currentTime;
+    }
 }
 animate();
