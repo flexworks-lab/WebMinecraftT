@@ -135,8 +135,9 @@ function getGrassHit() {
     mesh.getMatrixAt(hit.instanceId, matrix);
     const position = new THREE.Vector3().setFromMatrixPosition(matrix);
     const x = Math.floor(position.x), z = Math.floor(position.z);
+    const types = getBlockTypes();
     const surface = findSurfaceY(x, z, cameraRef.position.y);
-    if (!surface || getBlockAt(x, surface.y + 1, z) !== getBlockTypes().AIR) return null;
+    if (!surface || surface.type !== types.GRASS || getBlockAt(x, surface.y + 1, z) !== types.AIR) return null;
     return { x, y: surface.y, z };
 }
 
@@ -175,7 +176,11 @@ export function initShortGrass(scene, camera) {
     if (!blockChangeHandler) {
         blockChangeHandler = (event) => {
             const d = event.detail || {};
-            if (Number.isFinite(d.x) && Number.isFinite(d.y) && Number.isFinite(d.z) && d.type === 0) removedGrass.delete(`${d.x},${d.y},${d.z}`);
+            // A block placed in the grass block's upper cell hides the vegetation.
+            if (Number.isFinite(d.x) && Number.isFinite(d.y) && Number.isFinite(d.z)) {
+                if (d.type !== 0) removedGrass.delete(`${d.x},${d.y - 1},${d.z}`);
+                else removedGrass.delete(`${d.x},${d.y},${d.z}`);
+            }
             lastScan = performance.now(); scan();
         };
         window.addEventListener("webminecraft:blockchange", blockChangeHandler);
