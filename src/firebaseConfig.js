@@ -24,7 +24,6 @@ import("./playerList.js").catch(error => console.warn("Player list UI failed to 
 import("./discussion.js").catch(error => console.warn("Discussion UI failed to load:", error));
 import("./moderation.js").catch(error => console.warn("Moderation system failed to load:", error));
 import("./devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
-import("./devAI.js").catch(error => console.warn("Developer AI failed to load:", error));
 import("./devServerControls.js").catch(error => console.warn("Developer server controls failed to load:", error));
 import("./newsAdminFix.js").catch(error => console.warn("News/admin UI fixes failed to load:", error));
 import("./adminChatFix.js").catch(error => console.warn("Admin server chat fix failed to load:", error));
