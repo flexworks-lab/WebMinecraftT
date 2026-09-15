@@ -4,6 +4,7 @@ import { touchInput } from "./controls.js";
 import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
 import { tryIgniteTNT, registerTNTPhysicsScene } from "./tnt.js";
+import { setupDoorSystem, isDoorSelected, placeDoor, handleDoorTarget, getDoorSelectionTarget } from "./door.js";
 import "./worldSave.js";
 import "./heldBlock3D.js";
 
@@ -91,6 +92,7 @@ export function setupInteraction(scene, camera) {
     registerTNTPhysicsScene(scene);
     setupTexturedHotbar();
     setupInventory(camera);
+    setupDoorSystem(scene, camera);
     positionMobileInventoryButton();
     const outline = createSelectionOutline();
     scene.add(outline);
@@ -112,7 +114,7 @@ export function setupInteraction(scene, camera) {
         if (document.body.classList.contains("mobile-mode")) return;
         if (!document.body.classList.contains("webminecraft-in-world")) return;
         if (document.body.classList.contains("inventory-open")) return;
-        if (event.target instanceof Element && event.target.closest("#hotbar, #inventoryScreen, button, input, select, textarea, a")) return;
+        if (event.target instanceof Element && event.target.closest("#hotbar, #inventoryScreen, #doorSelectButton, button, input, select, textarea, a")) return;
         if (event.button === 0) breakBlock();
         if (event.button === 2) placeBlock();
     });
@@ -135,6 +137,10 @@ export function setupInteraction(scene, camera) {
         window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type } }));
     }
     function breakBlock() {
+        if (handleDoorTarget("break")) {
+            sendPlayerAction("mine");
+            return;
+        }
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) return;
         const type = getBlockAt(target.x, target.y, target.z);
@@ -146,8 +152,20 @@ export function setupInteraction(scene, camera) {
         createBreakParticles(scene, new THREE.Vector3(target.x, target.y, target.z), type, BLOCK);
     }
     function placeBlock() {
+        if (getDoorSelectionTarget()) {
+            if (handleDoorTarget("use")) sendPlayerAction("place");
+            return;
+        }
         const itemId = getSelectedItemId(selectedSlot);
         if (!itemId) return;
+        if (isDoorSelected()) {
+            const target = getTargetBlock(scene, camera, BLOCK);
+            if (!target) return;
+            if (placeDoor(target)) {
+                sendPlayerAction("place");
+            }
+            return;
+        }
         if (itemId === 16) {
             if (tryIgniteTNT(scene, camera, itemId)) {
                 consumeSelected(selectedSlot);
@@ -208,6 +226,8 @@ export function setupInteraction(scene, camera) {
 }
 
 function getTargetBlock(scene, camera, BLOCK) {
+    const doorTarget = getDoorSelectionTarget();
+    if (doorTarget) return doorTarget;
     camera.updateMatrixWorld(true);
     raycaster.setFromCamera(CENTER, camera);
     raycaster.near = 0.01;
