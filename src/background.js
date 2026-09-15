@@ -6,6 +6,7 @@ import "./mobileFlightControls.js";
 import "./uiFixes.js";
 import "./waterPhysics.js";
 import "./waterTextureFix.js";
+import "./gameEnhancements.js";
 
 function applyDirtBackgrounds() {
     if (document.getElementById("webMinecraftDirtBackgrounds")) return;
