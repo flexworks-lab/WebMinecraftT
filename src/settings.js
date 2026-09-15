@@ -40,7 +40,6 @@ let settings = readSettings();
 function save() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-        // Keep the older control/graphics keys compatible with the existing engine.
         localStorage.setItem("webminecraft-settings", JSON.stringify({
             shadows: settings.shadows,
             shadowQuality: settings.shadowQuality,
@@ -224,7 +223,10 @@ function build() {
         window.dispatchEvent(new CustomEvent("webminecraft-settings-reset"));
     });
 
-    document.getElementById("settingsCloseTop")?.addEventListener("click", () => {
+    document.getElementById("settingsCloseTop")?.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        menu.style.display = "none";
         window.dispatchEvent(new Event("webminecraft-close-settings"));
     });
 
