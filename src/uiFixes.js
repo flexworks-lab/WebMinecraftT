@@ -150,6 +150,8 @@ function setupMobileJoystick() {
             const distance = Math.hypot(dx, dy);
             if (distance > radius) { dx = dx / distance * radius; dy = dy / distance * radius; }
             touchInput.moveX = dx / radius;
+            // Screen Y increases downward; negative moveZ is forward in the game.
+            // Therefore pushing the joystick upward must produce negative moveZ.
             touchInput.moveZ = dy / radius;
             thumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
         };
