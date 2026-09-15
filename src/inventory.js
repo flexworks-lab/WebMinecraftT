@@ -12,7 +12,7 @@ const ITEM_TYPES = [
     { id: 4, name: "Sand", texture: "sand.png", category: "natural" },
     { id: 5, name: "Oak Log", texture: "oak_log_top.png", category: "natural" },
     { id: 6, name: "Oak Leaves", texture: "oak-leaves-normal-original-default.png", category: "natural" },
-    { id: 7, name: "Cobblestone", texture: "stone.png", category: "natural" },
+    { id: 7, name: "Cobblestone", texture: "cobblestone.png", category: "natural" },
     { id: 8, name: "Gravel", texture: "dirt.png", category: "natural" },
     { id: 9, name: "Sandstone", texture: "sand.png", category: "natural" },
     { id: 10, name: "Bedrock", texture: null, color: "#4b4b4b", category: "natural" },
