@@ -61,7 +61,10 @@ function escapeHtml(value) {
 
 function updateServerChats(servers) {
     for (const server of servers || []) {
-        const card = document.querySelector(`.adminServerCard[data-server-id="${CSS.escape(String(server.id))}"]`);
+        const id = String(server.id || "");
+        if (!id) continue;
+        const cards = Array.from(document.querySelectorAll(".adminServerCard"));
+        const card = cards.find(item => String(item.dataset.serverId || "") === id || String(item.querySelector(".adminServerName")?.textContent || "") === String(server.name || server.id));
         if (!card) continue;
         const feed = card.querySelector(".adminChatFeed");
         if (!feed) continue;
@@ -116,20 +119,40 @@ function install() {
     document.addEventListener("focusout", event => remember(event.target), true);
 
     // The old Admin Controls poll rebuilds #adminControlsContent every few
-    // seconds. Once the server cards exist, block that full rebuild and refresh
-    // only the server-chat feeds instead. The chat input DOM is never replaced.
-    const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML");
-    if (descriptor?.set && descriptor?.get) {
+    // seconds. Block that rebuild after the server cards exist so the chat
+    // input stays the same DOM element. The original load function continues
+    // running, so also block its attempted server-card append; otherwise each
+    // poll would add another copy of the same server card.
+    const innerHTMLDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML");
+    if (innerHTMLDescriptor?.set && innerHTMLDescriptor?.get) {
         Object.defineProperty(Element.prototype, "innerHTML", {
-            configurable: descriptor.configurable,
-            enumerable: descriptor.enumerable,
-            get: descriptor.get,
+            configurable: innerHTMLDescriptor.configurable,
+            enumerable: innerHTMLDescriptor.enumerable,
+            get: innerHTMLDescriptor.get,
             set(value) {
                 if (this.id === "adminControlsContent" && this.querySelector?.("#adminServerGrid") && String(value).includes("adminServerGrid")) {
+                    this.__adminChatOnlyRefresh = true;
                     refreshServerChats();
+                    setTimeout(() => { this.__adminChatOnlyRefresh = false; }, 0);
                     return;
                 }
-                descriptor.set.call(this, value);
+                innerHTMLDescriptor.set.call(this, value);
+            }
+        });
+    }
+
+    const appendChildDescriptor = Object.getOwnPropertyDescriptor(Node.prototype, "appendChild");
+    if (appendChildDescriptor?.value) {
+        const originalAppendChild = appendChildDescriptor.value;
+        Object.defineProperty(Node.prototype, "appendChild", {
+            configurable: appendChildDescriptor.configurable,
+            enumerable: appendChildDescriptor.enumerable,
+            writable: appendChildDescriptor.writable,
+            value(node) {
+                if (this instanceof Element && this.id === "adminServerGrid" && this.parentElement?.id === "adminControlsContent" && this.parentElement.__adminChatOnlyRefresh && node instanceof Element && node.classList.contains("adminServerCard")) {
+                    return node;
+                }
+                return originalAppendChild.call(this, node);
             }
         });
     }
