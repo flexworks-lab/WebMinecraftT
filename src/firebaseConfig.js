@@ -18,6 +18,11 @@ export function isFirebaseConfigured() {
     return Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
 }
 
+import("./multiplayerServerEvents.js").catch(error => console.warn("Multiplayer server event bridge failed to load:", error));
+import("./fastCloudDelete.js").catch(error => console.warn("Fast cloud delete failed to load:", error));
+import("./playerList.js").catch(error => console.warn("Player list UI failed to load:", error));
+import("./discussion.js").catch(error => console.warn("Discussion UI failed to load:", error));
+import("./moderation.js").catch(error => console.warn("Moderation system failed to load:", error));
 import("./admin/devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
 import("./admin/devServerControls.js").catch(error => console.warn("Developer server controls failed to load:", error));
 import("./admin/newsAdminFix.js").catch(error => console.warn("News/admin UI fixes failed to load:", error));
@@ -27,4 +32,10 @@ import("./admin/adminManagement.js").catch(error => console.warn("Admin manageme
 import("./admin/adminControls.js").catch(error => console.warn("Admin controls failed to load:", error));
 import("./admin/accountDevControls.js").catch(error => console.warn("Account developer controls failed to load:", error));
 import("./admin/announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
+import("./newsLive.js").catch(error => console.warn("Live News tabs failed to load:", error));
+import("./newsFreshStart.js").catch(error => console.warn("Fresh News start failed to load:", error));
 import("./admin/newsClearDev.js").catch(error => console.warn("News clear tool failed to load:", error));
+import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
+import("./friendsLive.js").catch(error => console.warn("Live friends UI failed to load:", error));
+import("./friendsPresence.js").catch(error => console.warn("Live friend presence failed to load:", error));
+import("./oauthLogos.js").catch(error => console.warn("OAuth logo UI failed to load:", error));
