@@ -158,10 +158,11 @@ export function setupInteraction(scene, camera) {
         }
         const itemId = getSelectedItemId(selectedSlot);
         if (!itemId) return;
-        if (isDoorSelected()) {
+        if (itemId === 17 || isDoorSelected()) {
             const target = getTargetBlock(scene, camera, BLOCK);
             if (!target) return;
             if (placeDoor(target)) {
+                if (itemId === 17) consumeSelected(selectedSlot);
                 sendPlayerAction("place");
             }
             return;
