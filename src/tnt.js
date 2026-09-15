@@ -100,7 +100,8 @@ function tryTrackGravelAt(scene, x, y, z) {
 }
 function processBlockChangeForPhysics(scene, detail) {
     if (suppressPhysicsBlockEvent || !scene || !detail) return;
-    const { x, y, z, type }, BLOCK = getBlockTypes();
+    const { x, y, z, type } = detail;
+    const BLOCK = getBlockTypes();
     if (type === BLOCK.SAND) { tryTrackSandAt(scene, x, y, z); return; }
     if (type === BLOCK.GRAVEL) { tryTrackGravelAt(scene, x, y, z); return; }
     if (type === BLOCK.AIR) {
