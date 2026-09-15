@@ -19,6 +19,7 @@ let lastSeed = null;
 let observer = null;
 let blockChangeHandler = null;
 let removedGrass = new Set();
+let grassOutline = null;
 
 function hash2D(x, z, seed, salt = 0) {
     let h = Math.imul((x | 0) ^ 0x9e3779b9, 374761393);
@@ -47,12 +48,8 @@ function makeCrossGeometry() {
         -halfW,0,0, halfW,0,0, halfW,GRASS_HEIGHT,0, -halfW,GRASS_HEIGHT,0,
         0,0,-halfW, 0,0,halfW, 0,GRASS_HEIGHT,halfW, 0,GRASS_HEIGHT,-halfW
     ]), 3));
-    geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([
-        0,0,1,0,1,1,0,1, 0,0,1,0,1,1,0,1
-    ]), 2));
-    geometry.setAttribute("normal", new THREE.BufferAttribute(new Float32Array([
-        0,0,1, 0,0,1, 0,0,1, 0,0,1, 1,0,0, 1,0,0, 1,0,0, 1,0,0
-    ]), 3));
+    geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,1]), 2));
+    geometry.setAttribute("normal", new THREE.BufferAttribute(new Float32Array([0,0,1,0,0,1,0,0,1,0,0,1,1,0,0,1,0,0,1,0,0,1,0,0]), 3));
     geometry.setIndex([0,1,2,0,2,3,4,5,6,4,6,7]);
     geometry.computeBoundingSphere();
     return geometry;
@@ -69,6 +66,25 @@ function ensureMesh() {
     root.add(mesh);
 }
 
+function ensureGrassOutline() {
+    if (grassOutline) return;
+    const hw = GRASS_WIDTH * 0.5 + 0.04;
+    const y0 = 0.03, y1 = GRASS_HEIGHT + 0.04, z = hw;
+    const vertices = new Float32Array([
+        -hw,y0,-z, hw,y0,-z, hw,y0,-z, hw,y1,-z, hw,y1,-z, -hw,y1,-z, -hw,y1,-z, -hw,y0,-z,
+        -hw,y0,z, hw,y0,z, hw,y0,z, hw,y1,z, hw,y1,z, -hw,y1,z, -hw,y1,z, -hw,y0,z,
+        -hw,y0,-z, -hw,y0,z, hw,y0,-z, hw,y0,z,
+        -hw,y1,-z, -hw,y1,z, hw,y1,-z, hw,y1,z
+    ]);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+    grassOutline = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthTest: true }));
+    grassOutline.name = "shortGrassSelectionOutline";
+    grassOutline.visible = false;
+    grassOutline.renderOrder = 20;
+    root.add(grassOutline);
+}
+
 function findSurfaceY(x, z, cameraY) {
     const top = Math.min(127, Math.floor(cameraY + 20));
     const bottom = Math.max(-32, Math.floor(cameraY - 32));
@@ -82,7 +98,7 @@ function findSurfaceY(x, z, cameraY) {
 function scan() {
     if (!root || !cameraRef || !mesh) return;
     root.visible = document.body.classList.contains("webminecraft-in-world");
-    if (!root.visible) { mesh.count = 0; return; }
+    if (!root.visible) { mesh.count = 0; if (grassOutline) grassOutline.visible = false; return; }
     const seed = getWorldSeed();
     if (seed !== lastSeed) { lastSeed = seed; lastScan = 0; removedGrass.clear(); }
     const types = getBlockTypes();
@@ -109,28 +125,41 @@ function scan() {
     mesh.instanceMatrix.needsUpdate = true;
 }
 
-function punchGrass(event) {
-    if (!mesh || !root?.visible || event.button !== 0) return;
-    if (event.target?.closest?.("#hotbar, #inventoryScreen, button, input, select, textarea, a")) return;
+function getGrassHit() {
+    if (!mesh || !root?.visible) return null;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(0, 0), cameraRef);
     const hit = raycaster.intersectObject(mesh, false)[0];
-    if (!hit || hit.instanceId == null || hit.distance > 5) return;
-    // Recover the voxel from the instance transform. Grass is centered over its support block.
+    if (!hit || hit.instanceId == null || hit.distance > 5) return null;
     const matrix = new THREE.Matrix4();
     mesh.getMatrixAt(hit.instanceId, matrix);
-    const position = new THREE.Vector3();
-    position.setFromMatrixPosition(matrix);
+    const position = new THREE.Vector3().setFromMatrixPosition(matrix);
     const x = Math.floor(position.x), z = Math.floor(position.z);
-    const types = getBlockTypes();
     const surface = findSurfaceY(x, z, cameraRef.position.y);
-    if (!surface || surface.type !== types.GRASS || getBlockAt(x, surface.y + 1, z) !== types.AIR) return;
-    removedGrass.add(`${x},${surface.y},${z}`);
+    if (!surface || getBlockAt(x, surface.y + 1, z) !== getBlockTypes().AIR) return null;
+    return { x, y: surface.y, z };
+}
+
+function updateGrassOutline() {
+    if (!grassOutline) return;
+    const target = getGrassHit();
+    if (!target) { grassOutline.visible = false; return; }
+    grassOutline.position.set(target.x + 0.5, target.y + 0.505, target.z + 0.5);
+    grassOutline.visible = true;
+}
+
+function punchGrass(event) {
+    if (!mesh || !root?.visible || event.button !== 0) return;
+    if (event.target?.closest?.("#hotbar, #inventoryScreen, button, input, select, textarea, a")) return;
+    const target = getGrassHit();
+    if (!target) return;
+    removedGrass.add(`${target.x},${target.y},${target.z}`);
     scan();
 }
 
 function tick(now) {
     if (now - lastScan >= SCAN_INTERVAL) { lastScan = now; scan(); }
+    updateGrassOutline();
     requestAnimationFrame(tick);
 }
 
@@ -138,6 +167,7 @@ export function initShortGrass(scene, camera) {
     cameraRef = camera;
     if (!root) { root = new THREE.Group(); root.name = ROOT_NAME; root.renderOrder = 5; scene.add(root); }
     ensureMesh();
+    ensureGrassOutline();
     if (!observer) {
         observer = new MutationObserver(() => { if (root) root.visible = document.body.classList.contains("webminecraft-in-world"); });
         observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
@@ -145,11 +175,7 @@ export function initShortGrass(scene, camera) {
     if (!blockChangeHandler) {
         blockChangeHandler = (event) => {
             const d = event.detail || {};
-            // A block placed in the grass block's upper cell hides the vegetation.
-            if (Number.isFinite(d.x) && Number.isFinite(d.y) && Number.isFinite(d.z)) {
-                if (d.type !== 0) removedGrass.delete(`${d.x},${d.y - 1},${d.z}`);
-                else removedGrass.delete(`${d.x},${d.y},${d.z}`);
-            }
+            if (Number.isFinite(d.x) && Number.isFinite(d.y) && Number.isFinite(d.z) && d.type === 0) removedGrass.delete(`${d.x},${d.y},${d.z}`);
             lastScan = performance.now(); scan();
         };
         window.addEventListener("webminecraft:blockchange", blockChangeHandler);
