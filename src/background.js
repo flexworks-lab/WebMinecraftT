@@ -8,6 +8,7 @@ import "./waterPhysics.js";
 import "./waterTextureFix.js";
 import "./gameEnhancements.js";
 import "./survivalMode.js";
+import "./performance.js";
 
 function applyDirtBackgrounds() {
     if (document.getElementById("webMinecraftDirtBackgrounds")) return;
