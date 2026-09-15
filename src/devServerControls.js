@@ -18,7 +18,6 @@ const RANDOM_SERVER_REMINDERS = [
     "Remember that everyone is here to have fun.",
     "Please follow the server rules.",
     "Keep the chat appropriate for everyone.",
-    "Please do not harass or bother other players.",
     "Be respectful when talking to other players.",
     "Please avoid unnecessary spam or repeated messages.",
     "Let's keep the server friendly and fun.",
@@ -191,6 +190,27 @@ function updateChatFeeds(servers) {
     }
 }
 
+function updateExistingServerCards(servers) {
+    const list = document.getElementById("devServerList");
+    if (!list) return false;
+    const existingCards = [...list.querySelectorAll(".devServerCard[data-server-id]")];
+    const existingIds = new Set(existingCards.map(card => String(card.dataset.serverId)));
+    const serverIds = new Set(servers.map(server => String(server.id)));
+    if (!existingCards.length || existingCards.length !== servers.length || [...existingIds].some(id => !serverIds.has(id))) return false;
+
+    for (const server of servers) {
+        const card = list.querySelector(`.devServerCard[data-server-id="${CSS.escape(String(server.id))}"]`);
+        if (!card) return false;
+        const count = card.querySelector(".devServerCount");
+        if (count) {
+            const length = (server.players || []).length;
+            count.textContent = `${length} player${length === 1 ? "" : "s"}`;
+        }
+        updateChatFeeds([server]);
+    }
+    return true;
+}
+
 async function refreshServers() {
     if (!isDev()) return;
     const list = document.getElementById("devServerList");
@@ -199,8 +219,14 @@ async function refreshServers() {
     try {
         const data = await adminRequest("/admin/servers");
         const servers = data.servers || [];
-        // Never rebuild the server cards while a developer is typing or has a
-        // non-empty draft. Updating only the chat feeds keeps the input intact.
+        // When the same server cards already exist, update them in place. This
+        // means polling never destroys/recreates the input the developer is typing into.
+        if (updateExistingServerCards(servers)) {
+            restoreAllChatDrafts();
+            return;
+        }
+        // Do not rebuild the list while a draft exists. A manual refresh can
+        // be performed after sending/clearing the draft.
         if (isServerChatInputActive() || hasChatDraft()) {
             updateChatFeeds(servers);
             restoreAllChatDrafts();
