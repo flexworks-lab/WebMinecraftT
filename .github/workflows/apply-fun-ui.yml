@@ -1,0 +1,164 @@
+name: Apply fun UI and opening animation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  polish-ui:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add fun UI styling and boot animation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text()
+
+          marker = '/* WebMinecraft fun UI v1 */'
+          if marker not in text:
+              style = r'''<style>
+          /* WebMinecraft fun UI v1 */
+          :root{
+            --wm-green:#7fae5a;
+            --wm-green-bright:#a8d77b;
+            --wm-dark:#171b18;
+            --wm-panel:#2a302b;
+            --wm-panel-2:#202520;
+            --wm-border:#111511;
+          }
+          button{touch-action:manipulation}
+          #mainMenu{
+            overflow:hidden;
+            background:linear-gradient(180deg,rgba(8,12,15,.05),rgba(8,12,15,.42));
+            transition:opacity .45s ease,filter .45s ease;
+          }
+          #mainMenu.menu-entering #menuPanel{opacity:0;transform:translateY(24px) scale(.96)}
+          #mainMenu.menu-ready #menuPanel{opacity:1;transform:none}
+          #menuPanel{transition:opacity .55s cubic-bezier(.18,.82,.24,1),transform .65s cubic-bezier(.18,.82,.24,1),filter .55s ease}
+          #menuTitle{animation:wmTitleFloat 3.8s ease-in-out infinite;transform-origin:center bottom}
+          #menuSplash{animation:wmSplashWiggle 2.8s ease-in-out infinite}
+          #menuButtons{position:relative}
+          .menuButton{
+            position:relative;
+            overflow:hidden;
+            border-radius:5px;
+            background:linear-gradient(180deg,#777f79,#555d57);
+            box-shadow:inset 2px 2px 0 rgba(255,255,255,.16),inset -2px -3px 0 rgba(0,0,0,.32),0 4px 0 rgba(0,0,0,.62),0 0 0 rgba(126,174,90,0);
+            transition:transform .12s ease,filter .12s ease,box-shadow .12s ease,background .12s ease;
+          }
+          .menuButton::after,.multiplayerButton::after,.seedButton::after,.settingsTab::after{
+            content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 0 35%,rgba(255,255,255,.14) 48%,transparent 61%);transform:translateX(-120%);transition:transform .45s ease;
+          }
+          .menuButton:hover::after,.multiplayerButton:hover::after,.seedButton:hover::after,.settingsTab:hover::after{transform:translateX(120%)}
+          .menuButton:hover{transform:translateY(-2px) scale(1.012);filter:brightness(1.08);box-shadow:inset 2px 2px 0 rgba(255,255,255,.17),inset -2px -3px 0 rgba(0,0,0,.28),0 5px 0 rgba(0,0,0,.58),0 0 18px rgba(127,174,90,.16)}
+          .menuButton:active{transform:translateY(2px) scale(.995)}
+          #playButton{background:linear-gradient(180deg,#7d9d58,#57763f)}
+          #playButton:hover{background:linear-gradient(180deg,#8caf65,#658b49)}
+          #multiplayerButton{background:linear-gradient(180deg,#7286a7,#53657f)}
+          #multiplayerButton:hover{background:linear-gradient(180deg,#829bc0,#617796)}
+          #menuSettingsButton{background:linear-gradient(180deg,#7b7564,#5d594d)}
+          #mobileModeButton{background:linear-gradient(180deg,#6d7d70,#515f55)}
+          #menuUpdates{border-radius:0 0 10px 0;box-shadow:6px 6px 0 rgba(0,0,0,.36),inset 2px 2px 0 rgba(255,255,255,.08),0 12px 30px rgba(0,0,0,.18);background:linear-gradient(180deg,#202521,#171b18);animation:wmSlideInLeft .65s .4s both}
+          .menuUpdate{border-radius:5px;background:linear-gradient(180deg,#444b45,#373d38);transition:transform .12s ease,filter .12s ease}
+          .menuUpdate:hover{transform:translateX(3px);filter:brightness(1.06)}
+          #seedMenu,#settingsMenu,#multiplayerMenu{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+          #seedPanel{background:radial-gradient(circle at 50% 25%,rgba(127,174,90,.13),transparent 34%),linear-gradient(180deg,#242a25,#171b18);animation:wmPanelIn .42s cubic-bezier(.18,.82,.24,1)}
+          #seedInput,#settingsScroll select,.multiplayerField input{border-radius:5px}
+          .seedButton{position:relative;overflow:hidden;border-radius:5px;background:linear-gradient(180deg,#6f756f,#505750);transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}
+          .seedButton:hover{transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 4px 0 rgba(0,0,0,.4)}
+          #openWorldButton{background:linear-gradient(180deg,#789a58,#567640)}
+          #backSeedButton{background:linear-gradient(180deg,#666e68,#4c524e)}
+          #settingsPanel{animation:wmPanelIn .42s cubic-bezier(.18,.82,.24,1)}
+          #settingsSidebar{background:linear-gradient(180deg,#252b26,#181d19)}
+          .settingsTab{position:relative;overflow:hidden;border-radius:5px;background:linear-gradient(180deg,#3f4540,#313632);transition:transform .12s ease,filter .12s ease,background .12s ease}
+          .settingsTab:hover{transform:translateX(3px);filter:brightness(1.08)}
+          .settingsTab.active{background:linear-gradient(180deg,#6e845d,#526b43);box-shadow:inset 2px 2px 0 rgba(255,255,255,.1),0 3px 0 rgba(0,0,0,.25)}
+          .setting{border-radius:6px;background:linear-gradient(180deg,#353a35,#2b302c);transition:transform .12s ease,filter .12s ease}
+          .setting:hover{transform:translateX(2px);filter:brightness(1.04)}
+          #settingsCloseTop,#closeSettings{border-radius:5px;transition:transform .12s ease,filter .12s ease}
+          #settingsCloseTop:hover,#closeSettings:hover{transform:translateY(-1px);filter:brightness(1.08)}
+          #hotbar{border-radius:7px;background:rgba(12,15,13,.66);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+          .slot{border-radius:4px;transition:transform .1s ease,filter .1s ease}
+          .slot:hover{transform:translateY(-2px);filter:brightness(1.08)}
+          #settingsButton{border-radius:9px;background:linear-gradient(180deg,#6b756c,#4e5751);box-shadow:0 4px 0 #171b17,0 6px 15px rgba(0,0,0,.18);transition:transform .12s ease,filter .12s ease}
+          #settingsButton:hover{transform:rotate(8deg) translateY(-2px);filter:brightness(1.08)}
+          #multiplayerPanel{animation:wmPanelIn .42s cubic-bezier(.18,.82,.24,1)}
+          .multiplayerCard,.multiplayerButton,.multiplayerTypeButton{border-radius:6px}
+          .multiplayerCard{box-shadow:0 4px 0 #181d19;transition:transform .14s ease,filter .14s ease,box-shadow .14s ease}
+          .multiplayerCard:hover{transform:translateY(-3px) scale(1.005);box-shadow:0 7px 0 #181d19,0 8px 18px rgba(0,0,0,.12)}
+          .multiplayerButton{position:relative;overflow:hidden}
+          .multiplayerButton:hover{transform:translateY(-1px)}
+          #multiplayerLivePill{border-radius:5px}
+          #multiplayerSteps{border-radius:0}
+          .multiplayerStep{border-radius:5px;transition:transform .12s ease,filter .12s ease}
+          .multiplayerStep:hover{transform:translateY(-1px);filter:brightness(1.04)}
+          #multiplayerStatus{border-radius:5px}
+          #multiplayerChatFeed,#multiplayerChatInput{border-radius:5px}
+          #globalPlayerCount{border-radius:7px}
+          #globalPlayerPanel{border-radius:8px}
+          @keyframes wmTitleFloat{0%,100%{margin-top:0;filter:drop-shadow(0 3px 2px rgba(0,0,0,.25))}50%{margin-top:-4px;filter:drop-shadow(0 8px 5px rgba(0,0,0,.3))}}
+          @keyframes wmSplashWiggle{0%,100%{transform:rotate(-3deg) scale(1)}50%{transform:rotate(-1deg) scale(1.035)}}
+          @keyframes wmPanelIn{from{opacity:0;transform:translateY(22px) scale(.965)}to{opacity:1;transform:none}}
+          @keyframes wmSlideInLeft{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+          #webminecraftBootScreen{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:radial-gradient(circle at 50% 38%,#374238 0%,#1a201c 52%,#101310 100%);transition:opacity .48s ease,visibility .48s ease}
+          #webminecraftBootScreen.boot-done{opacity:0;visibility:hidden;pointer-events:none}
+          #wmBootInner{width:min(420px,78vw);text-align:center;color:#fff;font-family:"MinecraftFont",monospace;animation:wmBootPop .65s cubic-bezier(.17,.85,.25,1)}
+          #wmBootLogo{font-size:clamp(32px,7vw,60px);line-height:.9;text-shadow:3px 3px 0 #101310,0 6px 16px rgba(0,0,0,.35);letter-spacing:-2px}
+          #wmBootTag{margin-top:13px;font-family:Arial,sans-serif;font-size:11px;color:#b8c2b8;letter-spacing:1.7px;text-transform:uppercase}
+          #wmBootBar{height:8px;margin-top:22px;background:#111511;border:1px solid #394239;border-radius:999px;overflow:hidden;box-shadow:inset 0 2px 0 rgba(0,0,0,.35)}
+          #wmBootFill{height:100%;width:0;background:linear-gradient(90deg,#5f823f,#9acb70);box-shadow:0 0 12px rgba(137,190,96,.35);animation:wmBootLoad .9s cubic-bezier(.2,.75,.25,1) forwards}
+          #wmBootTip{margin-top:10px;font-family:Arial,sans-serif;font-size:10px;color:#89938a}
+          @keyframes wmBootPop{from{opacity:0;transform:scale(.86) translateY(10px)}to{opacity:1;transform:none}}
+          @keyframes wmBootLoad{from{width:0}to{width:100%}}
+          @media(max-width:700px){#menuUpdates{width:190px}.setting{grid-template-columns:1fr}.settingControl{justify-content:flex-start}#seedActions{grid-template-columns:1fr}.menuButton{height:44px}}
+          @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}#webminecraftBootScreen{display:none!important}}
+          </style>'''
+              text = text.replace('</head>', style + '\n</head>', 1)
+
+          marker2 = '/* WebMinecraft opening animation v1 */'
+          if marker2 not in text:
+              script = r'''<script>
+          /* WebMinecraft opening animation v1 */
+          (() => {
+            const start = () => {
+              if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+              if (document.getElementById('webminecraftBootScreen')) return;
+              const overlay = document.createElement('div');
+              overlay.id = 'webminecraftBootScreen';
+              overlay.innerHTML = '<div id="wmBootInner"><div id="wmBootLogo">WebMinecraft</div><div id="wmBootTag">Loading your world...</div><div id="wmBootBar"><div id="wmBootFill"></div></div><div id="wmBootTip">Building blocks. One pixel at a time.</div></div>';
+              document.body.appendChild(overlay);
+              const menu = document.getElementById('mainMenu');
+              menu?.classList.add('menu-entering');
+              window.setTimeout(() => {
+                overlay.classList.add('boot-done');
+                menu?.classList.remove('menu-entering');
+                menu?.classList.add('menu-ready');
+                window.setTimeout(() => overlay.remove(), 520);
+              }, 1050);
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once:true });
+            else start();
+          })();
+          </script>'''
+              text = text.replace('</body>', script + '\n</body>', 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Commit and remove one-shot workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/apply-fun-ui.yml
+          git rm .github/workflows/apply-fun-ui.yml
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Make all UI more fun and animate game opening"
+          git push
