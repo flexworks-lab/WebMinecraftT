@@ -55,7 +55,7 @@ async function adminRequest(path, options = {}) {
     if (!token) throw new Error("Developer login is required.");
     const response = await fetch(`${SERVER_API}${path}`, {
         ...options,
-        headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, "Content-Type": "application/json` },
+        headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
