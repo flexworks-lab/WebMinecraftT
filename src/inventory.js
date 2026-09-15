@@ -359,3 +359,162 @@ function renderInventory() {
 }
 
 function renderSurvival() {
+    const panel = document.getElementById("survivalPanel");
+    if (!panel) return;
+    panel.innerHTML = `<div style="font-weight:700;font-size:16px;margin-bottom:10px">Inventory</div><div id="survivalGrid"></div>`;
+    const grid = document.getElementById("survivalGrid");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(9,minmax(38px,1fr));gap:5px;max-width:620px";
+    for (let i = HOTBAR_SIZE; i < INVENTORY_SIZE; i++) grid.appendChild(renderSlot(inventory[i], i));
+}
+
+function syncHotbar() {
+    document.querySelectorAll("#hotbar .slot").forEach((slotEl, index) => {
+        let countEl = slotEl.querySelector(".hotbarCount");
+        if (!countEl) { countEl = document.createElement("span"); countEl.className = "hotbarCount"; slotEl.appendChild(countEl); }
+        const slot = inventory[index];
+        const textureEl = slotEl.querySelector(".hotbarTexture");
+        if (slot?.itemId) {
+            const item = getItem(slot.itemId);
+            if (item?.texture) {
+                if (!textureEl) {
+                    const texture = document.createElement("span");
+                    texture.className = "hotbarTexture";
+                    texture.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
+                    slotEl.appendChild(texture);
+                } else {
+                    textureEl.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
+                }
+            } else if (textureEl) {
+                textureEl.remove();
+            }
+            countEl.textContent = slot.count > 1 ? slot.count : "";
+        } else {
+            if (textureEl) textureEl.remove();
+            countEl.textContent = "";
+        }
+    });
+    updateHeldBlock();
+}
+
+function loadHeldTexture(info) {
+    if (!heldTextureLoader) heldTextureLoader = new THREE.TextureLoader();
+    if (heldTextureCache.has(info.texture)) return heldTextureCache.get(info.texture);
+    const texture = heldTextureLoader.load(textureUrl(info.texture));
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    heldTextureCache.set(info.texture, texture);
+    return texture;
+}
+
+function makeHandMaterial() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 16;
+    canvas.height = 16;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return new THREE.MeshLambertMaterial({ color: 0xd59b72 });
+    ctx.fillStyle = "#d79b72";
+    ctx.fillRect(0, 0, 16, 16);
+    ctx.fillStyle = "#bf815c";
+    ctx.fillRect(0, 11, 16, 5);
+    ctx.fillStyle = "#e4ad85";
+    ctx.fillRect(3, 1, 10, 7);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    return new THREE.MeshLambertMaterial({ map: texture });
+}
+
+function createHeld3D(camera) {
+    if (!camera || held3D) return;
+    held3DCamera = camera;
+    const root = new THREE.Group();
+    root.name = "WebMinecraftHeldBlock";
+    root.position.set(0.62, -0.48, -1.18);
+    root.rotation.set(-0.08, -0.18, -0.16);
+    root.visible = false;
+
+    const handMaterial = makeHandMaterial();
+    const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.62, 0.22), handMaterial);
+    forearm.position.set(0.20, -0.11, 0.06);
+    forearm.rotation.set(0.08, -0.12, -0.16);
+    root.add(forearm);
+
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.28, 0.28), handMaterial);
+    hand.position.set(0.07, 0.17, -0.02);
+    hand.rotation.set(0.12, -0.08, -0.12);
+    root.add(hand);
+
+    const block = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.58, 0.58), Array.from({ length: 6 }, () => new THREE.MeshLambertMaterial({ color: 0xffffff })));
+    block.name = "HeldTexturedBlock";
+    block.position.set(-0.03, 0.26, -0.22);
+    block.rotation.set(0.08, -0.22, 0.10);
+    root.add(block);
+    camera.add(root);
+    held3D = { root, block, forearm, hand };
+}
+
+function updateHeldBlock() {
+    const inWorld = document.body.classList.contains("webminecraft-in-world") && !inventoryOpen;
+    const slotIndex = Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0;
+    const item = inventory[slotIndex];
+    if (!held3D) return;
+    if (!inWorld || !item) { held3D.root.visible = false; return; }
+    const info = getItem(item.itemId);
+    if (!info || !info.texture) { held3D.root.visible = false; return; }
+    const texture = loadHeldTexture(info);
+    for (const material of held3D.block.material) { material.map = texture; material.needsUpdate = true; }
+    held3D.root.visible = true;
+}
+
+export function getSelectedItemId(slotIndex) { return inventory[slotIndex]?.itemId ?? null; }
+export function consumeSelected(slotIndex) { return removeItem(slotIndex, 1); }
+
+export function setupInventory(camera) {
+    loadInventory();
+    createInventoryUI();
+    createHeld3D(camera);
+    renderTabs();
+    renderInventory();
+    renderCatalog();
+    renderSurvival();
+    window.webMinecraftSelectedSlot = 0;
+    updateHeldBlock();
+    window.addEventListener("webminecraft:selectedslot", event => {
+        window.webMinecraftSelectedSlot = event.detail?.slot ?? 0;
+        updateHeldBlock();
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key.toLowerCase() === "e" && !event.repeat && document.body.classList.contains("webminecraft-in-world")) {
+            event.preventDefault();
+            inventoryOpen ? closeInventory() : openInventory();
+        }
+        if (event.key === "Escape" && inventoryOpen) closeInventory();
+    });
+    const worldObserver = new MutationObserver(updateHeldBlock);
+    worldObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+
+function openInventory() {
+    inventoryOpen = true;
+    document.body.classList.add("inventory-open");
+    document.getElementById("inventoryScreen")?.classList.add("open");
+    document.exitPointerLock?.();
+    renderTabs();
+    renderInventory();
+    renderCatalog();
+    renderSurvival();
+    updateHeldBlock();
+}
+function closeInventory() {
+    inventoryOpen = false;
+    document.body.classList.remove("inventory-open");
+    document.getElementById("inventoryScreen")?.classList.remove("open");
+    updateHeldBlock();
+    if (!document.body.classList.contains("mobile-mode") && document.body.classList.contains("webminecraft-in-world")) {
+        try { document.body.requestPointerLock?.(); } catch {}
+    }
+}
