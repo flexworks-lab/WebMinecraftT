@@ -1,6 +1,6 @@
 // Firebase web configuration for WebMinecraftT.
 // This config is safe to include in the browser. Firebase Authentication and
-// your Firebase security rules control access to your project's data.
+a// your Firebase security rules control access to your project's data.
 import "./browserWorldFallback.js";
 
 export const firebaseConfig = {
@@ -26,6 +26,7 @@ import("./moderation.js").catch(error => console.warn("Moderation system failed 
 import("./devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
 import("./devAI.js").catch(error => console.warn("Developer AI failed to load:", error));
 import("./devServerControls.js").catch(error => console.warn("Developer server controls failed to load:", error));
+import("./newsAdminFix.js").catch(error => console.warn("News/admin UI fixes failed to load:", error));
 import("./adminManagement.js").catch(error => console.warn("Admin management failed to load:", error));
 import("./adminControls.js").catch(error => console.warn("Admin controls failed to load:", error));
 import("./accountDevControls.js").catch(error => console.warn("Account developer controls failed to load:", error));
