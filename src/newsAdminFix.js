@@ -1,8 +1,9 @@
 // Isolated UI fixes for News + developer live-server controls.
-// Keep developer server-chat drafts alive while the server list polls/re-renders.
+// Never allow a live-server chat input to lose its draft during UI updates.
 
 let observerInstalled = false;
 const adminDrafts = new Map();
+const restoringDrafts = new WeakSet();
 
 function applyNewsFix() {
     const duplicateBack = document.getElementById("newsReadingBack");
@@ -22,7 +23,7 @@ function isAdminChatInput(input) {
 }
 
 function rememberAdminDraft(input) {
-    if (!isAdminChatInput(input)) return;
+    if (!isAdminChatInput(input) || restoringDrafts.has(input)) return;
     const id = serverIdFromInput(input);
     if (id) adminDrafts.set(id, input.value);
 }
@@ -30,11 +31,11 @@ function rememberAdminDraft(input) {
 function rememberVisibleDrafts() {
     for (const input of document.querySelectorAll(".devServerChatInput")) {
         const id = serverIdFromInput(input);
-        if (!id) continue;
-        // Once a developer has started typing, keep the exact current value.
-        if (document.activeElement === input || input.value !== "") {
-            adminDrafts.set(id, input.value);
-        }
+        if (!id || restoringDrafts.has(input)) continue;
+        // Always remember the live value, including an empty value.
+        // This makes the currently focused input authoritative.
+        if (document.activeElement === input) adminDrafts.set(id, input.value);
+        else if (input.value !== "") adminDrafts.set(id, input.value);
     }
 }
 
@@ -55,12 +56,16 @@ function restoreAdminDrafts() {
         const id = serverIdFromInput(input);
         if (!id || !adminDrafts.has(id)) continue;
         const draft = adminDrafts.get(id) ?? "";
-        if (input.value !== draft) {
-            const active = document.activeElement === input;
+        if (input.value === draft) continue;
+        const active = document.activeElement === input;
+        restoringDrafts.add(input);
+        try {
             input.value = draft;
             if (active) {
-                try { input.setSelectionRange(input.value.length, input.value.length); } catch {}
+                try { input.setSelectionRange(draft.length, draft.length); } catch {}
             }
+        } finally {
+            restoringDrafts.delete(input);
         }
     }
 }
@@ -76,22 +81,13 @@ function handlePotentialSend(event) {
     if (target instanceof Element) {
         const sendButton = target.closest(".devServerChatSend");
         if (sendButton) {
-            const card = sendButton.closest(".devServerCard");
-            const input = card?.querySelector(".devServerChatInput");
+            const input = sendButton.closest(".devServerCard")?.querySelector(".devServerChatInput");
             clearDraftForInput(input);
             return;
         }
     }
     if (event.type === "keydown" && event.key === "Enter" && isAdminChatInput(target)) {
         clearDraftForInput(target);
-    }
-}
-
-function cleanupDrafts() {
-    for (const [id, draft] of adminDrafts) {
-        if (!draft && !document.querySelector(`.devServerCard[data-server-id="${CSS.escape(id)}"]`)) {
-            adminDrafts.delete(id);
-        }
     }
 }
 
@@ -143,24 +139,21 @@ function install() {
     document.addEventListener("keydown", handlePotentialSend, true);
 
     const observer = new MutationObserver(records => {
-        // Capture removed inputs before they become unreachable.
         captureRemovedInputs(records);
         rememberVisibleDrafts();
         restoreAdminDrafts();
         applyNewsFix();
-        cleanupDrafts();
         improveAdminServerUI();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Extra guard against any refresh that replaces the input between DOM
-    // mutation callbacks. This runs often enough that typing never visibly
-    // disappears, while still leaving server refreshes free to update chat.
+    // A lightweight guard handles updates that replace the input and happen
+    // between mutation-observer callbacks. It does not rebuild or focus the UI.
     const guard = setInterval(() => {
         rememberVisibleDrafts();
         restoreAdminDrafts();
         applyNewsFix();
-    }, 25);
+    }, 50);
 
     window.addEventListener("beforeunload", () => clearInterval(guard), { once: true });
     applyNewsFix();
