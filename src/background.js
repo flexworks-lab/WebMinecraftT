@@ -1,7 +1,6 @@
 import "./welcome.js";
 import "./playerList.js";
 import "./worldSync.js";
-import { touchInput } from "./controls.js";
 import "./mobileFlightControls.js";
 import "./uiFixes.js";
 import "./waterPhysics.js";
@@ -67,38 +66,7 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
 #settingsVersion{display:none !important}
 #gameVersionButton,#gameVersionPicker{display:none !important}
 #webMinecraftMovingClouds{display:none !important}
-
 #touchMovePad{overflow:visible}
-#touchHybridJoystick{
-    position:absolute;
-    left:56px;
-    top:56px;
-    width:56px;
-    height:56px;
-    margin:0;
-    border:2px solid rgba(255,255,255,.24);
-    border-radius:14px;
-    background:rgba(20,20,20,.34);
-    pointer-events:auto;
-    touch-action:none;
-    z-index:4;
-    -webkit-tap-highlight-color:transparent;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
-}
-#touchHybridJoystickKnob{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:28px;
-    height:28px;
-    margin:-14px 0 0 -14px;
-    border:2px solid rgba(255,255,255,.5);
-    border-radius:9px;
-    background:rgba(255,255,255,.2);
-    pointer-events:none;
-    transition:transform .05s ease;
-}
-#touchHybridJoystick.dragging #touchHybridJoystickKnob{background:rgba(255,255,255,.3)}
 @media(max-width:560px){
     #newsButton{left:12px !important;bottom:18px !important;width:calc(50vw - 18px) !important}
     #friendsButton{left:calc(50vw + 6px) !important;bottom:18px !important;width:calc(50vw - 18px) !important}
@@ -160,76 +128,6 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
     });
     observer.observe(mainMenu, { attributes:true, attributeFilter:["style","class"] });
     if (settingsButton) observer.observe(settingsButton, { attributes:true, attributeFilter:["style","class"] });
-
-    const attachHybridJoystick = () => {
-        const pad = document.getElementById("touchMovePad");
-        if (!pad || document.getElementById("touchHybridJoystick")) return !!pad;
-
-        const joystick = document.createElement("div");
-        joystick.id = "touchHybridJoystick";
-        joystick.setAttribute("aria-label", "Joystick movement");
-        const knob = document.createElement("div");
-        knob.id = "touchHybridJoystickKnob";
-        joystick.appendChild(knob);
-        pad.appendChild(joystick);
-
-        let pointerId = null;
-        const radius = 30;
-        const release = () => {
-            pointerId = null;
-            touchInput.moveX = 0;
-            touchInput.moveZ = 0;
-            joystick.classList.remove("dragging");
-            knob.style.transform = "translate(0,0)";
-        };
-        const update = (x, y) => {
-            const rect = joystick.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            let dx = x - centerX;
-            let dy = y - centerY;
-            const distance = Math.hypot(dx, dy);
-            if (distance > radius && distance > 0) {
-                dx = (dx / distance) * radius;
-                dy = (dy / distance) * radius;
-            }
-            const normalizedX = dx / radius;
-            const normalizedZ = -dy / radius;
-            touchInput.moveX = Math.abs(normalizedX) > .12 ? Math.max(-1, Math.min(1, normalizedX)) : 0;
-            touchInput.moveZ = Math.abs(normalizedZ) > .12 ? Math.max(-1, Math.min(1, normalizedZ)) : 0;
-            knob.style.transform = `translate(${dx}px,${dy}px)`;
-        };
-
-        joystick.addEventListener("pointerdown", event => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (pointerId !== null || event.pointerType === "mouse") return;
-            pointerId = event.pointerId;
-            joystick.setPointerCapture?.(event.pointerId);
-            joystick.classList.add("dragging");
-            update(event.clientX, event.clientY);
-        });
-        joystick.addEventListener("pointermove", event => {
-            if (event.pointerId !== pointerId) return;
-            event.preventDefault();
-            update(event.clientX, event.clientY);
-        });
-        joystick.addEventListener("pointerup", event => {
-            if (event.pointerId === pointerId) { event.preventDefault(); release(); }
-        });
-        joystick.addEventListener("pointercancel", event => {
-            if (event.pointerId === pointerId) release();
-        });
-        joystick.addEventListener("lostpointercapture", release);
-        return true;
-    };
-
-    if (!attachHybridJoystick()) {
-        const touchObserver = new MutationObserver(() => {
-            if (attachHybridJoystick()) touchObserver.disconnect();
-        });
-        touchObserver.observe(document.body, { childList:true, subtree:true });
-    }
 }
 
 function init() {
