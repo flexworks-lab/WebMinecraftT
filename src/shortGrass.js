@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import { getBlockAt, getWorldSeed, getBlockTypes } from "./world.js";
+import { getBlockAt, getWorldSeed, getBlockTypes, setBlockAt } from "./world.js";
+import { sendBlockChange } from "./multiplayerClient.js";
+import { blockGeometry, gravelMaterial } from "./blocks.js";
 
 const ROOT_NAME = "ShortGrassVegetation";
 const SCAN_RADIUS = 40;
@@ -7,6 +9,11 @@ const SCAN_INTERVAL = 700;
 const MAX_GRASS = 1800;
 const GRASS_HEIGHT = 0.82;
 const GRASS_WIDTH = 0.68;
+const GRAVEL_PHYSICS_INTERVAL = 180;
+const GRAVEL_PHYSICS_RADIUS = 7;
+const GRAVEL_PHYSICS_Y_RANGE = 22;
+const GRAVEL_GRAVITY = 24;
+const GRAVEL_MAX_FALL_SPEED = 30;
 
 let root = null;
 let cameraRef = null;
@@ -15,11 +22,13 @@ let geometry = null;
 let material = null;
 let running = false;
 let lastScan = 0;
+let lastGravelPhysicsScan = 0;
 let lastSeed = null;
 let observer = null;
 let blockChangeHandler = null;
 let removedGrass = new Set();
 let grassOutline = null;
+const fallingGravel = new Map();
 
 function hash2D(x, z, seed, salt = 0) {
     let h = Math.imul((x | 0) ^ 0x9e3779b9, 374761393);
@@ -95,6 +104,89 @@ function findSurfaceY(x, z, cameraY) {
     return null;
 }
 
+function createFallingGravel(scene, x, y, z) {
+    const key = `${x},${y},${z}`;
+    const types = getBlockTypes();
+    if (fallingGravel.has(key) || getBlockAt(x, y, z) !== types.GRAVEL) return false;
+    if (getBlockAt(x, y - 1, z) !== types.AIR) return false;
+    const cloned = gravelMaterial.clone();
+    const falling = new THREE.Mesh(blockGeometry, [cloned]);
+    falling.position.set(x, y, z);
+    falling.castShadow = true;
+    falling.receiveShadow = true;
+    falling.userData.dynamicBlockType = "gravel";
+    scene.add(falling);
+    fallingGravel.set(key, { x, y, z, velocity: 0, mesh: falling });
+    if (!setBlockAt(x, y, z, types.AIR)) {
+        fallingGravel.delete(key);
+        scene.remove(falling);
+        cloned.dispose();
+        return false;
+    }
+    sendBlockChange(x, y, z, types.AIR);
+    window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type: types.AIR } }));
+    return true;
+}
+
+function scanForUnsupportedGravel() {
+    if (!cameraRef || !root?.visible) return;
+    const types = getBlockTypes();
+    const cx = Math.floor(cameraRef.position.x);
+    const cz = Math.floor(cameraRef.position.z);
+    const top = Math.min(127, Math.floor(cameraRef.position.y + GRAVEL_PHYSICS_Y_RANGE));
+    const bottom = Math.max(-32, Math.floor(cameraRef.position.y - GRAVEL_PHYSICS_Y_RANGE));
+    for (let dz = -GRAVEL_PHYSICS_RADIUS; dz <= GRAVEL_PHYSICS_RADIUS; dz++) {
+        for (let dx = -GRAVEL_PHYSICS_RADIUS; dx <= GRAVEL_PHYSICS_RADIUS; dx++) {
+            if (dx * dx + dz * dz > GRAVEL_PHYSICS_RADIUS * GRAVEL_PHYSICS_RADIUS) continue;
+            const x = cx + dx, z = cz + dz;
+            for (let y = top; y >= bottom; y--) {
+                if (getBlockAt(x, y, z) !== types.GRAVEL) continue;
+                if (getBlockAt(x, y - 1, z) === types.AIR) createFallingGravel(cameraRef.parent, x, y, z);
+            }
+        }
+    }
+}
+
+function updateFallingGravel(deltaTime) {
+    if (fallingGravel.size === 0) return;
+    const types = getBlockTypes();
+    const dt = Math.min(Math.max(deltaTime, 0), 0.05);
+    for (const [key, entity] of fallingGravel) {
+        if (!entity.mesh?.parent) { fallingGravel.delete(key); continue; }
+        entity.velocity = Math.min(entity.velocity + GRAVEL_GRAVITY * dt, GRAVEL_MAX_FALL_SPEED);
+        const startY = entity.y;
+        const nextY = startY - entity.velocity * dt;
+        const supportY = Math.floor(nextY - 0.5 + 0.00001);
+        let landingY = null;
+        for (let y = Math.floor(startY - 0.5 + 0.00001); y >= supportY; y--) {
+            if (getBlockAt(entity.x, y, entity.z) !== types.AIR) {
+                landingY = y + 1;
+                break;
+            }
+        }
+        if (landingY !== null && landingY <= startY) {
+            entity.y = landingY;
+            entity.mesh.position.y = landingY;
+            fallingGravel.delete(key);
+            const mesh = entity.mesh;
+            if (mesh.parent) mesh.parent.remove(mesh);
+            if (Array.isArray(mesh.material)) for (const mat of mesh.material) mat.dispose();
+            setBlockAt(entity.x, landingY, entity.z, types.GRAVEL);
+            sendBlockChange(entity.x, landingY, entity.z, types.GRAVEL);
+            window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x: entity.x, y: landingY, z: entity.z, type: types.GRAVEL } }));
+            continue;
+        }
+        entity.y = nextY;
+        entity.mesh.position.y = nextY;
+        if (nextY < -60) {
+            fallingGravel.delete(key);
+            const mesh = entity.mesh;
+            if (mesh.parent) mesh.parent.remove(mesh);
+            if (Array.isArray(mesh.material)) for (const mat of mesh.material) mat.dispose();
+        }
+    }
+}
+
 function scan() {
     if (!root || !cameraRef || !mesh) return;
     root.visible = document.body.classList.contains("webminecraft-in-world");
@@ -160,6 +252,9 @@ function punchGrass(event) {
 
 function tick(now) {
     if (now - lastScan >= SCAN_INTERVAL) { lastScan = now; scan(); }
+    if (now - lastGravelPhysicsScan >= GRAVEL_PHYSICS_INTERVAL) { lastGravelPhysicsScan = now; scanForUnsupportedGravel(); }
+    updateFallingGravel((now - (tick.lastTime || now)) / 1000);
+    tick.lastTime = now;
     updateGrassOutline();
     requestAnimationFrame(tick);
 }
