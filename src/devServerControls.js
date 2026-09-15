@@ -5,6 +5,7 @@ let installed = false;
 let pollTimer = null;
 let selectedServerId = "";
 const selectedWarningPlayers = new Map();
+const serverChatDrafts = new Map();
 
 const RANDOM_SERVER_REMINDERS = [
     "Please behave appropriately and follow the server rules.",
@@ -54,7 +55,7 @@ async function adminRequest(path, options = {}) {
     if (!token) throw new Error("Developer login is required.");
     const response = await fetch(`${SERVER_API}${path}`, {
         ...options,
-        headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { ...(options.headers || {}), Authorization: `Bearer ${token}`, "Content-Type": "application/json` },
         cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
@@ -67,7 +68,7 @@ function addServerStyles() {
     const style = document.createElement("style");
     style.id = "devServerControlsStyles";
     style.textContent = `
-#devServerSection{display:block}.devServerList{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}.devServerCard{background:#171717;border:1px solid #414141;padding:10px}.devServerHead{display:flex;align-items:center;gap:8px}.devServerName{font-weight:700;font-size:13px;flex:1}.devServerCount{font-size:10px;color:#9fce72}.devServerPlayers{display:flex;flex-direction:column;gap:5px;margin:8px 0}.devPlayer{display:flex;align-items:center;gap:7px;background:#252525;border:1px solid #444;padding:6px 7px;font-size:10px}.devPlayerName{display:flex;align-items:center;gap:6px;flex:1;min-width:0}.devPlayerSelect{width:14px;height:14px;margin:0;accent-color:#9fce72}.devKick,.devWarnOne{border:1px solid #111;background:#633f3b;color:#fff;padding:3px 6px;cursor:pointer;font-size:9px}.devWarnOne{background:#735d34}.devPlayerTools{display:flex;gap:5px;flex-wrap:wrap}.devWarningActions{margin-top:7px}.devServerActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.devServerChat{margin-top:9px;background:#111;border:1px solid #333;padding:8px}.devServerChatFeed{height:130px;overflow:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:7px}.devServerChatLine{font-size:10px;line-height:1.35;color:#eee}.devServerChatLine strong{color:#b8dc95}.devServerChatInputRow{display:flex;gap:6px}.devServerChatInput{min-width:0;flex:1;background:#222;border:1px solid #555;color:#fff;padding:7px;font-size:11px}.devServerChatSend{min-width:65px}.devRandomReminder{width:100%;margin-bottom:6px}.devServerEmpty{color:#888;font-size:11px;padding:8px;background:#171717;border:1px solid #333}@media(max-width:650px){.devServerActions{grid-template-columns:1fr}.devServerChatInputRow{flex-direction:column}}
+#devServerSection{display:block}.devServerList{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}.devServerCard{background:#171717;border:1px solid #414141;padding:10px}.devServerHead{display:flex;align-items:center;gap:8px}.devServerName{font-weight:700;font-size:13px;flex:1}.devServerCount{font-size:10px;color:#9fce72}.devServerPlayers{display:flex;flex-direction:column;gap:5px;margin:8px 0}.devPlayer{display:flex;align-items:center;gap:7px;background:#252525;border:1px solid #444;padding:6px 7px;font-size:10px}.devPlayerName{display:flex;align-items:center;gap:6px;flex:1;min-width:0}.devPlayerSelect{width:14px;height:14px;margin:0;accent-color:#9fce72}.devKick,.devWarnOne{border:1px solid #111;background:#633f3b;color:#fff;padding:3px 6px;cursor:pointer;font-size:9px}.devWarnOne{background:#735d34}.devPlayerTools{display:flex;gap:5px;flex-wrap:wrap}.devWarningActions{margin-top:7px}.devServerActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.devServerChat{margin-top:9px;background:#111;border:1px solid #333;padding:8px}.devServerChatFeed{height:130px;overflow:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:7px}.devServerChatLine{font-size:10px;line-height:1.35;color:#eee}.devServerChatSend{min-width:65px}.devRandomReminder{width:100%;margin-bottom:6px}.devServerEmpty{color:#888;font-size:11px;padding:8px;background:#171717;border:1px solid #333}@media(max-width:650px){.devServerActions{grid-template-columns:1fr}.devServerChatInputRow{flex-direction:column}}
 `;
     document.head.appendChild(style);
 }
@@ -96,9 +97,71 @@ function escapeHtml(value) {
     return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
+function getChatInputServerId(input) {
+    const card = input?.closest?.(".devServerCard");
+    return card?.dataset?.serverId ? String(card.dataset.serverId) : "";
+}
+
+function rememberChatDraft(input) {
+    if (!(input instanceof HTMLInputElement) || !input.classList.contains("devServerChatInput")) return;
+    const serverId = getChatInputServerId(input);
+    if (serverId) serverChatDrafts.set(serverId, input.value);
+}
+
+function rememberVisibleChatDrafts() {
+    document.querySelectorAll(".devServerChatInput").forEach(input => {
+        const serverId = getChatInputServerId(input);
+        if (!serverId) return;
+        if (document.activeElement === input || input.value !== "") serverChatDrafts.set(serverId, input.value);
+    });
+}
+
+function restoreChatDraft(input) {
+    if (!(input instanceof HTMLInputElement)) return;
+    const serverId = getChatInputServerId(input);
+    if (!serverId || !serverChatDrafts.has(serverId)) return;
+    const draft = serverChatDrafts.get(serverId) ?? "";
+    if (input.value === draft) return;
+    const wasFocused = document.activeElement === input;
+    input.value = draft;
+    if (wasFocused) {
+        try { input.setSelectionRange(draft.length, draft.length); } catch {}
+    }
+}
+
+function clearChatDraft(input) {
+    if (!(input instanceof HTMLInputElement)) return;
+    const serverId = getChatInputServerId(input);
+    if (serverId) serverChatDrafts.delete(serverId);
+}
+
+function captureRemovedChatInputs(records) {
+    for (const record of records) {
+        for (const removed of record.removedNodes) {
+            if (!(removed instanceof Element)) continue;
+            const inputs = [];
+            if (removed.matches?.(".devServerChatInput")) inputs.push(removed);
+            inputs.push(...(removed.querySelectorAll?.(".devServerChatInput") || []));
+            inputs.forEach(rememberChatDraft);
+        }
+    }
+}
+
+function restoreAllChatDrafts() {
+    document.querySelectorAll(".devServerChatInput").forEach(restoreChatDraft);
+}
+
 function isServerChatInputActive() {
     const active = document.activeElement;
     return active instanceof HTMLInputElement && active.classList.contains("devServerChatInput");
+}
+
+function hasChatDraft() {
+    rememberVisibleChatDrafts();
+    for (const value of serverChatDrafts.values()) {
+        if (value) return true;
+    }
+    return false;
 }
 
 function updateChatFeeds(servers) {
@@ -132,16 +195,21 @@ async function refreshServers() {
     if (!isDev()) return;
     const list = document.getElementById("devServerList");
     if (!list) return;
+    rememberVisibleChatDrafts();
     try {
         const data = await adminRequest("/admin/servers");
         const servers = data.servers || [];
-        if (isServerChatInputActive()) {
+        // Never rebuild the server cards while a developer is typing or has a
+        // non-empty draft. Updating only the chat feeds keeps the input intact.
+        if (isServerChatInputActive() || hasChatDraft()) {
             updateChatFeeds(servers);
+            restoreAllChatDrafts();
             return;
         }
         renderServers(servers);
+        restoreAllChatDrafts();
     } catch (error) {
-        if (!isServerChatInputActive()) list.innerHTML = `<div class="devServerEmpty">${escapeHtml(error.message)}</div>`;
+        if (!isServerChatInputActive() && !hasChatDraft()) list.innerHTML = `<div class="devServerEmpty">${escapeHtml(error.message)}</div>`;
     }
 }
 
@@ -204,11 +272,13 @@ function renderServers(servers) {
         card.querySelector(".devDelete").addEventListener("click", () => deleteServer(server.id, server.name));
         card.querySelector(".devRandomReminder").addEventListener("click", () => sendRandomReminder(server.id));
         const input = card.querySelector(".devServerChatInput");
-        const send = () => {
+        input.addEventListener("input", () => rememberChatDraft(input));
+        const send = async () => {
             const text = input.value.trim();
             if (!text) return;
+            clearChatDraft(input);
             input.value = "";
-            sendServerChat(server.id, text);
+            await sendServerChat(server.id, text);
         };
         card.querySelector(".devServerChatSend").addEventListener("click", send);
         input.addEventListener("keydown", event => {
@@ -219,6 +289,7 @@ function renderServers(servers) {
         });
         list.appendChild(card);
     }
+    restoreAllChatDrafts();
 }
 
 function setPlayerSelection(serverId, playerId, selected) {
