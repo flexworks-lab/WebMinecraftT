@@ -83,6 +83,46 @@ const gameplayUiPlugin = {
             return { code, map: null };
         }
 
+        if (id.endsWith("/src/tnt.js")) {
+            const scanCode = `
+let looseGravelScanStarted = false;
+function startLooseGravelScan() {
+    if (looseGravelScanStarted) return;
+    looseGravelScanStarted = true;
+    const scan = () => {
+        if (!lastScene) return;
+        const camera = window.__webminecraftCamera;
+        const centerX = Number.isFinite(camera?.position?.x) ? Math.floor(camera.position.x) : 0;
+        const centerY = Number.isFinite(camera?.position?.y) ? Math.floor(camera.position.y) : 32;
+        const centerZ = Number.isFinite(camera?.position?.z) ? Math.floor(camera.position.z) : 0;
+        const BLOCK = getBlockTypes();
+        const radius = 10;
+        const minY = Math.max(-31, centerY - 10);
+        const maxY = Math.min(127, centerY + 18);
+        for (let x = centerX - radius; x <= centerX + radius; x++) {
+            for (let z = centerZ - radius; z <= centerZ + radius; z++) {
+                for (let y = minY; y <= maxY; y++) {
+                    if (getBlockAt(x, y, z) === BLOCK.GRAVEL && !isSolidBlock(getBlockAt(x, y - 1, z), BLOCK)) {
+                        tryTrackGravelAt(lastScene, x, y, z);
+                    }
+                }
+            }
+        }
+    };
+    scan();
+    setInterval(scan, 350);
+}
+`;
+            if (!code.includes("startLooseGravelScan")) {
+                code = code.replace("function startPhysicsLoop() {", `${scanCode}\nfunction startPhysicsLoop() {`);
+                code = code.replace(
+                    'export function registerTNTPhysicsScene(scene) { lastScene = scene; startPhysicsLoop(); }',
+                    'export function registerTNTPhysicsScene(scene) { lastScene = scene; startPhysicsLoop(); startLooseGravelScan(); }'
+                );
+            }
+            return { code, map: null };
+        }
+
         if (id.endsWith("/src/playerList.js")) {
             code = code.replace(
                 "if (!mainMenuVisible && !active) {",
