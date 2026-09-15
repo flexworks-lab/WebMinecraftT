@@ -72,6 +72,14 @@ const gameplayUiPlugin = {
                 '{ id: 14, name: "Snow", texture: null, color: "#e9f4ff", category: "natural" }',
                 '{ id: 14, name: "Snow", texture: "snow.png", category: "natural" }'
             );
+            code = code.replace(
+                '{ id: 8, name: "Gravel", texture: "dirt.png", category: "natural" }',
+                '{ id: 8, name: "Gravel", texture: "gravel.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 9, name: "Sandstone", texture: "sand.png", category: "natural" }',
+                '{ id: 9, name: "Sandstone", texture: "sandstone.png", category: "natural" }'
+            );
             return { code, map: null };
         }
 
