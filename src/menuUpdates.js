@@ -98,8 +98,7 @@ function createNewsUi(){
     button.className="menuButton";
     button.type="button";
     button.textContent="News";
-    // News is intentionally outside the animated menu panel so its fixed
-    // position cannot be affected by the menu panel's transform animation.
+    // Keep News outside the animated menu panel so its fixed position cannot be affected by the panel transform.
     document.body.appendChild(button);
     const center=document.createElement("div");
     center.id="newsCenter";
@@ -122,29 +121,14 @@ function createNewsUi(){
     const detailVersion=center.querySelector("#newsReadingVersion");
     const detailTitle=center.querySelector("#newsReadingTitle");
     const detailBody=center.querySelector("#newsReadingBody");
-    const showItem=item=>{
-        detailVersion.textContent=item.version;
-        detailTitle.textContent=item.title;
-        detailBody.textContent=item.body;
-    };
+    const showItem=item=>{detailVersion.textContent=item.version;detailTitle.textContent=item.title;detailBody.textContent=item.body;};
     UPDATE_DETAILS.forEach((item,index)=>{
-        const card=document.createElement("button");
-        card.className="newsItem";
-        card.type="button";
+        const card=document.createElement("button");card.className="newsItem";card.type="button";
         card.innerHTML=`<div class="newsItemVersion">${escapeHtml(item.version)}</div><div class="newsItemTitle">${escapeHtml(item.title)}</div><div class="newsItemBody">${escapeHtml(item.body)}</div>`;
-        card.addEventListener("click",event=>{event.stopPropagation();showItem(item);});
-        list.appendChild(card);
-        if(index===0)showItem(item);
+        card.addEventListener("click",event=>{event.stopPropagation();showItem(item);});list.appendChild(card);if(index===0)showItem(item);
     });
     const closeNews=()=>{center.style.display="none";center.setAttribute("aria-hidden","true");};
-    const openNews=event=>{
-        event?.preventDefault();event?.stopPropagation();
-        center.style.display="block";
-        center.setAttribute("aria-hidden","false");
-        setNewsUnread(false);
-        list.scrollTop=0;
-        detailBody.scrollTop=0;
-    };
+    const openNews=event=>{event?.preventDefault();event?.stopPropagation();center.style.display="block";center.setAttribute("aria-hidden","false");setNewsUnread(false);list.scrollTop=0;detailBody.scrollTop=0;};
     button.addEventListener("click",openNews);
     center.querySelector("#newsClose").addEventListener("click",closeNews);
     center.querySelector("#newsReadingBack").addEventListener("click",closeNews);
@@ -190,7 +174,7 @@ function createVersionPicker(){
     document.addEventListener("click",event=>{if(event.target!==button&&!picker.contains(event.target))picker.style.display="none";});
     document.addEventListener("keydown",event=>{if(event.code==="Escape")picker.style.display="none";});
     document.body.append(button,picker);window.webminecraftVersion=current;refresh();
-    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]);}
+    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]});}
 }
 
 addStyles();
