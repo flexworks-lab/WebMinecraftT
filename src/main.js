@@ -262,20 +262,20 @@ async function copyText(text) {
         helper.remove(); return ok;
     }
 }
-async function startWorldWithSeed(seed) {
+function startWorldWithSeed(seed) {
     clearHotbar();
     setWorldSeed(seed);
     createWorld(scene);
     setupWaterPhysics(scene);
     setWorldCloudSeed(seed);
     setWorldUrl(seed);
-    await setWorldSeedForPersistence(seed);
     spawnPlayer();
     gameStarted = true;
     closeSeedMenu();
     if (mainMenu) mainMenu.style.display = "none";
     setMenuUiVisible(false);
     requestPointerLock();
+    void setWorldSeedForPersistence(seed).catch(error => console.warn("World persistence load failed:", error));
 }
 
 initSavedWorlds({ onOpenWorld: startWorldWithSeed });
