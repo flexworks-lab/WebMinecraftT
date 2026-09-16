@@ -60,7 +60,6 @@ function addStyles() {
         #newsReadingBody::-webkit-scrollbar-track{background:#171717}
         #newsReadingBody::-webkit-scrollbar-thumb{background:#707070;border:2px solid #171717;border-radius:7px}
         #newsReadingBody::-webkit-scrollbar-thumb:hover{background:#898989}
-        #newsReadingBack{flex:0 0 auto;margin:0 34px 24px;width:auto}
         @media(max-width:700px){
             #newsButton{left:12px !important;bottom:18px !important;width:calc(50vw - 18px) !important}
             #newsPanel{grid-template-columns:1fr;grid-template-rows:44% 56%}
@@ -72,7 +71,6 @@ function addStyles() {
             #newsClose{margin:8px 12px 10px;width:calc(100% - 24px)}
             #newsReadingHeader{padding:18px 18px 14px}
             #newsReadingBody{padding:18px 18px 34px;font-size:14px;line-height:1.6}
-            #newsReadingBack{margin:0 18px 16px}
         }
     `;
     document.head.appendChild(style);
@@ -162,16 +160,62 @@ function setupSeedBackButton(){
 
 function createVersionPicker(){
     if(document.getElementById("gameVersionPicker"))return;
-    const style=document.createElement("style");style.id="gameVersionStyles";
+    const style=document.createElement("style");
+    style.id="gameVersionStyles";
     style.textContent=`#gameVersionButton{position:fixed;right:10px;bottom:8px;min-width:88px;height:34px;padding:5px 10px;border:2px solid #111;border-top-color:#9a9a9a;border-left-color:#9a9a9a;background:linear-gradient(#666,#4d4d4d);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;cursor:pointer;z-index:97;box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),0 2px 0 rgba(0,0,0,.7)}#gameVersionPicker{position:fixed;right:10px;bottom:48px;width:160px;padding:6px;background:#191919;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:4px 4px 0 rgba(0,0,0,.55);z-index:97;display:none}.gameVersionOption{display:block;width:100%;min-height:34px;margin:3px 0;border:2px solid #111;border-top-color:#777;border-left-color:#777;background:#3d3d3d;color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-align:left;padding:7px 9px;cursor:pointer;text-shadow:2px 2px 0 #111}.gameVersionOption.active{background:#5e5e5e}`;
-    document.head.appendChild(style); const button=document.createElement("button");button.id="gameVersionButton";button.type="button";const picker=document.createElement("div");picker.id="gameVersionPicker";let current=VERSIONS.includes(localStorage.getItem(VERSION_KEY))?localStorage.getItem(VERSION_KEY):VERSIONS[0];
-    VERSIONS.forEach(version=>{const option=document.createElement("button");option.className="gameVersionOption";option.type="button";option.dataset.version=version;option.textContent=version;option.addEventListener("click",()=>{current=version;localStorage.setItem(VERSION_KEY,version);window.webminecraftVersion=version;refresh();picker.style.display="none";});picker.appendChild(option);});
-    const refresh=()=>{button.textContent=current;picker.querySelectorAll(".gameVersionOption").forEach(option=>option.classList.toggle("active",option.dataset.version===current));};
-    button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();picker.style.display=picker.style.display==="block"?"none":"block";});
-    document.addEventListener("click",event=>{if(event.target!==button&&!picker.contains(event.target))picker.style.display="none";});
+    document.head.appendChild(style);
+
+    const button=document.createElement("button");
+    button.id="gameVersionButton";
+    button.type="button";
+    const picker=document.createElement("div");
+    picker.id="gameVersionPicker";
+    let current=VERSIONS.includes(localStorage.getItem(VERSION_KEY))?localStorage.getItem(VERSION_KEY):VERSIONS[0];
+
+    VERSIONS.forEach(version=>{
+        const option=document.createElement("button");
+        option.className="gameVersionOption";
+        option.type="button";
+        option.dataset.version=version;
+        option.textContent=version;
+        option.addEventListener("click",()=>{
+            current=version;
+            localStorage.setItem(VERSION_KEY,version);
+            window.webminecraftVersion=version;
+            refresh();
+            picker.style.display="none";
+        });
+        picker.appendChild(option);
+    });
+
+    const refresh=()=>{
+        button.textContent=current;
+        picker.querySelectorAll(".gameVersionOption").forEach(option=>option.classList.toggle("active",option.dataset.version===current));
+    };
+
+    button.addEventListener("click",event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        picker.style.display=picker.style.display==="block"?"none":"block";
+    });
+
+    document.addEventListener("click",event=>{
+        if(event.target!==button&&!picker.contains(event.target)) picker.style.display="none";
+    });
     document.addEventListener("keydown",event=>{if(event.code==="Escape")picker.style.display="none";});
-    document.body.append(button,picker);window.webminecraftVersion=current;refresh();
-    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]);}
+
+    document.body.append(button,picker);
+    window.webminecraftVersion=current;
+    refresh();
+
+    if(menu){
+        const observer=new MutationObserver(()=>{
+            const visible=getComputedStyle(menu).display!=="none";
+            button.style.display=visible?"block":"none";
+            if(!visible) picker.style.display="none";
+        });
+        observer.observe(menu,{attributes:true,attributeFilter:["style","class"]});
+    }
 }
 
 addStyles();
