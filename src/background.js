@@ -58,6 +58,12 @@ body.webminecraft-in-world #newsButton,
 body.webminecraft-in-world #friendsButton,
 body.webminecraft-in-world #globalPlayerPanel,
 body.webminecraft-in-world #mainMenu button,
+body.webminecraft-in-world #menuButtons,
+body.webminecraft-in-world #playButton,
+body.webminecraft-in-world #multiplayerButton,
+body.webminecraft-in-world #menuSettingsButton,
+body.webminecraft-in-world #mobileModeButton,
+body.webminecraft-in-world #mainMenu .menuButton,
 body.webminecraft-in-world #seedMenu,
 body.webminecraft-in-world #menuUpdates{display:none !important}
 body.webminecraft-in-world #devControlsButton{display:none !important}
@@ -155,5 +161,5 @@ function init() {
     setupMenuAndMobileUi();
 }
 
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
 else init();
