@@ -1,4 +1,5 @@
 let started = false;
+let forwardingCreativeClick = false;
 
 function multiplayerActive() {
     return window.__webminecraftMultiplayerActive === true;
@@ -40,17 +41,32 @@ function installCreativeInputBridge() {
     started = true;
 
     document.addEventListener("mousedown", event => {
-        if (!creativeActive() || event.button !== 0) return;
+        if (!creativeActive() || forwardingCreativeClick || event.button !== 0) return;
         if (event.target instanceof Element && event.target.closest("#hotbar,#inventoryScreen,#survivalInventoryScreen,button,input,select,textarea,a")) return;
 
         const canvas = document.querySelector("body > canvas");
         if (!canvas) return;
 
-        // The normal interaction system owns breaking. This bridge only restores
-        // pointer-lock/input focus when multiplayer Creative starts without it.
         if (document.pointerLockElement !== document.body && typeof document.body.requestPointerLock === "function") {
             try { document.body.requestPointerLock(); } catch {}
         }
+
+        // Send the user's click through the normal interaction handler. The
+        // original event is stopped so Creative cannot break twice.
+        forwardingCreativeClick = true;
+        try {
+            canvas.dispatchEvent(new MouseEvent("mousedown", {
+                bubbles: true,
+                cancelable: true,
+                button: 0,
+                buttons: 1,
+                clientX: event.clientX,
+                clientY: event.clientY
+            }));
+        } catch {}
+        forwardingCreativeClick = false;
+        event.preventDefault();
+        event.stopImmediatePropagation();
     }, true);
 
     const style = document.createElement("style");
