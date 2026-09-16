@@ -60,7 +60,6 @@ function addStyles() {
         #newsReadingBody::-webkit-scrollbar-track{background:#171717}
         #newsReadingBody::-webkit-scrollbar-thumb{background:#707070;border:2px solid #171717;border-radius:7px}
         #newsReadingBody::-webkit-scrollbar-thumb:hover{background:#898989}
-        #newsReadingBack{flex:0 0 auto;margin:0 34px 24px;width:auto}
         @media(max-width:700px){
             #newsPanel{grid-template-columns:1fr;grid-template-rows:44% 56%}
             #newsSidebar{border-right:0;border-bottom:2px solid #0b0b0b}
@@ -71,7 +70,6 @@ function addStyles() {
             #newsClose{margin:8px 12px 10px;width:calc(100% - 24px)}
             #newsReadingHeader{padding:18px 18px 14px}
             #newsReadingBody{padding:18px 18px 34px;font-size:14px;line-height:1.6}
-            #newsReadingBack{margin:0 18px 16px}
             #newsButton{left:12px!important;bottom:18px!important;width:calc(50vw - 18px)!important;height:42px!important}
         }
     `;
@@ -109,9 +107,8 @@ function createNewsUi(){
                 <button id="newsClose" class="menuButton" type="button">Back to Main Menu</button>
             </aside>
             <section id="newsReading">
-                <header id="newsReadingHeader"><div id="newsReadingVersion">Select an update</div><h2 id="newsReadingTitle">WebMinecraftT News</h2></header>
-                <div id="newsReadingBody">Select an update from the list to read the full details.</div>
-                <button id="newsReadingBack" class="menuButton" type="button">← Back</button>
+                <header id="newsReadingHeader"><div id="newsReadingVersion">Select a devlog</div><h2 id="newsReadingTitle">Press a devlog</h2></header>
+                <div id="newsReadingBody">Choose a devlog from the list on the left to read its full details.</div>
             </section>
         </div>`;
     document.body.appendChild(center);
@@ -120,20 +117,18 @@ function createNewsUi(){
     const detailTitle=center.querySelector("#newsReadingTitle");
     const detailBody=center.querySelector("#newsReadingBody");
     const showItem=item=>{ detailVersion.textContent=item.version; detailTitle.textContent=item.title; detailBody.textContent=item.body; };
-    UPDATE_DETAILS.forEach((item,index)=>{
+    UPDATE_DETAILS.forEach(item=>{
         const card=document.createElement("button");
         card.className="newsItem";
         card.type="button";
         card.innerHTML=`<div class="newsItemVersion">${escapeHtml(item.version)}</div><div class="newsItemTitle">${escapeHtml(item.title)}</div><div class="newsItemBody">${escapeHtml(item.body)}</div>`;
         card.addEventListener("click",event=>{event.stopPropagation();showItem(item);});
         list.appendChild(card);
-        if(index===0)showItem(item);
     });
     const closeNews=()=>{center.style.display="none";center.setAttribute("aria-hidden","true");};
     const openNews=event=>{event?.preventDefault();event?.stopPropagation();center.style.display="block";center.setAttribute("aria-hidden","false");setNewsUnread(false);list.scrollTop=0;detailBody.scrollTop=0;};
     button.addEventListener("click",openNews);
     center.querySelector("#newsClose").addEventListener("click",closeNews);
-    center.querySelector("#newsReadingBack").addEventListener("click",closeNews);
     document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(center.style.display==="block")closeNews();},true);
     setNewsUnread(!hasNewsBeenSeen());
 }
