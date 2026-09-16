@@ -2,6 +2,8 @@
 // This only changes the Create New World modal appearance and navigation.
 // The existing worldsV2.js create/cancel handlers remain the source of truth.
 
+import { setWorldMode } from "./survivalMode.js";
+
 const STYLE_ID = "webminecraft-create-world-settings-ui";
 const MODAL_MARK = "data-create-world-settings-ui";
 
@@ -106,7 +108,7 @@ function enhance(modal) {
                             </div>
                             <div class="createWorldSettingsRow">
                                 <div><label for="cwGameMode">Game Mode</label><small>Choose how you play in this world.</small></div>
-                                <div class="createWorldSettingsControl"><select id="cwGameMode" class="createWorldSettingsSelect"><option>Survival</option><option>Creative</option></select></div>
+                                <div class="createWorldSettingsControl"><select id="cwGameMode" class="createWorldSettingsSelect"><option value="survival">Survival</option><option value="creative">Creative</option></select></div>
                             </div>
                             <div class="createWorldSettingsRow">
                                 <div><label for="cwDifficulty">Difficulty</label><small>Controls the world difficulty.</small></div>
@@ -165,6 +167,7 @@ function enhance(modal) {
     const newNameField = modal.querySelector("#cwWorldName");
     const newSeedDisplay = modal.querySelector("#cwSeed");
     const newMessage = modal.querySelector("#createWorldSettingsMessage");
+    const gameModeSelect = modal.querySelector("#cwGameMode");
     const hiddenCreate = document.createElement("button");
     hiddenCreate.type = "button";
     hiddenCreate.dataset.act = "create";
@@ -184,6 +187,18 @@ function enhance(modal) {
     createButton.remove();
     cancelButton.remove();
 
+    const applyCreateMode = () => {
+        const mode = gameModeSelect?.value === "creative" ? "creative" : "survival";
+        window.webMinecraftSelectedWorldMode = mode;
+        const seed = Number(newSeedDisplay?.textContent?.trim());
+        if (Number.isFinite(seed)) setWorldMode(seed, mode);
+        document.body.classList.toggle("webminecraft-survival", mode === "survival");
+        document.body.classList.toggle("webminecraft-creative", mode === "creative");
+    };
+
+    gameModeSelect?.addEventListener("change", applyCreateMode);
+    applyCreateMode();
+
     modal.addEventListener("click", event => {
         const tab = event.target.closest("[data-cw-tab]");
         if (tab) {
@@ -199,6 +214,7 @@ function enhance(modal) {
             return;
         }
         if (event.target.closest("#createWorldSettingsCreate")) {
+            applyCreateMode();
             hiddenCreate.click();
         }
     });
@@ -209,13 +225,17 @@ function enhance(modal) {
     });
     newNameField.addEventListener("keydown", event => {
         event.stopPropagation();
-        if (event.key === "Enter") hiddenCreate.click();
+        if (event.key === "Enter") {
+            applyCreateMode();
+            hiddenCreate.click();
+        }
         if (event.key === "Escape") hiddenCancel.click();
     });
 
     // worldsV2.js writes the generated seed into [data-new-seed]. Mirror it to the visual seed field.
     const observer = new MutationObserver(() => {
         newSeedDisplay.textContent = seedDisplay.textContent;
+        applyCreateMode();
     });
     observer.observe(seedDisplay, { childList:true, characterData:true, subtree:true });
 
@@ -224,6 +244,7 @@ function enhance(modal) {
         newSeedDisplay.textContent = seedDisplay.textContent;
         newNameField.value = nameField.value;
         if (!newMessage.textContent) newMessage.textContent = message.textContent || "";
+        applyCreateMode();
     });
     syncObserver.observe(modal, { attributes:true, attributeFilter:["style"] });
 }
