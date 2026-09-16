@@ -1,4 +1,5 @@
 import { isSurvivalWorld } from "./survivalMode.js";
+import "./survivalInventory.js";
 
 const MAX_HEALTH = 20;
 let lastSurvivalState = null;
@@ -49,9 +50,11 @@ function updateHealthHud() {
     const full = Math.floor(clamped / 2);
     const half = clamped % 2;
     const heartText = "❤".repeat(full) + (half ? "♥" : "") + "♡".repeat(10 - full - half);
-    hearts.textContent = heartText;
-    hearts.setAttribute("aria-label", `${clamped} health`);
-    value.textContent = `${clamped}/20`;
+    if (hearts.textContent !== heartText) hearts.textContent = heartText;
+    const ariaLabel = `${clamped} health`;
+    if (hearts.getAttribute("aria-label") !== ariaLabel) hearts.setAttribute("aria-label", ariaLabel);
+    const healthText = `${clamped}/20`;
+    if (value.textContent !== healthText) value.textContent = healthText;
 }
 
 function syncState() {
@@ -76,7 +79,6 @@ function syncState() {
 function init() {
     addHealthHud();
     syncState();
-
     window.setInterval(syncState, 100);
 
     document.addEventListener("keydown", event => {
