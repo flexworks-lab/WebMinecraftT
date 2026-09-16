@@ -29,16 +29,14 @@ function getSeedFromUrl() {
     return normalizeSeed(new URLSearchParams(window.location.search).get("seed"));
 }
 
-function waitForStorage(timeout = 10000) {
+async function waitForStorage(timeout = 10000) {
     const started = Date.now();
-    return (async () => {
-        while (Date.now() - started < timeout) {
-            const storage = window.webMinecraftWorldStorage;
-            if (storage && typeof storage.getLocalWorld === "function") return storage;
-            await sleep(50);
-        }
-        return null;
-    })();
+    while (Date.now() - started < timeout) {
+        const storage = window.webMinecraftWorldStorage;
+        if (storage && typeof storage.getLocalWorld === "function") return storage;
+        await sleep(50);
+    }
+    return null;
 }
 
 function blockSnapshotKey(seed) {
@@ -101,11 +99,7 @@ function normalizeInventory(value) {
         if (!slot || !Number.isFinite(Number(slot.itemId)) || !Number.isFinite(Number(slot.count))) return null;
         const itemId = Math.floor(Number(slot.itemId));
         const count = Math.max(1, Math.min(64, Math.floor(Number(slot.count))));
-        return {
-            itemId,
-            count,
-            texture: slot.texture || inventoryTexture(itemId)
-        };
+        return { itemId, count, texture: slot.texture || inventoryTexture(itemId) };
     });
 }
 
@@ -117,24 +111,21 @@ function readInventory() {
 function writePlayerState(seed, force = false) {
     const key = playerStateKey(seed);
     const camera = window.__webminecraftCamera;
-    if (!key || !camera) return;
-    if (!force && window.__webminecraftMultiplayerActive === true) return;
-    const modeRaw = window.webMinecraftSelectedWorldMode;
-    const mode = modeRaw === "survival" ? "survival" : (modeRaw === "creative" ? "creative" : null);
-    let yaw = 0;
-    let pitch = 0;
+    if (!key || !camera || (!force && window.__webminecraftMultiplayerActive === true)) return;
+
+    let existing = {};
     try {
-        yaw = Number(window.__webminecraftYaw ?? 0);
-        pitch = Number(window.__webminecraftPitch ?? 0);
+        const parsed = JSON.parse(localStorage.getItem(key) || "{}");
+        if (parsed && typeof parsed === "object") existing = parsed;
     } catch {}
+
     const state = {
+        ...existing,
         version: 2,
         seed: normalizeSeed(seed),
-        mode,
-        position: { x: Number(camera.position.x), y: Number(camera.position.y), z: Number(camera.position.z) },
-        yaw,
-        pitch,
-        selectedSlot: Number.isFinite(Number(window.webMinecraftSelectedSlot)) ? Number(window.webMinecraftSelectedSlot) : 0,
+        position: existing.position && Number.isFinite(Number(existing.position.x)) && Number.isFinite(Number(existing.position.y)) && Number.isFinite(Number(existing.position.z))
+            ? existing.position
+            : { x: Number(camera.position.x), y: Number(camera.position.y), z: Number(camera.position.z) },
         inventory: readInventory(),
         updatedAt: new Date().toISOString()
     };
@@ -176,11 +167,7 @@ async function loadSavedBlocks(seed, switchId) {
 
         const baseWorld = cloudWorld || localWorld;
         if (!baseWorld) return null;
-        activeWorld = {
-            ...baseWorld,
-            seed: normalizedSeed,
-            blocks: mergedBlocks
-        };
+        activeWorld = { ...baseWorld, seed: normalizedSeed, blocks: mergedBlocks };
         activeWorldSeed = normalizedSeed;
         activeBlocks = { ...mergedBlocks };
 
