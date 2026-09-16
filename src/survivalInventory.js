@@ -33,14 +33,21 @@ let selectedHotbar = 0;
 
 function isInWorld() { return document.body.classList.contains("webminecraft-in-world"); }
 function textureUrl(name) { return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}`; }
-function itemDef(id) { return ITEM_DEFS.find(item => item.id === id); }
+function itemDef(id) { return ITEM_DEFS.find(item => item.id === Number(id)); }
+function normalizeSlot(slot) {
+    if (!slot || !Number.isFinite(Number(slot.itemId)) || !Number.isFinite(Number(slot.count))) return null;
+    const item = itemDef(slot.itemId);
+    if (!item) return null;
+    return { itemId: Number(slot.itemId), count: Math.max(1, Math.min(64, Math.floor(Number(slot.count)))), texture: slot.texture || item.texture || null };
+}
 function loadData() {
     try {
         const saved = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
-        data = Array.isArray(saved) && saved.length === 36 ? saved : Array.from({ length: 36 }, () => null);
+        data = Array.isArray(saved) && saved.length === 36 ? saved.map(normalizeSlot) : Array.from({ length: 36 }, () => null);
     } catch { data = Array.from({ length: 36 }, () => null); }
 }
 function saveData() {
+    data = data.map(normalizeSlot);
     try { localStorage.setItem("webminecraft_inventory", JSON.stringify(data)); } catch {}
     window.dispatchEvent(new CustomEvent("webminecraft:inventorychanged"));
 }
@@ -48,8 +55,9 @@ function itemHtml(slot) {
     if (!slot?.itemId) return "";
     const item = itemDef(slot.itemId);
     if (!item) return "";
-    const visual = item.texture
-        ? `<img class="svi-item" src="${textureUrl(item.texture)}" alt="" draggable="false">`
+    const texture = slot.texture || item.texture;
+    const visual = texture
+        ? `<img class="svi-item" src="${textureUrl(texture)}" alt="" draggable="false">`
         : `<span class="svi-item svi-color" style="--c:#777"></span>`;
     return `${visual}${slot.count > 1 ? `<b>${slot.count}</b>` : ""}`;
 }
@@ -69,16 +77,16 @@ function renderSlots() {
     const hotbar = root.querySelector("#svi-hotbar");
     storage.innerHTML = "";
     hotbar.innerHTML = "";
-    for (let i = 0; i < 27; i++) storage.appendChild(slotButton(i, `Storage slot ${i + 1}`));
+    for (let i = 9; i < 36; i++) storage.appendChild(slotButton(i, `Storage slot ${i - 8}`));
     for (let i = 0; i < 9; i++) {
-        const button = slotButton(i + 27, `Hotbar slot ${i + 1}`);
+        const button = slotButton(i, `Hotbar slot ${i + 1}`);
         if (i === selectedHotbar) button.classList.add("selected");
         hotbar.appendChild(button);
     }
 }
 function selectSlot(index) {
-    if (index < 27) return;
-    selectedHotbar = index - 27;
+    if (index < 0 || index >= 9) return;
+    selectedHotbar = index;
     const event = new KeyboardEvent("keydown", { key: String(selectedHotbar + 1), code: `Digit${selectedHotbar + 1}`, bubbles: true });
     window.dispatchEvent(event);
     document.dispatchEvent(event);
@@ -204,14 +212,14 @@ function init() {
         openInventory();
     }, true);
     window.addEventListener("webminecraft:inventorychanged", () => {
-        if (!open || !root || !isInWorld() || !isSurvivalWorld()) return;
         loadData();
+        if (!open || !root || !isInWorld() || !isSurvivalWorld()) return;
         renderSlots();
     });
     window.addEventListener("webminecraft:modechange", () => { if (!isInWorld() || !isSurvivalWorld()) close(); });
     const worldObserver = new MutationObserver(() => {
         if (!isInWorld() && open) close();
-        if (!isInWorld() && root?.classList.contains("open")) close();
+        if (!isInWorld() && root?.classList.contains("open")) root.classList.remove("open");
     });
     worldObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
