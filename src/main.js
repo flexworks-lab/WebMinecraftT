@@ -27,21 +27,6 @@ camera.position.set(0, 7, 5);
 camera.up.set(0, 1, 0);
 camera.rotation.order = "YXZ";
 
-const MENU_CAMERA_POSITION = new THREE.Vector3(0, 7, 5);
-const MENU_CAMERA_YAW = 0;
-const MENU_CAMERA_PITCH = 0;
-
-function resetMenuCamera() {
-    camera.up.set(0, 1, 0);
-    camera.position.copy(MENU_CAMERA_POSITION);
-    camera.rotation.order = "YXZ";
-    resetView(MENU_CAMERA_YAW, MENU_CAMERA_PITCH);
-    camera.rotation.set(MENU_CAMERA_PITCH, MENU_CAMERA_YAW, 0);
-    camera.updateMatrixWorld(true);
-}
-
-resetMenuCamera();
-
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(1);
@@ -191,34 +176,47 @@ function setMenuUiVisible(visible) {
 
 function findRandomSpawn() {
     const types = getBlockTypes();
-    for (let attempt = 0; attempt < 700; attempt++) {
-        const x = Math.floor(Math.random() * 97) - 48;
-        const z = Math.floor(Math.random() * 97) - 48;
-        for (let y = 70; y >= -31; y--) {
-            if (getBlockAt(x, y, z) !== types.GRASS) continue;
-            if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
-            let safeLand = true;
-            for (let ox = -1; ox <= 1 && safeLand; ox++) {
-                for (let oz = -1; oz <= 1; oz++) {
-                    if (ox === 0 && oz === 0) continue;
-                    const below = getBlockAt(x + ox, y, z + oz);
-                    if (below !== types.GRASS && below !== types.DIRT) { safeLand = false; break; }
-                }
+
+    const isSafeSpawn = (x, y, z) => {
+        // The player camera is the top of the 1.8 block-tall player box.
+        // The support must be directly below the feet and the full player
+        // footprint needs two clear blocks above it so the player cannot spawn
+        // inside a wall, hill, tree, or overhang.
+        const support = getBlockAt(x, y, z);
+        if (!support || support === types.WATER) return false;
+        for (let ox = -1; ox <= 1; ox++) {
+            for (let oz = -1; oz <= 1; oz++) {
+                if (getBlockAt(x + ox, y + 1, z + oz) !== types.AIR) return false;
+                if (getBlockAt(x + ox, y + 2, z + oz) !== types.AIR) return false;
             }
-            if (safeLand) return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
-            break;
+        }
+        return true;
+    };
+
+    // Pick a genuinely random location over a broad area and use the highest
+    // solid surface there that has enough open space for the player.
+    for (let attempt = 0; attempt < 1200; attempt++) {
+        const x = Math.floor(Math.random() * 193) - 96;
+        const z = Math.floor(Math.random() * 193) - 96;
+        for (let y = 70; y >= -31; y--) {
+            if (!getBlockAt(x, y, z)) continue;
+            if (!isSafeSpawn(x, y, z)) continue;
+            return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
         }
     }
-    for (let x = -16; x <= 16; x++) {
-        for (let z = -16; z <= 16; z++) {
-            for (let y = 60; y >= -31; y--) {
-                if (getBlockAt(x, y, z) !== types.GRASS) continue;
-                if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+
+    // Deterministic fallback for unusual/generated terrain.
+    for (let x = -32; x <= 32; x++) {
+        for (let z = -32; z <= 32; z++) {
+            for (let y = 70; y >= -31; y--) {
+                if (!getBlockAt(x, y, z)) continue;
+                if (!isSafeSpawn(x, y, z)) continue;
                 return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
             }
         }
     }
-    return { x: 0.5, y: 80, z: 0.5 };
+
+    return { x: 0.5, y: 3.3, z: 0.5 };
 }
 
 function spawnPlayer() {
@@ -362,8 +360,6 @@ setupInteraction(scene, camera);
 
 function animate() {
     requestAnimationFrame(animate);
-    const menuVisible = mainMenu && getComputedStyle(mainMenu).display !== "none";
-    if (!gameStarted && menuVisible) resetMenuCamera();
     if (gameStarted) updatePlayer(camera, scene);
     updateChunkVisibility(scene, camera);
     updateDepthLighting();
