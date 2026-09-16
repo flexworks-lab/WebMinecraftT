@@ -66,6 +66,7 @@ function createHeldMesh() {
     mesh.position.set(0.53, 0.87, -0.24);
     mesh.rotation.set(0.08, 0.28, -0.06);
     mesh.visible = false;
+    mesh.userData.itemId = 0;
     return mesh;
 }
 
@@ -86,16 +87,6 @@ function installAvatarHook() {
         }
         return result;
     };
-}
-
-function readLocalHeldItem() {
-    try {
-        const inventory = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
-        const slot = Number(window.__webminecraftSelectedSlot ?? 0);
-        return Number(inventory?.[slot]?.itemId) || 0;
-    } catch {
-        return 0;
-    }
 }
 
 function getRemotePlayers() {
@@ -130,14 +121,18 @@ function updateHeldMesh(avatar, player) {
     const itemId = Math.floor(Number(player?.heldItemId) || 0);
     if (!ITEM_MATERIALS[itemId]) {
         mesh.visible = false;
+        mesh.userData.itemId = 0;
         return;
     }
-    const nextMaterials = makeMaterials(itemId);
-    if (nextMaterials) {
-        const old = mesh.material;
-        mesh.material = nextMaterials;
-        if (Array.isArray(old)) old.forEach(material => material?.dispose?.());
-        else old?.dispose?.();
+    if (mesh.userData.itemId !== itemId) {
+        const nextMaterials = makeMaterials(itemId);
+        if (nextMaterials) {
+            const old = mesh.material;
+            mesh.material = nextMaterials;
+            if (Array.isArray(old)) old.forEach(material => material?.dispose?.());
+            else old?.dispose?.();
+            mesh.userData.itemId = itemId;
+        }
     }
     mesh.visible = true;
 }
@@ -149,8 +144,7 @@ function render() {
             avatars.delete(avatar);
             continue;
         }
-        const player = findPlayerForAvatar(avatar, players);
-        updateHeldMesh(avatar, player);
+        updateHeldMesh(avatar, findPlayerForAvatar(avatar, players));
     }
     requestAnimationFrame(render);
 }
@@ -159,5 +153,4 @@ installAvatarHook();
 window.addEventListener("webminecraft:selectedslot", event => {
     window.__webminecraftSelectedSlot = Number(event.detail?.slot ?? 0);
 });
-window.__webminecraftGetLocalHeldItem = readLocalHeldItem;
 render();
