@@ -269,12 +269,12 @@ async function startWorldWithSeed(seed) {
     setupWaterPhysics(scene);
     setWorldCloudSeed(seed);
     setWorldUrl(seed);
+    await setWorldSeedForPersistence(seed);
     spawnPlayer();
     gameStarted = true;
     closeSeedMenu();
     if (mainMenu) mainMenu.style.display = "none";
     setMenuUiVisible(false);
-    await setWorldSeedForPersistence(seed);
     requestPointerLock();
 }
 
