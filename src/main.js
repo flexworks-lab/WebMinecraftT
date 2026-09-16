@@ -11,6 +11,7 @@ import { clearHotbar } from "./inventory.js";
 import "./background.js";
 import "./auth.js";
 import "./chat.js";
+import "./discussion.js";
 import "./survivalMode.js";
 import "./survivalRules.js";
 
@@ -300,123 +301,59 @@ if (copySeedButton) copySeedButton.addEventListener("click", async () => {
 });
 if (copyWorldLinkButton) copyWorldLinkButton.addEventListener("click", async () => {
     const seed = getSeedFromInput(); if (seed === null) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("seed", String(seed));
+    const url = new URL(window.location.href); url.searchParams.set("seed", String(seed));
     if (mobileMode) url.searchParams.set("mobile", "1");
-    else url.searchParams.delete("mobile");
-    if (await copyText(url.toString())) { if (seedLinkStatus) seedLinkStatus.textContent = "World link copied!"; }
-    else if (seedLinkStatus) seedLinkStatus.textContent = "Could not copy automatically.";
+    const ok = await copyText(url.toString());
+    if (seedLinkStatus) seedLinkStatus.textContent = ok ? "World link copied!" : "Could not copy automatically.";
 });
-if (openWorldButton) openWorldButton.addEventListener("click", () => {
-    const seed = getSeedFromInput(); if (seed === null) return;
-    startWorldWithSeed(seed);
+if (openWorldButton) openWorldButton.addEventListener("click", event => {
+    event.preventDefault(); event.stopPropagation();
+    openSeedMenu("open");
 });
-if (seedInput) seedInput.addEventListener("keydown", event => {
-    if (event.key === "Enter") openWorldButton?.click();
-    if (event.key === "Escape") closeSeedMenu();
+if (mobileModeButton) mobileModeButton.addEventListener("click", event => {
+    event.preventDefault(); event.stopPropagation();
+    setMobileMode(!mobileMode);
 });
-if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSettings);
-if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
-if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
-if (closeSettings) {
-    closeSettings.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-    closeSettings.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-}
-if (settingsCloseTop) {
-    settingsCloseTop.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-    settingsCloseTop.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-}
-document.addEventListener("keydown", event => {
-    if (event.code !== "Escape") return;
-    if (settingsMenu?.style.display === "flex") closeSettingsMenu();
-    else if (gameStarted) setTimeout(openSettings, 0);
-});
-if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
+if (settingsButton) settingsButton.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
+if (menuSettingsButton) menuSettingsButton.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
+if (closeSettings) closeSettings.addEventListener("click", closeSettingsMenu);
+if (settingsCloseTop) settingsCloseTop.addEventListener("click", closeSettingsMenu);
 
-const shadowsToggle = document.getElementById("shadowsToggle");
-const shadowQuality = document.getElementById("shadowQuality");
-const pixelQuality = document.getElementById("pixelQuality");
-const lightingQuality = document.getElementById("lightingQuality");
-const brightnessControl = document.getElementById("brightnessControl");
-if (shadowsToggle) { shadowsToggle.checked = settings.shadows; shadowsToggle.addEventListener("change", () => { settings.shadows = shadowsToggle.checked; saveSettings(); applySettings(); }); }
-if (shadowQuality) { shadowQuality.value = String(settings.shadowQuality); shadowQuality.addEventListener("change", () => { settings.shadowQuality = Number(shadowQuality.value); saveSettings(); applySettings(); }); }
-if (pixelQuality) { pixelQuality.value = String(settings.pixelRatio); pixelQuality.addEventListener("change", () => { settings.pixelRatio = Number(pixelQuality.value); saveSettings(); applySettings(); }); }
-if (lightingQuality) { lightingQuality.value = settings.lightingQuality; lightingQuality.addEventListener("change", () => { settings.lightingQuality = lightingQuality.value; saveSettings(); applySettings(); }); }
-if (brightnessControl) { brightnessControl.value = String(settings.brightness); brightnessControl.addEventListener("input", () => { settings.brightness = Number(brightnessControl.value); saveSettings(); applySettings(); }); }
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-setupControls();
+let performanceHud = null;
+function createPerformanceHud() {
+    if (performanceHud) return;
+    performanceHud = document.createElement("div");
+    performanceHud.id = "performanceHud";
+    performanceHud.style.cssText = "position:fixed;right:10px;top:10px;z-index:9998;display:none;padding:6px 8px;background:rgba(0,0,0,.6);color:#fff;font:11px monospace;white-space:pre;pointer-events:none";
+    document.body.appendChild(performanceHud);
+}
+createPerformanceHud();
+
+async function beginGame() {
+    if (gameStarted) return;
+    const seed = urlSeed === null ? makeNewSeed() : urlSeed;
+    await startWorldWithSeed(seed);
+}
+if (playButton) playButton.addEventListener("click", beginGame);
+
+setupControls(camera, renderer.domElement);
 setupInteraction(scene, camera);
-const performanceHud = document.createElement("div");
-performanceHud.id = "performanceHud";
-performanceHud.style.cssText = "position:fixed;top:12px;left:12px;padding:6px 8px;background:rgba(0,0,0,.45);color:white;font:12px monospace;line-height:1.4;pointer-events:none;z-index:15;border-radius:5px;";
-performanceHud.textContent = "FPS: -- | Chunks: -- | Calls: --";
-document.body.appendChild(performanceHud);
-setMenuUiVisible(true);
-window.addEventListener("resize", () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
-const menuLook = { x: 0, y: 0, targetX: 0, targetY: 0 };
-window.addEventListener("pointermove", event => {
-    if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
-    menuLook.targetX = THREE.MathUtils.clamp((event.clientX / Math.max(window.innerWidth, 1) - 0.5) * 2, -1, 1);
-    menuLook.targetY = THREE.MathUtils.clamp((event.clientY / Math.max(window.innerHeight, 1) - 0.5) * 2, -1, 1);
-});
-window.addEventListener("pointerleave", () => { menuLook.targetX = 0; menuLook.targetY = 0; });
-
-let lastTime = performance.now(), fpsTime = lastTime, fpsFrames = 0, lastSunX = camera.position.x, lastSunZ = camera.position.z;
-const sunFollowDistance = 8;
-const panoramaAngle = Math.random() * Math.PI * 2;
-const panoramaDistance = 48 + Math.random() * 112;
-const panoramaCenter = new THREE.Vector3(Math.round(Math.cos(panoramaAngle) * panoramaDistance / 16) * 16, 10, Math.round(Math.sin(panoramaAngle) * panoramaDistance / 16) * 16);
-const panoramaCamera = { position: new THREE.Vector3(panoramaCenter.x, 16, panoramaCenter.z), targetY: 16, angle: Math.random() * Math.PI * 2, speed: 0.035, swayX: 0, swayY: 0, safeHeight: null };
-function getMenuCameraHeight() {
-    const x = Math.floor(panoramaCamera.position.x);
-    const z = Math.floor(panoramaCamera.position.z);
-    const types = getBlockTypes();
-    for (let y = 94; y >= -31; y--) {
-        if (getBlockAt(x, y, z) !== types.AIR) return y + 4.5;
-    }
-    return 32;
-}
-function updateMenuCamera(deltaTime) {
-    if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
-    panoramaCamera.angle += panoramaCamera.speed * deltaTime;
-    menuLook.x = THREE.MathUtils.lerp(menuLook.x, menuLook.targetX, Math.min(deltaTime * 2.5, 1));
-    menuLook.y = THREE.MathUtils.lerp(menuLook.y, menuLook.targetY, Math.min(deltaTime * 2.5, 1));
-    panoramaCamera.swayX = THREE.MathUtils.lerp(panoramaCamera.swayX, menuLook.x, Math.min(deltaTime * 1.8, 1));
-    panoramaCamera.swayY = THREE.MathUtils.lerp(panoramaCamera.swayY, menuLook.targetY, Math.min(deltaTime * 1.8, 1));
-    updateChunkVisibility(panoramaCamera.position, camera);
-    if (panoramaCamera.safeHeight === null) {
-        panoramaCamera.safeHeight = getMenuCameraHeight();
-        panoramaCamera.position.y = Math.max(20, panoramaCamera.safeHeight);
-        panoramaCamera.targetY = Math.max(16, panoramaCamera.position.y - 10);
-    }
-    camera.position.copy(panoramaCamera.position);
-    const lookDistance = 40;
-    const mouseYaw = panoramaCamera.swayX * 0.12;
-    const mousePitch = panoramaCamera.swayY * 0.055;
-    const lookAngle = panoramaCamera.angle + mouseYaw;
-    const lookTarget = new THREE.Vector3(panoramaCamera.position.x + Math.sin(lookAngle) * lookDistance, panoramaCamera.targetY - mousePitch * lookDistance, panoramaCamera.position.z + Math.cos(lookAngle) * lookDistance);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(lookTarget);
-    updateDepthLighting();
-}
-function updateSunPosition() {
-    const dx = camera.position.x - lastSunX, dz = camera.position.z - lastSunZ;
-    if (dx * dx + dz * dz < sunFollowDistance * sunFollowDistance) return;
-    lastSunX = camera.position.x; lastSunZ = camera.position.z;
-    sun.target.position.set(camera.position.x, camera.position.y, camera.position.z);
-    sun.position.set(camera.position.x + 45, camera.position.y + 85, camera.position.z + 30);
-    sun.target.updateMatrixWorld();
-}
 function animate() {
     requestAnimationFrame(animate);
-    const currentTime = performance.now();
-    const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
-    lastTime = currentTime;
-    if (gameStarted) { updatePlayer(camera, scene, deltaTime); updateChunkVisibility(camera.position, camera); updateSunPosition(); updateDepthLighting(); }
-    else updateMenuCamera(deltaTime);
+    if (gameStarted) updatePlayer(camera, scene);
+    updateChunkVisibility(scene, camera);
+    updateDepthLighting();
+    if (performanceHud && gameStarted) {
+        const stats = getPerformanceStats();
+        performanceHud.textContent = `FPS ${stats.fps}\nChunks ${stats.visibleChunks}/${stats.totalChunks}\nDraw ${stats.drawCalls}`;
+    }
     renderer.render(scene, camera);
-    fpsFrames++;
-    if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
 }
 animate();
