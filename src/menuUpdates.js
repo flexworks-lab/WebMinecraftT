@@ -91,15 +91,13 @@ function hasNewsBeenSeen(){
 function createNewsUi(){
     if(!updates||!menu||document.getElementById("newsButton"))return;
     addStyles();
-    const buttons=document.getElementById("menuButtons");
-    if(!buttons)return;
     const button=document.createElement("button");
     button.id="newsButton";
     button.className="menuButton";
     button.type="button";
     button.textContent="News";
     button.style.cssText="position:fixed!important;left:28px!important;bottom:28px!important;width:118px!important;height:42px!important;margin:0!important;z-index:97!important;";
-    buttons.insertBefore(button,document.getElementById("menuSettingsButton"));
+    document.body.appendChild(button);
     const center=document.createElement("div");
     center.id="newsCenter";
     center.setAttribute("aria-hidden","true");
@@ -155,20 +153,22 @@ function setupPauseMenu(){
     const open=event=>{event?.preventDefault();event?.stopPropagation();if(!isGameRunning())return;paused=true;overlay.querySelector("#pauseSeed").textContent=`Seed: ${getWorldSeed()}`;overlay.style.display="flex";overlay.setAttribute("aria-hidden","false");document.exitPointerLock?.();overlay.querySelector("#pauseResume").focus();};
     overlay.querySelector("#pauseResume").addEventListener("click",close);
     overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();overlay.style.display="none";overlay.setAttribute("aria-hidden","true");document.getElementById("settingsMenu")?.style.setProperty("display","flex");document.exitPointerLock?.();paused=false;});
-    overlay.querySelector("#pauseMobile").addEventListener("click",()=>{const url=new URL(window.location.href);const enabled=url.searchParams.get("mobile")==="1"||url.searchParams.get("mode")==="mobile";if(enabled){url.searchParams.delete("mobile");url.searchParams.delete("mode");}else{url.searchParams.set("mobile","1");url.searchParams.delete("mode");}window.location.href=url.toString();});
-    overlay.querySelector("#pauseReturn").addEventListener("click",()=>{paused=false;overlay.style.display="none";overlay.setAttribute("aria-hidden","true");document.getElementById("settingsMenu")?.style.setProperty("display","none");clearWorld();if(seedMenu){seedMenu.style.display="none";seedMenu.setAttribute("aria-hidden","true");}if(menu){menu.style.display="flex";}document.body.classList.remove("webminecraft-in-world");document.exitPointerLock?.();});
-    document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(document.getElementById("settingsMenu")?.style.display!=="none")return;if(document.getElementById("seedMenu")?.style.display!=="none")return;if(document.getElementById("newsCenter")?.style.display==="block")return;if(!isGameRunning())return;paused?close(event):open(event);},true);
+    overlay.querySelector("#pauseMobile").addEventListener("click",event=>{event.preventDefault();overlay.style.display="none";overlay.setAttribute("aria-hidden","true");document.getElementById("mobileModeButton")?.click();paused=false;});
+    overlay.querySelector("#pauseReturn").addEventListener("click",event=>{event.preventDefault();paused=false;overlay.style.display="none";overlay.setAttribute("aria-hidden","true");document.exitPointerLock?.();clearWorld();if(menu){menu.style.display="flex";}document.body.classList.remove("webminecraft-in-world");});
+    document.addEventListener("keydown",event=>{if(event.code!=="Escape"||!isGameRunning())return;if(paused){close(event);}else open(event);},true);
 }
 
-function init(){
-    if(!updates||!menu)return;
+function setupSeedMenu(){
+    if(!seedMenu)return;
+    const close=document.getElementById("seedMenuClose");
+    if(close&&!close.dataset.bound){close.dataset.bound="1";close.addEventListener("click",()=>{seedMenu.style.display="none";});}
+}
+
+function setup(){
+    addStyles();
+    setupSeedMenu();
     createNewsUi();
     setupPauseMenu();
-    const current=localStorage.getItem(VERSION_KEY);
-    if(!current){localStorage.setItem(VERSION_KEY,"Beta");}
-    const menuVisible=()=>getComputedStyle(menu).display!=="none";
-    if(seedMenu) seedMenu.addEventListener("click",event=>{if(event.target===seedMenu)seedMenu.style.display="none";});
 }
 
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
-else init();
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup,{once:true});else setup();
