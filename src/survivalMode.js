@@ -1,4 +1,8 @@
+import { getWorldSeed } from "./world.js";
+import { yaw, pitch, resetView } from "./controls.js";
+
 const MODE_PREFIX = "webminecraft-world-mode-";
+const STATE_PREFIX = "webminecraft-singleplayer-world-state-";
 
 function normalizeMode(mode) {
     return mode === "survival" ? "survival" : "creative";
@@ -34,6 +38,144 @@ export function setWorldMode(seed, mode) {
 
 export function isSurvivalWorld(seed = getSeed()) {
     return getWorldMode(seed) === "survival";
+}
+
+function worldStateKey(seed) {
+    const normalizedSeed = normalizeSeed(seed);
+    return normalizedSeed === null ? null : `${STATE_PREFIX}${normalizedSeed}`;
+}
+
+function readWorldState(seed) {
+    const key = worldStateKey(seed);
+    if (!key) return null;
+    try {
+        const value = JSON.parse(localStorage.getItem(key) || "null");
+        return value && typeof value === "object" ? value : null;
+    } catch {
+        return null;
+    }
+}
+
+function validNumber(value) {
+    return Number.isFinite(Number(value));
+}
+
+function validPosition(position) {
+    return position && validNumber(position.x) && validNumber(position.y) && validNumber(position.z);
+}
+
+function validInventory(value) {
+    return Array.isArray(value) && value.length === 36;
+}
+
+function getStoredMode(seed) {
+    const normalizedSeed = normalizeSeed(seed);
+    if (normalizedSeed === null) return "creative";
+    try { return normalizeMode(localStorage.getItem(`${MODE_PREFIX}${normalizedSeed}`)); }
+    catch { return "creative"; }
+}
+
+let syncedSeed = null;
+let lastStateSave = 0;
+let stateSyncStarted = false;
+
+function shouldSyncSingleplayer() {
+    return document.body.classList.contains("webminecraft-in-world") && window.__webminecraftMultiplayerActive !== true;
+}
+
+function loadSingleplayerWorldState() {
+    if (!shouldSyncSingleplayer()) return;
+    const camera = window.__webminecraftCamera;
+    if (!camera) return;
+    const seed = normalizeSeed(getWorldSeed());
+    if (seed === null || seed === syncedSeed) return;
+
+    syncedSeed = seed;
+    lastStateSave = performance.now();
+
+    const state = readWorldState(seed);
+    const mode = normalizeMode(state?.mode || getStoredMode(seed));
+    setWorldMode(seed, mode);
+    window.webMinecraftSelectedWorldMode = mode;
+    document.body.classList.toggle("webminecraft-survival", mode === "survival");
+    document.body.classList.toggle("webminecraft-creative", mode !== "survival");
+    window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode } }));
+
+    if (validPosition(state?.position)) {
+        camera.position.set(Number(state.position.x), Number(state.position.y), Number(state.position.z));
+    }
+    if (validNumber(state?.yaw) && validNumber(state?.pitch)) {
+        resetView(Number(state.yaw), Number(state.pitch));
+        camera.rotation.order = "YXZ";
+        camera.rotation.y = Number(state.yaw);
+        camera.rotation.x = Number(state.pitch);
+    }
+
+    if (validInventory(state?.inventory)) {
+        try { localStorage.setItem("webminecraft_inventory", JSON.stringify(state.inventory)); } catch {}
+        window.dispatchEvent(new CustomEvent("webminecraft:inventorychanged"));
+    }
+}
+
+function saveSingleplayerWorldState(force = false) {
+    if (!shouldSyncSingleplayer()) return;
+    const camera = window.__webminecraftCamera;
+    const seed = normalizeSeed(getWorldSeed());
+    if (!camera || seed === null || (syncedSeed !== null && seed !== syncedSeed)) return;
+
+    const now = performance.now();
+    if (!force && now - lastStateSave < 500) return;
+    lastStateSave = now;
+    syncedSeed = seed;
+
+    let inventory = [];
+    try {
+        const saved = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
+        inventory = validInventory(saved) ? saved : Array.from({ length: 36 }, () => null);
+    } catch {
+        inventory = Array.from({ length: 36 }, () => null);
+    }
+
+    const mode = getWorldMode(seed);
+    const state = {
+        version: 1,
+        seed,
+        mode,
+        position: {
+            x: Number(camera.position.x),
+            y: Number(camera.position.y),
+            z: Number(camera.position.z)
+        },
+        yaw: Number(yaw),
+        pitch: Number(pitch),
+        inventory,
+        updatedAt: new Date().toISOString()
+    };
+
+    const key = worldStateKey(seed);
+    if (!key) return;
+    try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
+}
+
+function startSingleplayerWorldStateSync() {
+    if (stateSyncStarted) return;
+    stateSyncStarted = true;
+
+    const sync = () => {
+        if (!shouldSyncSingleplayer()) {
+            syncedSeed = null;
+            return;
+        }
+        loadSingleplayerWorldState();
+        saveSingleplayerWorldState();
+    };
+
+    setInterval(sync, 100);
+    window.addEventListener("pagehide", () => saveSingleplayerWorldState(true));
+    window.addEventListener("beforeunload", () => saveSingleplayerWorldState(true));
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") saveSingleplayerWorldState(true);
+    });
 }
 
 function addPickerStyles() {
@@ -161,6 +303,7 @@ function init() {
     }, true);
 
     markCurrentWorld();
+    startSingleplayerWorldStateSync();
     window.addEventListener("popstate", markCurrentWorld);
     window.addEventListener("webminecraft-modechange", markCurrentWorld);
 }
