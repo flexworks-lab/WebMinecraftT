@@ -1,47 +1,26 @@
-/* Compact Survival inventory layout: keeps the existing UI and reduces its footprint. */
-#svi-panel {
-  width: min(900px, 92vw) !important;
-  height: min(620px, 92vh) !important;
-  padding: 9px !important;
-  gap: 7px !important;
-  overflow: hidden !important;
-}
-#svi-header { font-size: 18px !important; }
-#svi-close { width: 32px !important; height: 28px !important; font-size: 21px !important; }
-#svi-top { min-height: 190px !important; gap: 7px !important; }
-#svi-player-box { min-height: 190px !important; grid-template-columns: 1fr 58px !important; grid-template-rows: 1fr 38px !important; padding: 7px !important; }
-#svi-player-preview { min-height: 138px !important; }
-#svi-armor { gap: 4px !important; padding-left: 5px !important; }
-.svi-armor-slot { width: 36px !important; height: 36px !important; font-size: 19px !important; }
-#svi-offhand { width: 38px !important; height: 38px !important; font-size: 19px !important; }
-#svi-player-box .svi-box-label { margin-top: 3px !important; font-size: 9px !important; }
-#svi-crafting { padding: 7px !important; }
-.svi-section-title { font-size: 13px !important; margin-bottom: 4px !important; }
-.svi-craft-row { gap: 7px !important; }
-#svi-craft-grid { grid-template-columns: repeat(2, 38px) !important; gap: 4px !important; }
-.svi-craft-slot { width: 38px !important; height: 38px !important; }
-.svi-craft-output { width: 44px !important; height: 44px !important; }
-.svi-arrow { font-size: 25px !important; }
-#svi-recipe-book { margin-top: 4px !important; padding: 4px 7px !important; font-size: 10px !important; }
-#svi-recipe-panel { margin-top: 4px !important; padding: 5px !important; font-size: 9px !important; }
-#svi-storage-section { min-height: 0 !important; padding: 6px !important; }
-#svi-storage, #svi-hotbar { gap: 3px !important; }
-.svi-slot { min-width: 0 !important; border-width: 1px !important; }
-.svi-item { inset: 4px !important; }
-.svi-slot b { right: 2px !important; bottom: 0 !important; font-size: 10px !important; }
-.svi-slot::after { font-size: 7px !important; left: 2px !important; top: 0 !important; }
-#svi-hotbar-section { padding: 6px !important; }
-#svi-hotbar { grid-template-columns: repeat(9, minmax(32px, 47px)) !important; }
-@media (max-width: 720px) {
-  #svi-panel { height: 92vh !important; width: 94vw !important; }
-  #svi-top { grid-template-columns: 1fr 1fr !important; min-height: 170px !important; }
-  #svi-player-box { min-height: 170px !important; }
-  #svi-player-preview { min-height: 120px !important; }
-  #svi-armor { gap: 3px !important; }
-  .svi-armor-slot { width: 30px !important; height: 30px !important; }
-  #svi-offhand { width: 32px !important; height: 32px !important; }
-  #svi-craft-grid { grid-template-columns: repeat(2, 32px) !important; }
-  .svi-craft-slot { width: 32px !important; height: 32px !important; }
-  .svi-craft-output { width: 38px !important; height: 38px !important; }
-  .svi-arrow { font-size: 21px !important; }
-}
+/* Polished compact Survival inventory: Minecraft-like, compact, and readable without scrolling. */
+#svi-panel{width:min(900px,92vw)!important;height:min(620px,92vh)!important;padding:10px!important;gap:8px!important;overflow:hidden!important;background:linear-gradient(#353535,#292929)!important;border:3px solid #171717!important;border-top-color:#878787!important;border-left-color:#878787!important;box-shadow:10px 10px 0 rgba(0,0,0,.4),inset 1px 1px 0 #4c4c4c!important}
+#svi-header{font-size:18px!important;letter-spacing:.2px!important;color:#f2f2f2!important}
+#svi-close{width:31px!important;height:28px!important;font-size:20px!important;background:#5e5e5e!important;border:2px solid #181818!important;border-top-color:#a0a0a0!important;border-left-color:#a0a0a0!important;transition:filter .12s,transform .12s!important}
+#svi-close:hover{filter:brightness(1.15)!important}#svi-close:active{transform:translateY(1px)!important}
+#svi-top{min-height:188px!important;gap:8px!important}
+#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#202020!important;border:2px solid #111!important;border-top-color:#090909!important;border-left-color:#090909!important;box-shadow:inset 1px 1px 0 #454545!important}
+#svi-player-box{min-height:188px!important;grid-template-columns:1fr 56px!important;grid-template-rows:1fr 34px!important;padding:7px!important}
+#svi-player-preview{min-height:136px!important;background:radial-gradient(circle at 50% 42%,#686868 0,#383838 42%,#171717 100%)!important}
+#svi-armor{gap:4px!important;padding-left:4px!important}.svi-armor-slot{width:35px!important;height:35px!important;font-size:18px!important;background:linear-gradient(#929292,#727272)!important}
+#svi-offhand{width:37px!important;height:37px!important;font-size:18px!important;background:linear-gradient(#929292,#727272)!important}
+.svi-armor-slot:hover,#svi-offhand:hover{filter:brightness(1.14)!important;outline:1px solid rgba(255,255,255,.35)!important}
+#svi-player-box .svi-box-label{margin-top:2px!important;font-size:9px!important;color:#999!important}
+#svi-crafting{padding:7px!important}.svi-section-title{font-size:13px!important;margin-bottom:4px!important;color:#e6e6e6!important}
+.svi-craft-row{gap:8px!important}.svi-arrow{font-size:24px!important;color:#d6d6d6!important;text-shadow:2px 2px #111!important}
+#svi-craft-grid{grid-template-columns:repeat(2,37px)!important;gap:4px!important}.svi-craft-slot{width:37px!important;height:37px!important}.svi-craft-output{width:44px!important;height:44px!important}
+.svi-craft-slot,.svi-craft-output,.svi-armor-slot,#svi-offhand{border:2px solid #5a5a5a!important;border-top-color:#242424!important;border-left-color:#242424!important;box-shadow:inset -1px -1px #3d3d3d,0 1px 0 #111!important}
+#svi-recipe-book{margin-top:4px!important;padding:5px 9px!important;font-size:10px!important;background:linear-gradient(#63a767,#3d7742)!important;border:2px solid #294f2c!important;border-top-color:#86c489!important;border-left-color:#86c489!important;border-radius:3px!important;box-shadow:0 2px 0 #142316!important}
+#svi-recipe-book:hover{filter:brightness(1.08)!important}.svi-recipe-panel{border-radius:2px!important}
+#svi-recipe-panel{margin-top:4px!important;padding:5px!important;font-size:9px!important;color:#aaa!important;background:#121212!important;border-color:#4a4a4a!important}
+#svi-storage-section{min-height:0!important;padding:6px!important}#svi-hotbar-section{padding:6px!important}
+#svi-storage,#svi-hotbar{gap:3px!important}.svi-slot{min-width:0!important;border-width:1px!important;background:linear-gradient(145deg,#929292,#6f6f6f)!important;box-shadow:inset 1px 1px 0 rgba(255,255,255,.18),inset -1px -1px 0 #414141!important;transition:filter .1s,transform .08s!important}
+.svi-slot:hover{filter:brightness(1.08)!important}.svi-slot:active{transform:translateY(1px)!important}.svi-slot.selected{border:2px solid #fff!important;box-shadow:inset 0 0 0 1px #d8d8d8,0 0 0 1px #111!important}
+.svi-item{inset:3px!important;filter:drop-shadow(1px 1px 0 rgba(0,0,0,.45))!important}.svi-slot b{right:2px!important;bottom:0!important;font-size:10px!important}.svi-slot::after{font-size:7px!important;left:2px!important;top:0!important;color:rgba(255,255,255,.55)!important}
+#svi-hotbar{grid-template-columns:repeat(9,minmax(31px,46px))!important;justify-content:center!important}.svi-slot.selected:before{content:"";position:absolute;inset:1px;border:1px solid rgba(255,255,255,.55);pointer-events:none}
+@media(max-width:720px){#svi-panel{height:92vh!important;width:94vw!important;padding:8px!important;gap:6px!important}#svi-top{grid-template-columns:1fr 1fr!important;min-height:168px!important;gap:6px!important}#svi-player-box{min-height:168px!important;grid-template-columns:1fr 46px!important}#svi-player-preview{min-height:116px!important}.svi-armor-slot{width:29px!important;height:29px!important;font-size:15px!important}#svi-offhand{width:31px!important;height:31px!important;font-size:15px!important}#svi-craft-grid{grid-template-columns:repeat(2,30px)!important}.svi-craft-slot{width:30px!important;height:30px!important}.svi-craft-output{width:35px!important;height:35px!important}.svi-arrow{font-size:19px!important}#svi-recipe-book{font-size:9px!important;padding:4px 6px!important}}
