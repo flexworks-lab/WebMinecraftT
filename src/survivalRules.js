@@ -31,9 +31,12 @@ function updateHealthHud() {
     const clamped = Math.max(0, Math.min(MAX_HEALTH, health));
     const full = Math.floor(clamped / 2);
     const half = clamped % 2;
-    hearts.textContent = "❤".repeat(full) + (half ? "♥" : "") + "♡".repeat(10 - full - half);
-    hearts.setAttribute("aria-label", `${clamped} health`);
-    value.textContent = `${clamped}/20`;
+    const heartText = "❤".repeat(full) + (half ? "♥" : "") + "♡".repeat(10 - full - half);
+    if (hearts.textContent !== heartText) hearts.textContent = heartText;
+    const ariaLabel = `${clamped} health`;
+    if (hearts.getAttribute("aria-label") !== ariaLabel) hearts.setAttribute("aria-label", ariaLabel);
+    const healthText = `${clamped}/20`;
+    if (value.textContent !== healthText) value.textContent = healthText;
 }
 
 function enforceNoFlight() {
@@ -65,7 +68,7 @@ function init() {
         enforceNoFlight();
         updateHealthHud();
     });
-    observer.observe(document.body, { attributes:true, attributeFilter:["class"], childList:true, subtree:true });
+    observer.observe(document.body, { attributes:true, attributeFilter:["class"] });
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
