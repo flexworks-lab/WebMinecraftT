@@ -8,10 +8,6 @@ export let isFlying = false;
 
 export function resetView(newYaw = 0, newPitch = 0) { yaw = newYaw; pitch = newPitch; }
 
-function isDesktopInput() {
-    return !document.body.classList.contains("mobile-mode");
-}
-
 export const touchInput = {
     moveX: 0,
     moveZ: 0,
@@ -279,7 +275,7 @@ html,body,.mobile-mode,canvas{touch-action:none;overscroll-behavior:none}
 
 export function setupControls() {
     window.addEventListener("keydown", event => {
-        if (!isDesktopInput()) {
+        if (document.body.classList.contains("mobile-mode")) {
             for (const code of Object.keys(keys)) keys[code] = false;
             return;
         }
@@ -288,29 +284,20 @@ export function setupControls() {
         if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
     });
     window.addEventListener("keyup", event => {
-        if (!isDesktopInput()) {
+        if (document.body.classList.contains("mobile-mode")) {
             keys[event.code] = false;
             return;
         }
         keys[event.code] = false;
     });
-    window.addEventListener("blur", () => {
-        for (const code of Object.keys(keys)) keys[code] = false;
-    });
-
-    const mouse = { x: 0, y: 0, locked: false };
-    document.addEventListener("mousemove", e => {
-        if (!isDesktopInput()) return;
-        if (document.pointerLockElement) {
-            yaw -= e.movementX * 0.0025;
-            pitch -= e.movementY * 0.0025;
-            pitch = clamp(pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
-        }
-    });
-    document.addEventListener("pointerlockchange", () => { mouse.locked = document.pointerLockElement === document.body; });
-    document.addEventListener("click", () => {
-        if (!isDesktopInput()) return;
-        if (document.body.classList.contains("webminecraft-in-world")) document.body.requestPointerLock?.();
+    window.addEventListener("mousemove", event => {
+        if (document.pointerLockElement !== document.body || document.body.classList.contains("mobile-mode")) return;
+        const sensitivity = Number(localStorage.getItem("webminecraft-mouse-sensitivity") || 1);
+        yaw -= event.movementX * .0025 * sensitivity;
+        const invert = localStorage.getItem("webminecraft-invert-y") === "true";
+        pitch += (invert ? 1 : -1) * event.movementY * .0025 * sensitivity;
+        pitch = clamp(pitch, -Math.PI / 2 + .01, Math.PI / 2 - .01);
     });
     createTouchControls();
+    import("./settings.js").catch(error => console.warn("Settings extras failed to load:", error));
 }
