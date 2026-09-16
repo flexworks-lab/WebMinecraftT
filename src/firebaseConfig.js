@@ -3,8 +3,8 @@
 // your Firebase security rules control access to your project's data.
 import "./browserWorldFallback.js";
 import "./multiplayerServerMode.js";
-import "./multiplayerGameplayStateFix.js";
 import "./multiplayerSurvivalBridge.js";
+import "./multiplayerGameplayStateFix.js";
 import "./multiplayerHeldBlock.js";
 
 // The News button is created by menuUpdates.js. Give any button that becomes
@@ -135,6 +135,6 @@ import("./admin/announcementDev.js").catch(error => console.warn("Announcement c
 import("./newsLive.js").catch(error => console.warn("Live News tabs failed to load:", error));
 import("./newsFreshStart.js").catch(error => console.warn("Fresh News start failed to load:", error));
 import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
-import("./friendsLive.js").catch(error => console.warn("Live friends UI failed to load:", error));
+import("./friendsLive.js").catch(error => console.warn("Live friend presence failed to load:", error));
 import("./friendsPresence.js").catch(error => console.warn("Live friend presence failed to load:", error));
 import("./oauthLogos.js").catch(error => console.warn("OAuth logo UI failed to load:", error));
