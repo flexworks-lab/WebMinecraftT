@@ -2,6 +2,7 @@
 // This config is safe to include in the browser. Firebase Authentication and
 // your Firebase security rules control access to your project's data.
 import "./browserWorldFallback.js";
+import "./multiplayerServerMode.js";
 
 // The News button is created by menuUpdates.js. Give any button that becomes
 // #newsButton its final fixed position before it is inserted into the DOM.
