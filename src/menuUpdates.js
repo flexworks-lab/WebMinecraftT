@@ -50,7 +50,7 @@ function addStyles() {
         .newsItemVersion{color:#9dcc76;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:1px 1px 0 #111}
         .newsItemTitle{margin-top:5px;font-family:"MinecraftFont",monospace;font-size:16px;text-shadow:2px 2px 0 #111}
         .newsItemBody{margin-top:6px;color:#cfcfcf;font-size:12px;line-height:1.45}
-        #newsClose{width:100%;margin:14px 20px 18px;min-height:44px}
+        #newsClose{width:calc(100% - 28px);margin:14px 14px 18px;min-height:44px;flex:0 0 auto}
         #newsReading{min-width:0;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#2b2b2b,#202020)}
         #newsReadingHeader{flex:0 0 auto;padding:26px 34px 20px;border-bottom:2px solid #111;background:#2e2e2e}
         #newsReadingVersion{margin-bottom:8px;color:#9dcc76;font-family:"MinecraftFont",monospace;font-size:14px;text-shadow:2px 2px 0 #111}
@@ -91,14 +91,11 @@ function hasNewsBeenSeen(){
 function createNewsUi(){
     if(!updates||!menu||document.getElementById("newsButton"))return;
     addStyles();
-    const buttons=document.getElementById("menuButtons");
-    if(!buttons)return;
     const button=document.createElement("button");
     button.id="newsButton";
     button.className="menuButton";
     button.type="button";
     button.textContent="News";
-    // Keep News outside the animated menu panel so its fixed position cannot be affected by the panel transform.
     document.body.appendChild(button);
     const center=document.createElement("div");
     center.id="newsCenter";
@@ -111,9 +108,8 @@ function createNewsUi(){
                 <button id="newsClose" class="menuButton" type="button">Back to Main Menu</button>
             </aside>
             <section id="newsReading">
-                <header id="newsReadingHeader"><div id="newsReadingVersion">Select an update</div><h2 id="newsReadingTitle">WebMinecraftT News</h2></header>
-                <div id="newsReadingBody">Select an update from the list to read the full details.</div>
-                <button id="newsReadingBack" class="menuButton" type="button">← Back</button>
+                <header id="newsReadingHeader"><div id="newsReadingVersion">Open a patch note</div><h2 id="newsReadingTitle">Open a patch note</h2></header>
+                <div id="newsReadingBody">Select a patch note from the list to view its full details.</div>
             </section>
         </div>`;
     document.body.appendChild(center);
@@ -125,13 +121,14 @@ function createNewsUi(){
     UPDATE_DETAILS.forEach((item,index)=>{
         const card=document.createElement("button");card.className="newsItem";card.type="button";
         card.innerHTML=`<div class="newsItemVersion">${escapeHtml(item.version)}</div><div class="newsItemTitle">${escapeHtml(item.title)}</div><div class="newsItemBody">${escapeHtml(item.body)}</div>`;
-        card.addEventListener("click",event=>{event.stopPropagation();showItem(item);});list.appendChild(card);if(index===0)showItem(item);
+        card.addEventListener("click",event=>{event.stopPropagation();showItem(item);});
+        list.appendChild(card);
+        if(index===0)showItem(item);
     });
     const closeNews=()=>{center.style.display="none";center.setAttribute("aria-hidden","true");};
-    const openNews=event=>{event?.preventDefault();event?.stopPropagation();center.style.display="block";center.setAttribute("aria-hidden","false");setNewsUnread(false);list.scrollTop=0;detailBody.scrollTop=0;};
+    const openNews=event=>{event?.preventDefault();event?.stopPropagation();center.style.display="block";center.setAttribute("aria-hidden","false");setNewsUnread(false);list.scrollTop=0;};
     button.addEventListener("click",openNews);
     center.querySelector("#newsClose").addEventListener("click",closeNews);
-    center.querySelector("#newsReadingBack").addEventListener("click",closeNews);
     document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(center.style.display==="block")closeNews();},true);
     setNewsUnread(!hasNewsBeenSeen());
 }
@@ -174,7 +171,7 @@ function createVersionPicker(){
     document.addEventListener("click",event=>{if(event.target!==button&&!picker.contains(event.target))picker.style.display="none";});
     document.addEventListener("keydown",event=>{if(event.code==="Escape")picker.style.display="none";});
     document.body.append(button,picker);window.webminecraftVersion=current;refresh();
-    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]});}
+    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]);}
 }
 
 addStyles();
