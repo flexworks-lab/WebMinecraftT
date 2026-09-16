@@ -13,7 +13,8 @@ function addHealthHud() {
     style.id = "webMinecraftHealthStyles";
     style.textContent = `
 #webMinecraftHealthHud{position:fixed;left:14px;top:14px;z-index:9998;display:none;align-items:center;gap:7px;padding:8px 10px;background:rgba(18,18,18,.72);border:2px solid rgba(0,0,0,.82);border-top-color:rgba(255,255,255,.2);border-left-color:rgba(255,255,255,.16);border-radius:7px;box-shadow:0 4px 18px rgba(0,0,0,.28);font:700 12px Arial,sans-serif;text-shadow:1px 1px 0 #000;backdrop-filter:blur(5px)}
-body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex}
+body.webminecraft-survival #webMinecraftHealthHud{display:flex}
+body.webminecraft-survival #touchFly{display:none!important}
 .healthLabel{color:#aaa;font-size:10px;letter-spacing:.6px}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:13px;white-space:nowrap}.healthValue{color:#fff;font-size:11px}
 @media(max-width:600px){#webMinecraftHealthHud{left:8px;top:8px;padding:7px 8px}.healthHearts{font-size:11px;letter-spacing:0}.healthValue{font-size:10px}}
 `;
@@ -38,6 +39,7 @@ function updateHealthHud() {
 function enforceNoFlight() {
     if (!isSurvivalWorld()) return;
     document.body.classList.add("webminecraft-no-flight");
+    document.getElementById("touchFly")?.classList.remove("pressed");
 }
 
 function init() {
