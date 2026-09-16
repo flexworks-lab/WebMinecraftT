@@ -55,6 +55,11 @@ function installUI() {
     document.body.appendChild(hud);
 }
 
+export function setMiningContext(scene, camera) {
+    sceneRef = scene || null;
+    cameraRef = camera || null;
+}
+
 function getTarget() {
     if (!sceneRef || !cameraRef) return null;
     cameraRef.updateMatrixWorld(true);
@@ -278,16 +283,18 @@ function updateDrops(time) {
     }
 }
 
-function beginMining() {
-    if (!isSurvivalWorld() || !document.body.classList.contains("webminecraft-in-world") || mining) return;
-    if (handleDoorTarget("break")) { sendPlayerAction("mine"); return; }
+export function startSurvivalMining(scene, camera) {
+    setMiningContext(scene, camera);
+    if (!isSurvivalWorld() || !sceneRef || !cameraRef || mining) return false;
+    if (handleDoorTarget("break")) { sendPlayerAction("mine"); return true; }
     const target = getTarget();
-    if (!target) return;
+    if (!target) return false;
     const duration = HARDNESS[target.type] ?? 700;
-    if (!Number.isFinite(duration)) return;
+    if (!Number.isFinite(duration)) return false;
     mining = { ...target, started: performance.now(), duration, overlay: createCracks(target) };
     updateCracks(mining.overlay, .01);
     sendPlayerAction("mine");
+    return true;
 }
 
 function cancelMining() {
@@ -320,30 +327,10 @@ function tickMining(time, held) {
     if (progress >= 1) finishMining();
 }
 
-function captureSceneAndCamera() {
-    if (!THREE.Object3D.prototype.__webMinecraftMiningSystemAdd) {
-        const originalAdd = THREE.Object3D.prototype.add;
-        THREE.Object3D.prototype.add = function(...objects) {
-            if (this.isScene) sceneRef = this;
-            return originalAdd.apply(this, objects);
-        };
-        THREE.Object3D.prototype.__webMinecraftMiningSystemAdd = true;
-    }
-    if (!THREE.Raycaster.prototype.__webMinecraftMiningSystemCamera) {
-        const originalSetFromCamera = THREE.Raycaster.prototype.setFromCamera;
-        THREE.Raycaster.prototype.setFromCamera = function(...args) {
-            cameraRef = args[1] || cameraRef;
-            return originalSetFromCamera.apply(this, args);
-        };
-        THREE.Raycaster.prototype.__webMinecraftMiningSystemCamera = true;
-    }
-}
-
 function init() {
     if (initialized) return;
     initialized = true;
     installUI();
-    captureSceneAndCamera();
 
     document.addEventListener("mousedown", event => {
         if (!isSurvivalWorld() || !document.body.classList.contains("webminecraft-in-world") || document.body.classList.contains("mobile-mode")) return;
@@ -351,7 +338,7 @@ function init() {
         if (event.target instanceof Element && event.target.closest("#hotbar,#inventoryScreen,#survivalInventoryScreen,button,input,select,textarea,a")) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        beginMining();
+        startSurvivalMining(sceneRef, cameraRef);
     }, true);
     document.addEventListener("mouseup", event => { if (event.button === 0) cancelMining(); }, true);
     window.addEventListener("blur", cancelMining);
@@ -360,7 +347,7 @@ function init() {
     function frame(time) {
         const mobile = document.body.classList.contains("mobile-mode");
         const held = mobile ? !!touchInput.punchPressed : !!mining;
-        if (mobile && held && !mining) beginMining();
+        if (mobile && held && !mining) startSurvivalMining(sceneRef, cameraRef);
         tickMining(time, held);
         updateDrops(time);
         requestAnimationFrame(frame);
