@@ -1,12 +1,11 @@
 import { isSurvivalWorld } from "./survivalMode.js";
 import "./survivalInventory.js";
 import "./survivalInventoryCompact.css";
-import "./survivalMiningSystem.js";
+import "./survivalMiningSystemV2.js";
 
 const MAX_HEALTH = 20;
 let lastSurvivalState = null;
 let lastInWorldState = null;
-
 function isInWorld() {
     const mainMenu = document.getElementById("mainMenu");
     const savedWorlds = document.getElementById("savedWorlds");
@@ -16,7 +15,6 @@ function isInWorld() {
     const seedOpen = seedMenu && seedMenu.style.display !== "none";
     return Boolean(gameStarted && !worldsOpen && !seedOpen);
 }
-
 function addHealthHud() {
     let hud = document.getElementById("webMinecraftHealthHud");
     if (!hud) {
@@ -28,17 +26,10 @@ function addHealthHud() {
     if (!document.getElementById("webMinecraftHealthStyles")) {
         const style = document.createElement("style");
         style.id = "webMinecraftHealthStyles";
-        style.textContent = `
-#webMinecraftHealthHud{position:fixed;left:14px;top:14px;z-index:9998;display:none;align-items:center;gap:7px;padding:8px 10px;background:rgba(18,18,18,.78);border:2px solid rgba(0,0,0,.82);border-top-color:rgba(255,255,255,.2);border-left-color:rgba(255,255,255,.16);border-radius:7px;box-shadow:0 4px 18px rgba(0,0,0,.28);font:700 12px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none}
-body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}
-body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}
-.healthLabel{color:#aaa;font-size:10px;letter-spacing:.6px}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:15px;line-height:1;white-space:nowrap}.healthValue{color:#fff;font-size:11px}
-@media(max-width:600px){#webMinecraftHealthHud{left:8px;top:8px;padding:7px 8px}.healthHearts{font-size:12px;letter-spacing:0}.healthValue{font-size:10px}}
-`;
+        style.textContent = `#webMinecraftHealthHud{position:fixed;left:14px;top:14px;z-index:9998;display:none;align-items:center;gap:7px;padding:8px 10px;background:rgba(18,18,18,.78);border:2px solid rgba(0,0,0,.82);border-top-color:rgba(255,255,255,.2);border-left-color:rgba(255,255,255,.16);border-radius:7px;box-shadow:0 4px 18px rgba(0,0,0,.28);font:700 12px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none}body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}.healthLabel{color:#aaa;font-size:10px;letter-spacing:.6px}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:15px;line-height:1;white-space:nowrap}.healthValue{color:#fff;font-size:11px}@media(max-width:600px){#webMinecraftHealthHud{left:8px;top:8px;padding:7px 8px}.healthHearts{font-size:12px;letter-spacing:0}.healthValue{font-size:10px}}`;
         document.head.appendChild(style);
     }
 }
-
 function updateHealthHud() {
     const hud = document.getElementById("webMinecraftHealthHud");
     if (!hud || !isSurvivalWorld()) return;
@@ -56,7 +47,6 @@ function updateHealthHud() {
     const healthText = `${clamped}/20`;
     if (value.textContent !== healthText) value.textContent = healthText;
 }
-
 function syncState() {
     const survival = isSurvivalWorld();
     const inWorld = isInWorld();
@@ -74,28 +64,12 @@ function syncState() {
         document.getElementById("touchFly")?.classList.remove("pressed");
     }
 }
-
 function init() {
     addHealthHud();
     syncState();
     window.setInterval(syncState, 100);
-    document.addEventListener("keydown", event => {
-        if (!isSurvivalWorld() || event.code !== "KeyF") return;
-        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-    }, true);
-    document.addEventListener("pointerdown", event => {
-        if (!isSurvivalWorld()) return;
-        const flyButton = event.target.closest?.("#touchFly");
-        if (!flyButton) return;
-        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-    }, true);
-    document.addEventListener("click", event => {
-        if (!isSurvivalWorld()) return;
-        const flyButton = event.target.closest?.("#touchFly");
-        if (!flyButton) return;
-        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-    }, true);
+    document.addEventListener("keydown", event => { if (!isSurvivalWorld() || event.code !== "KeyF") return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
+    document.addEventListener("pointerdown", event => { if (!isSurvivalWorld()) return; const flyButton = event.target.closest?.("#touchFly"); if (!flyButton) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
+    document.addEventListener("click", event => { if (!isSurvivalWorld()) return; const flyButton = event.target.closest?.("#touchFly"); if (!flyButton) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
 }
-
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
-else init();
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true }); else init();
