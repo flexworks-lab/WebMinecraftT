@@ -81,6 +81,43 @@ setWorldCloudSeed(getWorldSeed());
 const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobile";
 if (mobileMode) document.body.classList.add("mobile-mode");
 
+function setRandomMenuCamera() {
+    const types = getBlockTypes();
+    for (let attempt = 0; attempt < 500; attempt++) {
+        const x = Math.floor(Math.random() * 181) - 90;
+        const z = Math.floor(Math.random() * 181) - 90;
+        for (let y = 70; y >= -31; y--) {
+            const block = getBlockAt(x, y, z);
+            if (!block || block === types.WATER) continue;
+            const above = getBlockAt(x, y + 1, z);
+            const above2 = getBlockAt(x, y + 2, z);
+            if (above === types.AIR && above2 === types.AIR) {
+                const target = new THREE.Vector3(x + 0.5, y + 0.5, z + 0.5);
+                const distance = 10 + Math.random() * 8;
+                const angle = Math.random() * Math.PI * 2;
+                const height = 5 + Math.random() * 6;
+                camera.position.set(
+                    target.x + Math.cos(angle) * distance,
+                    target.y + height,
+                    target.z + Math.sin(angle) * distance
+                );
+                camera.lookAt(target);
+                camera.rotation.order = "YXZ";
+                camera.updateMatrixWorld(true);
+                return;
+            }
+        }
+    }
+
+    const target = new THREE.Vector3(0, 0, 0);
+    camera.position.set(10, 10, 10);
+    camera.lookAt(target);
+    camera.rotation.order = "YXZ";
+    camera.updateMatrixWorld(true);
+}
+
+setRandomMenuCamera();
+
 let gameStarted = false;
 const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };
 let settings;
@@ -178,10 +215,6 @@ function findRandomSpawn() {
     const types = getBlockTypes();
 
     const isSafeSpawn = (x, y, z) => {
-        // The player camera is the top of the 1.8 block-tall player box.
-        // The support must be directly below the feet and the full player
-        // footprint needs two clear blocks above it so the player cannot spawn
-        // inside a wall, hill, tree, or overhang.
         const support = getBlockAt(x, y, z);
         if (!support || support === types.WATER) return false;
         for (let ox = -1; ox <= 1; ox++) {
@@ -193,8 +226,6 @@ function findRandomSpawn() {
         return true;
     };
 
-    // Pick a genuinely random location over a broad area and use the highest
-    // solid surface there that has enough open space for the player.
     for (let attempt = 0; attempt < 1200; attempt++) {
         const x = Math.floor(Math.random() * 193) - 96;
         const z = Math.floor(Math.random() * 193) - 96;
@@ -205,7 +236,6 @@ function findRandomSpawn() {
         }
     }
 
-    // Deterministic fallback for unusual/generated terrain.
     for (let x = -32; x <= 32; x++) {
         for (let z = -32; z <= 32; z++) {
             for (let y = 70; y >= -31; y--) {
