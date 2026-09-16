@@ -31,6 +31,7 @@ let open = false;
 let data = [];
 let selectedHotbar = 0;
 
+function isInWorld() { return document.body.classList.contains("webminecraft-in-world"); }
 function textureUrl(name) { return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}`; }
 function itemDef(id) { return ITEM_DEFS.find(item => item.id === id); }
 function loadData() {
@@ -85,7 +86,7 @@ function selectSlot(index) {
 }
 function close() { open = false; root?.classList.remove("open"); document.body.classList.remove("survival-inventory-open"); cancelAnimationFrame(previewFrame); }
 function openInventory() {
-    if (!isSurvivalWorld()) return false;
+    if (!isInWorld() || !isSurvivalWorld()) return false;
     loadData();
     if (!root) createUI();
     renderSlots();
@@ -188,7 +189,7 @@ function createUI() {
 }
 function init() {
     document.addEventListener("keydown", event => {
-        if (!isSurvivalWorld()) return;
+        if (!isInWorld() || !isSurvivalWorld()) return;
         if (event.code === "KeyE" || event.code === "KeyI") {
             event.preventDefault(); event.stopImmediatePropagation();
             openInventory();
@@ -196,18 +197,23 @@ function init() {
         if (event.code === "Escape" && open) { event.preventDefault(); close(); }
     }, true);
     document.addEventListener("click", event => {
-        if (!isSurvivalWorld()) return;
+        if (!isInWorld() || !isSurvivalWorld()) return;
         const button = event.target.closest?.("#inventoryButton, #inventoryMobileButton");
         if (!button) return;
         event.preventDefault(); event.stopImmediatePropagation();
         openInventory();
     }, true);
     window.addEventListener("webminecraft:inventorychanged", () => {
-        if (!open || !root) return;
+        if (!open || !root || !isInWorld() || !isSurvivalWorld()) return;
         loadData();
         renderSlots();
     });
-    window.addEventListener("webminecraft:modechange", () => { if (!isSurvivalWorld()) close(); });
+    window.addEventListener("webminecraft:modechange", () => { if (!isInWorld() || !isSurvivalWorld()) close(); });
+    const worldObserver = new MutationObserver(() => {
+        if (!isInWorld() && open) close();
+        if (!isInWorld() && root?.classList.contains("open")) close();
+    });
+    worldObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
