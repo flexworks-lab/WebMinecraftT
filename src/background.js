@@ -1,3 +1,4 @@
+import "./discussion.js";
 import "./welcome.js";
 import "./playerList.js";
 import "./worldSync.js";
