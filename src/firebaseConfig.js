@@ -22,14 +22,11 @@ import "./multiplayerGameplayStateFix.js";
         Object.defineProperty(element, "id", {
             configurable: true,
             enumerable: true,
-            get() {
-                return currentId;
-            },
+            get() { return currentId; },
             set(value) {
                 currentId = String(value ?? "");
                 if (originalIdDescriptor?.set) originalIdDescriptor.set.call(this, currentId);
                 else this.setAttribute("id", currentId);
-
                 if (currentId === "newsButton") {
                     this.style.position = "fixed";
                     this.style.left = window.innerWidth <= 560 ? "12px" : "28px";
@@ -40,7 +37,6 @@ import "./multiplayerGameplayStateFix.js";
                 }
             }
         });
-
         return element;
     };
 
@@ -115,6 +111,16 @@ export function isFirebaseConfigured() {
             console.warn("Startup Firebase setup failed:", error);
         });
 })();
+
+// Force the current active announcement to be eligible to show once after this fix.
+// Future opens still use the normal per-announcement seen-state behavior.
+try {
+    const resetKey = "webminecraft_announcement_popup_reset_v1";
+    if (!localStorage.getItem(resetKey)) {
+        localStorage.removeItem("webminecraft_seen_announcement");
+        localStorage.setItem(resetKey, "1");
+    }
+} catch {}
 
 import("./admin/devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
 import("./admin/devServerControls.js").catch(error => console.warn("Developer server controls failed to load:", error));
