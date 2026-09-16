@@ -20,13 +20,13 @@ function addHealthHud() {
     if (!hud) {
         hud = document.createElement("div");
         hud.id = "webMinecraftHealthHud";
-        hud.innerHTML = `<span class="healthLabel">HP</span><span class="healthHearts" aria-label="20 health">❤❤❤❤❤❤❤❤❤❤</span><span class="healthValue">20/20</span>`;
+        hud.innerHTML = `<span class="healthHearts" aria-label="20 health">❤❤❤❤❤❤❤❤❤❤</span>`;
         document.body.appendChild(hud);
     }
     if (!document.getElementById("webMinecraftHealthStyles")) {
         const style = document.createElement("style");
         style.id = "webMinecraftHealthStyles";
-        style.textContent = `#webMinecraftHealthHud{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:10001;display:none;align-items:center;gap:7px;padding:6px 10px;background:rgba(18,18,18,.82);border:2px solid rgba(0,0,0,.86);border-top-color:rgba(255,255,255,.22);border-left-color:rgba(255,255,255,.18);border-radius:6px;box-shadow:0 4px 18px rgba(0,0,0,.3);font:700 12px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none;white-space:nowrap}body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}.healthLabel{color:#aaa;font-size:10px;letter-spacing:.6px}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:15px;line-height:1;white-space:nowrap}.healthValue{color:#fff;font-size:11px}@media(max-width:700px){#webMinecraftHealthHud{bottom:76px;padding:5px 8px}.healthHearts{font-size:12px;letter-spacing:0}.healthValue{font-size:10px}}`;
+        style.textContent = `#webMinecraftHealthHud{position:fixed;left:calc(50% + min(490px, 47vw) + 10px);bottom:34px;z-index:10001;display:none;align-items:center;padding:0;pointer-events:none;white-space:nowrap}body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:20px;line-height:1;text-shadow:2px 2px 0 #000,-1px -1px 0 #000;white-space:nowrap}@media(max-width:700px){#webMinecraftHealthHud{left:auto;right:8px;bottom:72px}.healthHearts{font-size:16px;letter-spacing:0}}`;
         document.head.appendChild(style);
     }
 }
@@ -34,8 +34,7 @@ function updateHealthHud() {
     const hud = document.getElementById("webMinecraftHealthHud");
     if (!hud || !isSurvivalWorld()) return;
     const hearts = hud.querySelector(".healthHearts");
-    const value = hud.querySelector(".healthValue");
-    if (!hearts || !value) return;
+    if (!hearts) return;
     const health = Number(window.webMinecraftSurvivalHealth ?? MAX_HEALTH);
     const clamped = Math.max(0, Math.min(MAX_HEALTH, health));
     const full = Math.floor(clamped / 2);
@@ -44,8 +43,6 @@ function updateHealthHud() {
     if (hearts.textContent !== heartText) hearts.textContent = heartText;
     const ariaLabel = `${clamped} health`;
     if (hearts.getAttribute("aria-label") !== ariaLabel) hearts.setAttribute("aria-label", ariaLabel);
-    const healthText = `${clamped}/20`;
-    if (value.textContent !== healthText) value.textContent = healthText;
 }
 function syncState() {
     const survival = isSurvivalWorld();
