@@ -15,20 +15,21 @@ function getStoredMode() {
     }
 }
 
-function applyMode(mode, seed = null) {
+function setSelectedMode(mode) {
     const value = normalizeMode(mode);
     window.__webminecraftMultiplayerMode = value;
+    try { localStorage.setItem(STORAGE_KEY, value); } catch {}
+    return value;
+}
+
+function applyJoinedMode(mode, seed = null) {
+    const value = setSelectedMode(mode);
     window.webMinecraftSelectedWorldMode = value;
+    window.__webminecraftMultiplayerModeApplied = true;
     document.body.classList.toggle("webminecraft-survival", value === "survival");
     document.body.classList.toggle("webminecraft-creative", value === "creative");
     if (seed !== null && Number.isFinite(Number(seed))) setWorldMode(seed, value);
     window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode: value } }));
-}
-
-function saveMode(mode) {
-    const value = normalizeMode(mode);
-    try { localStorage.setItem(STORAGE_KEY, value); } catch {}
-    applyMode(value);
 }
 
 function buildModePicker(container) {
@@ -45,12 +46,12 @@ function buildModePicker(container) {
         </div>
         <div class="multiplayerHint">Choose the mode for a new room. Players joining the room use its saved mode.</div>
     `;
+
     const style = document.createElement("style");
     style.id = "multiplayerGameModeStyles";
     style.textContent = `
         .multiplayerGameModeButtons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
         .multiplayerGameModeButtons .multiplayerTypeButton{margin:0}
-        .multiplayerGameModeButtons .multiplayerTypeButton.modeDisabled{opacity:.62;cursor:default}
     `;
     document.head.appendChild(style);
 
@@ -69,9 +70,15 @@ function buildModePicker(container) {
         creativeButton.setAttribute("aria-checked", String(current === "creative"));
     };
 
-    survivalButton.addEventListener("click", () => saveMode("survival"));
-    creativeButton.addEventListener("click", () => saveMode("creative"));
-    window.addEventListener("webminecraft-modechange", render);
+    survivalButton.addEventListener("click", () => {
+        setSelectedMode("survival");
+        render();
+    });
+    creativeButton.addEventListener("click", () => {
+        setSelectedMode("creative");
+        render();
+    });
+
     render();
 }
 
@@ -85,9 +92,29 @@ function watchMultiplayerMenu() {
     tryBuild();
 }
 
+function resetAppliedMultiplayerMode() {
+    const menu = document.getElementById("mainMenu");
+    if (!menu) return;
+    if (window.__webminecraftMultiplayerModeApplied && window.__webminecraftMultiplayerActive !== true && getComputedStyle(menu).display !== "none") {
+        window.__webminecraftMultiplayerModeApplied = false;
+        delete window.webMinecraftSelectedWorldMode;
+        document.body.classList.remove("webminecraft-survival", "webminecraft-creative");
+    }
+}
+
+function watchMainMenuReset() {
+    const menu = document.getElementById("mainMenu");
+    if (!menu) return;
+    const observer = new MutationObserver(resetAppliedMultiplayerMode);
+    observer.observe(menu, { attributes: true, attributeFilter: ["style", "class"] });
+    resetAppliedMultiplayerMode();
+}
+
 function installWebSocketModeBridge() {
     if (window.__webminecraftMultiplayerModeBridgeInstalled || !window.WebSocket) return;
     window.__webminecraftMultiplayerModeBridgeInstalled = true;
+
+    window.__webminecraftMultiplayerMode = getStoredMode();
 
     const originalSend = WebSocket.prototype.send;
     WebSocket.prototype.send = function(data) {
@@ -113,8 +140,7 @@ function installWebSocketModeBridge() {
                 const message = JSON.parse(event.data);
                 if (message?.type === "joined") {
                     const mode = normalizeMode(message.mode || window.__webminecraftMultiplayerMode || getStoredMode());
-                    applyMode(mode, message.worldSeed);
-                    try { localStorage.setItem(STORAGE_KEY, mode); } catch {}
+                    applyJoinedMode(mode, message.worldSeed);
                 }
             } catch {}
             return listener.call(this, event);
@@ -123,7 +149,13 @@ function installWebSocketModeBridge() {
     };
 }
 
-applyMode(getStoredMode());
 installWebSocketModeBridge();
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watchMultiplayerMenu, { once: true });
-else watchMultiplayerMenu();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+        watchMultiplayerMenu();
+        watchMainMenuReset();
+    }, { once: true });
+} else {
+    watchMultiplayerMenu();
+    watchMainMenuReset();
+}
