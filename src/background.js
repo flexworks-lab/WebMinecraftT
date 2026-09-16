@@ -38,6 +38,7 @@ function setupMenuAndMobileUi() {
     style.textContent = `
 #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:97 !important}
 #friendsButton{position:fixed !important;left:158px !important;bottom:28px !important;width:118px !important;height:48px !important;margin:0 !important;z-index:97 !important}
+#discussionButton{position:fixed !important;left:28px !important;bottom:82px !important;width:118px !important;min-height:48px !important;margin:0 !important;z-index:97 !important}
 #globalPlayerCount{left:auto !important;right:28px !important;bottom:28px !important;width:142px !important;min-height:48px !important;text-align:center !important}
 #globalPlayerPanel{left:auto !important;right:28px !important;bottom:88px !important}
 #mobileModeButton{margin-top:12px !important;background:linear-gradient(#536b82,#3e5265) !important;border-color:#111 !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -2px -3px 0 rgba(0,0,0,.3),0 3px 0 rgba(0,0,0,.72) !important}
@@ -70,6 +71,7 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
 @media(max-width:560px){
     #newsButton{left:12px !important;bottom:18px !important;width:calc(50vw - 18px) !important}
     #friendsButton{left:calc(50vw + 6px) !important;bottom:18px !important;width:calc(50vw - 18px) !important}
+    #discussionButton{left:14px !important;bottom:82px !important;width:112px !important}
 }
 `;
     document.head.appendChild(style);
