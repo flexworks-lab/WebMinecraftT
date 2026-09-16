@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server/start.js",
+    "server": "node server/watchdog.js",
+    "server:direct": "node server/start.js",
     "electron:dev": "vite & electron .",
     "electron:build": "npm run build && electron-builder --win --x64 --publish never"
   },
@@ -22,7 +23,8 @@
   "devDependencies": {
     "electron": "^37.3.1",
     "electron-builder": "^26.0.12",
-    "vite": "^7.1.5"
+    "vite": "^7.1.5",
+    "electron-builder": "^26.0.12"
   },
   "build": {
     "appId": "com.webminecraft.game",
