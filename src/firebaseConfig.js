@@ -28,7 +28,6 @@ import("./admin/accountDevControls.js").catch(error => console.warn("Account dev
 import("./admin/announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
 import("./newsLive.js").catch(error => console.warn("Live News tabs failed to load:", error));
 import("./newsFreshStart.js").catch(error => console.warn("Fresh News start failed to load:", error));
-import("./admin/newsClearDev.js").catch(error => console.warn("News clear tool failed to load:", error));
 import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
 import("./friendsLive.js").catch(error => console.warn("Live friends UI failed to load:", error));
 import("./friendsPresence.js").catch(error => console.warn("Live friend presence failed to load:", error));
