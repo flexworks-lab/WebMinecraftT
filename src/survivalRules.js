@@ -1,7 +1,7 @@
 import { isSurvivalWorld } from "./survivalMode.js";
 import "./survivalInventory.js";
 import "./survivalInventoryCompact.css";
-import "./survivalMining.js";
+import "./survivalMiningSystem.js";
 
 const MAX_HEALTH = 20;
 let lastSurvivalState = null;
