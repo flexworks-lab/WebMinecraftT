@@ -59,8 +59,7 @@ body.webminecraft-in-world #globalPlayerPanel,
 body.webminecraft-in-world #mainMenu button,
 body.webminecraft-in-world #seedMenu,
 body.webminecraft-in-world #menuUpdates{display:none !important}
-body.webminecraft-in-world #devControlsButton,
-body.webminecraft-in-world #discussionButton{display:none !important}
+body.webminecraft-in-world #devControlsButton{display:none !important}
 body.webminecraft-in-world #webMinecraftMovingClouds{display:none !important}
 body.webminecraft-in-world #globalPlayerCount{display:none !important}
 #settingsVersion{display:none !important}
