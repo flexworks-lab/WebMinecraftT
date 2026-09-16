@@ -5,6 +5,7 @@ import "./mobileFlightControls.js";
 import "./uiFixes.js";
 import "./waterPhysics.js";
 import "./waterTextureFix.js";
+import "./waterTextureFix.js";
 import "./gameEnhancements.js";
 import "./survivalMode.js";
 import "./performance.js";
@@ -87,10 +88,6 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
         button.id = "friendsButton";
         button.type = "button";
         button.textContent = "Friends";
-        button.addEventListener("click", () => {
-            const accountButton = document.getElementById("accountButton");
-            if (accountButton) accountButton.click();
-        });
         document.body.appendChild(button);
     };
 
