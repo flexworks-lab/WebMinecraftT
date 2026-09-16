@@ -214,7 +214,7 @@ function updateDrops(time) {
     }
 }
 
-function startSurvivalMining(scene, camera) {
+export function startSurvivalMining(scene, camera) {
     if (scene) sceneRef = scene;
     if (camera) cameraRef = camera;
     if (!isSurvivalWorld() || !document.body.classList.contains("webminecraft-in-world") || mining) return;
