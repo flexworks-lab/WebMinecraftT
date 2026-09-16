@@ -185,7 +185,6 @@ async function loadSavedBlocks(seed, switchId) {
         }
 
         writeLocalBlockSnapshot(normalizedSeed, activeBlocks);
-        writePlayerState(normalizedSeed, true);
         startLiveCloudSave();
         return activeWorld;
     } catch (error) {
