@@ -2,6 +2,17 @@ import { isSurvivalWorld } from "./survivalMode.js";
 
 const MAX_HEALTH = 20;
 let lastSurvivalState = null;
+let lastInWorldState = null;
+
+function isInWorld() {
+    const mainMenu = document.getElementById("mainMenu");
+    const savedWorlds = document.getElementById("savedWorlds");
+    const seedMenu = document.getElementById("seedMenu");
+    const gameStarted = mainMenu?.style.display === "none";
+    const worldsOpen = savedWorlds && savedWorlds.style.display !== "none";
+    const seedOpen = seedMenu && seedMenu.style.display !== "none";
+    return Boolean(gameStarted && !worldsOpen && !seedOpen);
+}
 
 function addHealthHud() {
     let hud = document.getElementById("webMinecraftHealthHud");
@@ -17,8 +28,8 @@ function addHealthHud() {
         style.id = "webMinecraftHealthStyles";
         style.textContent = `
 #webMinecraftHealthHud{position:fixed;left:14px;top:14px;z-index:9998;display:none;align-items:center;gap:7px;padding:8px 10px;background:rgba(18,18,18,.78);border:2px solid rgba(0,0,0,.82);border-top-color:rgba(255,255,255,.2);border-left-color:rgba(255,255,255,.16);border-radius:7px;box-shadow:0 4px 18px rgba(0,0,0,.28);font:700 12px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none}
-body.webminecraft-survival #webMinecraftHealthHud{display:flex!important}
-body.webminecraft-survival #touchFly{display:none!important}
+body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}
+body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}
 .healthLabel{color:#aaa;font-size:10px;letter-spacing:.6px}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:15px;line-height:1;white-space:nowrap}.healthValue{color:#fff;font-size:11px}
 @media(max-width:600px){#webMinecraftHealthHud{left:8px;top:8px;padding:7px 8px}.healthHearts{font-size:12px;letter-spacing:0}.healthValue{font-size:10px}}
 `;
@@ -43,34 +54,30 @@ function updateHealthHud() {
     value.textContent = `${clamped}/20`;
 }
 
-function syncSurvivalState() {
+function syncState() {
     const survival = isSurvivalWorld();
-    if (survival === lastSurvivalState) {
-        if (survival) updateHealthHud();
-        return;
+    const inWorld = isInWorld();
+    if (survival !== lastSurvivalState || inWorld !== lastInWorldState) {
+        lastSurvivalState = survival;
+        lastInWorldState = inWorld;
+        document.body.classList.toggle("webminecraft-survival", survival);
+        document.body.classList.toggle("webminecraft-creative", !survival);
+        document.body.classList.toggle("webminecraft-in-world", inWorld);
     }
 
-    lastSurvivalState = survival;
-    document.body.classList.toggle("webminecraft-survival", survival);
-    document.body.classList.toggle("webminecraft-creative", !survival);
-
-    if (survival) {
-        window.webMinecraftSurvivalHealth = MAX_HEALTH;
+    if (survival && inWorld) {
+        if (window.webMinecraftSurvivalHealth == null) window.webMinecraftSurvivalHealth = MAX_HEALTH;
         addHealthHud();
         updateHealthHud();
         document.getElementById("touchFly")?.classList.remove("pressed");
-    } else {
-        document.getElementById("webMinecraftHealthHud")?.style.setProperty("display", "none", "important");
     }
 }
 
 function init() {
     addHealthHud();
-    syncSurvivalState();
+    syncState();
 
-    // World creation uses history.replaceState(), which does not fire popstate.
-    // Polling lets the Survival state activate immediately after a new world opens.
-    window.setInterval(syncSurvivalState, 100);
+    window.setInterval(syncState, 100);
 
     document.addEventListener("keydown", event => {
         if (!isSurvivalWorld() || event.code !== "KeyF") return;
