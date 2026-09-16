@@ -66,6 +66,8 @@ function addStyles() {
     style.textContent = `
 #discussionButton{position:fixed;left:28px;bottom:82px;width:118px;min-height:48px;z-index:97;border:2px solid #111;border-top-color:#888;border-left-color:#888;border-radius:3px;background:linear-gradient(#666,#4c4c4c);color:#fff;font-family:MinecraftFont,monospace;font-size:12px;cursor:pointer;text-shadow:2px 2px 0 #222;box-shadow:0 3px 0 #111}
 #discussionButton:hover{filter:brightness(1.1)}
+body.webminecraft-in-world #discussionButton{display:none !important}
+body.webminecraft-in-world #discussionModal{display:none !important}
 #discussionModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:260;padding:20px;box-sizing:border-box}
 #discussionPanel{width:min(760px,96vw);height:min(700px,90vh);display:flex;flex-direction:column;background:linear-gradient(#292929,#1a1a1a);border:2px solid #101010;border-top-color:#747474;border-left-color:#747474;box-shadow:8px 8px 0 rgba(0,0,0,.45);color:#fff;font-family:Arial,sans-serif;box-sizing:border-box}
 #discussionHeader{display:flex;align-items:center;gap:14px;padding:16px 18px;border-bottom:2px solid #0d0d0d;background:#323232}
