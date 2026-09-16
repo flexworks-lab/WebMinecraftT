@@ -3,6 +3,55 @@
 // your Firebase security rules control access to your project's data.
 import "./browserWorldFallback.js";
 
+// The News button is created by menuUpdates.js. Give any button that becomes
+// #newsButton its final fixed position before it is inserted into the DOM.
+// This runs before main.js/menuUpdates.js because firebaseConfig.js is loaded first.
+(function installEarlyNewsButtonPosition(){
+    if (window.__webminecraftEarlyNewsButtonPosition) return;
+    window.__webminecraftEarlyNewsButtonPosition = true;
+
+    const createElement = document.createElement.bind(document);
+    document.createElement = function(tagName, options) {
+        const element = createElement(tagName, options);
+        if (String(tagName).toLowerCase() !== "button") return element;
+
+        const originalIdDescriptor = Object.getOwnPropertyDescriptor(element, "id");
+        let currentId = element.id;
+        Object.defineProperty(element, "id", {
+            configurable: true,
+            enumerable: true,
+            get() {
+                return currentId;
+            },
+            set(value) {
+                currentId = String(value ?? "");
+                if (originalIdDescriptor?.set) originalIdDescriptor.set.call(this, currentId);
+                else this.setAttribute("id", currentId);
+
+                if (currentId === "newsButton") {
+                    this.style.position = "fixed";
+                    this.style.left = window.innerWidth <= 560 ? "12px" : "28px";
+                    this.style.bottom = window.innerWidth <= 560 ? "18px" : "28px";
+                    this.style.width = window.innerWidth <= 560 ? "calc(50vw - 18px)" : "118px";
+                    this.style.margin = "0";
+                    this.style.zIndex = "97";
+                }
+            }
+        });
+
+        return element;
+    };
+
+    window.addEventListener("resize", () => {
+        const button = document.getElementById("newsButton");
+        if (!button) return;
+        const mobile = window.innerWidth <= 560;
+        button.style.left = mobile ? "12px" : "28px";
+        button.style.bottom = mobile ? "18px" : "28px";
+        button.style.width = mobile ? "calc(50vw - 18px)" : "118px";
+    }, { passive: true });
+})();
+
 export const firebaseConfig = {
     apiKey: "AIzaSyByaINh47IFMYmnc9Ty49aHTfTBe2u-jyU",
     authDomain: "webminecraft-f9064.firebaseapp.com",
