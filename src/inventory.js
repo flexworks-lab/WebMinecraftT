@@ -6,20 +6,20 @@ const MAX_STACK = 64;
 const INVENTORY_VERSION = 6;
 
 const ITEM_TYPES = [
-    { id: 1, name: "Grass Block", texture: "Grass_Block_(top_texture)_JE2.png", category: "natural" },
+    { id: 1, name: "Grass Block", texture: "grass_block_side.png", category: "natural" },
     { id: 2, name: "Dirt", texture: "dirt.png", category: "natural" },
     { id: 3, name: "Stone", texture: "stone.png", category: "natural" },
     { id: 4, name: "Sand", texture: "sand.png", category: "natural" },
     { id: 5, name: "Oak Log", texture: "oak_log_top.png", category: "natural" },
     { id: 6, name: "Oak Leaves", texture: "oak-leaves-normal-original-default.png", category: "natural" },
     { id: 7, name: "Cobblestone", texture: "cobblestone.png", category: "natural" },
-    { id: 8, name: "Gravel", texture: "dirt.png", category: "natural" },
-    { id: 9, name: "Sandstone", texture: "sand.png", category: "natural" },
-    { id: 10, name: "Bedrock", texture: null, color: "#4b4b4b", category: "natural" },
-    { id: 11, name: "Coal Ore", texture: null, color: "#343434", category: "natural" },
-    { id: 12, name: "Iron Ore", texture: null, color: "#8c8c8c", category: "natural" },
-    { id: 13, name: "Oak Planks", texture: null, color: "#b48754", category: "natural" },
-    { id: 14, name: "Snow", texture: null, color: "#e9f4ff", category: "natural" },
+    { id: 8, name: "Gravel", texture: "gravel.png", category: "natural" },
+    { id: 9, name: "Sandstone", texture: "sandstone.png", category: "natural" },
+    { id: 10, name: "Bedrock", texture: "bedrock.png", category: "natural" },
+    { id: 11, name: "Coal Ore", texture: "coal_ore.png", category: "natural" },
+    { id: 12, name: "Iron Ore", texture: "iron_ore.png", category: "natural" },
+    { id: 13, name: "Oak Planks", texture: "oak_planks.png", category: "natural" },
+    { id: 14, name: "Snow", texture: "snow.png", category: "natural" },
     { id: 15, name: "TNT", texture: "tnt_side.png", category: "tools" },
     { id: 16, name: "Flint and Steel", texture: "Flint_and_Steel_JE4_BE2.png", category: "tools" },
     { id: 17, name: "Oak Door", texture: "oak_door_bottom.png", category: "tools" }
@@ -44,8 +44,23 @@ let heldTextureLoader = null;
 let heldTextureCache = new Map();
 
 function textureUrl(texture) { return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(texture)}`; }
-function getItem(itemId) { return ITEM_TYPES.find(item => item.id === itemId) || null; }
-function saveInventory() { try { localStorage.setItem("webminecraft_inventory", JSON.stringify(inventory)); } catch {} }
+function getItem(itemId) { return ITEM_TYPES.find(item => item.id === Number(itemId)) || null; }
+function normalizeSlot(slot) {
+    if (!slot || !Number.isFinite(Number(slot.itemId)) || !Number.isFinite(Number(slot.count))) return null;
+    const itemId = Math.floor(Number(slot.itemId));
+    const item = getItem(itemId);
+    if (!item) return null;
+    const count = Math.max(1, Math.min(MAX_STACK, Math.floor(Number(slot.count))));
+    return { itemId, count, texture: slot.texture || item.texture || null };
+}
+function normalizeInventory(value) {
+    if (!Array.isArray(value) || value.length !== INVENTORY_SIZE) return Array.from({ length: INVENTORY_SIZE }, () => null);
+    return value.map(normalizeSlot);
+}
+function saveInventory() {
+    inventory = normalizeInventory(inventory);
+    try { localStorage.setItem("webminecraft_inventory", JSON.stringify(inventory)); } catch {}
+}
 function resetInventoryForNewUI() {
     inventory = Array.from({ length: INVENTORY_SIZE }, () => null);
     try {
@@ -61,9 +76,10 @@ function loadInventory() {
         return;
     }
     try {
-        const saved = JSON.parse(localStorage.getItem("webminecraft_inventory"));
+        const saved = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
         if (Array.isArray(saved) && saved.length === INVENTORY_SIZE) {
-            inventory = saved.map(slot => slot && Number.isFinite(slot.itemId) && Number.isFinite(slot.count) ? { itemId: slot.itemId, count: Math.max(1, Math.min(MAX_STACK, slot.count)) } : null);
+            inventory = normalizeInventory(saved);
+            try { localStorage.setItem("webminecraft_inventory", JSON.stringify(inventory)); } catch {}
         }
     } catch {}
 }
@@ -83,7 +99,7 @@ function addItem(itemId, amount = 1) {
     for (let i = 0; i < inventory.length && left > 0; i++) {
         if (!inventory[i]) {
             const add = Math.min(left, MAX_STACK);
-            inventory[i] = { itemId, count: add };
+            inventory[i] = { itemId, count: add, texture: item.texture || null };
             left -= add;
         }
     }
@@ -137,7 +153,7 @@ function itemVisual(item) {
     if (item.texture) {
         return `<span class="catalogIcon catalogTexture" style="background-image:url('${textureUrl(item.texture)}')"></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
     }
-    return `<span class="catalogIcon catalogColor" style="--item-color:${item.color}"></span>`;
+    return `<span class="catalogIcon catalogColor" style="--item-color:#777"></span>`;
 }
 
 function createInventoryUI() {
@@ -315,7 +331,8 @@ function renderSlot(slot, index, options = {}) {
     if (slot) {
         const item = getItem(slot.itemId);
         if (item) {
-            let visual = item.texture ? `<span class="slotTexture" style="background-image:url('${textureUrl(item.texture)}')"></span><span class="slotFallback">${item.name.charAt(0)}</span>` : `<span class="slotTexture" style="background:${item.color}"></span>`;
+            const texture = slot.texture || item.texture;
+            const visual = texture ? `<span class="slotTexture" style="background-image:url('${textureUrl(texture)}')"></span><span class="slotFallback">${item.name.charAt(0)}</span>` : `<span class="slotTexture" style="background:#777"></span>`;
             cell.innerHTML = visual + `<span class="slotCount">${slot.count > 1 ? slot.count : ""}</span>` + (options.hotbar ? `<span class="slotNumber">${index + 1}</span>` : "");
             cell.title = `${item.name} (${slot.count})`;
             cell.addEventListener("dragstart", event => {
@@ -339,7 +356,8 @@ function renderSlot(slot, index, options = {}) {
             if (sourceInventory === index) return;
             [inventory[index], inventory[sourceInventory]] = [inventory[sourceInventory], inventory[index]];
         } else if (sourceCatalog !== null && sourceCatalog !== undefined) {
-            inventory[index] = { itemId: sourceCatalog, count: MAX_STACK };
+            const item = getItem(sourceCatalog);
+            inventory[index] = item ? { itemId: sourceCatalog, count: MAX_STACK, texture: item.texture || null } : null;
         } else return;
         draggedInventory = null;
         draggedCatalog = null;
@@ -372,22 +390,29 @@ function syncHotbar() {
         let countEl = slotEl.querySelector(".hotbarCount");
         if (!countEl) { countEl = document.createElement("span"); countEl.className = "hotbarCount"; slotEl.appendChild(countEl); }
         const slot = inventory[index];
-        const textureEl = slotEl.querySelector(".hotbarTexture");
+        let textureEl = slotEl.querySelector(".hotbarTexture");
         if (slot?.itemId) {
             const item = getItem(slot.itemId);
-            if (item?.texture) {
+            const texture = slot.texture || item?.texture || null;
+            if (texture) {
                 if (!textureEl) {
-                    const texture = document.createElement("span");
-                    texture.className = "hotbarTexture";
-                    texture.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
-                    slotEl.appendChild(texture);
-                } else {
-                    textureEl.style.backgroundImage = `url('${textureUrl(item.texture)}')`;
+                    textureEl = document.createElement("span");
+                    textureEl.className = "hotbarTexture";
+                    slotEl.appendChild(textureEl);
                 }
+                textureEl.style.backgroundImage = `url('${textureUrl(texture)}')`;
+                textureEl.style.backgroundSize = "100% 100%";
+                textureEl.style.backgroundPosition = "center";
+                textureEl.style.backgroundRepeat = "no-repeat";
+                textureEl.style.imageRendering = "pixelated";
+                textureEl.style.position = "absolute";
+                textureEl.style.inset = "3px";
+                textureEl.style.zIndex = "1";
             } else if (textureEl) {
                 textureEl.remove();
             }
-            countEl.textContent = slot.count > 1 ? slot.count : "";
+            countEl.textContent = slot.count > 1 ? String(slot.count) : "";
+            countEl.style.zIndex = "3";
         } else {
             if (textureEl) textureEl.remove();
             countEl.textContent = "";
@@ -464,8 +489,9 @@ function updateHeldBlock() {
     if (!held3D) return;
     if (!inWorld || !item) { held3D.root.visible = false; return; }
     const info = getItem(item.itemId);
-    if (!info || !info.texture) { held3D.root.visible = false; return; }
-    const texture = loadHeldTexture(info);
+    const textureName = item.texture || info?.texture;
+    if (!info || !textureName) { held3D.root.visible = false; return; }
+    const texture = loadHeldTexture({ ...info, texture: textureName });
     for (const material of held3D.block.material) { material.map = texture; material.needsUpdate = true; }
     held3D.root.visible = true;
 }
@@ -485,6 +511,13 @@ export function setupInventory(camera) {
     updateHeldBlock();
     window.addEventListener("webminecraft:selectedslot", event => {
         window.webMinecraftSelectedSlot = event.detail?.slot ?? 0;
+        updateHeldBlock();
+    });
+    window.addEventListener("webminecraft:inventorychanged", () => {
+        loadInventory();
+        renderInventory();
+        renderCatalog();
+        renderSurvival();
         updateHeldBlock();
     });
     document.addEventListener("keydown", event => {
