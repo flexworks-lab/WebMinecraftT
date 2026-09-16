@@ -20,3 +20,20 @@ document.addEventListener("click", event => {
     if (!event.target.closest("#createWorldSettingsCreate")) return;
     saveSelectedWorldType();
 }, true);
+
+// Safety shim for the chunk-unload variable typo in the current terrain module.
+// It derives the player's current chunk Z dynamically, so the existing unload logic
+// continues to use the correct value without touching any other gameplay systems.
+if (!Object.prototype.hasOwnProperty.call(globalThis, "playerChunkChunkZ")) {
+    try {
+        Object.defineProperty(globalThis, "playerChunkChunkZ", {
+            configurable: true,
+            enumerable: false,
+            get() {
+                const camera = globalThis.__webminecraftCamera;
+                const z = Number(camera?.position?.z);
+                return Number.isFinite(z) ? Math.floor(z / 19) : 0;
+            }
+        });
+    } catch {}
+}
