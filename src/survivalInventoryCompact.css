@@ -1,0 +1,47 @@
+/* Compact Survival inventory layout: keeps the existing UI and reduces its footprint. */
+#svi-panel {
+  width: min(900px, 92vw) !important;
+  height: min(620px, 92vh) !important;
+  padding: 9px !important;
+  gap: 7px !important;
+  overflow: hidden !important;
+}
+#svi-header { font-size: 18px !important; }
+#svi-close { width: 32px !important; height: 28px !important; font-size: 21px !important; }
+#svi-top { min-height: 190px !important; gap: 7px !important; }
+#svi-player-box { min-height: 190px !important; grid-template-columns: 1fr 58px !important; grid-template-rows: 1fr 38px !important; padding: 7px !important; }
+#svi-player-preview { min-height: 138px !important; }
+#svi-armor { gap: 4px !important; padding-left: 5px !important; }
+.svi-armor-slot { width: 36px !important; height: 36px !important; font-size: 19px !important; }
+#svi-offhand { width: 38px !important; height: 38px !important; font-size: 19px !important; }
+#svi-player-box .svi-box-label { margin-top: 3px !important; font-size: 9px !important; }
+#svi-crafting { padding: 7px !important; }
+.svi-section-title { font-size: 13px !important; margin-bottom: 4px !important; }
+.svi-craft-row { gap: 7px !important; }
+#svi-craft-grid { grid-template-columns: repeat(2, 38px) !important; gap: 4px !important; }
+.svi-craft-slot { width: 38px !important; height: 38px !important; }
+.svi-craft-output { width: 44px !important; height: 44px !important; }
+.svi-arrow { font-size: 25px !important; }
+#svi-recipe-book { margin-top: 4px !important; padding: 4px 7px !important; font-size: 10px !important; }
+#svi-recipe-panel { margin-top: 4px !important; padding: 5px !important; font-size: 9px !important; }
+#svi-storage-section { min-height: 0 !important; padding: 6px !important; }
+#svi-storage, #svi-hotbar { gap: 3px !important; }
+.svi-slot { min-width: 0 !important; border-width: 1px !important; }
+.svi-item { inset: 4px !important; }
+.svi-slot b { right: 2px !important; bottom: 0 !important; font-size: 10px !important; }
+.svi-slot::after { font-size: 7px !important; left: 2px !important; top: 0 !important; }
+#svi-hotbar-section { padding: 6px !important; }
+#svi-hotbar { grid-template-columns: repeat(9, minmax(32px, 47px)) !important; }
+@media (max-width: 720px) {
+  #svi-panel { height: 92vh !important; width: 94vw !important; }
+  #svi-top { grid-template-columns: 1fr 1fr !important; min-height: 170px !important; }
+  #svi-player-box { min-height: 170px !important; }
+  #svi-player-preview { min-height: 120px !important; }
+  #svi-armor { gap: 3px !important; }
+  .svi-armor-slot { width: 30px !important; height: 30px !important; }
+  #svi-offhand { width: 32px !important; height: 32px !important; }
+  #svi-craft-grid { grid-template-columns: repeat(2, 32px) !important; }
+  .svi-craft-slot { width: 32px !important; height: 32px !important; }
+  .svi-craft-output { width: 38px !important; height: 38px !important; }
+  .svi-arrow { font-size: 21px !important; }
+}
