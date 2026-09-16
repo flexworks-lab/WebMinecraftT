@@ -26,9 +26,20 @@ function addHealthHud() {
     if (!document.getElementById("webMinecraftHealthStyles")) {
         const style = document.createElement("style");
         style.id = "webMinecraftHealthStyles";
-        style.textContent = `#webMinecraftHealthHud{position:fixed;left:calc(50% - min(490px, 47vw) + 6px);bottom:76px;z-index:10001;display:none;align-items:center;padding:0;pointer-events:none;white-space:nowrap}body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:20px;line-height:1;text-shadow:2px 2px 0 #000,-1px -1px 0 #000;white-space:nowrap}@media(max-width:700px){#webMinecraftHealthHud{left:calc(50% - min(320px, 44vw));bottom:70px}.healthHearts{font-size:16px;letter-spacing:0}}`;
+        style.textContent = `#webMinecraftHealthHud{position:fixed;left:0;bottom:0;z-index:10001;display:none;align-items:center;padding:0;pointer-events:none;white-space:nowrap}body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:20px;line-height:1;text-shadow:2px 2px 0 #000,-1px -1px 0 #000;white-space:nowrap}@media(max-width:700px){.healthHearts{font-size:16px;letter-spacing:0}}`;
         document.head.appendChild(style);
     }
+}
+function positionHealthHud() {
+    const hud = document.getElementById("webMinecraftHealthHud");
+    const hotbar = document.getElementById("hotbar");
+    if (!hud || !hotbar || hotbar.offsetParent === null) return;
+    const rect = hotbar.getBoundingClientRect();
+    const slotWidth = rect.width / 9;
+    const heartsCenter = rect.left + slotWidth * 2.5;
+    hud.style.left = `${heartsCenter}px`;
+    hud.style.bottom = `${window.innerHeight - rect.top + 6}px`;
+    hud.style.transform = "translateX(-50%)";
 }
 function updateHealthHud() {
     const hud = document.getElementById("webMinecraftHealthHud");
@@ -43,6 +54,7 @@ function updateHealthHud() {
     if (hearts.textContent !== heartText) hearts.textContent = heartText;
     const ariaLabel = `${clamped} health`;
     if (hearts.getAttribute("aria-label") !== ariaLabel) hearts.setAttribute("aria-label", ariaLabel);
+    positionHealthHud();
 }
 function syncState() {
     const survival = isSurvivalWorld();
@@ -58,6 +70,7 @@ function syncState() {
         if (window.webMinecraftSurvivalHealth == null) window.webMinecraftSurvivalHealth = MAX_HEALTH;
         addHealthHud();
         updateHealthHud();
+        positionHealthHud();
         document.getElementById("touchFly")?.classList.remove("pressed");
     }
 }
@@ -65,6 +78,7 @@ function init() {
     addHealthHud();
     syncState();
     window.setInterval(syncState, 100);
+    window.addEventListener("resize", positionHealthHud);
     document.addEventListener("keydown", event => { if (!isSurvivalWorld() || event.code !== "KeyF") return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
     document.addEventListener("pointerdown", event => { if (!isSurvivalWorld()) return; const flyButton = event.target.closest?.("#touchFly"); if (!flyButton) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
     document.addEventListener("click", event => { if (!isSurvivalWorld()) return; const flyButton = event.target.closest?.("#touchFly"); if (!flyButton) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
