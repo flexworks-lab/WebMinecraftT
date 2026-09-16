@@ -488,17 +488,22 @@ export function setupInventory(camera) {
         updateHeldBlock();
     });
     document.addEventListener("keydown", event => {
+        if (document.body.classList.contains("mobile-mode")) return;
         if (event.key.toLowerCase() === "e" && !event.repeat && document.body.classList.contains("webminecraft-in-world")) {
             event.preventDefault();
             inventoryOpen ? closeInventory() : openInventory();
         }
-        if (event.key === "Escape" && inventoryOpen) closeInventory();
+        if (event.key === "Escape" && inventoryOpen && document.body.classList.contains("webminecraft-in-world")) closeInventory();
     });
-    const worldObserver = new MutationObserver(updateHeldBlock);
+    const worldObserver = new MutationObserver(() => {
+        if (!document.body.classList.contains("webminecraft-in-world") && inventoryOpen) closeInventory();
+        updateHeldBlock();
+    });
     worldObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
 
 function openInventory() {
+    if (!document.body.classList.contains("webminecraft-in-world")) return;
     inventoryOpen = true;
     document.body.classList.add("inventory-open");
     document.getElementById("inventoryScreen")?.classList.add("open");
