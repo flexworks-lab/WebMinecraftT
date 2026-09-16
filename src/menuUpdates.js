@@ -31,7 +31,7 @@ function addStyles() {
     style.id = "newsButtonStyles";
     style.textContent = `
         #menuUpdates{display:none!important}
-        #newsButton{margin-top:8px;position:relative}
+        #newsButton{position:fixed!important;left:28px!important;bottom:28px!important;width:118px!important;height:42px!important;margin:0!important;z-index:97!important}
         #newsButton.newsHasUnread::after{content:"";position:absolute;top:7px;right:7px;width:10px;height:10px;border-radius:50%;background:#e33;border:2px solid #4b0000;box-shadow:0 0 0 1px rgba(0,0,0,.65),0 0 8px rgba(255,40,40,.55)}
         #newsCenter{position:fixed;inset:0;display:none;background:linear-gradient(180deg,#1b1b1b,#111);z-index:240;color:#fff;overflow:hidden}
         #newsPanel{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;display:grid;grid-template-columns:minmax(260px,31vw) minmax(0,1fr);grid-template-rows:100%;background:#1a1a1a;overflow:hidden}
@@ -72,6 +72,7 @@ function addStyles() {
             #newsReadingHeader{padding:18px 18px 14px}
             #newsReadingBody{padding:18px 18px 34px;font-size:14px;line-height:1.6}
             #newsReadingBack{margin:0 18px 16px}
+            #newsButton{left:12px!important;bottom:18px!important;width:calc(50vw - 18px)!important;height:42px!important}
         }
     `;
     document.head.appendChild(style);
@@ -97,6 +98,7 @@ function createNewsUi(){
     button.className="menuButton";
     button.type="button";
     button.textContent="News";
+    button.style.cssText="position:fixed!important;left:28px!important;bottom:28px!important;width:118px!important;height:42px!important;margin:0!important;z-index:97!important;";
     buttons.insertBefore(button,document.getElementById("menuSettingsButton"));
     const center=document.createElement("div");
     center.id="newsCenter";
@@ -119,11 +121,7 @@ function createNewsUi(){
     const detailVersion=center.querySelector("#newsReadingVersion");
     const detailTitle=center.querySelector("#newsReadingTitle");
     const detailBody=center.querySelector("#newsReadingBody");
-    const showItem=item=>{
-        detailVersion.textContent=item.version;
-        detailTitle.textContent=item.title;
-        detailBody.textContent=item.body;
-    };
+    const showItem=item=>{ detailVersion.textContent=item.version; detailTitle.textContent=item.title; detailBody.textContent=item.body; };
     UPDATE_DETAILS.forEach((item,index)=>{
         const card=document.createElement("button");
         card.className="newsItem";
@@ -134,14 +132,7 @@ function createNewsUi(){
         if(index===0)showItem(item);
     });
     const closeNews=()=>{center.style.display="none";center.setAttribute("aria-hidden","true");};
-    const openNews=event=>{
-        event?.preventDefault();event?.stopPropagation();
-        center.style.display="block";
-        center.setAttribute("aria-hidden","false");
-        setNewsUnread(false);
-        list.scrollTop=0;
-        detailBody.scrollTop=0;
-    };
+    const openNews=event=>{event?.preventDefault();event?.stopPropagation();center.style.display="block";center.setAttribute("aria-hidden","false");setNewsUnread(false);list.scrollTop=0;detailBody.scrollTop=0;};
     button.addEventListener("click",openNews);
     center.querySelector("#newsClose").addEventListener("click",closeNews);
     center.querySelector("#newsReadingBack").addEventListener("click",closeNews);
@@ -165,35 +156,19 @@ function setupPauseMenu(){
     overlay.querySelector("#pauseResume").addEventListener("click",close);
     overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();overlay.style.display="none";overlay.setAttribute("aria-hidden","true");document.getElementById("settingsMenu")?.style.setProperty("display","flex");document.exitPointerLock?.();paused=false;});
     overlay.querySelector("#pauseMobile").addEventListener("click",()=>{const url=new URL(window.location.href);const enabled=url.searchParams.get("mobile")==="1"||url.searchParams.get("mode")==="mobile";if(enabled){url.searchParams.delete("mobile");url.searchParams.delete("mode");}else{url.searchParams.set("mobile","1");url.searchParams.delete("mode");}window.location.href=url.toString();});
-    overlay.querySelector("#pauseReturn").addEventListener("click",()=>window.location.reload());
-    document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(paused)close(event);else if(isGameRunning())open(event);},true);
-    document.getElementById("settingsButton")?.addEventListener("pointerdown",event=>{if(!isGameRunning())return;event.preventDefault();event.stopImmediatePropagation();open(event);},true);
-    window.webminecraftPause={open,close,isOpen:()=>paused};
+    overlay.querySelector("#pauseReturn").addEventListener("click",()=>{paused=false;overlay.style.display="none";overlay.setAttribute("aria-hidden","true");document.getElementById("settingsMenu")?.style.setProperty("display","none");clearWorld();if(seedMenu){seedMenu.style.display="none";seedMenu.setAttribute("aria-hidden","true");}if(menu){menu.style.display="flex";}document.body.classList.remove("webminecraft-in-world");document.exitPointerLock?.();});
+    document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(document.getElementById("settingsMenu")?.style.display!=="none")return;if(document.getElementById("seedMenu")?.style.display!=="none")return;if(document.getElementById("newsCenter")?.style.display==="block")return;if(!isGameRunning())return;paused?close(event):open(event);},true);
 }
 
-function setupSeedBackButton(){
-    const button=document.getElementById("backSeedButton"); if(!button||button.dataset.backHookInstalled)return; button.dataset.backHookInstalled="1";
-    button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();if(seedMenu){seedMenu.style.display="none";seedMenu.setAttribute("aria-hidden","true");}if(menu)menu.style.display="flex";window.setTimeout(()=>window.location.reload(),80);});
+function init(){
+    if(!updates||!menu)return;
+    createNewsUi();
+    setupPauseMenu();
+    const current=localStorage.getItem(VERSION_KEY);
+    if(!current){localStorage.setItem(VERSION_KEY,"Beta");}
+    const menuVisible=()=>getComputedStyle(menu).display!=="none";
+    if(seedMenu) seedMenu.addEventListener("click",event=>{if(event.target===seedMenu)seedMenu.style.display="none";});
 }
 
-function createVersionPicker(){
-    if(document.getElementById("gameVersionPicker"))return;
-    const style=document.createElement("style");style.id="gameVersionStyles";
-    style.textContent=`#gameVersionButton{position:fixed;right:10px;bottom:8px;min-width:88px;height:34px;padding:5px 10px;border:2px solid #111;border-top-color:#9a9a9a;border-left-color:#9a9a9a;background:linear-gradient(#666,#4d4d4d);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;cursor:pointer;z-index:97;box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),0 2px 0 rgba(0,0,0,.7)}#gameVersionPicker{position:fixed;right:10px;bottom:48px;width:160px;padding:6px;background:#191919;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:4px 4px 0 rgba(0,0,0,.55);z-index:97;display:none}.gameVersionOption{display:block;width:100%;min-height:34px;margin:3px 0;border:2px solid #111;border-top-color:#777;border-left-color:#777;background:#3d3d3d;color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-align:left;padding:7px 9px;cursor:pointer;text-shadow:2px 2px 0 #111}.gameVersionOption.active{background:#5e5e5e}`;
-    document.head.appendChild(style); const button=document.createElement("button");button.id="gameVersionButton";button.type="button";const picker=document.createElement("div");picker.id="gameVersionPicker";let current=VERSIONS.includes(localStorage.getItem(VERSION_KEY))?localStorage.getItem(VERSION_KEY):VERSIONS[0];
-    VERSIONS.forEach(version=>{const option=document.createElement("button");option.className="gameVersionOption";option.type="button";option.dataset.version=version;option.textContent=version;option.addEventListener("click",()=>{current=version;localStorage.setItem(VERSION_KEY,version);window.webminecraftVersion=version;refresh();picker.style.display="none";});picker.appendChild(option);});
-    const refresh=()=>{button.textContent=current;picker.querySelectorAll(".gameVersionOption").forEach(option=>option.classList.toggle("active",option.dataset.version===current));};
-    button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();picker.style.display=picker.style.display==="block"?"none":"block";});
-    document.addEventListener("click",event=>{if(event.target!==button&&!picker.contains(event.target))picker.style.display="none";});
-    document.addEventListener("keydown",event=>{if(event.code==="Escape")picker.style.display="none";});
-    document.body.append(button,picker);window.webminecraftVersion=current;refresh();
-    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]});}
-}
-
-addStyles();
-createNewsUi();
-setupPauseMenu();
-setupSeedBackButton();
-createVersionPicker();
-
-if(seedMenu){let cleared=false;const observer=new MutationObserver(()=>{const open=getComputedStyle(seedMenu).display!=="none";if(open&&!cleared){clearWorld();cleared=true;}else if(!open)cleared=false;});observer.observe(seedMenu,{attributes:true,attributeFilter:["style","class"]});}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
+else init();
