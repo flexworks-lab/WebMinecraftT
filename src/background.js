@@ -79,6 +79,30 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
     const mobileModeButton = document.getElementById("mobileModeButton");
     if (!mainMenu) return;
 
+    const isMobileMode = () => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("mobile") === "1" || params.get("mode") === "mobile";
+    };
+
+    const syncNewsButtonPosition = () => {
+        const button = document.getElementById("newsButton");
+        if (!button) return;
+        const mobile = isMobileMode() || window.innerWidth <= 560;
+        button.style.position = "fixed";
+        button.style.left = mobile ? "12px" : "28px";
+        button.style.bottom = mobile ? "18px" : "28px";
+        button.style.width = mobile ? "calc(50vw - 18px)" : "118px";
+        button.style.margin = "0";
+        button.style.zIndex = "97";
+    };
+
+    const menuButtons = document.getElementById("menuButtons");
+    if (menuButtons) {
+        new MutationObserver(syncNewsButtonPosition).observe(menuButtons, { childList:true });
+    }
+    syncNewsButtonPosition();
+    window.addEventListener("resize", syncNewsButtonPosition, { passive:true });
+
     const ensureFriendsButton = () => {
         if (document.getElementById("friendsButton")) return;
         const button = document.createElement("button");
@@ -94,11 +118,6 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
 
     ensureFriendsButton();
 
-    const isMobileMode = () => {
-        const params = new URLSearchParams(window.location.search);
-        return params.get("mobile") === "1" || params.get("mode") === "mobile";
-    };
-
     const syncState = () => {
         const menuVisible = getComputedStyle(mainMenu).display !== "none";
         const inWorld = !menuVisible;
@@ -108,6 +127,7 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
             settingsButton.style.display = menuVisible || (inWorld && isMobileMode()) ? "block" : "none";
         }
         ensureFriendsButton();
+        syncNewsButtonPosition();
     };
 
     const syncMobileButton = () => {
