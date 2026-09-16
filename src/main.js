@@ -27,6 +27,21 @@ camera.position.set(0, 7, 5);
 camera.up.set(0, 1, 0);
 camera.rotation.order = "YXZ";
 
+const MENU_CAMERA_POSITION = new THREE.Vector3(0, 7, 5);
+const MENU_CAMERA_YAW = 0;
+const MENU_CAMERA_PITCH = 0;
+
+function resetMenuCamera() {
+    camera.up.set(0, 1, 0);
+    camera.position.copy(MENU_CAMERA_POSITION);
+    camera.rotation.order = "YXZ";
+    resetView(MENU_CAMERA_YAW, MENU_CAMERA_PITCH);
+    camera.rotation.set(MENU_CAMERA_PITCH, MENU_CAMERA_YAW, 0);
+    camera.updateMatrixWorld(true);
+}
+
+resetMenuCamera();
+
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(1);
@@ -347,6 +362,8 @@ setupInteraction(scene, camera);
 
 function animate() {
     requestAnimationFrame(animate);
+    const menuVisible = mainMenu && getComputedStyle(mainMenu).display !== "none";
+    if (!gameStarted && menuVisible) resetMenuCamera();
     if (gameStarted) updatePlayer(camera, scene);
     updateChunkVisibility(scene, camera);
     updateDepthLighting();
