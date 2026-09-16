@@ -15,6 +15,8 @@ function getSeed() {
 
 export function getWorldMode(seed = getSeed()) {
     const normalizedSeed = normalizeSeed(seed);
+    const selectedMode = window.webMinecraftSelectedWorldMode;
+    if (selectedMode === "survival" || selectedMode === "creative") return selectedMode;
     if (normalizedSeed === null) return "creative";
     try {
         return normalizeMode(localStorage.getItem(`${MODE_PREFIX}${normalizedSeed}`));
@@ -57,6 +59,14 @@ function addPickerStyles() {
     document.head.appendChild(style);
 }
 
+function applySelectedMode(mode) {
+    const value = normalizeMode(mode);
+    window.webMinecraftSelectedWorldMode = value;
+    document.body.classList.toggle("webminecraft-survival", value === "survival");
+    document.body.classList.toggle("webminecraft-creative", value !== "survival");
+    window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode: value } }));
+}
+
 function addModePicker() {
     const modal = document.querySelector("#savedWorlds .sw2-modal-card");
     if (!modal || modal.querySelector("[data-world-mode]")) return false;
@@ -90,6 +100,7 @@ function addModePicker() {
             card.classList.toggle("selected", selected);
             card.setAttribute("aria-checked", String(selected));
         });
+        applySelectedMode(value);
     }
 
     for (const item of modes) {
@@ -127,6 +138,7 @@ function rememberCreateMode() {
     const seed = normalizeSeed(seedElement.textContent.trim());
     if (seed === null) return;
     const mode = normalizeMode(select.value);
+    window.webMinecraftSelectedWorldMode = mode;
     setWorldMode(seed, mode);
 }
 
@@ -150,6 +162,7 @@ function init() {
 
     markCurrentWorld();
     window.addEventListener("popstate", markCurrentWorld);
+    window.addEventListener("webminecraft-modechange", markCurrentWorld);
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
