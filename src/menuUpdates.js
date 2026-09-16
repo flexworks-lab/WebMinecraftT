@@ -31,7 +31,7 @@ function addStyles() {
     style.id = "newsButtonStyles";
     style.textContent = `
         #menuUpdates{display:none!important}
-        #newsButton{margin-top:8px;position:relative}
+        #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:97 !important}
         #newsButton.newsHasUnread::after{content:"";position:absolute;top:7px;right:7px;width:10px;height:10px;border-radius:50%;background:#e33;border:2px solid #4b0000;box-shadow:0 0 0 1px rgba(0,0,0,.65),0 0 8px rgba(255,40,40,.55)}
         #newsCenter{position:fixed;inset:0;display:none;background:linear-gradient(180deg,#1b1b1b,#111);z-index:240;color:#fff;overflow:hidden}
         #newsPanel{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;display:grid;grid-template-columns:minmax(260px,31vw) minmax(0,1fr);grid-template-rows:100%;background:#1a1a1a;overflow:hidden}
@@ -62,6 +62,7 @@ function addStyles() {
         #newsReadingBody::-webkit-scrollbar-thumb:hover{background:#898989}
         #newsReadingBack{flex:0 0 auto;margin:0 34px 24px;width:auto}
         @media(max-width:700px){
+            #newsButton{left:12px !important;bottom:18px !important;width:calc(50vw - 18px) !important}
             #newsPanel{grid-template-columns:1fr;grid-template-rows:44% 56%}
             #newsSidebar{border-right:0;border-bottom:2px solid #0b0b0b}
             #newsHeader{padding:16px 16px 12px}
@@ -97,7 +98,9 @@ function createNewsUi(){
     button.className="menuButton";
     button.type="button";
     button.textContent="News";
-    buttons.insertBefore(button,document.getElementById("menuSettingsButton"));
+    // News is intentionally outside the animated menu panel so its fixed
+    // position cannot be affected by the menu panel's transform animation.
+    document.body.appendChild(button);
     const center=document.createElement("div");
     center.id="newsCenter";
     center.setAttribute("aria-hidden","true");
@@ -187,7 +190,7 @@ function createVersionPicker(){
     document.addEventListener("click",event=>{if(event.target!==button&&!picker.contains(event.target))picker.style.display="none";});
     document.addEventListener("keydown",event=>{if(event.code==="Escape")picker.style.display="none";});
     document.body.append(button,picker);window.webminecraftVersion=current;refresh();
-    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]});}
+    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]);}
 }
 
 addStyles();
