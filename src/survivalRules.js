@@ -1,5 +1,6 @@
 import { isSurvivalWorld } from "./survivalMode.js";
 import "./survivalInventory.js";
+import "./survivalInventoryCompact.css";
 
 const MAX_HEALTH = 20;
 let lastSurvivalState = null;
