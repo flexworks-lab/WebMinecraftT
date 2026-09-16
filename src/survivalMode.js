@@ -20,13 +20,29 @@ function getSeed() {
 export function getWorldMode(seed = getSeed()) {
     const normalizedSeed = normalizeSeed(seed);
     const selectedMode = window.webMinecraftSelectedWorldMode;
-    if (selectedMode === "survival" || selectedMode === "creative") return selectedMode;
-    if (normalizedSeed === null) return "creative";
-    try {
-        return normalizeMode(localStorage.getItem(`${MODE_PREFIX}${normalizedSeed}`));
-    } catch {
-        return "creative";
+
+    // Multiplayer room mode is authoritative while connected to a server.
+    if (window.__webminecraftMultiplayerActive === true) {
+        if (selectedMode === "survival" || selectedMode === "creative") return selectedMode;
+        if (normalizedSeed === null) return "creative";
+        try {
+            return normalizeMode(localStorage.getItem(`${MODE_PREFIX}${normalizedSeed}`));
+        } catch {
+            return "creative";
+        }
     }
+
+    // Singleplayer worlds are identified by their seed. Always prefer the mode
+    // saved for that exact seed so an old global mode cannot override Survival.
+    if (normalizedSeed !== null) {
+        try {
+            const storedMode = localStorage.getItem(`${MODE_PREFIX}${normalizedSeed}`);
+            if (storedMode === "survival" || storedMode === "creative") return storedMode;
+        } catch {}
+    }
+
+    if (selectedMode === "survival" || selectedMode === "creative") return selectedMode;
+    return "creative";
 }
 
 export function setWorldMode(seed, mode) {
@@ -71,8 +87,12 @@ function validInventory(value) {
 function getStoredMode(seed) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return "creative";
-    try { return normalizeMode(localStorage.getItem(`${MODE_PREFIX}${normalizedSeed}`)); }
-    catch { return "creative"; }
+    try {
+        const value = localStorage.getItem(`${MODE_PREFIX}${normalizedSeed}`);
+        return value === "survival" || value === "creative" ? value : "creative";
+    } catch {
+        return "creative";
+    }
 }
 
 let syncedSeed = null;
@@ -275,13 +295,16 @@ function addModePicker() {
 
 function rememberCreateMode() {
     const seedElement = document.querySelector("#savedWorlds [data-new-seed]");
-    const select = document.querySelector("#savedWorlds [data-world-mode]");
+    const legacySelect = document.querySelector("#savedWorlds [data-world-mode]");
+    const settingsSelect = document.querySelector("#savedWorlds #cwGameMode");
+    const select = legacySelect || settingsSelect;
     if (!seedElement || !select) return;
     const seed = normalizeSeed(seedElement.textContent.trim());
     if (seed === null) return;
     const mode = normalizeMode(select.value);
     window.webMinecraftSelectedWorldMode = mode;
     setWorldMode(seed, mode);
+    window.__webminecraftPendingSingleplayerMode = mode;
 }
 
 function markCurrentWorld() {
