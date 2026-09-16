@@ -44,6 +44,22 @@ const gameplayUiPlugin = {
             const textureCss = '.hotbarTexture{position:absolute!important;inset:5px!important;display:block!important;background-position:center!important;background-size:100% 100%!important;background-repeat:no-repeat!important;image-rendering:pixelated!important;pointer-events:none!important;z-index:1!important}';
             const hotbarCountRule = '#hotbar.textured-hotbar .hotbarCount{position:absolute;right:3px;bottom:1px;color:#fff;font:bold 13px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none;z-index:3}';
             code = code.replace(hotbarCountRule, `${hotbarCountRule}\n${textureCss}`);
+            code = code.replace(
+                "export function setupInteraction(scene, camera) {",
+                "export function setupInteraction(scene, camera) {\n    window.__webminecraftMiningScene = scene;\n    window.__webminecraftMiningCamera = camera;"
+            );
+            return { code, map: null };
+        }
+
+        if (id.endsWith("/src/survivalMining.js")) {
+            code = code.replace(
+                "function getTarget() {\n    if (!sceneRef || !cameraRef) return null;",
+                "function getTarget() {\n    sceneRef ||= window.__webminecraftMiningScene || null;\n    cameraRef ||= window.__webminecraftMiningCamera || window.__webminecraftCamera || null;\n    if (!sceneRef || !cameraRef) return null;"
+            );
+            code = code.replace(
+                "function updateDrops(time) {\n    if (!sceneRef || !cameraRef || !isSurvivalWorld()) return;",
+                "function updateDrops(time) {\n    sceneRef ||= window.__webminecraftMiningScene || null;\n    cameraRef ||= window.__webminecraftMiningCamera || window.__webminecraftCamera || null;\n    if (!sceneRef || !cameraRef || !isSurvivalWorld()) return;"
+            );
             return { code, map: null };
         }
 
@@ -182,7 +198,7 @@ function startLooseGravelScan() {
             );
             code = code.replace(
                 'if (text && isMultiplayerActive()) {\n                try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}\n            }',
-                'if (text) {\n                const handled = runLocalCommand(text, {\n                    camera: window.__webminecraftCamera,\n                    getWorldSeed,\n                    getPlayerCount: () => remotePlayers.size + 1,\n                    addMessage: (message) => window.__webminecraftChatAdd?.(message, true),\n                    clearChat\n                });\n                if (!handled && isMultiplayerActive()) {\n                    try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}\n                }\n            }'
+                'if (text) {\n                const handled = runLocalCommand(text, {\n                    camera: window.__webminecraftCamera,\n                    getWorldSeed,\n                    getPlayerCount: () => remotePlayers.size + 1,\n                    addMessage: (message) => window.__webMinecraftChatAdd?.(message, true),\n                    clearChat\n                });\n                if (!handled && isMultiplayerActive()) {\n                    try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}\n                }\n            }'
             );
             return { code, map: null };
         }
