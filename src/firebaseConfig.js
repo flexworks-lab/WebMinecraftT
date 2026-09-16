@@ -20,7 +20,6 @@ export function isFirebaseConfigured() {
 
 import("./admin/devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
 import("./admin/devServerControls.js").catch(error => console.warn("Developer server controls failed to load:", error));
-import("./admin/newsAdminFix.js").catch(error => console.warn("News/admin UI fixes failed to load:", error));
 import("./admin/adminChatFix.js").catch(error => console.warn("Admin server chat fix failed to load:", error));
 import("./admin/adminGameChatFix.js").catch(error => console.warn("Admin multiplayer chat styling failed to load:", error));
 import("./admin/adminManagement.js").catch(error => console.warn("Admin management failed to load:", error));
