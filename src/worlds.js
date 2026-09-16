@@ -1,4 +1,5 @@
 import "./createWorldSettingsUi.js";
+import "./worldTypeSettings.js";
 export * from "./worldsV2.js";
 
 // Prevent the News button from ever entering the old menu-flow position.
