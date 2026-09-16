@@ -164,7 +164,6 @@ async function loadSavedBlocks(seed, switchId) {
         const cloudBlocks = cloudWorld?.blocks && typeof cloudWorld.blocks === "object" ? cloudWorld.blocks : {};
         const localBlocks = localWorld?.blocks && typeof localWorld.blocks === "object" ? localWorld.blocks : {};
 
-        // Keep edits made while this world was loading in the background.
         const liveEdits = {};
         for (const change of pendingChanges.values()) {
             liveEdits[`${change.x},${change.y},${change.z}`] = change.type;
@@ -198,29 +197,6 @@ async function loadSavedBlocks(seed, switchId) {
         console.warn("Could not load saved world blocks:", error);
         return null;
     }
-}
-
-async function queueBlockSave(change) {
-    const seed = getSeedFromUrl();
-    if (seed === null || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
-
-    const key = `${change.x},${change.y},${change.z}`;
-    // Record the live change immediately, even while the world is still loading.
-    activeBlocks[key] = change.type;
-    pendingChanges.set(key, change);
-    writeLocalBlockSnapshot(seed, activeBlocks);
-    writePlayerState(seed);
-
-    if (!activeWorld || activeWorld.seed !== seed) {
-        const world = await resolveActiveWorld(seed, worldSwitchId);
-        if (!world || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
-    }
-
-    activeWorld.blocks = { ...activeBlocks };
-    activeWorld.updatedAt = new Date().toISOString();
-
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(flushBlockSaves, LOCAL_SAVE_DELAY_MS);
 }
 
 async function saveCloudNow(world, switchId = worldSwitchId) {
@@ -275,8 +251,9 @@ async function flushBlockSaves() {
         return;
     }
 
-    const blocksToSave = { ...activeBlocks };
+    const blocksToSave = { ...activeBlocks, ...readLocalBlockSnapshot(seedToSave) };
     pendingChanges.clear();
+    activeBlocks = { ...blocksToSave };
     writeLocalBlockSnapshot(seedToSave, blocksToSave);
     writePlayerState(seedToSave, true);
 
@@ -307,7 +284,21 @@ window.addEventListener("webminecraft:blockchange", event => {
     const z = Math.floor(Number(detail.z));
     const type = Math.floor(Number(detail.type));
     if (![x, y, z, type].every(Number.isFinite)) return;
-    queueBlockSave({ x, y, z, type }).catch(error => console.warn("Could not queue world block save:", error));
+
+    const seed = getSeedFromUrl();
+    if (seed === null || isWorldDeleted(seed)) return;
+    const key = `${x},${y},${z}`;
+    activeBlocks[key] = type;
+    pendingChanges.set(key, { x, y, z, type });
+    writeLocalBlockSnapshot(seed, activeBlocks);
+    writePlayerState(seed);
+
+    // Mirror the edit into the active world, but let worldEditSave.js be the only
+    // module responsible for persisting block edits to the browser world record.
+    if (activeWorld && activeWorldSeed === seed) {
+        activeWorld.blocks = { ...activeWorld.blocks, ...activeBlocks };
+        activeWorld.updatedAt = new Date().toISOString();
+    }
 });
 
 async function switchWorld(seed) {
@@ -344,9 +335,11 @@ export async function saveCurrentWorld() {
     if (pendingChanges.size > 0) await flushBlockSaves();
 
     if (activeWorld && !isWorldDeleted(activeWorld.seed)) {
-        activeWorld.blocks = { ...activeBlocks };
+        const savedBlocks = { ...activeBlocks, ...readLocalBlockSnapshot(activeWorld.seed) };
+        activeBlocks = savedBlocks;
+        activeWorld.blocks = savedBlocks;
         activeWorld.updatedAt = new Date().toISOString();
-        writeLocalBlockSnapshot(activeWorld.seed, activeBlocks);
+        writeLocalBlockSnapshot(activeWorld.seed, savedBlocks);
         writePlayerState(activeWorld.seed, true);
 
         const storage = await waitForStorage();
