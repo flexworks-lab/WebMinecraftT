@@ -163,7 +163,14 @@ async function loadSavedBlocks(seed, switchId) {
         const storedBlocks = readLocalBlockSnapshot(normalizedSeed);
         const cloudBlocks = cloudWorld?.blocks && typeof cloudWorld.blocks === "object" ? cloudWorld.blocks : {};
         const localBlocks = localWorld?.blocks && typeof localWorld.blocks === "object" ? localWorld.blocks : {};
-        const mergedBlocks = { ...cloudBlocks, ...localBlocks, ...storedBlocks };
+
+        // Keep edits made while this world was loading in the background.
+        const liveEdits = {};
+        for (const change of pendingChanges.values()) {
+            liveEdits[`${change.x},${change.y},${change.z}`] = change.type;
+        }
+
+        const mergedBlocks = { ...cloudBlocks, ...localBlocks, ...storedBlocks, ...liveEdits };
 
         const baseWorld = cloudWorld || localWorld;
         if (!baseWorld) return null;
@@ -197,16 +204,21 @@ async function queueBlockSave(change) {
     const seed = getSeedFromUrl();
     if (seed === null || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
 
-    const world = activeWorld?.seed === seed
-        ? activeWorld
-        : await resolveActiveWorld(seed, worldSwitchId);
-    if (!world || world.seed !== seed || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
-
     const key = `${change.x},${change.y},${change.z}`;
+    // Record the live change immediately, even while the world is still loading.
     activeBlocks[key] = change.type;
     pendingChanges.set(key, change);
     writeLocalBlockSnapshot(seed, activeBlocks);
     writePlayerState(seed);
+
+    if (!activeWorld || activeWorld.seed !== seed) {
+        const world = await resolveActiveWorld(seed, worldSwitchId);
+        if (!world || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
+    }
+
+    activeWorld.blocks = { ...activeBlocks };
+    activeWorld.updatedAt = new Date().toISOString();
+
     clearTimeout(saveTimer);
     saveTimer = setTimeout(flushBlockSaves, LOCAL_SAVE_DELAY_MS);
 }
