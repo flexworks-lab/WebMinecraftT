@@ -1,6 +1,7 @@
 import { isSurvivalWorld } from "./survivalMode.js";
 import "./survivalInventory.js";
 import "./survivalInventoryCompact.css";
+import "./survivalMiningSystem.js";
 
 const MAX_HEALTH = 20;
 let lastSurvivalState = null;
@@ -24,7 +25,6 @@ function addHealthHud() {
         hud.innerHTML = `<span class="healthLabel">HP</span><span class="healthHearts" aria-label="20 health">❤❤❤❤❤❤❤❤❤❤</span><span class="healthValue">20/20</span>`;
         document.body.appendChild(hud);
     }
-
     if (!document.getElementById("webMinecraftHealthStyles")) {
         const style = document.createElement("style");
         style.id = "webMinecraftHealthStyles";
@@ -45,7 +45,6 @@ function updateHealthHud() {
     const hearts = hud.querySelector(".healthHearts");
     const value = hud.querySelector(".healthValue");
     if (!hearts || !value) return;
-
     const health = Number(window.webMinecraftSurvivalHealth ?? MAX_HEALTH);
     const clamped = Math.max(0, Math.min(MAX_HEALTH, health));
     const full = Math.floor(clamped / 2);
@@ -68,7 +67,6 @@ function syncState() {
         document.body.classList.toggle("webminecraft-creative", !survival);
         document.body.classList.toggle("webminecraft-in-world", inWorld);
     }
-
     if (survival && inWorld) {
         if (window.webMinecraftSurvivalHealth == null) window.webMinecraftSurvivalHealth = MAX_HEALTH;
         addHealthHud();
@@ -81,30 +79,21 @@ function init() {
     addHealthHud();
     syncState();
     window.setInterval(syncState, 100);
-
     document.addEventListener("keydown", event => {
         if (!isSurvivalWorld() || event.code !== "KeyF") return;
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
+        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
     }, true);
-
     document.addEventListener("pointerdown", event => {
         if (!isSurvivalWorld()) return;
         const flyButton = event.target.closest?.("#touchFly");
         if (!flyButton) return;
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
+        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
     }, true);
-
     document.addEventListener("click", event => {
         if (!isSurvivalWorld()) return;
         const flyButton = event.target.closest?.("#touchFly");
         if (!flyButton) return;
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
+        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
     }, true);
 }
 
