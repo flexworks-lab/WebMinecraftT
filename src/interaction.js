@@ -104,6 +104,7 @@ export function setupInteraction(scene, camera) {
         window.dispatchEvent(new CustomEvent("webminecraft:selectedslot", { detail: { slot: selectedSlot } }));
     };
     document.addEventListener("keydown", event => {
+        if (document.body.classList.contains("mobile-mode")) return;
         const number = Number(event.key);
         if (number >= 1 && number <= 9) { selectedSlot = number - 1; updateHotbar(); }
     });
