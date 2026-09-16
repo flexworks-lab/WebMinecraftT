@@ -50,17 +50,6 @@ function seedHash(a, b, c = 0) {
     return (h >>> 0) / 4294967295;
 }
 
-function ensureStyles() {
-    if (document.getElementById("webMinecraftWorldCloudFixes")) return;
-    const style = document.createElement("style");
-    style.id = "webMinecraftWorldCloudFixes";
-    style.textContent = `
-body.webminecraft-in-world #devControlsButton,
-body.webminecraft-in-world #discussionButton{display:none !important}
-`;
-    document.head.appendChild(style);
-}
-
 function addBlock(blocks, x, z) {
     blocks.push(new THREE.Vector3(x * CLOUD_BLOCK_SIZE, 0, z * CLOUD_BLOCK_SIZE));
 }
@@ -285,7 +274,6 @@ function tick(now) {
 }
 
 export function setupWorldClouds(scene, camera = null) {
-    ensureStyles();
     cloudCamera = camera;
     cloudScene = scene;
     createSkyDome(scene);
