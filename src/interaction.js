@@ -5,6 +5,7 @@ import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
 import { tryIgniteTNT, registerTNTPhysicsScene } from "./tnt.js";
 import { setupDoorSystem, isDoorSelected, placeDoor, handleDoorTarget, getDoorSelectionTarget } from "./door.js";
+import { startSurvivalMining, setMiningContext } from "./survivalMiningSystem.js";
 import "./worldSave.js";
 import "./heldBlock3D.js";
 
@@ -90,6 +91,7 @@ body:not(.webminecraft-in-world) #webMinecraftCrosshair{display:none}
 export function setupInteraction(scene, camera) {
     const BLOCK = getBlockTypes();
     registerTNTPhysicsScene(scene);
+    setMiningContext(scene, camera);
     setupTexturedHotbar();
     setupInventory(camera);
     setupDoorSystem(scene, camera);
@@ -115,7 +117,15 @@ export function setupInteraction(scene, camera) {
         if (!document.body.classList.contains("webminecraft-in-world")) return;
         if (document.body.classList.contains("inventory-open")) return;
         if (event.target instanceof Element && event.target.closest("#hotbar, #inventoryScreen, #doorSelectButton, button, input, select, textarea, a")) return;
-        if (event.button === 0) breakBlock();
+        if (event.button === 0) {
+            if (isSurvivalWorldActive()) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                startSurvivalMining(scene, camera);
+                return;
+            }
+            breakBlock();
+        }
         if (event.button === 2) placeBlock();
     });
     document.addEventListener("contextmenu", event => {
@@ -125,7 +135,8 @@ export function setupInteraction(scene, camera) {
         const mobile = document.body.classList.contains("mobile-mode");
         const punch = mobile && !!touchInput.punchPressed;
         const place = mobile && !!touchInput.placePressed;
-        if (punch && !lastPunch) breakBlock();
+        if (punch && !lastPunch && isSurvivalWorldActive()) startSurvivalMining(scene, camera);
+        else if (punch && !lastPunch) breakBlock();
         if (place && !lastPlace) placeBlock();
         lastPunch = punch;
         lastPlace = place;
@@ -133,6 +144,9 @@ export function setupInteraction(scene, camera) {
         requestAnimationFrame(pollTouchActions);
     }
     pollTouchActions();
+    function isSurvivalWorldActive() {
+        return document.body.classList.contains("webminecraft-survival");
+    }
     function notifyBlockChange(x, y, z, type) {
         window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type } }));
     }
@@ -273,63 +287,27 @@ function createSelectionOutline() {
     const lines = new THREE.LineSegments(geometry, edgeMaterial);
     lines.name = "selectionEdges";
     group.add(lines);
-    group.visible = false;
     return group;
 }
 
 function updateSelectionOutline(outline, target, camera) {
     outline.position.set(target.x, target.y, target.z);
-    const facing = target.normal;
-    const lines = outline.getObjectByName("selectionEdges");
-    if (!lines) return;
-    lines.material.opacity = 0.9;
-    const dot = camera.getWorldDirection(new THREE.Vector3()).dot(facing);
-    if (Math.abs(dot) < 0.22) lines.material.opacity = 0.9;
-    lines.visible = true;
 }
 
-function playerOverlapsBlock(block, camera) {
-    const player = camera.position;
-    const playerHalfWidth = 0.38;
-    const playerBottom = player.y - 1.62;
-    const playerTop = player.y + 0.12;
-    const verticalOverlap = playerTop > block.y - 0.5 && playerBottom < block.y + 0.5;
-    const horizontalOverlap = Math.abs(player.x - block.x) < 0.5 + playerHalfWidth && Math.abs(player.z - block.z) < 0.5 + playerHalfWidth;
-    return horizontalOverlap && verticalOverlap;
+function playerOverlapsBlock(pos, camera) {
+    const p = camera.position;
+    return p.x > pos.x - 0.3 && p.x < pos.x + 1.3 && p.z > pos.z - 0.3 && p.z < pos.z + 1.3 && p.y > pos.y - 1.8 && p.y < pos.y + 1.8;
 }
 
-function createBreakParticles(scene, position, type, BLOCK) {
-    const count = type === BLOCK.TNT ? 12 : 6;
-    const group = new THREE.Group();
-    group.position.copy(position);
-    for (let i = 0; i < count; i++) {
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0xaaaaaa }));
-        mesh.position.set((Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8);
-        group.add(mesh);
+function createBreakParticles(scene, center, type, BLOCK) {
+    const geometry = new THREE.BoxGeometry(0.07, 0.07, 0.07);
+    const particles = [];
+    for (let i = 0; i < 8; i++) {
+        const material = new THREE.MeshBasicMaterial({ color: 0x8f8f8f, transparent: true });
+        const particle = new THREE.Mesh(geometry, material);
+        particle.position.copy(center).add(new THREE.Vector3((Math.random()-.5)*.7, (Math.random()-.5)*.7, (Math.random()-.5)*.7));
+        scene.add(particle);
+        particles.push(particle);
     }
-    scene.add(group);
-    const started = performance.now();
-    function animateParticles(now) {
-        const age = (now - started) / 1000;
-        if (age >= 0.45) {
-            scene.remove(group);
-            group.traverse(object => {
-                if (object.geometry) object.geometry.dispose();
-                if (object.material) {
-                    if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
-                    else object.material.dispose();
-                }
-            });
-            return;
-        }
-        group.children.forEach(mesh => {
-            mesh.position.y += 0.012;
-            mesh.rotation.x += 0.08;
-            mesh.rotation.y += 0.06;
-            mesh.material.opacity = 1 - age / 0.45;
-            mesh.material.transparent = true;
-        });
-        requestAnimationFrame(animateParticles);
-    }
-    requestAnimationFrame(animateParticles);
+    setTimeout(() => particles.forEach(p => { scene.remove(p); p.material.dispose(); }), 450);
 }
