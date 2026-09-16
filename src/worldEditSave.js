@@ -1,5 +1,4 @@
 import { getLocalWorld, saveLocalWorld, isWorldDeleted } from "./worlds.js";
-import { loadCloudWorld, saveCloudWorld } from "./cloudWorlds.js";
 
 const SNAPSHOT_PREFIX = "webminecraft-singleplayer-world-blocks-";
 const SAVE_DELAY_MS = 150;
@@ -39,7 +38,12 @@ function writeSnapshot(seed, blocks) {
 
 async function persistSeed(seed) {
     const normalizedSeed = normalizeSeed(seed);
-    if (normalizedSeed === null || isWorldDeleted(normalizedSeed) || saving) return;
+    if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return;
+    if (saving) {
+        queuedSeed = normalizedSeed;
+        return;
+    }
+
     saving = true;
     try {
         const world = await getLocalWorld(normalizedSeed);
@@ -52,41 +56,38 @@ async function persistSeed(seed) {
         };
         writeSnapshot(normalizedSeed, blocks);
 
-        const updated = await saveLocalWorld({
+        await saveLocalWorld({
             ...world,
             seed: normalizedSeed,
             blocks,
             updatedAt: new Date().toISOString()
         });
-
-        if (updated && typeof window.webMinecraftSaveCloudWorld === "function") {
-            try { await window.webMinecraftSaveCloudWorld(updated); } catch {}
-        } else if (updated) {
-            const cloud = await loadCloudWorld(normalizedSeed, updated).catch(() => null);
-            if (cloud && typeof saveCloudWorld === "function") {
-                try { await saveCloudWorld(updated); } catch {}
-            }
-        }
     } catch (error) {
         console.warn("World edit save failed:", error);
     } finally {
         saving = false;
+        if (queuedSeed !== null) {
+            const nextSeed = queuedSeed;
+            queuedSeed = null;
+            void persistSeed(nextSeed);
+        }
     }
 }
 
 function scheduleSave(seed) {
-    queuedSeed = seed;
+    queuedSeed = normalizeSeed(seed);
     clearTimeout(timer);
-    timer = setTimeout(async () => {
+    timer = setTimeout(() => {
         const saveSeed = queuedSeed;
         queuedSeed = null;
-        await persistSeed(saveSeed);
+        if (saveSeed !== null) void persistSeed(saveSeed);
     }, SAVE_DELAY_MS);
 }
 
 window.addEventListener("webminecraft:blockchange", event => {
     const seed = currentSeed();
     if (seed === null || isWorldDeleted(seed)) return;
+
     const detail = event.detail || {};
     const x = Math.floor(Number(detail.x));
     const y = Math.floor(Number(detail.y));
