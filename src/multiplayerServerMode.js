@@ -22,12 +22,69 @@ function setSelectedMode(mode) {
     return value;
 }
 
+function forceDisableFlight() {
+    try {
+        import("./controls.js").then(({ isFlying }) => {
+            if (!isFlying) return;
+            const mobile = document.body.classList.contains("mobile-mode");
+            if (mobile) {
+                const flyButton = document.getElementById("touchFly");
+                flyButton?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerId: -1, pointerType: "touch" }));
+            } else {
+                window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, code: "KeyF", key: "f" }));
+            }
+        }).catch(() => {});
+    } catch {}
+}
+
+function installMultiplayerGameplayUi() {
+    if (!document.getElementById("multiplayerGameplayUiFixes")) {
+        const style = document.createElement("style");
+        style.id = "multiplayerGameplayUiFixes";
+        style.textContent = `
+body.webminecraft-multiplayer #mainMenu,
+body.webminecraft-multiplayer #seedMenu,
+body.webminecraft-multiplayer #multiplayerMenu,
+body.webminecraft-multiplayer #accountButton,
+body.webminecraft-multiplayer #newsButton,
+body.webminecraft-multiplayer #friendsButton,
+body.webminecraft-multiplayer #globalPlayerPanel,
+body.webminecraft-multiplayer #menuUpdates,
+body.webminecraft-multiplayer #devControlsButton{display:none!important}
+body.webminecraft-multiplayer #crosshair,
+body.webminecraft-multiplayer #webMinecraftCrosshair{display:block!important}
+body.webminecraft-multiplayer #hotbar.textured-hotbar{display:flex!important}
+body.webminecraft-multiplayer.mobile-mode #touchControls{display:block!important}
+body.webminecraft-multiplayer:not(.mobile-mode) #touchControls{display:none!important}
+body.webminecraft-multiplayer.webminecraft-survival #touchFly{display:none!important;pointer-events:none!important}
+        `;
+        document.head.appendChild(style);
+    }
+
+    document.body.classList.add("webminecraft-in-world", "webminecraft-multiplayer");
+    const hideIds = [
+        "mainMenu", "seedMenu", "multiplayerMenu", "accountButton", "newsButton",
+        "friendsButton", "globalPlayerPanel", "menuUpdates", "devControlsButton"
+    ];
+    for (const id of hideIds) {
+        const element = document.getElementById(id);
+        if (element) element.style.setProperty("display", "none", "important");
+    }
+
+    const menuButton = document.getElementById("menuSettingsButton");
+    if (menuButton) menuButton.style.setProperty("display", "none", "important");
+
+    forceDisableFlight();
+}
+
 function applyJoinedMode(mode, seed = null) {
     const value = setSelectedMode(mode);
     window.webMinecraftSelectedWorldMode = value;
     window.__webminecraftMultiplayerModeApplied = true;
     document.body.classList.toggle("webminecraft-survival", value === "survival");
     document.body.classList.toggle("webminecraft-creative", value === "creative");
+    installMultiplayerGameplayUi();
+    if (value === "survival") forceDisableFlight();
     if (seed !== null && Number.isFinite(Number(seed))) setWorldMode(seed, value);
     window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode: value } }));
 }
@@ -98,7 +155,7 @@ function resetAppliedMultiplayerMode() {
     if (window.__webminecraftMultiplayerModeApplied && window.__webminecraftMultiplayerActive !== true && getComputedStyle(menu).display !== "none") {
         window.__webminecraftMultiplayerModeApplied = false;
         delete window.webMinecraftSelectedWorldMode;
-        document.body.classList.remove("webminecraft-survival", "webminecraft-creative");
+        document.body.classList.remove("webminecraft-survival", "webminecraft-creative", "webminecraft-in-world", "webminecraft-multiplayer");
     }
 }
 
