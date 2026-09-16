@@ -2,20 +2,20 @@ import * as THREE from "three";
 import { isSurvivalWorld } from "./survivalMode.js";
 
 const ITEM_DEFS = [
-    { id: 1, name: "Grass Block", texture: "Grass_Block_(top_texture)_JE2.png" },
+    { id: 1, name: "Grass Block", texture: "grass_block_side.png" },
     { id: 2, name: "Dirt", texture: "dirt.png" },
     { id: 3, name: "Stone", texture: "stone.png" },
     { id: 4, name: "Sand", texture: "sand.png" },
     { id: 5, name: "Oak Log", texture: "oak_log_top.png" },
     { id: 6, name: "Oak Leaves", texture: "oak-leaves-normal-original-default.png" },
     { id: 7, name: "Cobblestone", texture: "cobblestone.png" },
-    { id: 8, name: "Gravel", texture: "dirt.png" },
-    { id: 9, name: "Sandstone", texture: "sand.png" },
-    { id: 10, name: "Bedrock" },
-    { id: 11, name: "Coal Ore" },
-    { id: 12, name: "Iron Ore" },
-    { id: 13, name: "Oak Planks" },
-    { id: 14, name: "Snow" },
+    { id: 8, name: "Gravel", texture: "gravel.png" },
+    { id: 9, name: "Sandstone", texture: "sandstone.png" },
+    { id: 10, name: "Bedrock", texture: "bedrock.png" },
+    { id: 11, name: "Coal Ore", texture: "coal_ore.png" },
+    { id: 12, name: "Iron Ore", texture: "iron_ore.png" },
+    { id: 13, name: "Oak Planks", texture: "oak_planks.png" },
+    { id: 14, name: "Snow", texture: "snow.png" },
     { id: 15, name: "TNT", texture: "tnt_side.png" },
     { id: 16, name: "Flint and Steel", texture: "Flint_and_Steel_JE4_BE2.png" },
     { id: 17, name: "Oak Door", texture: "oak_door_bottom.png" }
@@ -48,8 +48,8 @@ function itemHtml(slot) {
     const item = itemDef(slot.itemId);
     if (!item) return "";
     const visual = item.texture
-        ? `<span class="svi-item" style="background-image:url('${textureUrl(item.texture)}')"></span>`
-        : `<span class="svi-item svi-color" style="--c:${slot.itemId === 10 ? "#4b4b4b" : slot.itemId === 11 ? "#343434" : slot.itemId === 12 ? "#8c8c8c" : "#b48754"}"></span>`;
+        ? `<img class="svi-item" src="${textureUrl(item.texture)}" alt="" draggable="false">`
+        : `<span class="svi-item svi-color" style="--c:#777"></span>`;
     return `${visual}${slot.count > 1 ? `<b>${slot.count}</b>` : ""}`;
 }
 function slotButton(index, label) {
@@ -180,9 +180,9 @@ function createUI() {
 #svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#222;border:2px solid #0f0f0f;padding:8px;box-sizing:border-box;border-radius:3px;box-shadow:inset 1px 1px rgba(255,255,255,.05)}.svi-box-label{display:block;color:#999;font-size:10px;margin-top:4px}
 #svi-player-box{position:relative;display:grid;grid-template-columns:1fr 58px;grid-template-rows:1fr 40px;min-height:205px}#svi-player-preview{width:100%;height:100%;min-height:145px;background:radial-gradient(circle,#565656 0%,#252525 70%)}#svi-armor{display:flex;flex-direction:column;gap:4px;padding-left:6px;align-items:center;justify-content:center}.svi-armor-slot,.svi-craft-slot,.svi-craft-output,#svi-offhand{border:2px solid #555;border-top-color:#1d1d1d;border-left-color:#1d1d1d;background:#747474;box-shadow:inset -1px -1px #414141;display:grid;place-items:center;font-size:20px;color:#ddd;border-radius:2px}.svi-armor-slot{width:38px;height:38px}.svi-armor-slot:hover,#svi-offhand:hover{filter:brightness(1.15)}#svi-offhand{width:40px;height:40px;grid-column:2;grid-row:2;justify-self:center}
 #svi-crafting{display:flex;flex-direction:column;align-items:center}.svi-craft-row{display:flex;align-items:center;justify-content:center;gap:9px;flex:1}.svi-arrow{font-size:30px;color:#bbb}.svi-craft-output{width:48px;height:48px}.svi-craft-slot{width:42px;height:42px}.svi-craft-slot:hover,.svi-craft-output:hover{filter:brightness(1.15)}#svi-craft-grid{display:grid;grid-template-columns:repeat(2,42px);gap:4px}#svi-recipe-book{margin-top:5px;border:2px solid #315d34;background:#4c8a50;color:#fff;border-radius:4px;padding:5px 9px;cursor:pointer;font-weight:800;font-size:11px}#svi-recipe-book.active{background:#6cad6c}#svi-recipe-panel{width:100%;margin-top:5px;padding:6px;background:#171717;border:1px solid #555;color:#aaa;font-size:10px;text-align:center;border-radius:2px}
-#svi-storage-section{flex:1;min-height:174px}#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(34px,1fr));gap:4px}.svi-slot{position:relative;aspect-ratio:1;background:#7c7c7c;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px}.svi-slot:hover{filter:brightness(1.12)}.svi-slot.selected{border:2px solid #fff;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111}.svi-item{position:absolute;inset:5px;background-size:100% 100%;background-position:center;background-repeat:no-repeat;image-rendering:pixelated}.svi-color{background:var(--c);box-shadow:inset 3px 3px rgba(255,255,255,.15),inset -3px -3px rgba(0,0,0,.2)}.svi-slot b{position:absolute;right:3px;bottom:1px;font-size:12px;text-shadow:2px 2px #111}.svi-slot::after{content:attr(data-index);position:absolute;left:3px;top:1px;color:rgba(255,255,255,.55);font-size:8px;text-shadow:1px 1px #111;pointer-events:none}
+#svi-storage-section{flex:1;min-height:174px}#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(34px,1fr));gap:4px}.svi-slot{position:relative;aspect-ratio:1;background:#7c7c7c;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px}.svi-slot:hover{filter:brightness(1.12)}.svi-slot.selected{border:2px solid #fff;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111}.svi-item{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:cover;object-position:center;image-rendering:pixelated;pointer-events:none}.svi-color{background:var(--c);box-shadow:inset 3px 3px rgba(255,255,255,.15),inset -3px -3px rgba(0,0,0,.2)}.svi-slot b{position:absolute;right:3px;bottom:1px;font-size:12px;text-shadow:2px 2px #111}.svi-slot::after{content:attr(data-index);position:absolute;left:3px;top:1px;color:rgba(255,255,255,.55);font-size:8px;text-shadow:1px 1px #111;pointer-events:none}
 #svi-hotbar-section{flex:0 0 auto}#svi-hotbar{grid-template-columns:repeat(9,42px);justify-content:center}.survival-inventory-open #hotbar{display:none!important}.survival-inventory-open #inventoryScreen{display:none!important}
-@media(max-width:720px){#svi-panel{width:min(520px,94vw);height:88vh;padding:8px;gap:6px}#svi-top{grid-template-columns:1fr;min-height:0;gap:6px}#svi-player-box{min-height:180px}#svi-player-preview{min-height:120px}#svi-storage-section{min-height:0}.svi-slot{min-width:0}.svi-item{inset:4px}#svi-hotbar{grid-template-columns:repeat(9,minmax(26px,40px))}.svi-section-title{font-size:12px}}
+@media(max-width:720px){#svi-panel{width:min(520px,94vw);height:88vh;padding:8px;gap:6px}#svi-top{grid-template-columns:1fr;min-height:0;gap:6px}#svi-player-box{min-height:180px}#svi-player-preview{min-height:120px}#svi-storage-section{min-height:0}.svi-slot{min-width:0}.svi-item{inset:3px;width:calc(100% - 6px);height:calc(100% - 6px)}#svi-hotbar{grid-template-columns:repeat(9,minmax(26px,40px))}.svi-section-title{font-size:12px}}
 `;
     document.head.appendChild(style);
 }
@@ -202,6 +202,11 @@ function init() {
         event.preventDefault(); event.stopImmediatePropagation();
         openInventory();
     }, true);
+    window.addEventListener("webminecraft:inventorychanged", () => {
+        if (!open || !root) return;
+        loadData();
+        renderSlots();
+    });
     window.addEventListener("webminecraft:modechange", () => { if (!isSurvivalWorld()) close(); });
 }
 
