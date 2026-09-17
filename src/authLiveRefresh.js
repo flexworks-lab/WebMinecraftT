@@ -1,4 +1,5 @@
 import "./cameraAndBlurFix.js";
+import "./friendsCloseFix.js";
 
 // Refresh account-dependent UI after an in-page login.
 // This makes Friends, Discussions, admin controls, developer controls,
