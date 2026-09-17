@@ -1,6 +1,4 @@
-import "./autoCameraTurn.js";
-
-// Remove main-menu/UI blur and disable manual mouse/touch camera look.
+// Keep the UI blur removed, but let the normal game controls own camera movement.
 (function installCameraAndBlurFix() {
     if (window.__webMinecraftCameraAndBlurFix) return;
     window.__webMinecraftCameraAndBlurFix = true;
@@ -21,18 +19,4 @@ import "./autoCameraTurn.js";
 }
 `;
     document.head.appendChild(style);
-
-    // Block manual touch camera movement before the game's touch look handler.
-    document.addEventListener("pointermove", event => {
-        if (event.pointerType !== "touch") return;
-        if (!document.body.classList.contains("mobile-mode")) return;
-        if (!event.target?.closest?.("#touchLookArea")) return;
-        event.stopImmediatePropagation();
-    }, true);
-
-    // Block manual mouse camera movement before the game's mouse-look handler.
-    document.addEventListener("mousemove", event => {
-        if (document.body.classList.contains("mobile-mode")) return;
-        event.stopImmediatePropagation();
-    }, true);
 })();
