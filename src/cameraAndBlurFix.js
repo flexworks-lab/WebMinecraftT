@@ -1,4 +1,4 @@
-// Remove UI background blur and disable manual touch/mouse camera look.
+// Remove main-menu/UI blur and disable manual mouse/touch camera look.
 (function installCameraAndBlurFix() {
     if (window.__webMinecraftCameraAndBlurFix) return;
     window.__webMinecraftCameraAndBlurFix = true;
@@ -6,27 +6,31 @@
     const style = document.createElement("style");
     style.id = "webMinecraftCameraAndBlurFix";
     style.textContent = `
+#mainMenu,
+#mainMenu::after,
 #accountModal,#devControlsModal,#discussionModal,#welcomeOverlay,#welcomeModal,.modalOverlay{
     -webkit-backdrop-filter:none!important;
     backdrop-filter:none!important;
+    filter:none!important;
+}
+
+#mainMenu::after{
+    background:transparent!important;
 }
 `;
     document.head.appendChild(style);
 
-    // Mobile touch look remains available for tapping blocks, but finger movement
-    // no longer changes the camera yaw/pitch.
+    // Block manual touch camera movement before the game's touch look handler.
     document.addEventListener("pointermove", event => {
-        if (!document.body.classList.contains("mobile-mode")) return;
         if (event.pointerType !== "touch") return;
+        if (!document.body.classList.contains("mobile-mode")) return;
         if (!event.target?.closest?.("#touchLookArea")) return;
-        event.stopPropagation();
+        event.stopImmediatePropagation();
     }, true);
 
-    // The game does not use mouse movement for gameplay camera rotation. Keep
-    // mouse movement from being interpreted as a touch-style look gesture.
+    // Block manual mouse camera movement before the game's mouse-look handler.
     document.addEventListener("mousemove", event => {
         if (document.body.classList.contains("mobile-mode")) return;
-        const lookArea = document.getElementById("touchLookArea");
-        if (lookArea && event.target === lookArea) event.stopPropagation();
+        event.stopImmediatePropagation();
     }, true);
 })();
