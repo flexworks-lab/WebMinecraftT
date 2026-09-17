@@ -2,40 +2,40 @@ import * as THREE from "three";
 import { getBlockAt, getBlockTypes, CHUNK_SIZE } from "./world.js";
 import { waterTexture } from "./blocks.js";
 
-// Minecraft-style water simulation + renderer.
-// Flowing water uses the real water texture on its top and sides, with
-// world-aligned UVs and lightly sloped surfaces so streams read as fluid.
-
-const MAX_LEVEL = 8;
+const SOURCE_LEVEL = 0;
+const MAX_LEVEL = 7;
 const MIN_Y = -32;
 const MAX_Y = 95;
-const FLOW_INTERVAL = 125;
-const MAX_CELLS_PER_STEP = 700;
-const MAX_CHUNK_REBUILDS_PER_STEP = 5;
-const MAX_WATER_CELLS = 65000;
-const DROP_SEARCH = 7;
-const DROP_CACHE_MAX = 3500;
+
+const FLOW_INTERVAL = 500;
+const MAX_CELLS_PER_TICK = 1400;
+const MAX_CHUNK_REBUILDS_PER_TICK = 6;
+const MAX_WATER_CELLS = 90000;
+const DROP_SEARCH = 4;
 const ACTIVE_QUEUE_LIMIT = 120000;
+
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const BLOCK = getBlockTypes();
 
 const water = new Map();
 const chunkCells = new Map();
-const sources = new Set();
 const active = [];
 const activeSet = new Set();
 const dirtyChunks = new Set();
-const meshes = new Map();
+const dynamicMeshes = new Map();
+const loadedChunkRefs = new Map();
+const staticWaterOwners = new WeakMap();
+const sourceOwnerCounts = new Map();
 const dropCache = new Map();
 
 let scene = null;
-let installed = false;
-let lastStep = performance.now();
+let sceneHooksInstalled = false;
 let queueHead = 0;
-let animationFrame = 0;
+let lastTick = 0;
+let initialized = false;
 
 waterTexture.wrapS = THREE.RepeatWrapping;
-waterTexture.wrapT = THREE.RepeatWrapping;
+waterTexture.wrapT = THREE.ClampToEdgeWrapping;
 waterTexture.magFilter = THREE.NearestFilter;
 waterTexture.minFilter = THREE.NearestFilter;
 waterTexture.colorSpace = THREE.SRGBColorSpace;
@@ -47,36 +47,35 @@ const fluidMaterial = new THREE.MeshPhongMaterial({
     transparent: true,
     opacity: 0.82,
     depthWrite: false,
+    depthTest: true,
     side: THREE.DoubleSide,
-    shininess: 75,
-    specular: 0x6da8c0,
+    shininess: 85,
+    specular: 0x8fcfe8,
     emissive: 0x071a22,
-    emissiveIntensity: 0.1,
+    emissiveIntensity: 0.08,
     vertexColors: true
 });
 fluidMaterial.forceSinglePass = true;
 
 const key = (x, y, z) => `${x},${y},${z}`;
-const parseKey = k => k.split(",").map(Number);
+const parseKey = value => value.split(",").map(Number);
 const chunkKey = (x, z) => `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
+const floorCoord = value => Math.floor(Number(value));
 
 function enqueue(x, y, z) {
+    x = floorCoord(x); y = floorCoord(y); z = floorCoord(z);
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
     if (y < MIN_Y || y > MAX_Y) return;
-    const k = key(Math.floor(x), Math.floor(y), Math.floor(z));
-    if (activeSet.has(k)) return;
-    if (active.length - queueHead >= ACTIVE_QUEUE_LIMIT) return;
+    const k = key(x, y, z);
+    if (activeSet.has(k) || active.length - queueHead >= ACTIVE_QUEUE_LIMIT) return;
     activeSet.add(k);
     active.push(k);
 }
 
 function activateNeighbors(x, y, z) {
-    enqueue(x + 1, y, z);
-    enqueue(x - 1, y, z);
-    enqueue(x, y + 1, z);
-    enqueue(x, y - 1, z);
-    enqueue(x, y, z + 1);
-    enqueue(x, y, z - 1);
+    enqueue(x + 1, y, z); enqueue(x - 1, y, z);
+    enqueue(x, y + 1, z); enqueue(x, y - 1, z);
+    enqueue(x, y, z + 1); enqueue(x, y, z - 1);
 }
 
 function compactQueue() {
@@ -85,542 +84,517 @@ function compactQueue() {
     queueHead = 0;
 }
 
-function markChunk(x, z) {
-    dirtyChunks.add(chunkKey(x, z));
-}
-
 function markCell(x, z) {
-    markChunk(x, z);
     const cx = Math.floor(x / CHUNK_SIZE);
     const cz = Math.floor(z / CHUNK_SIZE);
-    if (Math.floor((x + 1) / CHUNK_SIZE) !== cx) markChunk(x + 1, z);
-    if (Math.floor((x - 1) / CHUNK_SIZE) !== cx) markChunk(x - 1, z);
-    if (Math.floor((z + 1) / CHUNK_SIZE) !== cz) markChunk(x, z + 1);
-    if (Math.floor((z - 1) / CHUNK_SIZE) !== cz) markChunk(x, z - 1);
+    dirtyChunks.add(chunkKey(x, z));
+    if (Math.floor((x + 1) / CHUNK_SIZE) !== cx) dirtyChunks.add(chunkKey(x + 1, z));
+    if (Math.floor((x - 1) / CHUNK_SIZE) !== cx) dirtyChunks.add(chunkKey(x - 1, z));
+    if (Math.floor((z + 1) / CHUNK_SIZE) !== cz) dirtyChunks.add(chunkKey(x, z + 1));
+    if (Math.floor((z - 1) / CHUNK_SIZE) !== cz) dirtyChunks.add(chunkKey(x, z - 1));
 }
 
-function isAir(x, y, z) {
+function isWorldAir(x, y, z) {
     return y >= MIN_Y && y <= MAX_Y && getBlockAt(x, y, z) === BLOCK.AIR;
 }
 
-function getLevel(x, y, z) {
-    return water.get(key(x, y, z))?.level || 0;
+function getWater(x, y, z) { return water.get(key(x, y, z)) || null; }
+function isFullWater(cell) { return !!cell && (cell.level === SOURCE_LEVEL || cell.falling || cell.source); }
+function isSupported(x, y, z) {
+    if (y <= MIN_Y || getBlockAt(x, y - 1, z) !== BLOCK.AIR) return true;
+    return isFullWater(getWater(x, y - 1, z));
 }
 
-function addCell(x, y, z, level, source = false) {
-    if (level <= 0 || y < MIN_Y || y > MAX_Y) return false;
+function makeState(level, falling = false, source = false, createdSource = false) {
+    if (source) return { level: SOURCE_LEVEL, falling: false, source: true, createdSource };
+    if (falling) return { level: SOURCE_LEVEL, falling: true, source: false, createdSource: false };
+    return { level: THREE.MathUtils.clamp(Math.floor(level), 1, MAX_LEVEL), falling: false, source: false, createdSource: false };
+}
+
+function sameState(a, b) {
+    return !!a === !!b && (!a || (
+        a.level === b.level && a.falling === b.falling &&
+        a.source === b.source && a.createdSource === b.createdSource
+    ));
+}
+
+function addCell(x, y, z, state, activate = true) {
+    x = floorCoord(x); y = floorCoord(y); z = floorCoord(z);
+    if (y < MIN_Y || y > MAX_Y || !isWorldAir(x, y, z)) return false;
     const k = key(x, y, z);
-    const existing = water.get(k);
-
-    if (existing) {
-        let changed = false;
-        if (level !== existing.level) {
-            existing.level = level;
-            changed = true;
-        }
-        if (source && !sources.has(k)) {
-            sources.add(k);
-            changed = true;
-        }
-        if (changed) {
-            enqueue(x, y, z);
-            markCell(x, z);
-        }
-        return changed;
+    const current = water.get(k);
+    if (current) {
+        const next = { ...state, createdSource: current.createdSource || state.createdSource };
+        if (sameState(current, next)) return false;
+        water.set(k, { ...current, ...next });
+        enqueue(x, y, z); activateNeighbors(x, y, z); markCell(x, z);
+        return true;
     }
-
     if (water.size >= MAX_WATER_CELLS) return false;
-    const cell = { x, y, z, level };
-    water.set(k, cell);
-
-    const ck = chunkKey(x, z);
-    let set = chunkCells.get(ck);
-    if (!set) {
-        set = new Set();
-        chunkCells.set(ck, set);
-    }
-    set.add(k);
-
-    if (source) sources.add(k);
-    enqueue(x, y, z);
+    water.set(k, { ...state });
+    let cells = chunkCells.get(chunkKey(x, z));
+    if (!cells) { cells = new Set(); chunkCells.set(chunkKey(x, z), cells); }
+    cells.add(k);
+    if (activate) { enqueue(x, y, z); activateNeighbors(x, y, z); }
     markCell(x, z);
     return true;
 }
 
-function removeCell(x, y, z, force = false) {
-    const k = key(x, y, z);
+function removeCell(x, y, z) {
+    const k = key(floorCoord(x), floorCoord(y), floorCoord(z));
     if (!water.has(k)) return false;
-    if (!force && sources.has(k)) return false;
-
+    const [cx, cy, cz] = parseKey(k);
     water.delete(k);
-    sources.delete(k);
-
-    const set = chunkCells.get(chunkKey(x, z));
-    if (set) {
-        set.delete(k);
-        if (!set.size) chunkCells.delete(chunkKey(x, z));
-    }
-
-    markCell(x, z);
-    activateNeighbors(x, y, z);
+    const cells = chunkCells.get(chunkKey(cx, cz));
+    if (cells) { cells.delete(k); if (!cells.size) chunkCells.delete(chunkKey(cx, cz)); }
+    enqueue(cx, cy, cz); activateNeighbors(cx, cy, cz); markCell(cx, cz);
     return true;
 }
 
-function setLevel(x, y, z, level) {
-    const k = key(x, y, z);
-    if (level <= 0) return removeCell(x, y, z);
-    if (sources.has(k)) level = MAX_LEVEL;
+function registerChunkRef(object) {
+    if (!object?.userData?.isChunk || object.userData?.isDynamicWater) return null;
+    if (object.userData.waterPhysicsChunkRegistered) return object.userData.waterPhysicsChunkKey || null;
+    const geometry = object.geometry;
+    if (!geometry) return null;
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    if (!geometry.boundingBox) return null;
+    const centerX = (geometry.boundingBox.min.x + geometry.boundingBox.max.x) * 0.5;
+    const centerZ = (geometry.boundingBox.min.z + geometry.boundingBox.max.z) * 0.5;
+    const ck = `${Math.floor(centerX / CHUNK_SIZE)},${Math.floor(centerZ / CHUNK_SIZE)}`;
+    loadedChunkRefs.set(ck, (loadedChunkRefs.get(ck) || 0) + 1);
+    object.userData.waterPhysicsChunkRegistered = true;
+    object.userData.waterPhysicsChunkKey = ck;
+    return ck;
+}
 
+function pruneUnloadedChunk(ck) {
+    const cells = chunkCells.get(ck);
+    if (!cells?.size) return;
+    const boundary = [];
+    for (const k of cells) {
+        const [x, y, z] = parseKey(k);
+        const lx = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        const lz = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        if (lx === 0 || lx === CHUNK_SIZE - 1 || lz === 0 || lz === CHUNK_SIZE - 1) boundary.push([x, y, z]);
+        sourceOwnerCounts.delete(k);
+        water.delete(k);
+    }
+    chunkCells.delete(ck);
+    dirtyChunks.delete(ck);
+    for (const [x, y, z] of boundary) activateNeighbors(x, y, z);
+}
+
+function unregisterChunkRef(ck) {
+    if (!ck) return;
+    const next = (loadedChunkRefs.get(ck) || 1) - 1;
+    if (next <= 0) { loadedChunkRefs.delete(ck); pruneUnloadedChunk(ck); }
+    else loadedChunkRefs.set(ck, next);
+}
+
+function addSourceOwner(k) {
+    const count = (sourceOwnerCounts.get(k) || 0) + 1;
+    sourceOwnerCounts.set(k, count);
+    return count;
+}
+
+function removeSourceOwner(k) {
+    const count = (sourceOwnerCounts.get(k) || 0) - 1;
+    if (count > 0) { sourceOwnerCounts.set(k, count); return; }
+    sourceOwnerCounts.delete(k);
     const cell = water.get(k);
-    if (!cell) return addCell(x, y, z, level, false);
-    if (cell.level === level) return false;
-
-    cell.level = level;
-    enqueue(x, y, z);
-    activateNeighbors(x, y, z);
-    markCell(x, z);
-    return true;
+    if (!cell || cell.createdSource) return;
+    cell.source = false;
+    if (cell.level === SOURCE_LEVEL && !cell.falling) cell.level = 1;
+    const [x, y, z] = parseKey(k);
+    enqueue(x, y, z); activateNeighbors(x, y, z); markCell(x, z);
 }
 
 function registerWaterMesh(mesh) {
     if (!mesh || mesh.userData?.isDynamicWater || mesh.userData?.waterPhysicsRegistered) return;
-    if (!mesh.userData?.isWater && !mesh.name?.toLowerCase().includes("water")) return;
-
-    mesh.userData.waterPhysicsRegistered = true;
-    mesh.visible = false;
-
+    if (mesh.userData?.isWater !== true && !mesh.name?.toLowerCase().includes("water")) return;
     const position = mesh.geometry?.getAttribute("position");
     if (!position) return;
+    mesh.userData.waterPhysicsRegistered = true;
+    mesh.visible = false;
+    const owned = new Set();
+    staticWaterOwners.set(mesh, owned);
 
-    const seen = new Set();
-    for (let i = 0; i < position.count; i += 3) {
-        const x = Math.floor(position.getX(i) + (mesh.position?.x || 0));
-        const y = Math.floor(position.getY(i) + (mesh.position?.y || 0));
-        const z = Math.floor(position.getZ(i) + (mesh.position?.z || 0));
+    for (let i = 0; i < position.count; i += 4) {
+        const x = Math.round(position.getX(i) + (mesh.position?.x || 0));
+        const y = Math.round(position.getY(i) + (mesh.position?.y || 0));
+        const z = Math.round(position.getZ(i) + (mesh.position?.z || 0));
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
         const k = key(x, y, z);
-        if (seen.has(k)) continue;
-        seen.add(k);
-        addCell(x, y, z, MAX_LEVEL, true);
+        if (owned.has(k)) continue;
+        owned.add(k);
+        addSourceOwner(k);
+        const current = water.get(k);
+        if (current) {
+            current.level = SOURCE_LEVEL; current.falling = false; current.source = true;
+            enqueue(x, y, z); activateNeighbors(x, y, z); markCell(x, z);
+        } else addCell(x, y, z, makeState(SOURCE_LEVEL, false, true), false);
     }
+}
+
+function unregisterWaterMesh(mesh) {
+    const owned = staticWaterOwners.get(mesh);
+    if (!owned) return;
+    for (const k of owned) removeSourceOwner(k);
+    staticWaterOwners.delete(mesh);
 }
 
 function registerObject(object) {
-    if (!object) return;
-    if (object.isMesh) registerWaterMesh(object);
-    if (object.traverse) object.traverse(registerWaterMesh);
+    if (!object || object.userData?.isDynamicWater) return;
+    registerChunkRef(object);
+    registerWaterMesh(object);
 }
 
-function initialScan() {
-    if (!scene) return;
-    scene.traverse(registerWaterMesh);
+function unregisterObject(object) {
+    if (!object || object.userData?.isDynamicWater) return;
+    if (object.userData?.waterPhysicsChunkRegistered) {
+        unregisterChunkRef(object.userData.waterPhysicsChunkKey);
+        delete object.userData.waterPhysicsChunkRegistered;
+        delete object.userData.waterPhysicsChunkKey;
+    }
+    unregisterWaterMesh(object);
 }
 
-function findDropDistance(x, y, z) {
-    const cacheKey = `${x},${y},${z}`;
-    const cached = dropCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
-    if (!isAir(x, y, z)) {
-        dropCache.set(cacheKey, Infinity);
-        return Infinity;
-    }
-    if (isAir(x, y - 1, z)) {
-        dropCache.set(cacheKey, 0);
-        return 0;
-    }
-
-    const queue = [[x, z, 0]];
-    const visited = new Set([`${x},${z}`]);
-    let head = 0;
-    let result = Infinity;
-
-    while (head < queue.length) {
-        const [cx, cz, distance] = queue[head++];
-        if (distance >= DROP_SEARCH) continue;
-
-        for (const [dx, dz] of DIRS) {
-            const nx = cx + dx;
-            const nz = cz + dz;
-            const d = distance + 1;
-            const planar = `${nx},${nz}`;
-            if (visited.has(planar) || !isAir(nx, y, nz)) continue;
-            visited.add(planar);
-            if (isAir(nx, y - 1, nz)) {
-                result = d;
-                head = queue.length;
-                break;
-            }
-            queue.push([nx, nz, d]);
-        }
-    }
-
-    if (dropCache.size >= DROP_CACHE_MAX) dropCache.clear();
-    dropCache.set(cacheKey, result);
-    return result;
+function installSceneHooks() {
+    if (sceneHooksInstalled) return;
+    sceneHooksInstalled = true;
+    const previousAdd = THREE.Scene.prototype.add;
+    THREE.Scene.prototype.add = function (...objects) {
+        const result = previousAdd.apply(this, objects);
+        for (const object of objects) object?.traverse ? object.traverse(registerObject) : registerObject(object);
+        return result;
+    };
+    const previousRemove = THREE.Scene.prototype.remove;
+    THREE.Scene.prototype.remove = function (...objects) {
+        const result = previousRemove.apply(this, objects);
+        for (const object of objects) object?.traverse ? object.traverse(unregisterObject) : unregisterObject(object);
+        return result;
+    };
 }
 
-function horizontalTargets(x, y, z) {
-    let best = Infinity;
-    const targets = [];
+function scanSceneObjects() { if (scene) scene.traverse(registerObject); }
+function isFluidSpace(x, y, z) { return isWorldAir(x, y, z); }
 
+function fluidHeight(state) {
+    if (!state) return 0;
+    if (state.source || state.falling || state.level === SOURCE_LEVEL) return 1;
+    return (MAX_LEVEL + 1 - state.level) / (MAX_LEVEL + 1);
+}
+
+function computeFlowVector(x, y, z) {
+    const center = getWater(x, y, z);
+    if (!center || center.falling) return { x: 0, z: 0 };
+    const h = fluidHeight(center);
+    let vx = h - fluidHeight(getWater(x + 1, y, z));
+    vx -= h - fluidHeight(getWater(x - 1, y, z));
+    let vz = h - fluidHeight(getWater(x, y, z + 1));
+    vz -= h - fluidHeight(getWater(x, y, z - 1));
+    const length = Math.hypot(vx, vz);
+    return length < 0.0001 ? { x: 0, z: 0 } : { x: vx / length, z: vz / length };
+}
+
+function cornerHeight(x, y, z, cx, cz, fallback) {
+    const xs = cx > 0 ? [0, 1] : [-1, 0];
+    const zs = cz > 0 ? [0, 1] : [-1, 0];
+    const samples = [];
+    for (const ox of xs) for (const oz of zs) {
+        const state = getWater(x + ox, y, z + oz);
+        if (state) samples.push(fluidHeight(state));
+    }
+    if (!samples.length) return fallback;
+    return samples.reduce((sum, value) => sum + value, 0) / samples.length;
+}
+
+function findDropDistance(x, y, z, dx, dz) {
+    const ck = `${x},${y},${z},${dx},${dz}`;
+    if (dropCache.has(ck)) return dropCache.get(ck);
+    for (let step = 0; step <= DROP_SEARCH; step++) {
+        const nx = x + dx * step, nz = z + dz * step;
+        if (!isFluidSpace(nx, y, nz)) break;
+        if (isWorldAir(nx, y - 1, nz)) { dropCache.set(ck, step); return step; }
+    }
+    dropCache.set(ck, Infinity);
+    return Infinity;
+}
+
+function getHorizontalTargets(x, y, z) {
+    const available = [];
     for (const [dx, dz] of DIRS) {
-        const nx = x + dx;
-        const nz = z + dz;
-        if (!isAir(nx, y, nz)) continue;
-        const distance = findDropDistance(nx, y, nz);
-        if (distance < best) best = distance;
-        targets.push({ x: nx, z: nz, distance });
+        const nx = x + dx, nz = z + dz;
+        if (!isFluidSpace(nx, y, nz)) continue;
+        available.push({ x: nx, z: nz, dx, dz, dropDistance: findDropDistance(nx, y, nz, dx, dz) });
     }
+    if (!available.length) return [];
+    const shortest = Math.min(...available.map(item => item.dropDistance));
+    return Number.isFinite(shortest) ? available.filter(item => item.dropDistance === shortest) : available;
+}
 
-    if (!targets.length) return [];
-    if (best !== Infinity) return targets.filter(item => item.distance === best);
-    return targets;
+function countAdjacentSources(x, y, z) {
+    let count = 0;
+    for (const [dx, dz] of DIRS) if (getWater(x + dx, y, z + dz)?.source) count++;
+    return count;
 }
 
 function tryCreateSource(x, y, z) {
-    const k = key(x, y, z);
-    if (!isAir(x, y, z) || sources.has(k)) return false;
-    if (isAir(x, y - 1, z)) return false;
-
-    let adjacentSources = 0;
-    for (const [dx, dz] of DIRS) {
-        if (sources.has(key(x + dx, y, z + dz))) adjacentSources++;
-    }
-    if (adjacentSources < 2) return false;
-
-    addCell(x, y, z, MAX_LEVEL, true);
-    return true;
+    if (!isFluidSpace(x, y, z) || getWater(x, y, z) || !isSupported(x, y, z)) return null;
+    return countAdjacentSources(x, y, z) >= 2 ? makeState(SOURCE_LEVEL, false, true, true) : null;
 }
 
-function updateCell(x, y, z) {
+function strongestHorizontalNeighborLevel(x, y, z) {
+    let best = Infinity;
+    for (const [dx, dz] of DIRS) {
+        const neighbor = getWater(x + dx, y, z + dz);
+        if (!neighbor || neighbor.falling) continue;
+        best = Math.min(best, neighbor.source ? SOURCE_LEVEL : neighbor.level);
+    }
+    return Number.isFinite(best) ? best : null;
+}
+
+function makeHorizontalFlowFromNeighbors(x, y, z) {
+    const source = tryCreateSource(x, y, z);
+    if (source) return source;
+    const neighborLevel = strongestHorizontalNeighborLevel(x, y, z);
+    if (neighborLevel == null || neighborLevel + 1 > MAX_LEVEL) return null;
+    return makeState(neighborLevel + 1);
+}
+
+function evaluateCell(x, y, z, proposals) {
     const k = key(x, y, z);
-    let cell = water.get(k);
+    const current = water.get(k);
+    if (!isWorldAir(x, y, z)) { propose(proposals, k, null); return; }
 
-    if (cell && !isAir(x, y, z)) {
-        removeCell(x, y, z, true);
+    if (!current) {
+        if ((sourceOwnerCounts.get(k) || 0) > 0) { propose(proposals, k, makeState(SOURCE_LEVEL, false, true)); return; }
+        const source = tryCreateSource(x, y, z);
+        if (source) { propose(proposals, k, source); return; }
+        const incoming = makeHorizontalFlowFromNeighbors(x, y, z);
+        if (incoming) propose(proposals, k, incoming);
         return;
     }
 
-    tryCreateSource(x, y, z);
-    cell = water.get(k);
-
-    if (!cell) {
-        let desired = 0;
-        for (const [dx, dz] of DIRS) {
-            const neighbor = getLevel(x + dx, y, z + dz);
-            if (neighbor >= 2) desired = Math.max(desired, neighbor - 1);
-        }
-        if (desired > 0) setLevel(x, y, z, desired);
-        return;
-    }
-
-    if (sources.has(k)) {
-        if (cell.level !== MAX_LEVEL) {
-            cell.level = MAX_LEVEL;
-            markCell(x, z);
-        }
-
-        if (isAir(x, y - 1, z)) {
-            addCell(x, y - 1, z, MAX_LEVEL, false);
+    if (current.source) {
+        propose(proposals, k, makeState(SOURCE_LEVEL, false, true, current.createdSource));
+        if (isWorldAir(x, y - 1, z) && !getWater(x, y - 1, z)) {
+            propose(proposals, key(x, y - 1, z), makeState(SOURCE_LEVEL, true));
             return;
         }
+        if (isSupported(x, y, z)) for (const target of getHorizontalTargets(x, y, z)) propose(proposals, key(target.x, y, target.z), makeState(1));
+        return;
+    }
 
-        for (const target of horizontalTargets(x, y, z)) {
-            if (getLevel(target.x, y, target.z) < MAX_LEVEL - 1) {
-                addCell(target.x, y, target.z, MAX_LEVEL - 1, false);
-            }
+    const above = getWater(x, y + 1, z);
+    const below = getWater(x, y - 1, z);
+    const belowOpen = isWorldAir(x, y - 1, z);
+
+    if (current.falling) {
+        if (belowOpen && !below) {
+            propose(proposals, k, makeState(SOURCE_LEVEL, true));
+            propose(proposals, key(x, y - 1, z), makeState(SOURCE_LEVEL, true));
+            return;
         }
-        return;
-    }
-
-    if (isAir(x, y - 1, z)) {
-        addCell(x, y - 1, z, MAX_LEVEL, false);
-        return;
-    }
-
-    const above = getLevel(x, y + 1, z);
-    if (above > 0) {
-        setLevel(x, y, z, MAX_LEVEL);
-        return;
-    }
-
-    let bestFromNeighbors = 0;
-    for (const [dx, dz] of DIRS) {
-        bestFromNeighbors = Math.max(bestFromNeighbors, getLevel(x + dx, y, z + dz) - 1);
-    }
-
-    if (bestFromNeighbors <= 0) {
-        removeCell(x, y, z);
-        return;
-    }
-
-    const newLevel = Math.min(MAX_LEVEL - 1, bestFromNeighbors);
-    setLevel(x, y, z, newLevel);
-
-    for (const target of horizontalTargets(x, y, z)) {
-        if (getLevel(target.x, y, target.z) < newLevel - 1) {
-            setLevel(target.x, y, target.z, newLevel - 1);
+        if (isSupported(x, y, z)) {
+            propose(proposals, k, above && isFullWater(above) ? makeState(SOURCE_LEVEL) : (makeHorizontalFlowFromNeighbors(x, y, z) || makeState(1)));
+            return;
         }
+        propose(proposals, k, makeState(SOURCE_LEVEL, true));
+        return;
+    }
+
+    if (belowOpen && !below) {
+        propose(proposals, k, makeState(SOURCE_LEVEL, true));
+        propose(proposals, key(x, y - 1, z), makeState(SOURCE_LEVEL, true));
+        return;
+    }
+
+    if (above && isFullWater(above) && !isSupported(x, y, z)) {
+        propose(proposals, k, makeState(SOURCE_LEVEL, true));
+        return;
+    }
+
+    const desired = makeHorizontalFlowFromNeighbors(x, y, z);
+    if (!desired) { propose(proposals, k, null); return; }
+    propose(proposals, k, desired);
+
+    if (desired.level < MAX_LEVEL && isSupported(x, y, z)) {
+        const nextLevel = desired.level + 1;
+        for (const target of getHorizontalTargets(x, y, z)) propose(proposals, key(target.x, y, target.z), makeState(nextLevel));
     }
 }
 
-function levelHeight(level) {
-    return Math.max(0.0625, level / MAX_LEVEL);
+function proposalStrength(state) {
+    if (!state) return 0;
+    return (state.source ? 100 : state.falling ? 75 : 1) + MAX_LEVEL - state.level;
 }
 
-function cornerHeight(x, y, z, dx, dz, currentLevel) {
-    if (currentLevel >= MAX_LEVEL) return levelHeight(MAX_LEVEL);
+function propose(proposals, k, state) {
+    const previous = proposals.get(k);
+    if (!previous || proposalStrength(state) > proposalStrength(previous)) proposals.set(k, state);
+}
 
-    const sx = dx > 0 ? 0 : -1;
-    const sz = dz > 0 ? 0 : -1;
-    const samples = [currentLevel];
-    const candidates = [
-        getLevel(x + sx, y, z),
-        getLevel(x, y, z + sz),
-        getLevel(x + sx, y, z + sz)
-    ];
-
-    for (const level of candidates) {
-        if (level > 0) samples.push(level);
+function applyProposals(proposals) {
+    for (const [k, raw] of proposals) {
+        const [x, y, z] = parseKey(k);
+        const previous = water.get(k);
+        if (!raw) { if (previous) removeCell(x, y, z); continue; }
+        const next = { ...raw };
+        if (previous?.source) {
+            next.source = true; next.createdSource = previous.createdSource; next.level = SOURCE_LEVEL; next.falling = false;
+        } else if (previous?.createdSource) next.createdSource = true;
+        if (sameState(previous, next)) continue;
+        if (previous) water.set(k, { ...previous, ...next });
+        else {
+            if (water.size >= MAX_WATER_CELLS) continue;
+            water.set(k, next);
+            let cells = chunkCells.get(chunkKey(x, z));
+            if (!cells) { cells = new Set(); chunkCells.set(chunkKey(x, z), cells); }
+            cells.add(k);
+        }
+        enqueue(x, y, z); activateNeighbors(x, y, z); markCell(x, z);
     }
+}
 
-    const average = samples.reduce((sum, level) => sum + level, 0) / samples.length;
-    return levelHeight(average);
+function runFluidTick() {
+    dropCache.clear();
+    const proposals = new Map();
+    let processed = 0;
+    while (processed < MAX_CELLS_PER_TICK && queueHead < active.length) {
+        const k = active[queueHead++];
+        activeSet.delete(k);
+        const [x, y, z] = parseKey(k);
+        evaluateCell(x, y, z, proposals);
+        processed++;
+    }
+    applyProposals(proposals);
+    compactQueue();
+}
+
+function rotatedUvPoints(angle) {
+    const radius = 0.34, cos = Math.cos(angle), sin = Math.sin(angle);
+    return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [
+        0.5 + (u * cos - v * sin) * radius,
+        0.5 + (u * sin + v * cos) * radius
+    ]);
 }
 
 function pushQuad(positions, normals, uvs, colors, indices, points, normal, uvPoints, shade, vertex) {
     for (const point of points) positions.push(...point);
-    for (let i = 0; i < 4; i++) {
-        normals.push(...normal);
-        colors.push(shade, shade, shade);
-    }
+    for (let i = 0; i < 4; i++) { normals.push(...normal); colors.push(shade, shade, shade); }
     for (const uv of uvPoints) uvs.push(...uv);
     indices.push(vertex, vertex + 1, vertex + 2, vertex, vertex + 2, vertex + 3);
     return vertex + 4;
 }
 
 function buildChunk(ck) {
-    if (!scene) return;
-
+    if (!scene || !loadedChunkRefs.has(ck)) return;
     const cells = chunkCells.get(ck);
-    const old = meshes.get(ck);
-    if (old) {
-        scene.remove(old);
-        old.geometry.dispose();
-        meshes.delete(ck);
-    }
-    if (!cells || !cells.size) return;
+    const old = dynamicMeshes.get(ck);
+    if (old) { scene.remove(old); old.geometry.dispose(); dynamicMeshes.delete(ck); }
+    if (!cells?.size) return;
 
-    const positions = [];
-    const normals = [];
-    const uvs = [];
-    const colors = [];
-    const indices = [];
+    const positions = [], normals = [], uvs = [], colors = [], indices = [];
     let vertex = 0;
-    let count = 0;
 
     for (const k of cells) {
         const cell = water.get(k);
         if (!cell) continue;
-        if (++count > 4500) break;
-
-        const { x, y, z, level } = cell;
-        const above = getLevel(x, y + 1, z);
-        const current = levelHeight(level);
-        const baseY = y - 0.5;
-        const flowShade = 0.94 + 0.06 * (level / MAX_LEVEL);
-
-        if (above <= 0) {
-            const hNW = baseY + cornerHeight(x, y, z, -1, -1, level);
-            const hNE = baseY + cornerHeight(x, y, z, 1, -1, level);
-            const hSE = baseY + cornerHeight(x, y, z, 1, 1, level);
-            const hSW = baseY + cornerHeight(x, y, z, -1, 1, level);
-
+        const [x, y, z] = parseKey(k);
+        const h = fluidHeight(cell), baseY = y - 0.5, topY = baseY + h;
+        if (!getWater(x, y + 1, z)) {
+            const flow = computeFlowVector(x, y, z);
             vertex = pushQuad(
-                positions,
-                normals,
-                uvs,
-                colors,
-                indices,
+                positions, normals, uvs, colors, indices,
                 [
-                    [x - 0.5, hNW, z - 0.5],
-                    [x + 0.5, hNE, z - 0.5],
-                    [x + 0.5, hSE, z + 0.5],
-                    [x - 0.5, hSW, z + 0.5]
+                    [x - 0.5, baseY + cornerHeight(x, y, z, -1, -1, h), z - 0.5],
+                    [x + 0.5, baseY + cornerHeight(x, y, z, 1, -1, h), z - 0.5],
+                    [x + 0.5, baseY + cornerHeight(x, y, z, 1, 1, h), z + 0.5],
+                    [x - 0.5, baseY + cornerHeight(x, y, z, -1, 1, h), z + 0.5]
                 ],
                 [0, 1, 0],
-                [[0, 0], [1, 0], [1, 1], [0, 1]],
-                flowShade,
+                rotatedUvPoints(Math.atan2(flow.z, flow.x)),
+                0.96,
                 vertex
             );
         }
 
         for (const [dx, dz] of DIRS) {
-            const neighbor = getLevel(x + dx, y, z + dz);
-            if (neighbor >= level) continue;
-
-            const sideLevel = neighbor > 0 ? neighbor : 0;
-            const sideTop = baseY + levelHeight(sideLevel);
-            const topA = current;
-            const topB = current;
-            let points;
-            let normal;
-
+            const neighbor = getWater(x + dx, y, z + dz);
+            const nh = fluidHeight(neighbor);
+            if (nh >= h - 0.0001) continue;
+            const sideTop = baseY + nh;
+            let points, normal;
             if (dx === 1) {
-                points = [
-                    [x + 0.5, baseY, z - 0.5],
-                    [x + 0.5, sideTop, z - 0.5],
-                    [x + 0.5, sideTop, z + 0.5],
-                    [x + 0.5, baseY, z + 0.5]
-                ];
+                points = [[x + 0.5, baseY, z - 0.5], [x + 0.5, topY, z - 0.5], [x + 0.5, sideTop, z + 0.5], [x + 0.5, baseY, z + 0.5]];
                 normal = [1, 0, 0];
             } else if (dx === -1) {
-                points = [
-                    [x - 0.5, baseY, z + 0.5],
-                    [x - 0.5, sideTop, z + 0.5],
-                    [x - 0.5, sideTop, z - 0.5],
-                    [x - 0.5, baseY, z - 0.5]
-                ];
+                points = [[x - 0.5, baseY, z + 0.5], [x - 0.5, topY, z + 0.5], [x - 0.5, sideTop, z - 0.5], [x - 0.5, baseY, z - 0.5]];
                 normal = [-1, 0, 0];
             } else if (dz === 1) {
-                points = [
-                    [x + 0.5, baseY, z + 0.5],
-                    [x + 0.5, sideTop, z + 0.5],
-                    [x - 0.5, sideTop, z + 0.5],
-                    [x - 0.5, baseY, z + 0.5]
-                ];
+                points = [[x + 0.5, baseY, z + 0.5], [x + 0.5, topY, z + 0.5], [x - 0.5, sideTop, z + 0.5], [x - 0.5, baseY, z + 0.5]];
                 normal = [0, 0, 1];
             } else {
-                points = [
-                    [x - 0.5, baseY, z - 0.5],
-                    [x - 0.5, sideTop, z - 0.5],
-                    [x + 0.5, sideTop, z - 0.5],
-                    [x + 0.5, baseY, z - 0.5]
-                ];
+                points = [[x - 0.5, baseY, z - 0.5], [x - 0.5, topY, z - 0.5], [x + 0.5, sideTop, z - 0.5], [x + 0.5, baseY, z - 0.5]];
                 normal = [0, 0, -1];
             }
-
-            const horizontalAxis = dx !== 0;
-            const uvPoints = horizontalAxis
-                ? [[0, 0], [0, topA], [1, topB], [1, 0]]
-                : [[0, 0], [0, topA], [1, topB], [1, 0]];
-
-            vertex = pushQuad(
-                positions,
-                normals,
-                uvs,
-                colors,
-                indices,
-                points,
-                normal,
-                uvPoints,
-                Math.max(0.82, flowShade - 0.08),
-                vertex
-            );
+            vertex = pushQuad(positions, normals, uvs, colors, indices, points, normal, [[0, 0], [0, Math.max(0.15, h)], [1, Math.max(0.15, h)], [1, 0]], 0.84, vertex);
         }
     }
 
     if (!positions.length) return;
-
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(indices);
+    geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 
     const mesh = new THREE.Mesh(geometry, fluidMaterial);
     mesh.userData.isDynamicWater = true;
     mesh.userData.waterChunk = ck;
     mesh.frustumCulled = true;
-    meshes.set(ck, mesh);
+    dynamicMeshes.set(ck, mesh);
     scene.add(mesh);
 }
 
-function rebuildDirty(limit = MAX_CHUNK_REBUILDS_PER_STEP) {
-    if (!scene) return;
-    let done = 0;
+function rebuildDirtyChunks(limit = MAX_CHUNK_REBUILDS_PER_TICK) {
+    let rebuilt = 0;
     for (const ck of dirtyChunks) {
         dirtyChunks.delete(ck);
         buildChunk(ck);
-        if (++done >= limit) break;
+        if (++rebuilt >= limit) break;
     }
-}
-
-function step() {
-    dropCache.clear();
-    const budget = Math.min(MAX_CELLS_PER_STEP, active.length - queueHead);
-    let done = 0;
-
-    while (done < budget && queueHead < active.length) {
-        const k = active[queueHead++];
-        activeSet.delete(k);
-        const [x, y, z] = parseKey(k);
-        updateCell(x, y, z);
-        done++;
-    }
-
-    compactQueue();
-}
-
-function installSceneHook() {
-    if (installed) return;
-    installed = true;
-
-    const originalAdd = THREE.Scene.prototype.add;
-    THREE.Scene.prototype.add = function (...objects) {
-        const result = originalAdd.apply(this, objects);
-        for (const object of objects) registerObject(object);
-        return result;
-    };
-}
-
-function animateTexture() {
-    const speed = 0.018;
-    waterTexture.offset.x = (performance.now() * speed * 0.001) % 1;
-    waterTexture.offset.y = (performance.now() * speed * 0.00065) % 1;
-    animationFrame = window.setTimeout(animateTexture, 90);
 }
 
 export function setupWaterPhysics(sceneRef) {
+    if (!sceneRef) return;
     scene = sceneRef;
-    installSceneHook();
-    initialScan();
-
-    for (const k of sources) {
-        const [x, y, z] = parseKey(k);
-        enqueue(x, y, z);
-    }
-
-    while (dirtyChunks.size) rebuildDirty(32);
-
-    if (typeof window !== "undefined" && !animationFrame) animateTexture();
+    initialized = true;
+    lastTick = performance.now();
+    installSceneHooks();
+    scanSceneObjects();
+    for (const [k, cell] of water) if (cell.source) enqueue(...parseKey(k));
+    while (dirtyChunks.size) rebuildDirtyChunks(64);
 }
 
 export function notifyWaterBlockChanged(x, y, z, type = BLOCK.AIR) {
-    const cellX = Math.floor(x);
-    const cellY = Math.floor(y);
-    const cellZ = Math.floor(z);
-    const k = key(cellX, cellY, cellZ);
-
-    if (type !== BLOCK.AIR && water.has(k)) removeCell(cellX, cellY, cellZ, true);
+    if (!initialized) return;
+    x = floorCoord(x); y = floorCoord(y); z = floorCoord(z);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
+    if (type !== BLOCK.AIR && water.has(key(x, y, z))) removeCell(x, y, z);
     dropCache.clear();
-    enqueue(cellX, cellY, cellZ);
-    activateNeighbors(cellX, cellY, cellZ);
-    markCell(cellX, cellZ);
+    enqueue(x, y, z); activateNeighbors(x, y, z); markCell(x, z);
 }
 
 export function updateWaterPhysics() {
-    if (!scene) return;
-
+    if (!initialized || !scene) return;
     const now = performance.now();
-    if (now - lastStep >= FLOW_INTERVAL && queueHead < active.length) {
-        lastStep = now;
-        step();
-    }
-
-    rebuildDirty();
+    if (now - lastTick >= FLOW_INTERVAL) { lastTick = now; runFluidTick(); }
+    rebuildDirtyChunks();
 }
 
 if (typeof window !== "undefined") {
@@ -629,10 +603,6 @@ if (typeof window !== "undefined") {
         if (!Number.isFinite(detail.x) || !Number.isFinite(detail.y) || !Number.isFinite(detail.z)) return;
         notifyWaterBlockChanged(detail.x, detail.y, detail.z, detail.type ?? BLOCK.AIR);
     });
-
-    const loop = () => {
-        updateWaterPhysics();
-        window.setTimeout(loop, 100);
-    };
+    const loop = () => { updateWaterPhysics(); window.setTimeout(loop, 100); };
     window.setTimeout(loop, 100);
 }
