@@ -173,6 +173,7 @@ async function joinFriend(button) {
             return;
         }
 
+        document.getElementById("friendsModal")?.classList.remove("open");
         const multiplayer = await import("./multiplayerClient.js");
         multiplayer.openMultiplayerMenu();
         const menu = await waitForMultiplayerMenu();
