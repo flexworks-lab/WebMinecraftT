@@ -37,7 +37,9 @@ function addAccountDevStyles() {
     style.id = "accountDevControlsStyles";
     style.textContent = `
 #accountDevControlsButton{background:linear-gradient(#75504d,#5d3f3c)}
-#devControlsButton{display:none !important}
+/* Keep the internal trigger hidden; Dev Controls is opened only from Account UI. */
+#devControlsButton,
+body.webminecraft-in-world #devControlsButton{display:none !important;visibility:hidden !important;opacity:0 !important;width:0 !important;height:0 !important;min-width:0 !important;min-height:0 !important;padding:0 !important;margin:0 !important;border:0 !important;pointer-events:none !important;position:absolute !important;overflow:hidden !important}
 `;
     document.head.appendChild(style);
 }
