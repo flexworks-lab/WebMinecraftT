@@ -22,12 +22,14 @@ const ITEM_TYPES = [
     { id: 14, name: "Snow", texture: "snow.png", category: "natural" },
     { id: 15, name: "TNT", texture: "tnt_side.png", category: "tools" },
     { id: 16, name: "Flint and Steel", texture: "Flint_and_Steel_JE4_BE2.png", category: "tools" },
-    { id: 17, name: "Oak Door", texture: "oak_door_bottom.png", category: "tools" }
+    { id: 17, name: "Oak Door", texture: "oak_door_bottom.png", category: "tools" },
+    { id: 18, name: "Bricks", texture: "bricks.svg", category: "building" }
 ];
 
 const TAB_DEFS = [
     { id: "tools", label: "Tools & Utilities", icon: "⚒" },
     { id: "natural", label: "Natural Blocks", icon: "◆" },
+    { id: "building", label: "Building Blocks", icon: "▦" },
     { id: "search", label: "Search", icon: "⌕" },
     { id: "survival", label: "Survival Inventory", icon: "▣" }
 ];
@@ -145,6 +147,7 @@ function itemsForCurrentTab() {
 function iconSvg(name) {
     if (name === "tools") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 5.2a5 5 0 0 0-6.1 6.1l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.1-6.1l-3 3-2-2 3-3Z"/><path d="m15 15 5.2 5.2M17.8 12.2l4-4M19.8 4.2l1.9 1.9"/></svg>';
     if (name === "natural") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c4.9 2.5 8 6.1 8 10.1A8 8 0 1 1 4 13.1C4 9.8 6.7 6 12 3Z"/><path d="M12 21c0-5 1.8-9 5.9-12"/></svg>';
+    if (name === "building") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V8l8-5 8 5v12H4Z"/><path d="M8 20v-6h8v6M7 9h2M15 9h2M7 12h2M15 12h2"/></svg>';
     if (name === "search") return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.7"/><path d="m16 16 5 5"/></svg>';
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16v13H4z"/><path d="M7 6.5v-2h10v2M7 10h10M7 14h4"/></svg>';
 }
@@ -300,7 +303,7 @@ function renderCatalog() {
     }
     document.getElementById("catalogPanel").style.display = "flex";
     document.getElementById("survivalPanel").hidden = true;
-    section.textContent = selectedTab === "search" ? "Search Results" : (selectedTab === "tools" ? "Tools & Utilities" : "Natural Blocks");
+    section.textContent = selectedTab === "search" ? "Search Results" : (selectedTab === "tools" ? "Tools & Utilities" : selectedTab === "building" ? "Building Blocks" : "Natural Blocks");
     if (searchWrap) searchWrap.style.display = selectedTab === "search" || searchQuery ? "flex" : "none";
     const items = itemsForCurrentTab();
     grid.innerHTML = items.length ? items.map(item => `<div class="catalogSlot" draggable="true" data-item-id="${item.id}" title="${item.name}">${itemVisual(item)}<span class="catalogName">${item.name}</span></div>`).join("") : `<div style="grid-column:1/-1;color:#999;text-align:center;padding:30px 10px;font-size:13px">No items found</div>`;
