@@ -68,11 +68,10 @@ export function isFirebaseConfigured() {
     return Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
 }
 
-// Website announcements need Firestore as soon as the main page loads.
-// Previously Firebase was initialized by the account/auth flow, which meant
-// the announcement module could sit waiting until the Account button was used.
-// Start the minimal Firebase app + Firestore setup immediately instead.
-(function initializeFirebaseForStartupAnnouncements() {
+// Website announcements and saved login state need Firebase as soon as the main page loads.
+// Previously Firebase Auth was initialized only by the Account flow, so a returning
+// player could be signed in but the site would not know until Account was opened.
+(function initializeFirebaseForStartup() {
     if (!isFirebaseConfigured() || window.__webMinecraftStartupFirebase) return;
     window.__webMinecraftStartupFirebase = true;
 
@@ -84,7 +83,7 @@ export function isFirebaseConfigured() {
         const promise = new Promise((resolve, reject) => {
             const existing = document.querySelector(`script[src="${src}"]`);
             if (existing) {
-                const ready = src.includes("firebase-app-compat") ? window.firebase : window.firebase?.firestore;
+                const ready = src.includes("firebase-app-compat") ? window.firebase : src.includes("firebase-auth-compat") ? window.firebase?.auth : window.firebase?.firestore;
                 if (ready) return resolve();
                 existing.addEventListener("load", () => resolve(), { once: true });
                 existing.addEventListener("error", () => reject(new Error(`Could not load ${src}`)), { once: true });
@@ -107,7 +106,16 @@ export function isFirebaseConfigured() {
             if (!window.firebase) throw new Error("Firebase SDK did not load.");
             const apps = window.firebase.apps || [];
             if (!apps.length) window.firebase.initializeApp(firebaseConfig);
-            return loadScript(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore-compat.js`);
+            return Promise.all([
+                loadScript(`https://www.gstatic.com/firebasejs/${version}/firebase-auth-compat.js`),
+                loadScript(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore-compat.js`)
+            ]);
+        })
+        .then(() => {
+            if (!window.firebase?.auth) throw new Error("Firebase Auth did not load.");
+            const auth = window.firebase.auth();
+            const persistence = window.firebase.auth.Auth?.Persistence?.LOCAL;
+            return persistence ? auth.setPersistence(persistence).catch(error => console.warn("Could not enable saved login persistence:", error)) : null;
         })
         .catch(error => {
             window.__webMinecraftStartupFirebase = null;
