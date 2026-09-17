@@ -19,6 +19,11 @@ let camera = null;
 let selected = false;
 const doors = new Map();
 const BLOCK = getBlockTypes();
+const DOOR_BLOCK = BLOCK.OAK_DOOR ?? 17;
+const DOOR_SCAN_RADIUS = 14;
+const DOOR_SCAN_MIN_Y = -3;
+const DOOR_SCAN_MAX_Y = 4;
+let lastDoorScan = 0;
 
 function key(x, y, z) { return `${x},${y},${z}`; }
 
@@ -51,6 +56,7 @@ async function buildFullDoorTexture() {
         doorCompositeDataUrl = canvas.toDataURL("image/png");
         doorCompositeReady = true;
         refreshDoorInventoryIcons();
+        updateHeldDoor();
     } catch (error) {
         console.warn("WebMinecraft: failed to combine oak door textures", error);
     }
@@ -85,8 +91,7 @@ function makeHeldDoorTexture(image) {
 }
 
 function getHeldRoot() {
-    if (!camera) return null;
-    return camera.getObjectByName("WebMinecraftHeldBlock") || null;
+    return camera?.getObjectByName("WebMinecraftHeldBlock") || null;
 }
 
 let heldDoorGroup = null;
@@ -94,16 +99,11 @@ function updateHeldDoor() {
     const root = getHeldRoot();
     if (!root || !doorCompositeReady || !doorCompositeDataUrl) return;
     const slot = Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0;
-    const event = new CustomEvent("webminecraft:doordisplay", { detail: { active: false } });
-    const inventoryHotbar = document.querySelectorAll("#hotbar .slot");
-    const selectedSlot = inventoryHotbar[slot];
-    const isDoor = !!selectedSlot?.querySelector('.hotbarTexture[style*="oak_door_bottom"]');
+    const selectedSlot = document.querySelectorAll("#hotbar .slot")[slot];
+    const itemId = Number(selectedSlot?.dataset.itemId || selectedSlot?.getAttribute("data-item-id") || 0);
+    const isDoor = itemId === DOOR_BLOCK || !!selectedSlot?.querySelector('.hotbarTexture[style*="oak_door_bottom"]');
     if (!isDoor) {
-        heldDoorGroup?.traverse(object => {
-            if (object.material?.map) object.material.map.needsUpdate = true;
-        });
         if (heldDoorGroup) heldDoorGroup.visible = false;
-        root.dispatchEvent(event);
         return;
     }
     if (!heldDoorGroup) {
@@ -127,13 +127,23 @@ function updateHeldDoor() {
     }
 }
 
-function createDoorMesh(x, y, z, facing = "z") {
+function createDoorMesh(x, y, z, facing = "z", openAngle = 0) {
+    if (!scene) return null;
     const group = new THREE.Group();
-    group.position.set(x, y, z);
+    const hinge = facing === "x"
+        ? new THREE.Vector3(x, y, z + 0.43)
+        : new THREE.Vector3(x - 0.43, y, z);
+    group.position.copy(hinge);
+    group.rotation.y = facing === "x" ? Math.PI / 2 : 0;
     group.userData.isDoor = true;
     group.userData.doorBase = { x, y, z };
-    group.userData.open = false;
+    group.userData.open = openAngle !== 0;
+    group.userData.openAngle = openAngle;
     group.userData.facing = facing;
+    group.userData.hinge = hinge.clone();
+
+    const panel = new THREE.Group();
+    panel.rotation.y = openAngle;
 
     const bottom = new THREE.Mesh(
         new THREE.BoxGeometry(0.86, 1, 0.10),
@@ -143,14 +153,14 @@ function createDoorMesh(x, y, z, facing = "z") {
         new THREE.BoxGeometry(0.86, 1, 0.10),
         new THREE.MeshPhongMaterial({ map: DOOR_TOP_TEXTURE, color: 0xffffff, side: THREE.DoubleSide })
     );
-    bottom.position.y = 0.5;
-    top.position.y = 1.5;
+    bottom.position.set(0.43, 0.5, 0);
+    top.position.set(0.43, 1.5, 0);
     for (const part of [bottom, top]) {
         part.userData.isDoor = true;
         part.userData.doorBase = { x, y, z };
+        panel.add(part);
     }
-    group.add(bottom, top);
-    if (facing === "x") group.rotation.y = Math.PI / 2;
+    group.add(panel);
     scene.add(group);
     doors.set(key(x, y, z), group);
     return group;
@@ -159,7 +169,7 @@ function createDoorMesh(x, y, z, facing = "z") {
 function removeDoorMesh(x, y, z) {
     const group = doors.get(key(x, y, z));
     if (!group) return;
-    scene.remove(group);
+    scene?.remove(group);
     group.traverse(object => {
         if (object.geometry) object.geometry.dispose();
         if (object.material) object.material.dispose();
@@ -167,27 +177,35 @@ function removeDoorMesh(x, y, z) {
     doors.delete(key(x, y, z));
 }
 
-function syncDoorCollision(door, open) {
+function updateDoorCollisionState(door) {
     const { x, y, z } = door.userData.doorBase;
+    const open = !!door.userData.open;
     if (open) {
         setBlockAt(x, y, z, BLOCK.AIR);
         setBlockAt(x, y + 1, z, BLOCK.AIR);
     } else {
         if (getBlockAt(x, y, z) !== BLOCK.AIR || getBlockAt(x, y + 1, z) !== BLOCK.AIR) return false;
-        setBlockAt(x, y, z, BLOCK.OAK_PLANKS);
-        setBlockAt(x, y + 1, z, BLOCK.OAK_PLANKS);
+        setBlockAt(x, y, z, DOOR_BLOCK);
+        setBlockAt(x, y + 1, z, DOOR_BLOCK);
     }
     return true;
 }
 
 function toggleDoor(door) {
     if (!door) return false;
-    const nextOpen = !door.userData.open;
-    if (!syncDoorCollision(door, nextOpen)) return false;
-    door.userData.open = nextOpen;
-    door.rotation.y = nextOpen
-        ? (door.userData.facing === "x" ? -Math.PI / 2 : Math.PI / 2)
-        : (door.userData.facing === "x" ? Math.PI / 2 : 0);
+    if (door.userData.open) {
+        if (!updateDoorCollisionState({ userData: { ...door.userData, open: false } })) return false;
+        door.userData.open = false;
+        door.userData.openAngle = 0;
+    } else {
+        const { x, z } = door.userData.doorBase;
+        const side = door.userData.facing === "x" ? camera.position.x - x : camera.position.z - z;
+        door.userData.open = true;
+        door.userData.openAngle = side >= 0 ? Math.PI / 2 : -Math.PI / 2;
+        updateDoorCollisionState(door);
+    }
+    const panel = door.children[0];
+    if (panel) panel.rotation.y = door.userData.openAngle;
     return true;
 }
 
@@ -203,12 +221,54 @@ function getDoorFromObject(object) {
     return null;
 }
 
+function inferFacingFromWorld(x, y, z) {
+    const sideX = getBlockAt(x + 1, y, z) === DOOR_BLOCK || getBlockAt(x - 1, y, z) === DOOR_BLOCK;
+    const sideZ = getBlockAt(x, y, z + 1) === DOOR_BLOCK || getBlockAt(x, y, z - 1) === DOOR_BLOCK;
+    if (sideX && !sideZ) return "z";
+    if (sideZ && !sideX) return "x";
+    return "z";
+}
+
+function reconcileDoors(force = false) {
+    if (!scene || !camera) return;
+    const now = performance.now();
+    if (!force && now - lastDoorScan < 400) return;
+    lastDoorScan = now;
+    const cx = Math.floor(camera.position.x);
+    const cy = Math.floor(camera.position.y - 1);
+    const cz = Math.floor(camera.position.z);
+    const wanted = new Set();
+    for (let x = cx - DOOR_SCAN_RADIUS; x <= cx + DOOR_SCAN_RADIUS; x++) {
+        for (let z = cz - DOOR_SCAN_RADIUS; z <= cz + DOOR_SCAN_RADIUS; z++) {
+            for (let y = cy + DOOR_SCAN_MIN_Y; y <= cy + DOOR_SCAN_MAX_Y; y++) {
+                if (getBlockAt(x, y, z) !== DOOR_BLOCK || getBlockAt(x, y + 1, z) !== DOOR_BLOCK) continue;
+                if (getBlockAt(x, y - 1, z) === DOOR_BLOCK) continue;
+                const k = key(x, y, z);
+                wanted.add(k);
+                if (!doors.has(k)) createDoorMesh(x, y, z, inferFacingFromWorld(x, y, z));
+            }
+        }
+    }
+    for (const [k, door] of doors) {
+        const base = door.userData.doorBase;
+        const far = Math.max(Math.abs(base.x - cx), Math.abs(base.z - cz));
+        if (far > DOOR_SCAN_RADIUS + 3 || !getBlockAt(base.x, base.y, base.z) || !getBlockAt(base.x, base.y + 1, base.z)) {
+            if (!wanted.has(k) && !door.userData.open) removeDoorMesh(base.x, base.y, base.z);
+        }
+    }
+}
+
 function getDoorTarget() {
     if (!scene || !camera) return null;
+    reconcileDoors(true);
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    raycaster.near = 0.01;
     raycaster.far = 5;
-    const hit = raycaster.intersectObjects([...doors.values()], true)[0];
+    const hits = raycaster.intersectObjects([...doors.values()], true);
+    raycaster.near = 0;
+    raycaster.far = Infinity;
+    const hit = hits.find(entry => entry.distance <= 5);
     if (!hit) return null;
     const door = getDoorFromObject(hit.object);
     if (!door) return null;
@@ -260,8 +320,8 @@ export function setupDoorSystem(nextScene, nextCamera) {
         });
     }
     document.addEventListener("webminecraft:selectedslot", updateHeldDoor);
-    document.addEventListener("webminecraft:doordisplay", () => {});
     updateHeldDoor();
+    reconcileDoors(true);
 }
 
 export function placeDoor(target) {
@@ -274,19 +334,18 @@ export function placeDoor(target) {
     if (getBlockAt(x, y, z) !== BLOCK.AIR || getBlockAt(x, y + 1, z) !== BLOCK.AIR) return false;
     if (getBlockAt(x, y - 1, z) === BLOCK.AIR) return false;
     const facing = Math.abs(normal.x) > Math.abs(normal.z) ? "x" : "z";
-    const door = createDoorMesh(x, y, z, facing);
-    if (!setBlockAt(x, y, z, BLOCK.OAK_PLANKS) || !setBlockAt(x, y + 1, z, BLOCK.OAK_PLANKS)) {
-        removeDoorMesh(x, y, z);
+    if (!setBlockAt(x, y, z, DOOR_BLOCK)) return false;
+    if (!setBlockAt(x, y + 1, z, DOOR_BLOCK)) {
+        setBlockAt(x, y, z, BLOCK.AIR);
         return false;
     }
+    createDoorMesh(x, y, z, facing);
     selected = false;
     document.getElementById("doorSelectButton")?.classList.remove("selected");
-    return !!door;
+    return true;
 }
 
-export function getDoorSelectionTarget() {
-    return getDoorTarget();
-}
+export function getDoorSelectionTarget() { return getDoorTarget(); }
 
 buildFullDoorTexture();
 
