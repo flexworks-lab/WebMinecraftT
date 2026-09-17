@@ -20,8 +20,8 @@ function getSeed() {
 export function getWorldMode(seed = getSeed()) {
     const normalizedSeed = normalizeSeed(seed);
     const selectedMode = window.webMinecraftSelectedWorldMode;
+    const pendingMode = window.__webminecraftPendingSingleplayerMode;
 
-    // Multiplayer room mode is authoritative while connected to a server.
     if (window.__webminecraftMultiplayerActive === true) {
         if (selectedMode === "survival" || selectedMode === "creative") return selectedMode;
         if (normalizedSeed === null) return "creative";
@@ -32,8 +32,11 @@ export function getWorldMode(seed = getSeed()) {
         }
     }
 
-    // Singleplayer worlds are identified by their seed. Always prefer the mode
-    // saved for that exact seed so an old global mode cannot override Survival.
+    // A mode chosen immediately before Create New World is authoritative.
+    // This is especially important on mobile, where navigation can happen
+    // before the normal world-state sync has a chance to run.
+    if (pendingMode === "survival" || pendingMode === "creative") return pendingMode;
+
     if (normalizedSeed !== null) {
         try {
             const storedMode = localStorage.getItem(`${MODE_PREFIX}${normalizedSeed}`);
@@ -114,7 +117,10 @@ function loadSingleplayerWorldState() {
     lastStateSave = performance.now();
 
     const state = readWorldState(seed);
-    const mode = normalizeMode(state?.mode || getStoredMode(seed));
+    const pendingMode = window.__webminecraftPendingSingleplayerMode;
+    const mode = pendingMode === "survival" || pendingMode === "creative"
+        ? pendingMode
+        : normalizeMode(state?.mode || getStoredMode(seed));
     setWorldMode(seed, mode);
     window.webMinecraftSelectedWorldMode = mode;
     document.body.classList.toggle("webminecraft-survival", mode === "survival");
@@ -135,6 +141,10 @@ function loadSingleplayerWorldState() {
         try { localStorage.setItem("webminecraft_inventory", JSON.stringify(state.inventory)); } catch {}
         window.dispatchEvent(new CustomEvent("webminecraft:inventorychanged"));
     }
+
+    // Once the new world's mode has been committed to its seed, the temporary
+    // handoff value is no longer needed.
+    if (pendingMode === mode) window.__webminecraftPendingSingleplayerMode = null;
 }
 
 function saveSingleplayerWorldState(force = false) {
@@ -224,6 +234,7 @@ function addPickerStyles() {
 function applySelectedMode(mode) {
     const value = normalizeMode(mode);
     window.webMinecraftSelectedWorldMode = value;
+    window.__webminecraftPendingSingleplayerMode = value;
     document.body.classList.toggle("webminecraft-survival", value === "survival");
     document.body.classList.toggle("webminecraft-creative", value !== "survival");
     window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode: value } }));
@@ -277,7 +288,6 @@ function addModePicker() {
         cards.push(card);
     }
 
-    // Survival is the default for every newly-created world.
     setMode("survival");
 
     const help = document.createElement("p");
@@ -303,8 +313,9 @@ function rememberCreateMode() {
     if (seed === null) return;
     const mode = normalizeMode(select.value);
     window.webMinecraftSelectedWorldMode = mode;
-    setWorldMode(seed, mode);
     window.__webminecraftPendingSingleplayerMode = mode;
+    setWorldMode(seed, mode);
+    try { localStorage.setItem("webminecraft-pending-singleplayer-mode", mode); } catch {}
 }
 
 function markCurrentWorld() {
