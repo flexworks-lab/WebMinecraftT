@@ -37,7 +37,7 @@ function positionHealthHud() {
     if (!hud || !hotbar) return;
     const rect = hotbar.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const heartsCenter = rect.left + rect.width * 0.25;
+    const heartsCenter = rect.left + rect.width * 0.18;
     hud.style.left = `${heartsCenter}px`;
     hud.style.bottom = `${window.innerHeight - rect.top + 6}px`;
     hud.style.transform = "translateX(-50%)";
