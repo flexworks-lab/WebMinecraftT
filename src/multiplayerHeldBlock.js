@@ -15,7 +15,11 @@ import {
     oakPlankMaterial,
     snowMaterial,
     tntMaterial,
-    bricksMaterial
+    bricksMaterial,
+    stoneBricksMaterial,
+    crackedStoneBricksMaterial,
+    mossyStoneBricksMaterial,
+    dirtPathMaterial
 } from "./blocks.js";
 
 const ITEM_MATERIALS = {
@@ -34,7 +38,11 @@ const ITEM_MATERIALS = {
     13: oakPlankMaterial,
     14: snowMaterial,
     15: tntMaterial,
-    18: bricksMaterial
+    18: bricksMaterial,
+    19: stoneBricksMaterial,
+    20: crackedStoneBricksMaterial,
+    21: mossyStoneBricksMaterial,
+    22: dirtPathMaterial
 };
 
 const avatars = new Set();

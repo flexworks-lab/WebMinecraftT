@@ -23,13 +23,16 @@ const ITEM_TYPES = [
     { id: 15, name: "TNT", texture: "tnt_side.png", category: "tools" },
     { id: 16, name: "Flint and Steel", texture: "Flint_and_Steel_JE4_BE2.png", category: "tools" },
     { id: 17, name: "Oak Door", texture: "oak_door_bottom.png", category: "tools" },
-    { id: 18, name: "Bricks", texture: "bricks.svg", category: "building" }
+    { id: 18, name: "Bricks", texture: "bricks.png", category: "natural" },
+    { id: 19, name: "Stone Bricks", texture: "stone_bricks.png", category: "natural" },
+    { id: 20, name: "Cracked Stone Bricks", texture: "cracked_stone_bricks.png", category: "natural" },
+    { id: 21, name: "Mossy Stone Bricks", texture: "mossy_stone_bricks.png", category: "natural" },
+    { id: 22, name: "Dirt Path", texture: "dirt_path_top.png", category: "natural" }
 ];
 
 const TAB_DEFS = [
     { id: "tools", label: "Tools & Utilities", icon: "⚒" },
     { id: "natural", label: "Natural Blocks", icon: "◆" },
-    { id: "building", label: "Building Blocks", icon: "▦" },
     { id: "search", label: "Search", icon: "⌕" },
     { id: "survival", label: "Survival Inventory", icon: "▣" }
 ];
@@ -303,7 +306,7 @@ function renderCatalog() {
     }
     document.getElementById("catalogPanel").style.display = "flex";
     document.getElementById("survivalPanel").hidden = true;
-    section.textContent = selectedTab === "search" ? "Search Results" : (selectedTab === "tools" ? "Tools & Utilities" : selectedTab === "building" ? "Building Blocks" : "Natural Blocks");
+    section.textContent = selectedTab === "search" ? "Search Results" : (selectedTab === "tools" ? "Tools & Utilities" : "Natural Blocks");
     if (searchWrap) searchWrap.style.display = selectedTab === "search" || searchQuery ? "flex" : "none";
     const items = itemsForCurrentTab();
     grid.innerHTML = items.length ? items.map(item => `<div class="catalogSlot" draggable="true" data-item-id="${item.id}" title="${item.name}">${itemVisual(item)}<span class="catalogName">${item.name}</span></div>`).join("") : `<div style="grid-column:1/-1;color:#999;text-align:center;padding:30px 10px;font-size:13px">No items found</div>`;

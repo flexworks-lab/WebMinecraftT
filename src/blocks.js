@@ -63,7 +63,12 @@ const snowTexture = loadTexture(texturePath("snow.png"), "snow");
 const tntBottomTexture = loadTexture(texturePath("tnt_bottom.png"), "TNT bottom");
 const tntSideTexture = loadTexture(texturePath("tnt_side.png"), "TNT side");
 const tntTopTexture = loadTexture(texturePath("tnt_top.png"), "TNT top");
-const bricksTexture = loadTexture(texturePath("bricks.svg"), "bricks");
+const bricksTexture = loadTexture(texturePath("bricks.png"), "bricks");
+const stoneBricksTexture = loadTexture(texturePath("stone_bricks.png"), "stone bricks");
+const crackedStoneBricksTexture = loadTexture(texturePath("cracked_stone_bricks.png"), "cracked stone bricks");
+const mossyStoneBricksTexture = loadTexture(texturePath("mossy_stone_bricks.png"), "mossy stone bricks");
+const dirtPathSideTexture = loadTexture(texturePath("dirt_path_side.png"), "dirt path side");
+const dirtPathTopTexture = loadTexture(texturePath("dirt_path_top.png"), "dirt path top");
 const waterTexture = loadTexture(texturePath("Water_(texture)_JE4.png"), "Water texture");
 
 // Keep the darker block palette while adding a small material floor so textures
@@ -93,6 +98,11 @@ const oakSideMaterial = new THREE.MeshPhongMaterial({ map: oakSideTexture, color
 const oakTopMaterial = new THREE.MeshPhongMaterial({ map: oakTopTexture, color: textureShade, ...materialOptions });
 const oakPlankMaterial = new THREE.MeshPhongMaterial({ map: oakPlankTexture, color: textureShade, ...materialOptions });
 const bricksMaterial = new THREE.MeshPhongMaterial({ map: bricksTexture, color: textureShade, ...materialOptions });
+const stoneBricksMaterial = new THREE.MeshPhongMaterial({ map: stoneBricksTexture, color: textureShade, ...materialOptions });
+const crackedStoneBricksMaterial = new THREE.MeshPhongMaterial({ map: crackedStoneBricksTexture, color: textureShade, ...materialOptions });
+const mossyStoneBricksMaterial = new THREE.MeshPhongMaterial({ map: mossyStoneBricksTexture, color: textureShade, ...materialOptions });
+const dirtPathSideMaterial = new THREE.MeshPhongMaterial({ map: dirtPathSideTexture, color: textureShade, ...materialOptions });
+const dirtPathTopMaterial = new THREE.MeshPhongMaterial({ map: dirtPathTopTexture, color: textureShade, ...materialOptions });
 
 const leavesMaterial = new THREE.MeshPhongMaterial({
     map: leavesTexture, transparent: false, opacity: 1, alphaTest: 0.1,
@@ -120,6 +130,7 @@ const waterMaterial = new THREE.MeshPhongMaterial({
 const grassMaterial = [grassSideMaterial, grassSideMaterial, grassTopMaterial, dirtMaterial, grassSideMaterial, grassSideMaterial];
 const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTopMaterial, oakSideMaterial, oakSideMaterial];
 const tntMaterial = [tntSideMaterial, tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntSideMaterial, tntSideMaterial];
+const dirtPathMaterial = [dirtPathSideMaterial, dirtPathSideMaterial, dirtPathTopMaterial, dirtPathSideMaterial, dirtPathSideMaterial, dirtPathSideMaterial];
 
 function createBlock(scene, x, y, z, material) {
     const block = new THREE.Mesh(blockGeometry, material);
@@ -132,5 +143,6 @@ export {
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial, coalMaterial,
     ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,
     tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntMaterial,
-    bricksMaterial, bricksTexture, waterMaterial, waterTexture, createBlock
+    bricksMaterial, bricksTexture, stoneBricksMaterial, crackedStoneBricksMaterial, mossyStoneBricksMaterial, dirtPathMaterial,
+    stoneBricksTexture, crackedStoneBricksTexture, mossyStoneBricksTexture, dirtPathSideTexture, dirtPathTopTexture, waterMaterial, waterTexture, createBlock
 };

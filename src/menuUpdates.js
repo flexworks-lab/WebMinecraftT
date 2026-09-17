@@ -31,7 +31,7 @@ function addStyles() {
     style.id = "newsButtonStyles";
     style.textContent = `
         #menuUpdates{display:none!important}
-        #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:97 !important}
+        #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:1000 !important;display:block !important;pointer-events:auto !important}
         #newsButton.newsHasUnread::after{content:"";position:absolute;top:7px;right:7px;width:10px;height:10px;border-radius:50%;background:#e33;border:2px solid #4b0000;box-shadow:0 0 0 1px rgba(0,0,0,.65),0 0 8px rgba(255,40,40,.55)}
         #newsCenter{position:fixed;inset:0;display:none;background:linear-gradient(180deg,#1b1b1b,#111);z-index:240;color:#fff;overflow:hidden}
         #newsPanel{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;display:grid;grid-template-columns:minmax(260px,31vw) minmax(0,1fr);grid-template-rows:100%;background:#1a1a1a;overflow:hidden}
@@ -87,7 +87,7 @@ function hasNewsBeenSeen(){
 }
 
 function createNewsUi(){
-    if(!updates||!menu||document.getElementById("newsButton"))return;
+    if(document.getElementById("newsButton"))return;
     addStyles();
     const button=document.createElement("button");
     button.id="newsButton";
