@@ -129,6 +129,7 @@ import("./admin/devServerControls.js").catch(error => console.warn("Developer se
 import("./admin/adminChatFix.js").catch(error => console.warn("Admin server chat fix failed to load:", error));
 import("./admin/adminGameChatFix.js").catch(error => console.warn("Admin multiplayer chat styling failed to load:", error));
 import("./admin/adminManagement.js").catch(error => console.warn("Admin management failed to load:", error));
+import("./adminManagementEmailFix.js").catch(error => console.warn("Admin email support failed to load:", error));
 import("./admin/adminControls.js").catch(error => console.warn("Admin controls failed to load:", error));
 import("./admin/accountDevControls.js").catch(error => console.warn("Account developer controls failed to load:", error));
 import("./admin/announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
