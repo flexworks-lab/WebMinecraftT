@@ -1,3 +1,5 @@
+import "./cameraAndBlurFix.js";
+
 // Refresh account-dependent UI after an in-page login.
 // This makes Friends, Discussions, admin controls, developer controls,
 // announcements, and other auth-gated modules reinitialize from the new user.
