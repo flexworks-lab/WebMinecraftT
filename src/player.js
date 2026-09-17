@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getBlockAt } from "./world.js";
+import { isDoorBlocking } from "./door.js";
 import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";
 
 let velocityX = 0;
@@ -35,7 +36,10 @@ const HORIZONTAL_SKIN = 0;
 const MAX_PHYSICS_STEP = 1 / 120;
 
 function blockExists(x, y, z) {
-    return !!getBlockAt(x, y, z);
+    const type = getBlockAt(x, y, z);
+    if (!type) return false;
+    if (type === 17) return isDoorBlocking(x, y, z);
+    return true;
 }
 
 function getBox(camera) {

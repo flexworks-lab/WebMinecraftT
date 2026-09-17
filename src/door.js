@@ -18,6 +18,7 @@ let scene = null;
 let camera = null;
 let selected = false;
 const doors = new Map();
+const openDoorStates = new Map();
 const BLOCK = getBlockTypes();
 const DOOR_BLOCK = BLOCK.OAK_DOOR ?? 17;
 const DOOR_SCAN_RADIUS = 14;
@@ -137,13 +138,14 @@ function createDoorMesh(x, y, z, facing = "z", openAngle = 0) {
     group.rotation.y = facing === "x" ? Math.PI / 2 : 0;
     group.userData.isDoor = true;
     group.userData.doorBase = { x, y, z };
-    group.userData.open = openAngle !== 0;
-    group.userData.openAngle = openAngle;
+    const preservedAngle = openAngle || openDoorStates.get(key(x, y, z)) || 0;
+    group.userData.open = preservedAngle !== 0;
+    group.userData.openAngle = preservedAngle;
     group.userData.facing = facing;
     group.userData.hinge = hinge.clone();
 
     const panel = new THREE.Group();
-    panel.rotation.y = openAngle;
+    panel.rotation.y = preservedAngle;
 
     const bottom = new THREE.Mesh(
         new THREE.BoxGeometry(0.86, 1, 0.10),
@@ -178,35 +180,33 @@ function removeDoorMesh(x, y, z) {
 }
 
 function updateDoorCollisionState(door) {
+    if (!door) return false;
     const { x, y, z } = door.userData.doorBase;
-    const open = !!door.userData.open;
-    if (open) {
-        setBlockAt(x, y, z, BLOCK.AIR);
-        setBlockAt(x, y + 1, z, BLOCK.AIR);
-    } else {
-        if (getBlockAt(x, y, z) !== BLOCK.AIR || getBlockAt(x, y + 1, z) !== BLOCK.AIR) return false;
-        setBlockAt(x, y, z, DOOR_BLOCK);
-        setBlockAt(x, y + 1, z, DOOR_BLOCK);
-    }
+    const k = key(x, y, z);
+    if (door.userData.open) openDoorStates.set(k, door.userData.openAngle || Math.PI / 2);
+    else openDoorStates.delete(k);
     return true;
 }
 
 function toggleDoor(door) {
     if (!door) return false;
+    const { x, z } = door.userData.doorBase;
     if (door.userData.open) {
-        if (!updateDoorCollisionState({ userData: { ...door.userData, open: false } })) return false;
         door.userData.open = false;
         door.userData.openAngle = 0;
     } else {
-        const { x, z } = door.userData.doorBase;
-        const side = door.userData.facing === "x" ? camera.position.x - x : camera.position.z - z;
+        const side = door.userData.facing === 'x' ? camera.position.x - x : camera.position.z - z;
         door.userData.open = true;
         door.userData.openAngle = side >= 0 ? Math.PI / 2 : -Math.PI / 2;
-        updateDoorCollisionState(door);
     }
+    updateDoorCollisionState(door);
     const panel = door.children[0];
     if (panel) panel.rotation.y = door.userData.openAngle;
     return true;
+}
+
+export function isDoorBlocking(x, y, z) {
+    return !openDoorStates.has(key(x, y, z));
 }
 
 function getDoorFromObject(object) {
@@ -281,6 +281,7 @@ export function handleDoorTarget(action) {
     if (!target) return false;
     if (action === "break") {
         const { x, y, z } = target;
+        openDoorStates.delete(key(x, y, z));
         setBlockAt(x, y, z, BLOCK.AIR);
         setBlockAt(x, y + 1, z, BLOCK.AIR);
         removeDoorMesh(x, y, z);
@@ -334,6 +335,7 @@ export function placeDoor(target) {
     if (getBlockAt(x, y, z) !== BLOCK.AIR || getBlockAt(x, y + 1, z) !== BLOCK.AIR) return false;
     if (getBlockAt(x, y - 1, z) === BLOCK.AIR) return false;
     const facing = Math.abs(normal.x) > Math.abs(normal.z) ? "x" : "z";
+    openDoorStates.delete(key(x, y, z));
     if (!setBlockAt(x, y, z, DOOR_BLOCK)) return false;
     if (!setBlockAt(x, y + 1, z, DOOR_BLOCK)) {
         setBlockAt(x, y, z, BLOCK.AIR);
