@@ -24,20 +24,20 @@ const drops = [];
 
 const HARDNESS = {
     1: 700, 2: 430, 3: 1050, 4: 380, 5: 900, 6: 280, 7: 1050,
-    8: 420, 9: 900, 10: Infinity, 11: 1200, 12: 1250, 13: 750, 14: 300, 15: 800
+    8: 420, 9: 900, 10: Infinity, 11: 1200, 12: 1250, 13: 750, 14: 300, 15: 800, 18: 900
 };
 
 const TEXTURES = {
     1: "Grass_Block_(top_texture)_JE2.png", 2: "dirt.png", 3: "stone.png", 4: "sand.png",
     5: "oak_log_top.png", 6: "oak-leaves-normal-original-default.png", 7: "cobblestone.png",
     8: "gravel.png", 9: "sandstone.png", 10: "bedrock.png", 11: "coal_ore.png",
-    12: "iron_ore.png", 13: "oak_planks.png", 14: "snow.png", 15: "tnt_side.png"
+    12: "iron_ore.png", 13: "oak_planks.png", 14: "snow.png", 15: "tnt_side.png", 18: "bricks.svg"
 };
 
 const COLORS = {
     1: 0x73a83f, 2: 0x8c5e3c, 3: 0x8c8c8c, 4: 0xd9c28b, 5: 0x8f6238,
     6: 0x3e8a3c, 7: 0x777777, 8: 0x8d806d, 9: 0xd5bd8d, 10: 0x4b4b4b,
-    11: 0x343434, 12: 0x929292, 13: 0xb68752, 14: 0xf1f7ff, 15: 0xd73636
+    11: 0x343434, 12: 0x929292, 13: 0xb68752, 14: 0xf1f7ff, 15: 0xd73636, 18: 0xa44b3b
 };
 
 function textureUrl(name) {

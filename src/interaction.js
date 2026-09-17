@@ -189,7 +189,7 @@ export function setupInteraction(scene, camera) {
             }
             return;
         }
-        if (itemId > BLOCK.TNT) return;
+        if (itemId > BLOCK.BRICKS) return;
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId)) {

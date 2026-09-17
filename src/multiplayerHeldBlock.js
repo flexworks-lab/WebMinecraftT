@@ -14,7 +14,8 @@ import {
     ironMaterial,
     oakPlankMaterial,
     snowMaterial,
-    tntMaterial
+    tntMaterial,
+    bricksMaterial
 } from "./blocks.js";
 
 const ITEM_MATERIALS = {
@@ -32,7 +33,8 @@ const ITEM_MATERIALS = {
     12: ironMaterial,
     13: oakPlankMaterial,
     14: snowMaterial,
-    15: tntMaterial
+    15: tntMaterial,
+    18: bricksMaterial
 };
 
 const avatars = new Set();

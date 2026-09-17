@@ -88,7 +88,8 @@ function inventoryTexture(itemId) {
         14: "snow.png",
         15: "tnt_side.png",
         16: "Flint_and_Steel_JE4_BE2.png",
-        17: "oak_door_bottom.png"
+        17: "oak_door_bottom.png",
+        18: "bricks.svg"
     };
     return textures[Number(itemId)] || null;
 }
