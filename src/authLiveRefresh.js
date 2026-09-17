@@ -5,6 +5,22 @@ let previousUid = null;
 let authListenerStarted = false;
 let receivedFirstAuthState = false;
 
+function updateSavedLoginUi(user) {
+    const apply = () => {
+        const button = document.getElementById("accountButton");
+        if (!button) return false;
+        button.title = user?.email ? `Logged in as ${user.email}` : "Account";
+        button.textContent = user?.email || user?.displayName || "Account";
+        return true;
+    };
+
+    if (apply()) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+        if (apply() || ++tries >= 50) window.clearInterval(timer);
+    }, 100);
+}
+
 function watchAuth() {
     if (authListenerStarted || !window.firebase?.auth) return;
     authListenerStarted = true;
@@ -15,6 +31,7 @@ function watchAuth() {
         receivedFirstAuthState = true;
         previousUid = uid || null;
 
+        updateSavedLoginUi(user || null);
         window.dispatchEvent(new CustomEvent("webminecraft:auth-state-changed", { detail: { user: user || null } }));
 
         if (justLoggedIn) {
