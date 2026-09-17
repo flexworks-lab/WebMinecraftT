@@ -1,3 +1,5 @@
+import "./autoCameraTurn.js";
+
 // Remove main-menu/UI blur and disable manual mouse/touch camera look.
 (function installCameraAndBlurFix() {
     if (window.__webMinecraftCameraAndBlurFix) return;
