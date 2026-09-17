@@ -18,10 +18,14 @@ function normalizeSeed(value) {
 function applyMode(mode, seed = null) {
     const value = normalizeMode(mode);
     window.webMinecraftSelectedWorldMode = value;
+    window.__webminecraftPendingSingleplayerMode = value;
     document.body.classList.toggle("webminecraft-survival", value === "survival");
     document.body.classList.toggle("webminecraft-creative", value === "creative");
     if (seed !== null) {
-        try { localStorage.setItem(`${MODE_KEY_PREFIX}${seed}`, value); } catch {}
+        try {
+            localStorage.setItem(`${MODE_KEY_PREFIX}${seed}`, value);
+            localStorage.setItem("webminecraft-pending-singleplayer-mode", value);
+        } catch {}
     }
     window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode: value } }));
 }
@@ -115,22 +119,7 @@ function enhanceModal(modal) {
         gameModeRow.appendChild(picker);
     }
 
-    const resetForNewWorld = () => {
-        if (modal.style.display !== "flex") return;
-        syncCards("survival");
-    };
-
     syncCards("survival");
-    new MutationObserver(() => resetForNewWorld()).observe(modal, { attributes: true, attributeFilter: ["style"] });
-    new MutationObserver(() => {
-        const currentSeed = normalizeSeed(seed.textContent.trim());
-        if (currentSeed !== null && select.value) applyMode(select.value, currentSeed);
-        for (const card of cards) {
-            const selected = card.dataset.mode === normalizeMode(select.value);
-            card.classList.toggle("selected", selected);
-            card.setAttribute("aria-checked", String(selected));
-        }
-    }).observe(seed, { childList: true, characterData: true, subtree: true });
 }
 
 function rememberModeBeforeCreate(event) {
