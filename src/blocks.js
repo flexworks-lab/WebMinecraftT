@@ -63,6 +63,7 @@ const snowTexture = loadTexture(texturePath("snow.png"), "snow");
 const tntBottomTexture = loadTexture(texturePath("tnt_bottom.png"), "TNT bottom");
 const tntSideTexture = loadTexture(texturePath("tnt_side.png"), "TNT side");
 const tntTopTexture = loadTexture(texturePath("tnt_top.png"), "TNT top");
+const bricksTexture = loadTexture(texturePath("bricks.svg"), "bricks");
 const waterTexture = loadTexture(texturePath("Water_(texture)_JE4.png"), "Water texture");
 
 // Keep the darker block palette while adding a small material floor so textures
@@ -91,6 +92,7 @@ const ironMaterial = new THREE.MeshPhongMaterial({ map: ironTexture, color: text
 const oakSideMaterial = new THREE.MeshPhongMaterial({ map: oakSideTexture, color: textureShade, ...materialOptions });
 const oakTopMaterial = new THREE.MeshPhongMaterial({ map: oakTopTexture, color: textureShade, ...materialOptions });
 const oakPlankMaterial = new THREE.MeshPhongMaterial({ map: oakPlankTexture, color: textureShade, ...materialOptions });
+const bricksMaterial = new THREE.MeshPhongMaterial({ map: bricksTexture, color: textureShade, ...materialOptions });
 
 const leavesMaterial = new THREE.MeshPhongMaterial({
     map: leavesTexture, transparent: false, opacity: 1, alphaTest: 0.1,
@@ -130,5 +132,5 @@ export {
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial, coalMaterial,
     ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,
     tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntMaterial,
-    waterMaterial, waterTexture, createBlock
+    bricksMaterial, bricksTexture, waterMaterial, waterTexture, createBlock
 };
