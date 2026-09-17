@@ -6,6 +6,7 @@ import "./multiplayerServerMode.js";
 import "./multiplayerSurvivalBridge.js";
 import "./multiplayerGameplayStateFix.js";
 import "./multiplayerHeldBlock.js";
+import "./authLiveRefresh.js";
 
 // The News button is created by menuUpdates.js. Give any button that becomes
 // #newsButton its final fixed position before it is inserted into the DOM.
