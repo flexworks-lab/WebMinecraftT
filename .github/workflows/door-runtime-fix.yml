@@ -1,0 +1,97 @@
+name: Fix door runtime
+
+'on':
+  push:
+    branches: ["main"]
+    paths:
+      - '.github/workflows/door-runtime-fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, 'Rework door collision') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 2
+
+      - name: Patch door state and collision
+        shell: python
+        run: |
+          from pathlib import Path
+
+          door_path = Path('src/door.js')
+          door = door_path.read_text()
+
+          old = '''const doors = new Map();\nconst BLOCK = getBlockTypes();'''
+          new = '''const doors = new Map();\nconst openDoorStates = new Map();\nconst BLOCK = getBlockTypes();'''
+          if old not in door:
+              raise SystemExit('door state insertion point not found')
+          door = door.replace(old, new, 1)
+
+          old = '''    group.userData.open = openAngle !== 0;\n    group.userData.openAngle = openAngle;'''
+          new = '''    const preservedAngle = openAngle || openDoorStates.get(key(x, y, z)) || 0;\n    group.userData.open = preservedAngle !== 0;\n    group.userData.openAngle = preservedAngle;'''
+          if old not in door:
+              raise SystemExit('door open state block not found')
+          door = door.replace(old, new, 1)
+          door = door.replace('    panel.rotation.y = openAngle;', '    panel.rotation.y = preservedAngle;', 1)
+
+          old = '''function updateDoorCollisionState(door) {\n    const { x, y, z } = door.userData.doorBase;\n    const open = !!door.userData.open;\n    if (open) {\n        setBlockAt(x, y, z, BLOCK.AIR);\n        setBlockAt(x, y + 1, z, BLOCK.AIR);\n    } else {\n        if (getBlockAt(x, y, z) !== BLOCK.AIR || getBlockAt(x, y + 1, z) !== BLOCK.AIR) return false;\n        setBlockAt(x, y, z, DOOR_BLOCK);\n        setBlockAt(x, y + 1, z, DOOR_BLOCK);\n    }\n    return true;\n}\n\nfunction toggleDoor(door) {\n    if (!door) return false;\n    if (door.userData.open) {\n        if (!updateDoorCollisionState({ userData: { ...door.userData, open: false } })) return false;\n        door.userData.open = false;\n        door.userData.openAngle = 0;\n    } else {\n        const { x, z } = door.userData.doorBase;\n        const side = door.userData.facing === "x" ? camera.position.x - x : camera.position.z - z;\n        door.userData.open = true;\n        door.userData.openAngle = side >= 0 ? Math.PI / 2 : -Math.PI / 2;\n        updateDoorCollisionState(door);\n    }\n    const panel = door.children[0];\n    if (panel) panel.rotation.y = door.userData.openAngle;\n    return true;\n}'''
+          new = '''function updateDoorCollisionState(door) {\n    if (!door) return false;\n    const { x, y, z } = door.userData.doorBase;\n    const k = key(x, y, z);\n    if (door.userData.open) {\n        openDoorStates.set(k, door.userData.openAngle || Math.PI / 2);\n    } else {\n        openDoorStates.delete(k);\n    }\n    return true;\n}\n\nfunction toggleDoor(door) {\n    if (!door) return false;\n    const { x, z } = door.userData.doorBase;\n    if (door.userData.open) {\n        door.userData.open = false;\n        door.userData.openAngle = 0;\n    } else {\n        const side = door.userData.facing === "x" ? camera.position.x - x : camera.position.z - z;\n        door.userData.open = true;\n        door.userData.openAngle = side >= 0 ? Math.PI / 2 : -Math.PI / 2;\n    }\n    updateDoorCollisionState(door);\n    const panel = door.children[0];\n    if (panel) panel.rotation.y = door.userData.openAngle;\n    return true;\n}\n\nexport function isDoorBlocking(x, y, z) {\n    return !openDoorStates.has(key(x, y, z));\n}'''
+          if old not in door:
+              raise SystemExit('door collision block not found')
+          door = door.replace(old, new, 1)
+
+          old = '''        if (far > DOOR_SCAN_RADIUS + 3 || !getBlockAt(base.x, base.y, base.z) || !getBlockAt(base.x, base.y + 1, base.z)) {\n            if (!wanted.has(k) && !door.userData.open) removeDoorMesh(base.x, base.y, base.z);\n        }'''
+          new = '''        if (far > DOOR_SCAN_RADIUS + 3 || !getBlockAt(base.x, base.y, base.z) || !getBlockAt(base.x, base.y + 1, base.z)) {\n            if (!wanted.has(k) || far > DOOR_SCAN_RADIUS + 3) removeDoorMesh(base.x, base.y, base.z);\n        }'''
+          if old not in door:
+              raise SystemExit('door reconcile block not found')
+          door = door.replace(old, new, 1)
+
+          old = '''    if (action === "break") {\n        setBlockAt(x, y, z, BLOCK.AIR);\n        setBlockAt(x, y + 1, z, BLOCK.AIR);\n        removeDoorMesh(x, y, z);'''
+          new = '''    if (action === "break") {\n        openDoorStates.delete(key(x, y, z));\n        setBlockAt(x, y, z, BLOCK.AIR);\n        setBlockAt(x, y + 1, z, BLOCK.AIR);\n        removeDoorMesh(x, y, z);'''
+          if old not in door:
+              raise SystemExit('door break block not found')
+          door = door.replace(old, new, 1)
+
+          old = '''    const widthAxis = Math.abs(normal.z) >= Math.abs(normal.x) ? "x" : "z";\n    if (!setBlockAt(x, y, z, DOOR_BLOCK)) return false;'''
+          new = '''    const widthAxis = Math.abs(normal.z) >= Math.abs(normal.x) ? "x" : "z";\n    openDoorStates.delete(key(x, y, z));\n    if (!setBlockAt(x, y, z, DOOR_BLOCK)) return false;'''
+          if old not in door:
+              raise SystemExit('door placement block not found')
+          door = door.replace(old, new, 1)
+
+          door_path.write_text(door)
+
+          player_path = Path('src/player.js')
+          player = player_path.read_text()
+          old = '''import { getBlockAt } from "./world.js";\nimport { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";'''
+          new = '''import { getBlockAt } from "./world.js";\nimport { isDoorBlocking } from "./door.js";\nimport { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";'''
+          if old not in player:
+              raise SystemExit('player import block not found')
+          player = player.replace(old, new, 1)
+
+          old = '''function blockExists(x, y, z) {\n    return !!getBlockAt(x, y, z);\n}'''
+          new = '''function blockExists(x, y, z) {\n    const type = getBlockAt(x, y, z);\n    if (!type) return false;\n    if (type === 17) return isDoorBlocking(x, y, z);\n    return true;\n}'''
+          if old not in player:
+              raise SystemExit('player collision block not found')
+          player = player.replace(old, new, 1)
+          player_path.write_text(player)
+          PY
+
+      - name: Build
+        run: npm install --ignore-scripts --no-audit --no-fund && node ./node_modules/vite/bin/vite.js build
+
+      - name: Commit and cleanup
+        run: |
+          rm -f .github/workflows/door-runtime-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/door.js src/player.js .github/workflows/door-runtime-fix.yml
+          git commit -m "Rework door collision"
+          git push origin main
