@@ -27,7 +27,7 @@ function addHealthHud() {
     if (!document.getElementById("webMinecraftHealthStyles")) {
         const style = document.createElement("style");
         style.id = "webMinecraftHealthStyles";
-        style.textContent = `#webMinecraftHealthHud{position:fixed;left:50%;bottom:84px;transform:none;z-index:10001;display:none;align-items:center;padding:0;pointer-events:none;white-space:nowrap}body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:20px;line-height:1;text-shadow:2px 2px 0 #000,-1px -1px 0 #000;white-space:nowrap}@media(max-width:700px){.healthHearts{font-size:16px;letter-spacing:0}}`;
+        style.textContent = `#webMinecraftHealthHud{position:fixed;left:50%;bottom:84px;transform:translateX(-100%);z-index:10001;display:none;align-items:center;padding:0;pointer-events:none;white-space:nowrap}body.webminecraft-survival.webminecraft-in-world #webMinecraftHealthHud{display:flex!important}body.webminecraft-survival.webminecraft-in-world #touchFly{display:none!important}.healthHearts{color:#ef5350;letter-spacing:1px;font-size:20px;line-height:1;text-shadow:2px 2px 0 #000,-1px -1px 0 #000;white-space:nowrap}@media(max-width:700px){.healthHearts{font-size:16px;letter-spacing:0}}`;
         document.head.appendChild(style);
     }
 }
@@ -37,10 +37,10 @@ function positionHealthHud() {
     if (!hud || !hotbar) return;
     const rect = hotbar.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const barLeft = Math.max(2, (window.innerWidth - rect.width) / 2);
-    hud.style.left = `${barLeft + 2}px`;
+    const barCenter = rect.left + rect.width / 2;
+    hud.style.left = `${barCenter}px`;
     hud.style.bottom = `${window.innerHeight - rect.top + 6}px`;
-    hud.style.transform = "none";
+    hud.style.transform = "translateX(-100%)";
 }
 function updateHealthHud() {
     const hud = document.getElementById("webMinecraftHealthHud");
