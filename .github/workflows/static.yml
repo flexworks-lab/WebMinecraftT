@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -23,6 +23,218 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Apply door rework
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          world_path = Path('src/world.js')
+          world = world_path.read_text()
+          if 'OAK_DOOR: 17' not in world:
+              old = 'TNT: 15, BRICKS: 18,'
+              new = 'TNT: 15, OAK_DOOR: 17, BRICKS: 18,'
+              if old not in world:
+                  raise SystemExit('door block id insertion point not found')
+              world = world.replace(old, new, 1)
+          world = world.replace('function isSolid(type){return type!==BLOCK.AIR;}', 'function isSolid(type){return type!==BLOCK.AIR&&type!==BLOCK.OAK_DOOR;}', 1)
+          world_path.write_text(world)
+
+          door_path = Path('src/door.js')
+          door = door_path.read_text()
+          door = door.replace(
+              'const BLOCK = getBlockTypes();\n\nfunction key(x, y, z) { return `${x},${y},${z}`; }',
+              '''const BLOCK = getBlockTypes();
+          const DOOR_BLOCK = BLOCK.OAK_DOOR ?? 17;
+          const DOOR_SCAN_RADIUS = 14;
+          const DOOR_SCAN_MIN_Y = -3;
+          const DOOR_SCAN_MAX_Y = 4;
+          let lastDoorScan = 0;
+
+          function key(x, y, z) { return `${x},${y},${z}`; }''',
+              1
+          )
+
+          old_mesh = '''function createDoorMesh(x, y, z, facing = "z") {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+    group.userData.isDoor = true;
+    group.userData.doorBase = { x, y, z };
+    group.userData.open = false;
+    group.userData.facing = facing;
+
+    const bottom = new THREE.Mesh(
+        new THREE.BoxGeometry(0.86, 1, 0.10),
+        new THREE.MeshPhongMaterial({ map: DOOR_TEXTURE, color: 0xffffff, side: THREE.DoubleSide })
+    );
+    const top = new THREE.Mesh(
+        new THREE.BoxGeometry(0.86, 1, 0.10),
+        new THREE.MeshPhongMaterial({ map: DOOR_TOP_TEXTURE, color: 0xffffff, side: THREE.DoubleSide })
+    );
+    bottom.position.y = 0.5;
+    top.position.y = 1.5;
+    for (const part of [bottom, top]) {
+        part.userData.isDoor = true;
+        part.userData.doorBase = { x, y, z };
+    }
+    group.add(bottom, top);
+    if (facing === "x") group.rotation.y = Math.PI / 2;
+    scene.add(group);
+    doors.set(key(x, y, z), group);
+    return group;
+}'''
+          new_mesh = '''function createDoorMesh(x, y, z, facing = "z", openAngle = 0) {
+    const group = new THREE.Group();
+    const hinge = facing === "x" ? new THREE.Vector3(x, y, z + 0.43) : new THREE.Vector3(x - 0.43, y, z);
+    group.position.copy(hinge);
+    group.rotation.y = facing === "x" ? Math.PI / 2 : 0;
+    group.userData.isDoor = true;
+    group.userData.doorBase = { x, y, z };
+    group.userData.open = openAngle !== 0;
+    group.userData.openAngle = openAngle;
+    group.userData.facing = facing;
+
+    const panel = new THREE.Group();
+    panel.rotation.y = openAngle;
+    const bottom = new THREE.Mesh(
+        new THREE.BoxGeometry(0.86, 1, 0.10),
+        new THREE.MeshPhongMaterial({ map: DOOR_TEXTURE, color: 0xffffff, side: THREE.DoubleSide })
+    );
+    const top = new THREE.Mesh(
+        new THREE.BoxGeometry(0.86, 1, 0.10),
+        new THREE.MeshPhongMaterial({ map: DOOR_TOP_TEXTURE, color: 0xffffff, side: THREE.DoubleSide })
+    );
+    bottom.position.set(0.43, 0.5, 0);
+    top.position.set(0.43, 1.5, 0);
+    for (const part of [bottom, top]) {
+        part.userData.isDoor = true;
+        part.userData.doorBase = { x, y, z };
+        panel.add(part);
+    }
+    group.add(panel);
+    scene.add(group);
+    doors.set(key(x, y, z), group);
+    return group;
+}'''
+          if old_mesh not in door:
+              raise SystemExit('old door mesh not found')
+          door = door.replace(old_mesh, new_mesh, 1)
+
+          old_collision = '''function syncDoorCollision(door, open) {
+    const { x, y, z } = door.userData.doorBase;
+    if (open) {
+        setBlockAt(x, y, z, BLOCK.AIR);
+        setBlockAt(x, y + 1, z, BLOCK.AIR);
+    } else {
+        if (getBlockAt(x, y, z) !== BLOCK.AIR || getBlockAt(x, y + 1, z) !== BLOCK.AIR) return false;
+        setBlockAt(x, y, z, BLOCK.OAK_PLANKS);
+        setBlockAt(x, y + 1, z, BLOCK.OAK_PLANKS);
+    }
+    return true;
+}
+
+function toggleDoor(door) {
+    if (!door) return false;
+    const nextOpen = !door.userData.open;
+    if (!syncDoorCollision(door, nextOpen)) return false;
+    door.userData.open = nextOpen;
+    door.rotation.y = nextOpen
+        ? (door.userData.facing === "x" ? -Math.PI / 2 : Math.PI / 2)
+        : (door.userData.facing === "x" ? Math.PI / 2 : 0);
+    return true;
+}'''
+          new_collision = '''function syncDoorCollision(door, open) {
+    const { x, y, z } = door.userData.doorBase;
+    if (open) {
+        setBlockAt(x, y, z, BLOCK.AIR);
+        setBlockAt(x, y + 1, z, BLOCK.AIR);
+        return true;
+    }
+    if (getBlockAt(x, y, z) !== BLOCK.AIR || getBlockAt(x, y + 1, z) !== BLOCK.AIR) return false;
+    return setBlockAt(x, y, z, DOOR_BLOCK) && setBlockAt(x, y + 1, z, DOOR_BLOCK);
+}
+
+function toggleDoor(door) {
+    if (!door) return false;
+    const nextOpen = !door.userData.open;
+    if (!syncDoorCollision(door, nextOpen)) return false;
+    door.userData.open = nextOpen;
+    const { x, z } = door.userData.doorBase;
+    const side = door.userData.facing === "x" ? camera.position.x - x : camera.position.z - z;
+    door.userData.openAngle = nextOpen ? (side >= 0 ? Math.PI / 2 : -Math.PI / 2) : 0;
+    const panel = door.children[0];
+    if (panel) panel.rotation.y = door.userData.openAngle;
+    return true;
+}'''
+          if old_collision not in door:
+              raise SystemExit('old door collision not found')
+          door = door.replace(old_collision, new_collision, 1)
+
+          marker = '''function getDoorTarget() {
+    if (!scene || !camera) return null;'''
+          reconcile = '''function inferDoorFacing(x, y, z) {
+    const xSide = getBlockAt(x - 1, y, z) !== BLOCK.AIR || getBlockAt(x + 1, y, z) !== BLOCK.AIR;
+    const zSide = getBlockAt(x, y, z - 1) !== BLOCK.AIR || getBlockAt(x, y, z + 1) !== BLOCK.AIR;
+    if (xSide && !zSide) return "z";
+    if (zSide && !xSide) return "x";
+    return "z";
+}
+
+function reconcileDoors(force = false) {
+    if (!scene || !camera) return;
+    const now = performance.now();
+    if (!force && now - lastDoorScan < 400) return;
+    lastDoorScan = now;
+    const cx = Math.floor(camera.position.x), cy = Math.floor(camera.position.y - 1), cz = Math.floor(camera.position.z);
+    const wanted = new Set();
+    for (let x = cx - DOOR_SCAN_RADIUS; x <= cx + DOOR_SCAN_RADIUS; x++) {
+        for (let z = cz - DOOR_SCAN_RADIUS; z <= cz + DOOR_SCAN_RADIUS; z++) {
+            for (let y = cy + DOOR_SCAN_MIN_Y; y <= cy + DOOR_SCAN_MAX_Y; y++) {
+                if (getBlockAt(x, y, z) !== DOOR_BLOCK || getBlockAt(x, y + 1, z) !== DOOR_BLOCK) continue;
+                if (getBlockAt(x, y - 1, z) === DOOR_BLOCK) continue;
+                const k = key(x, y, z);
+                wanted.add(k);
+                if (!doors.has(k)) createDoorMesh(x, y, z, inferDoorFacing(x, y, z));
+            }
+        }
+    }
+    for (const [k, door] of doors) {
+        const base = door.userData.doorBase;
+        const far = Math.max(Math.abs(base.x - cx), Math.abs(base.z - cz));
+        if (!door.userData.open && (far > DOOR_SCAN_RADIUS + 3 || (!wanted.has(k) && (getBlockAt(base.x, base.y, base.z) !== DOOR_BLOCK || getBlockAt(base.x, base.y + 1, base.z) !== DOOR_BLOCK)))) {
+            removeDoorMesh(base.x, base.y, base.z);
+        }
+    }
+}
+
+function getDoorTarget() {
+    if (!scene || !camera) return null;
+    reconcileDoors(true);'''
+          if marker not in door:
+              raise SystemExit('door target function not found')
+          door = door.replace(marker, reconcile, 1)
+          door = door.replace('    updateHeldDoor();\n}', '    updateHeldDoor();\n    reconcileDoors(true);\n}', 1)
+
+          old_place = '''    const facing = Math.abs(normal.x) > Math.abs(normal.z) ? "x" : "z";
+    const door = createDoorMesh(x, y, z, facing);
+    if (!setBlockAt(x, y, z, BLOCK.OAK_PLANKS) || !setBlockAt(x, y + 1, z, BLOCK.OAK_PLANKS)) {
+        removeDoorMesh(x, y, z);
+        return false;
+    }'''
+          new_place = '''    const facing = Math.abs(normal.x) > Math.abs(normal.z) ? "x" : "z";
+    if (!setBlockAt(x, y, z, DOOR_BLOCK)) return false;
+    if (!setBlockAt(x, y + 1, z, DOOR_BLOCK)) {
+        setBlockAt(x, y, z, BLOCK.AIR);
+        return false;
+    }
+    const door = createDoorMesh(x, y, z, facing);'''
+          if old_place not in door:
+              raise SystemExit('door placement block not found')
+          door = door.replace(old_place, new_place, 1)
+          door_path.write_text(door)
+          PY
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -36,6 +248,17 @@ jobs:
       - name: Build Vite site
         run: node ./node_modules/vite/bin/vite.js build
 
+      - name: Commit door rework and restore workflow
+        run: |
+          rm -f .github/workflows/apply-door-fix.yml .door-fix-trigger
+          git checkout HEAD^ -- .github/workflows/static.yml || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Rework door system'
+          git push origin main
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -47,5 +270,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-
-# Trigger deployment for latest main
