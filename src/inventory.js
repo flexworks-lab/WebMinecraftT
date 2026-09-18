@@ -306,7 +306,7 @@ body.webminecraft-creative .slotCount,body.webminecraft-creative .hotbarCount{di
 body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block;left:calc(50% - min(252px,45vw) - 66px);right:auto;bottom:8px;z-index:10001}
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{z-index:10000!important;bottom:8px!important}
 #heldBlock{display:none!important;pointer-events:none}
-@media(max-width:700px){#inventoryPanel{width:96vw;height:94vh;padding:7px}#catalogGrid{grid-template-columns:repeat(6,minmax(42px,1fr))}#creativeTabs{gap:4px}.inventoryTab{width:48px;height:44px}#catalogToolbar{align-items:flex-start;flex-direction:column;gap:6px}#catalogSearchWrap{width:100%}#catalogViewport{touch-action:pan-y;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#58a846 #242424;padding-right:5px}.catalogSlot{touch-action:pan-y;user-select:none;-webkit-user-select:none}#catalogViewport::-webkit-scrollbar{width:12px}#catalogViewport::-webkit-scrollbar-track{background:#242424;border:2px solid #111}#catalogViewport::-webkit-scrollbar-thumb{background:linear-gradient(#74c35a,#3f8f32);border:2px solid #1d4718;box-shadow:inset 1px 1px 0 rgba(255,255,255,.28),inset -1px -1px 0 rgba(0,0,0,.3);border-radius:2px}#catalogViewport::-webkit-scrollbar-thumb:hover{background:linear-gradient(#86d66a,#4ca83e)}#inventoryBottom{grid-template-columns:54px 1fr 54px;gap:5px}#hotbarInventory{grid-template-columns:repeat(9,minmax(27px,1fr));gap:3px}.destroySlot,.offhandSlot{width:50px;height:50px;font-size:30px}}
+@media(max-width:700px){#inventoryPanel{width:96vw;height:94vh;padding:7px}#catalogGrid{grid-template-columns:repeat(6,minmax(42px,1fr));touch-action:none}#creativeTabs{gap:4px}.inventoryTab{width:48px;height:44px}#catalogToolbar{align-items:flex-start;flex-direction:column;gap:6px}#catalogSearchWrap{width:100%}#catalogViewport{touch-action:none;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:auto;scrollbar-color:#58a846 #242424;padding-right:5px;overscroll-behavior-x:none}.catalogSlot{touch-action:none;user-select:none;-webkit-user-select:none;cursor:default}#catalogViewport::-webkit-scrollbar{width:16px}#catalogViewport::-webkit-scrollbar-track{background:#242424;border:2px solid #111;border-radius:2px}#catalogViewport::-webkit-scrollbar-thumb{background:linear-gradient(#74c35a,#3f8f32);border:2px solid #1d4718;box-shadow:inset 1px 1px 0 rgba(255,255,255,.28),inset -1px -1px 0 rgba(0,0,0,.3);border-radius:3px;min-height:48px}#catalogViewport::-webkit-scrollbar-thumb:hover{background:linear-gradient(#86d66a,#4ca83e)}#inventoryBottom{grid-template-columns:54px 1fr 54px;gap:5px}#hotbarInventory{grid-template-columns:repeat(9,minmax(27px,1fr));gap:3px}.destroySlot,.offhandSlot{width:50px;height:50px;font-size:30px}}
 `;
     document.head.appendChild(style);
 
@@ -350,6 +350,50 @@ function renderTabs() {
     }));
 }
 
+let mobileCatalogTouchActive = false;
+let mobileCatalogTouchMoved = false;
+let mobileCatalogTouchY = 0;
+let mobileCatalogTouchLastY = 0;
+let mobileCatalogIgnoreClickUntil = 0;
+
+function setupMobileCatalogScroll() {
+    const viewport = document.getElementById("catalogViewport");
+    if (!viewport || viewport.dataset.mobileScrollReady === "1") return;
+    viewport.dataset.mobileScrollReady = "1";
+    const isMobile = () => document.body.classList.contains("mobile-mode");
+
+    viewport.addEventListener("touchstart", event => {
+        if (!isMobile() || event.touches.length !== 1) return;
+        const y = event.touches[0].clientY;
+        mobileCatalogTouchActive = true;
+        mobileCatalogTouchMoved = false;
+        mobileCatalogTouchY = y;
+        mobileCatalogTouchLastY = y;
+    }, { passive: true });
+
+    viewport.addEventListener("touchmove", event => {
+        if (!mobileCatalogTouchActive || !isMobile() || event.touches.length !== 1) return;
+        const y = event.touches[0].clientY;
+        const delta = mobileCatalogTouchLastY - y;
+        if (Math.abs(y - mobileCatalogTouchY) > 6) mobileCatalogTouchMoved = true;
+        if (!mobileCatalogTouchMoved) {
+            mobileCatalogTouchLastY = y;
+            return;
+        }
+        event.preventDefault();
+        viewport.scrollTop += delta;
+        mobileCatalogTouchLastY = y;
+    }, { passive: false });
+
+    const finishTouch = () => {
+        if (mobileCatalogTouchMoved) mobileCatalogIgnoreClickUntil = Date.now() + 350;
+        mobileCatalogTouchActive = false;
+        mobileCatalogTouchMoved = false;
+    };
+    viewport.addEventListener("touchend", finishTouch, { passive: true });
+    viewport.addEventListener("touchcancel", finishTouch, { passive: true });
+}
+
 function renderCatalog() {
     const grid = document.getElementById("catalogGrid");
     const section = document.getElementById("catalogSectionName");
@@ -377,7 +421,10 @@ function renderCatalog() {
             event.dataTransfer.setData("text/plain", String(itemId));
         });
         cell.addEventListener("dragend", () => { draggedCatalog = null; cell.style.opacity = ""; });
-        cell.addEventListener("click", () => addItem(itemId, MAX_STACK));
+        cell.addEventListener("click", () => {
+            if (document.body.classList.contains("mobile-mode") && Date.now() < mobileCatalogIgnoreClickUntil) return;
+            addItem(itemId, MAX_STACK);
+        });
     });
     grid.querySelectorAll(".catalogTexture").forEach(texture => {
         const fallback = texture.nextElementSibling;
@@ -575,6 +622,7 @@ export function consumeSelected(slotIndex) { return removeItem(slotIndex, 1); }
 export function setupInventory(camera) {
     loadInventory();
     createInventoryUI();
+    setupMobileCatalogScroll();
     createHeld3D(camera);
     renderTabs();
     renderInventory();
