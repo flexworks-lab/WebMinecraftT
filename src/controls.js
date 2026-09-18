@@ -46,6 +46,55 @@ let blockTouchStartX = 0;
 let blockTouchStartY = 0;
 let lastJumpTapTime = 0;
 
+let keyboardLockActive = false;
+
+function isGameplayActive() {
+    return window.__webminecraftGameStarted === true || document.body.classList.contains("webminecraft-in-world");
+}
+
+async function lockGameplayKeyboard() {
+    if (!isGameplayActive() || keyboardLockActive) return;
+    const keyboard = navigator.keyboard;
+    if (!keyboard?.lock) return;
+    try {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+        }
+        if (document.fullscreenElement) {
+            await keyboard.lock(["KeyW", "ControlLeft", "ControlRight"]);
+            keyboardLockActive = true;
+        }
+    } catch {
+        keyboardLockActive = false;
+    }
+}
+
+function unlockGameplayKeyboard() {
+    keyboardLockActive = false;
+    try { navigator.keyboard?.unlock?.(); } catch {}
+}
+
+window.addEventListener("keydown", event => {
+    if (!isGameplayActive()) return;
+    if (event.ctrlKey && (event.code === "KeyW" || event.key.toLowerCase() === "w")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+}, true);
+
+document.addEventListener("fullscreenchange", () => {
+    if (!isGameplayActive()) {
+        unlockGameplayKeyboard();
+        return;
+    }
+    if (document.fullscreenElement && !keyboardLockActive) {
+        void lockGameplayKeyboard();
+    }
+}, true);
+
+export { lockGameplayKeyboard };
+
+
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function toNdcX(clientX) { return (clientX / Math.max(window.innerWidth, 1)) * 2 - 1; }
 function toNdcY(clientY) { return 1 - (clientY / Math.max(window.innerHeight, 1)) * 2; }
