@@ -6,6 +6,15 @@ export let yaw = 0;
 export let pitch = 0;
 export let isFlying = false;
 
+export function setFlying(value) {
+    isFlying = !!value;
+}
+
+export function toggleFlying() {
+    isFlying = !isFlying;
+    return isFlying;
+}
+
 export function resetView(newYaw = 0, newPitch = 0) { yaw = newYaw; pitch = newPitch; }
 
 export const touchInput = {
@@ -13,9 +22,6 @@ export const touchInput = {
     moveZ: 0,
     jump: false,
     sprint: false,
-    breakPressed: false,
-    punchPressed: false,
-    placePressed: false,
     lookActive: false,
     blockTouchActive: false,
     blockTouchStarted: 0,
@@ -35,6 +41,7 @@ let lookLastX = 0;
 let lookLastY = 0;
 let blockTouchStartX = 0;
 let blockTouchStartY = 0;
+let lastJumpTapTime = 0;
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function toNdcX(clientX) { return (clientX / Math.max(window.innerWidth, 1)) * 2 - 1; }
@@ -88,31 +95,28 @@ function createTouchControls() {
     `;
 
     const actions = root.querySelector("#touchActions");
-    const mineButton = makeButton("touchBreak", "MINE", "actionButton mineButton");
-    const placeButton = makeButton("touchPlace", "PLACE", "actionButton placeButton");
     const jumpButton = makeButton("touchJump", "JUMP", "actionButton jumpButton");
     const sprintButton = makeButton("touchSprint", "RUN", "actionButton sprintButton");
-    const flyButton = makeButton("touchFly", "FLY", "actionButton flyButton");
 
-    actions.append(mineButton, placeButton, sprintButton, flyButton, jumpButton);
-
-    addActionButton(mineButton, "breakPressed");
-    addActionButton(placeButton, "placePressed");
+    actions.append(sprintButton, jumpButton);
     addActionButton(sprintButton, "sprint");
-
-    flyButton.addEventListener("pointerdown", event => {
-        event.preventDefault();
-        event.stopPropagation();
-        isFlying = !isFlying;
-        flyButton.classList.toggle("pressed", isFlying);
-    });
 
     const jumpPress = event => {
         event.preventDefault();
         event.stopPropagation();
         jumpButton.setPointerCapture?.(event.pointerId);
-        touchInput.jump = true;
-        jumpButton.classList.add("pressed");
+
+        const now = performance.now();
+        const doubleTap = now - lastJumpTapTime <= 320;
+        lastJumpTapTime = now;
+
+        if (document.body.classList.contains("webminecraft-creative") && doubleTap) {
+            toggleFlying();
+            touchInput.jump = false;
+        } else {
+            touchInput.jump = true;
+        }
+        jumpButton.classList.toggle("pressed", touchInput.jump);
     };
     const releaseJump = () => {
         touchInput.jump = false;
@@ -279,7 +283,7 @@ export function setupControls() {
             for (const code of Object.keys(keys)) keys[code] = false;
             return;
         }
-        if (event.code === "KeyF" && !event.repeat) isFlying = !isFlying;
+        if (event.code === "KeyF" && !event.repeat) toggleFlying();
         keys[event.code] = true;
         if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
     });
