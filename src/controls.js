@@ -314,12 +314,12 @@ export function setupControls() {
     window.addEventListener("keyup", event => {
         if (document.body.classList.contains("mobile-mode")) {
             keys[event.code] = false;
-        if (event.code === "ControlLeft" || event.code === "ControlRight") {
-            touchInput.sneak = false;
-        }
             return;
         }
         keys[event.code] = false;
+        if (event.code === "ControlLeft" || event.code === "ControlRight") {
+            touchInput.sneak = false;
+        }
     });
     window.addEventListener("mousemove", event => {
         if (document.pointerLockElement !== document.body || document.body.classList.contains("mobile-mode")) return;
