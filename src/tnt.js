@@ -163,7 +163,8 @@ function startPhysicsLoop() {
 function getTarget(scene, camera, ndcX = 0, ndcY = 0) {
     camera.updateMatrixWorld(true);
     const point = Number.isFinite(ndcX) && Number.isFinite(ndcY) && (ndcX !== 0 || ndcY !== 0) ? new THREE.Vector2(ndcX, ndcY) : CENTER;
-    raycaster.setFromCamera(point, camera); raycaster.near = 0.01; raycaster.far = INTERACTION_DISTANCE;
+    const reach = document.body.classList.contains("webminecraft-creative") ? 12 : INTERACTION_DISTANCE;
+    raycaster.setFromCamera(point, camera); raycaster.near = 0.01; raycaster.far = reach;
     const hits = raycaster.intersectObjects(scene.children, true);
     const hit = hits.find(entry => {
         if (!entry.object?.userData?.isChunk || !entry.face) return false;
@@ -172,7 +173,7 @@ function getTarget(scene, camera, ndcX = 0, ndcY = 0) {
         return true;
     });
     raycaster.near = 0; raycaster.far = Infinity;
-    if (!hit || hit.distance > INTERACTION_DISTANCE) return null;
+    if (!hit || hit.distance > reach) return null;
     const normal = hit.face.normal.clone().normalize();
     const point = hit.point.clone().sub(normal.clone().multiplyScalar(0.01));
     const x = Math.floor(point.x + 0.5), y = Math.floor(point.y + 0.5), z = Math.floor(point.z + 0.5), type = getBlockAt(x, y, z);
