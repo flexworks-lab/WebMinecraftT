@@ -135,6 +135,14 @@ async function refresh() {
     ensureUi();
     const mainMenuVisible = isMainMenuVisible();
     const active = Boolean(window.__webminecraftMultiplayerActive);
+    const multiplayerMenu = document.getElementById("multiplayerMenu");
+    const multiplayerMenuOpen = Boolean(multiplayerMenu && getComputedStyle(multiplayerMenu).display !== "none");
+    if (multiplayerMenuOpen) {
+        countEl.style.display = "none";
+        panel.style.display = "none";
+        open = false;
+        return;
+    }
     if (!mainMenuVisible && !active) {
         countEl.style.display = "none";
         panel.style.display = "none";
