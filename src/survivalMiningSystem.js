@@ -381,10 +381,27 @@ function updateDrops(time) {
                 drop.position.y = supportY + .5 + DROP_HALF_SIZE;
                 drop.userData.velocityY = 0;
                 drop.userData.grounded = true;
+                drop.userData.baseY = drop.position.y;
             } else {
                 drop.position.y = Math.max(nextY, MIN_DROP_Y);
             }
         } else {
+            // A dropped item can lose its support after the block below it is mined.
+            // Re-check the exact block directly underneath every frame instead of
+            // assuming that a previously grounded item can stay suspended forever.
+            const supportX = Math.floor(drop.position.x + .5);
+            const supportZ = Math.floor(drop.position.z + .5);
+            const supportY = Math.floor(drop.position.y - DROP_HALF_SIZE + .5);
+            const supportBlock = getBlockAt(supportX, supportY, supportZ);
+            const hasSupport = supportBlock && supportBlock !== getBlockTypes().AIR;
+
+            if (!hasSupport) {
+                drop.userData.grounded = false;
+                drop.userData.baseY = undefined;
+                drop.userData.velocityY = 0;
+                continue;
+            }
+
             const baseY = drop.userData.baseY ?? (drop.userData.baseY = drop.position.y);
             drop.position.y = baseY + Math.sin(time * .003 + drop.userData.bob) * .045;
         }
