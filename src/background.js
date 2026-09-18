@@ -15,14 +15,14 @@ function applyDirtBackgrounds() {
     style.id = "webMinecraftDirtBackgrounds";
     style.textContent = `
 #savedWorlds {
-    background-color:#202020 !important;
+    background-color:rgba(32,32,32,.78) !important;
     background-image:none !important;
 }
 #savedWorldsShell {
-    background-color:#2a2a2a !important;
+    background-color:rgba(42,42,42,.86) !important;
     background-image:none !important;
 }
-#savedWorldsBody { background:rgba(0,0,0,.08); }
+#savedWorldsBody { background:rgba(0,0,0,.03); }
 `;
     document.head.appendChild(style);
 }
