@@ -164,26 +164,23 @@ const crosshair = document.getElementById("crosshair");
 const hotbar = document.getElementById("hotbar");
 
 function createMobileSettingsButton() {
-    if (document.getElementById("mobileSettingsButton")) return;
+    if (document.getElementById("mobilePauseButton")) return;
     const button = document.createElement("button");
-    button.id = "mobileSettingsButton";
+    button.id = "mobilePauseButton";
     button.type = "button";
-    button.setAttribute("aria-label", "Settings");
-    button.setAttribute("title", "Settings");
-    button.textContent = "⚙";
+    button.setAttribute("aria-label", "Pause");
+    button.setAttribute("title", "Pause");
+    button.textContent = "⏸";
     button.addEventListener("pointerdown", event => {
         if (!gameStarted || !mobileMode) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        if (settingsMenu) {
-            settingsMenu.style.display = "flex";
-            document.exitPointerLock?.();
-        }
+        window.webminecraftPause?.open?.(event);
     }, true);
 
     const style = document.createElement("style");
     style.textContent = `
-#mobileSettingsButton{
+#mobilePauseButton{
     display:none;
     position:fixed;
     top:max(12px,env(safe-area-inset-top));
@@ -206,10 +203,10 @@ function createMobileSettingsButton() {
     box-shadow:0 4px 0 #171b17,0 6px 15px rgba(0,0,0,.28);
     touch-action:manipulation;
 }
-#mobileSettingsButton:active{
+#mobilePauseButton:active{
     transform:translateY(2px);
 }
-body.mobile-mode.webminecraft-in-world #mobileSettingsButton{
+body.mobile-mode.webminecraft-in-world #mobilePauseButton{
     display:flex !important;
 }
 body.mobile-mode #settingsButton{
