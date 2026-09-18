@@ -200,7 +200,7 @@ export function setupInteraction(scene, camera) {
         if (itemId > BLOCK.DIRT_PATH) return;
         const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
         if (!target) return;
-        if (tryIgniteTNT(scene, camera, itemId)) {
+        if (tryIgniteTNT(scene, camera, itemId, ndcX, ndcY)) {
             if (creative || consumeSelected(selectedSlot)) sendPlayerAction("place");
             return;
         }
