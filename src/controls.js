@@ -47,42 +47,63 @@ let blockTouchStartY = 0;
 let lastJumpTapTime = 0;
 
 let keyboardLockRequested = false;
-async function lockGameKeyboard() {
-    if (keyboardLockRequested) return;
-    if (!document.body.classList.contains("webminecraft-in-world")) return;
+
+function isGameplayActive() {
+    return window.__webminecraftGameStarted === true || document.body.classList.contains("webminecraft-in-world");
+}
+
+async function enterGameplayKeyboardCapture() {
+    if (!isGameplayActive() || keyboardLockRequested) return;
     const keyboard = navigator.keyboard;
-    if (!keyboard?.lock) return;
-    keyboardLockRequested = true;
+    const root = document.documentElement;
+    if (!keyboard?.lock || !root?.requestFullscreen) return;
+
     try {
+        if (!document.fullscreenElement) {
+            try {
+                await root.requestFullscreen({ navigationUI: "hide", keyboardLock: "browser" });
+            } catch {
+                await root.requestFullscreen();
+            }
+        }
         await keyboard.lock(["KeyW"]);
+        keyboardLockRequested = true;
     } catch {
         keyboardLockRequested = false;
     }
 }
+
 function unlockGameKeyboard() {
     keyboardLockRequested = false;
     try { navigator.keyboard?.unlock?.(); } catch {}
 }
 
 window.addEventListener("keydown", event => {
-    const inWorld = document.body.classList.contains("webminecraft-in-world");
-    if (!inWorld) return;
+    if (!isGameplayActive()) return;
     if (event.ctrlKey && (event.code === "KeyW" || String(event.key).toLowerCase() === "w")) {
         event.preventDefault();
         event.stopImmediatePropagation();
     }
 }, true);
 
+window.addEventListener("pointerdown", event => {
+    if (!isGameplayActive()) return;
+    if (document.fullscreenElement || keyboardLockRequested) return;
+    void enterGameplayKeyboardCapture();
+}, true);
+
 document.addEventListener("pointerlockchange", () => {
-    if (document.body.classList.contains("webminecraft-in-world") && document.pointerLockElement === document.body) {
-        void lockGameKeyboard();
+    if (isGameplayActive() && document.pointerLockElement === document.body && document.fullscreenElement) {
+        void enterGameplayKeyboardCapture();
     }
 }, true);
 
 const gameplayStateObserver = new MutationObserver(() => {
-    if (!document.body.classList.contains("webminecraft-in-world")) unlockGameKeyboard();
+    if (!isGameplayActive()) unlockGameKeyboard();
 });
 gameplayStateObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+
+export { enterGameplayKeyboardCapture };
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function toNdcX(clientX) { return (clientX / Math.max(window.innerWidth, 1)) * 2 - 1; }
