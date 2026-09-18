@@ -79,6 +79,7 @@ function publicPlayer(player) {
         name: player.name,
         position: player.position,
         rotation: player.rotation,
+        heldItemId: Number.isFinite(player.heldItemId) ? player.heldItemId : 0,
     };
 }
 
@@ -251,6 +252,7 @@ function handleMessage(ws, raw, state) {
             ws,
             position: { x: numberOr(message.position?.x), y: numberOr(message.position?.y), z: numberOr(message.position?.z) },
             rotation: { x: numberOr(message.rotation?.x), y: numberOr(message.rotation?.y), z: numberOr(message.rotation?.z) },
+            heldItemId: 0,
             lastUpdate: 0,
         };
         room.players.set(player.id, player);
@@ -385,6 +387,8 @@ function handleMessage(ws, raw, state) {
             player.rotation.x = numberOr(message.rotation.x, player.rotation.x);
             player.rotation.y = numberOr(message.rotation.y, player.rotation.y);
             player.rotation.z = numberOr(message.rotation.z, player.rotation.z);
+            const heldItemId = Math.floor(numberOr(message.heldItemId, player.heldItemId));
+            player.heldItemId = heldItemId >= 0 && heldItemId <= 22 ? heldItemId : 0;
             player.lastUpdate = now;
         }
         return;
