@@ -28,6 +28,7 @@ export const touchInput = {
     blockTouchX: 0,
     blockTouchY: 0,
     blockTapPending: false,
+    blockTapDuration: 0,
     blockHoldTriggered: false,
     blockTapX: 0,
     blockTapY: 0,
@@ -92,7 +93,7 @@ function createTouchControls() {
         <div id="touchActions"></div>
         <div id="touchAimKnob" aria-hidden="true"></div>
         <div id="touchLookArea"></div>
-        <div id="touchHint">Drag to look • Survival: tap to place, hold to mine • Creative: tap to break</div>
+        <div id="touchHint">Drag to look • Survival: tap to place, hold to mine • Creative: tap to place/use, short press to break</div>
     `;
 
     const actions = root.querySelector("#touchActions");
@@ -224,6 +225,7 @@ function createTouchControls() {
         if (moved <= 18 && touchInput.blockTouchActive && !touchInput.blockHoldTriggered) {
             touchInput.blockTapX = toNdcX(event.clientX);
             touchInput.blockTapY = toNdcY(event.clientY);
+            touchInput.blockTapDuration = performance.now() - touchInput.blockTouchStarted;
             touchInput.blockTapPending = true;
         }
         lookPointer = null;
