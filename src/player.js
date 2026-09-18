@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { keys, yaw, pitch, touchInput, isFlying, consumeJumpQueued } from "./controls.js";
+import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getBlockAt } from "./world.js";
 import { isDoorBlocking } from "./door.js";
 import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";
@@ -312,7 +312,7 @@ function physicsStep(camera, dt) {
         velocityZ = approach(velocityZ, 0, friction * dt);
     }
     const jumpDown = !!keys["Space"] || touchInput.jump;
-    if (onGround && (jumpDown && !jumpWasDown || consumeJumpQueued())) {
+    if (jumpDown && !jumpWasDown && onGround) {
         velocityY = JUMP_SPEED;
         onGround = false;
     }
