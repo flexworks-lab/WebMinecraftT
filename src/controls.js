@@ -288,7 +288,7 @@ export function setupControls() {
         }
         if (event.code === "KeyF" && !event.repeat) isFlying = !isFlying;
         keys[event.code] = true;
-        if (event.code === "Space") jumpQueued = true;
+        if (event.code === "Space" && !event.repeat) jumpQueued = true;
         if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
     });
     window.addEventListener("keyup", event => {
