@@ -73,6 +73,44 @@ const dirtPathSideTexture = loadTexture(texturePath("dirt_path_side.png"), "dirt
 const dirtPathTopTexture = loadTexture(texturePath("dirt_path_top.png"), "dirt path top");
 const waterTexture = loadTexture(texturePath("Water_(texture)_JE4.png"), "Water texture");
 
+const acaciaPlanksTexture = loadTexture(texturePath("acacia_planks.png"), "acacia planks");
+const bambooPlanksTexture = loadTexture(texturePath("bamboo_planks.png"), "bamboo planks");
+const birchPlanksTexture = loadTexture(texturePath("birch_planks.png"), "birch planks");
+const crimsonPlanksTexture = loadTexture(texturePath("crimson_planks.png"), "crimson planks");
+const darkOakPlanksTexture = loadTexture(texturePath("dark_oak_planks.png"), "dark oak planks");
+const junglePlanksTexture = loadTexture(texturePath("jungle_planks.png"), "jungle planks");
+const mangrovePlanksTexture = loadTexture(texturePath("mangrove_planks.png"), "mangrove planks");
+const sprucePlanksTexture = loadTexture(texturePath("spruce_planks.png"), "spruce planks");
+const warpedPlanksTexture = loadTexture(texturePath("warped_planks.png"), "warped planks");
+
+const blastFurnaceFrontTexture = loadTexture(texturePath("blast_furnace_front.png"), "blast furnace front");
+const blastFurnaceSideTexture = loadTexture(texturePath("blast_furnace_side.png"), "blast furnace side");
+const blastFurnaceTopTexture = loadTexture(texturePath("blast_furnace_top.png"), "blast furnace top");
+const furnaceFrontTexture = loadTexture(texturePath("furnace_front.png"), "furnace front");
+const furnaceSideTexture = loadTexture(texturePath("furnace_side.png"), "furnace side");
+const furnaceTopTexture = loadTexture(texturePath("furnace_top.png"), "furnace top");
+
+const chiseledDeepslateTexture = loadTexture(texturePath("chiseled_deepslate.png"), "chiseled deepslate");
+const cobbledDeepslateTexture = loadTexture(texturePath("cobbled_deepslate.png"), "cobbled deepslate");
+const crackedDeepslateBricksTexture = loadTexture(texturePath("cracked_deepslate_bricks.png"), "cracked deepslate bricks");
+const crackedDeepslateTilesTexture = loadTexture(texturePath("cracked_deepslate_tiles.png"), "cracked deepslate tiles");
+const deepslateTexture = loadTexture(texturePath("deepslate.png"), "deepslate");
+const deepslateTopTexture = loadTexture(texturePath("deepslate_top.png"), "deepslate top");
+const deepslateBricksTexture = loadTexture(texturePath("deepslate_bricks.png"), "deepslate bricks");
+const deepslateCoalOreTexture = loadTexture(texturePath("deepslate_coal_ore.png"), "deepslate coal ore");
+const deepslateCopperOreTexture = loadTexture(texturePath("deepslate_copper_ore.png"), "deepslate copper ore");
+const deepslateDiamondOreTexture = loadTexture(texturePath("deepslate_diamond_ore.png"), "deepslate diamond ore");
+const deepslateEmeraldOreTexture = loadTexture(texturePath("deepslate_emerald_ore.png"), "deepslate emerald ore");
+const deepslateGoldOreTexture = loadTexture(texturePath("deepslate_gold_ore.png"), "deepslate gold ore");
+const deepslateIronOreTexture = loadTexture(texturePath("deepslate_iron_ore.png"), "deepslate iron ore");
+const deepslateLapisOreTexture = loadTexture(texturePath("deepslate_lapis_ore.png"), "deepslate lapis ore");
+const deepslateRedstoneOreTexture = loadTexture(texturePath("deepslate_redstone_ore.png"), "deepslate redstone ore");
+const deepslateTilesTexture = loadTexture(texturePath("deepslate_tiles.png"), "deepslate tiles");
+const polishedDeepslateTexture = loadTexture(texturePath("polished_deepslate.png"), "polished deepslate");
+const reinforcedDeepslateBottomTexture = loadTexture(texturePath("reinforced_deepslate_bottom.png"), "reinforced deepslate bottom");
+const reinforcedDeepslateSideTexture = loadTexture(texturePath("reinforced_deepslate_side.png"), "reinforced deepslate side");
+const reinforcedDeepslateTopTexture = loadTexture(texturePath("reinforced_deepslate_top.png"), "reinforced deepslate top");
+
 // Keep the darker block palette while adding a small material floor so textures
 // never become completely black when underground lighting gets very low.
 const textureShade = 0xd8d8d8;
@@ -108,6 +146,52 @@ const crackedStoneBricksMaterial = new THREE.MeshPhongMaterial({ map: crackedSto
 const mossyStoneBricksMaterial = new THREE.MeshPhongMaterial({ map: mossyStoneBricksTexture, color: textureShade, ...materialOptions });
 const dirtPathSideMaterial = new THREE.MeshPhongMaterial({ map: dirtPathSideTexture, color: textureShade, ...materialOptions });
 const dirtPathTopMaterial = new THREE.MeshPhongMaterial({ map: dirtPathTopTexture, color: textureShade, ...materialOptions });
+
+const acaciaPlanksMaterial = new THREE.MeshPhongMaterial({ map: acaciaPlanksTexture, color: textureShade, ...materialOptions });
+const bambooPlanksMaterial = new THREE.MeshPhongMaterial({ map: bambooPlanksTexture, color: textureShade, ...materialOptions });
+const birchPlanksMaterial = new THREE.MeshPhongMaterial({ map: birchPlanksTexture, color: textureShade, ...materialOptions });
+const crimsonPlanksMaterial = new THREE.MeshPhongMaterial({ map: crimsonPlanksTexture, color: textureShade, ...materialOptions });
+const darkOakPlanksMaterial = new THREE.MeshPhongMaterial({ map: darkOakPlanksTexture, color: textureShade, ...materialOptions });
+const junglePlanksMaterial = new THREE.MeshPhongMaterial({ map: junglePlanksTexture, color: textureShade, ...materialOptions });
+const mangrovePlanksMaterial = new THREE.MeshPhongMaterial({ map: mangrovePlanksTexture, color: textureShade, ...materialOptions });
+const sprucePlanksMaterial = new THREE.MeshPhongMaterial({ map: sprucePlanksTexture, color: textureShade, ...materialOptions });
+const warpedPlanksMaterial = new THREE.MeshPhongMaterial({ map: warpedPlanksTexture, color: textureShade, ...materialOptions });
+
+const blastFurnaceMaterial = [
+    new THREE.MeshPhongMaterial({ map: blastFurnaceSideTexture, color: textureShade, ...materialOptions }),
+    new THREE.MeshPhongMaterial({ map: blastFurnaceTopTexture, color: textureShade, ...materialOptions }),
+    new THREE.MeshPhongMaterial({ map: blastFurnaceBottomTexture ?? blastFurnaceSideTexture, color: textureShade, ...materialOptions })
+];
+blastFurnaceMaterial.front = new THREE.MeshPhongMaterial({ map: blastFurnaceFrontTexture, color: textureShade, ...materialOptions });
+
+const furnaceMaterial = [
+    new THREE.MeshPhongMaterial({ map: furnaceSideTexture, color: textureShade, ...materialOptions }),
+    new THREE.MeshPhongMaterial({ map: furnaceTopTexture, color: textureShade, ...materialOptions }),
+    new THREE.MeshPhongMaterial({ map: furnaceSideTexture, color: textureShade, ...materialOptions })
+];
+furnaceMaterial.front = new THREE.MeshPhongMaterial({ map: furnaceFrontTexture, color: textureShade, ...materialOptions });
+
+const chiseledDeepslateMaterial = new THREE.MeshPhongMaterial({ map: chiseledDeepslateTexture, color: textureShade, ...materialOptions });
+const cobbledDeepslateMaterial = new THREE.MeshPhongMaterial({ map: cobbledDeepslateTexture, color: textureShade, ...materialOptions });
+const crackedDeepslateBricksMaterial = new THREE.MeshPhongMaterial({ map: crackedDeepslateBricksTexture, color: textureShade, ...materialOptions });
+const crackedDeepslateTilesMaterial = new THREE.MeshPhongMaterial({ map: crackedDeepslateTilesTexture, color: textureShade, ...materialOptions });
+const deepslateMaterial = [new THREE.MeshPhongMaterial({ map: deepslateTexture, color: textureShade, ...materialOptions }), new THREE.MeshPhongMaterial({ map: deepslateTopTexture, color: textureShade, ...materialOptions })];
+const deepslateBricksMaterial = new THREE.MeshPhongMaterial({ map: deepslateBricksTexture, color: textureShade, ...materialOptions });
+const deepslateCoalOreMaterial = new THREE.MeshPhongMaterial({ map: deepslateCoalOreTexture, color: textureShade, ...materialOptions });
+const deepslateCopperOreMaterial = new THREE.MeshPhongMaterial({ map: deepslateCopperOreTexture, color: textureShade, ...materialOptions });
+const deepslateDiamondOreMaterial = new THREE.MeshPhongMaterial({ map: deepslateDiamondOreTexture, color: textureShade, ...materialOptions });
+const deepslateEmeraldOreMaterial = new THREE.MeshPhongMaterial({ map: deepslateEmeraldOreTexture, color: textureShade, ...materialOptions });
+const deepslateGoldOreMaterial = new THREE.MeshPhongMaterial({ map: deepslateGoldOreTexture, color: textureShade, ...materialOptions });
+const deepslateIronOreMaterial = new THREE.MeshPhongMaterial({ map: deepslateIronOreTexture, color: textureShade, ...materialOptions });
+const deepslateLapisOreMaterial = new THREE.MeshPhongMaterial({ map: deepslateLapisOreTexture, color: textureShade, ...materialOptions });
+const deepslateRedstoneOreMaterial = new THREE.MeshPhongMaterial({ map: deepslateRedstoneOreTexture, color: textureShade, ...materialOptions });
+const deepslateTilesMaterial = new THREE.MeshPhongMaterial({ map: deepslateTilesTexture, color: textureShade, ...materialOptions });
+const polishedDeepslateMaterial = new THREE.MeshPhongMaterial({ map: polishedDeepslateTexture, color: textureShade, ...materialOptions });
+const reinforcedDeepslateMaterial = [
+    new THREE.MeshPhongMaterial({ map: reinforcedDeepslateSideTexture, color: textureShade, ...materialOptions }),
+    new THREE.MeshPhongMaterial({ map: reinforcedDeepslateTopTexture, color: textureShade, ...materialOptions }),
+    new THREE.MeshPhongMaterial({ map: reinforcedDeepslateBottomTexture, color: textureShade, ...materialOptions })
+];
 
 const leavesMaterial = new THREE.MeshPhongMaterial({
     map: leavesTexture, transparent: false, opacity: 1, alphaTest: 0.1,
@@ -149,5 +233,13 @@ export {
     ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,
     tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntMaterial,
     bricksMaterial, bricksTexture, stoneBricksMaterial, crackedStoneBricksMaterial, mossyStoneBricksMaterial, dirtPathMaterial,
-    stoneBricksTexture, crackedStoneBricksTexture, mossyStoneBricksTexture, dirtPathSideTexture, dirtPathTopTexture, waterMaterial, waterTexture, createBlock
+    acaciaPlanksMaterial, bambooPlanksMaterial, birchPlanksMaterial, crimsonPlanksMaterial, darkOakPlanksMaterial,
+    junglePlanksMaterial, mangrovePlanksMaterial, sprucePlanksMaterial, warpedPlanksMaterial,
+    blastFurnaceMaterial, furnaceMaterial, chiseledDeepslateMaterial, cobbledDeepslateMaterial,
+    crackedDeepslateBricksMaterial, crackedDeepslateTilesMaterial, deepslateMaterial, deepslateBricksMaterial,
+    deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
+    deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
+    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial,
+    stoneBricksTexture, crackedStoneBricksTexture, mossyStoneBricksTexture, dirtPathSideTexture, dirtPathTopTexture,
+    waterMaterial, waterTexture, createBlock
 };
