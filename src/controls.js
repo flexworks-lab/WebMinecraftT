@@ -23,6 +23,7 @@ export const touchInput = {
     jump: false,
     sprint: false,
     sneak: false,
+    flyDown: false,
     lookActive: false,
     blockTouchActive: false,
     blockTouchStarted: 0,
@@ -108,12 +109,28 @@ function createTouchControls() {
     const toggleSneak = event => {
         event.preventDefault();
         event.stopPropagation();
+        if (isFlying) {
+            touchInput.sneak = false;
+            touchInput.flyDown = true;
+            sneakButton.classList.add("pressed");
+            sneakButton.setAttribute("aria-pressed", "true");
+            return;
+        }
         touchInput.sneak = !touchInput.sneak;
         sneakButton.classList.toggle("pressed", touchInput.sneak);
         sneakButton.setAttribute("aria-pressed", String(touchInput.sneak));
     };
+    const releaseSneak = () => {
+        touchInput.flyDown = false;
+        if (!isFlying) return;
+        sneakButton.classList.remove("pressed");
+        sneakButton.setAttribute("aria-pressed", "false");
+    };
     sneakButton.setAttribute("aria-pressed", "false");
     sneakButton.addEventListener("pointerdown", toggleSneak);
+    sneakButton.addEventListener("pointerup", releaseSneak);
+    sneakButton.addEventListener("pointercancel", releaseSneak);
+    sneakButton.addEventListener("lostpointercapture", releaseSneak);
 
     const jumpPress = event => {
         event.preventDefault();
@@ -251,6 +268,26 @@ function createTouchControls() {
     lookArea.addEventListener("pointerup", releaseLook, { passive: false });
     lookArea.addEventListener("pointercancel", releaseLook, { passive: false });
     lookArea.addEventListener("lostpointercapture", releaseLook, { passive: false });
+
+    const updateSneakButtonForFlight = () => {
+        const flying = isFlying;
+        const icon = sneakButton.querySelector(".touchIcon");
+        const label = sneakButton.querySelector(".touchLabel");
+        if (flying) {
+            if (icon) icon.textContent = "↓";
+            if (label) label.textContent = "DOWN";
+            sneakButton.setAttribute("aria-label", "Fly down");
+        } else {
+            if (icon) icon.textContent = "↓";
+            if (label) label.textContent = "SNEAK";
+            sneakButton.setAttribute("aria-label", "Sneak");
+            sneakButton.setAttribute("aria-pressed", String(touchInput.sneak));
+            sneakButton.classList.toggle("pressed", touchInput.sneak);
+            touchInput.flyDown = false;
+        }
+    };
+    updateSneakButtonForFlight();
+    setInterval(updateSneakButtonForFlight, 50);
 
     const style = document.createElement("style");
     style.id = "mobileGameplayControlsStyles";
