@@ -141,6 +141,9 @@ export function setupInteraction(scene, camera) {
             const ndcX = Number(touchInput.blockTapX) || 0;
             const ndcY = Number(touchInput.blockTapY) || 0;
             touchInput.blockTapPending = false;
+            // Short grass is its own decorative mesh, so give mobile taps a
+            // chance to break it before normal block placement runs.
+            if (window.__webMinecraftTryBreakShortGrass?.(ndcX, ndcY)) return;
             if (isSurvivalWorldActive()) placeBlock(ndcX, ndcY);
             else if (document.body.classList.contains("webminecraft-creative")) {
                 const duration = Number(touchInput.blockTapDuration) || 0;
