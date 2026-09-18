@@ -62,6 +62,8 @@ function normalize(world, fallbackIndex = 0) {
         name: String(world?.name || `World ${fallbackIndex + 1}`).trim().slice(0, MAX_NAME) || `World ${fallbackIndex + 1}`,
         createdAt,
         updatedAt: world?.updatedAt || createdAt,
+        lastPlayedAt: world?.lastPlayedAt || world?.updatedAt || createdAt,
+        mode: world?.mode === "creative" ? "creative" : "survival",
         blocks: world?.blocks && typeof world.blocks === "object" && !Array.isArray(world.blocks) ? world.blocks : {}
     };
 }
@@ -154,7 +156,9 @@ function writeIndex(worlds) {
         seed: w.seed,
         name: w.name,
         createdAt: w.createdAt,
-        updatedAt: w.updatedAt
+        updatedAt: w.updatedAt,
+        lastPlayedAt: w.lastPlayedAt,
+        mode: w.mode
     }));
     try { localStorage.setItem(INDEX_KEY, JSON.stringify(metadata)); } catch {}
 }
@@ -239,7 +243,47 @@ function addStyle() {
     const style = document.createElement("style");
     style.id = "savedWorldsV2Style";
     style.textContent = `
-#savedWorlds{position:fixed;inset:0;z-index:240;display:none;background:#171717;color:#fff;font-family:Arial,sans-serif}#savedWorlds .sw2-wrap{height:100%;display:flex;flex-direction:column;background:radial-gradient(circle at 50% 0,#3b3b3b 0,#191919 55%,#111 100%)}#savedWorlds .sw2-head{display:flex;align-items:center;gap:10px;padding:18px 26px;background:#292929;border-bottom:2px solid #111}#savedWorlds .sw2-title{margin:0 auto 0 0;font-size:28px;font-weight:800;text-shadow:2px 2px #000}#savedWorlds .sw2-count{color:#aaa;font-size:12px;margin-left:8px}.sw2-btn{min-height:42px;padding:9px 14px;border:1px solid #0b0b0b;border-radius:6px;background:#4a4a4a;color:#fff;cursor:pointer;font-weight:700;box-shadow:0 3px #0b0b0b}.sw2-btn:hover{filter:brightness(1.12)}.sw2-btn:disabled{opacity:.5;cursor:default}.sw2-green{background:#65864b}.sw2-red{background:#774747}#savedWorlds .sw2-body{flex:1;overflow:auto;padding:26px}.sw2-grid{max-width:1180px;margin:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}.sw2-card{background:linear-gradient(145deg,#424242,#2b2b2b);border:1px solid #101010;border-radius:9px;padding:18px;box-shadow:0 9px 22px #0006;display:flex;flex-direction:column;min-height:175px}.sw2-card h3{margin:0 0 8px;font-size:20px;word-break:break-word}.sw2-badge{align-self:flex-start;padding:4px 8px;border-radius:99px;background:#1e1e1e;color:#aaa;font-size:10px;text-transform:uppercase;letter-spacing:.5px}.sw2-meta{margin-top:auto;color:#aaa;font-size:12px;line-height:1.5}.sw2-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}.sw2-empty{max-width:600px;margin:12vh auto;padding:34px;text-align:center;background:#252525;border:1px solid #555;border-radius:10px;color:#aaa}.sw2-empty h2{color:#fff;margin:0 0 10px;font-size:26px}.sw2-panel{position:fixed;right:24px;top:100px;width:min(430px,calc(100% - 48px));max-height:calc(100% - 124px);overflow:auto;transform:translateX(120%);transition:.18s;background:#222;border:1px solid #666;border-radius:10px;box-shadow:0 18px 40px #000a}.sw2-panel.open{transform:translateX(0)}.sw2-panel-head{padding:17px;border-bottom:1px solid #111;display:flex;align-items:center}.sw2-panel-head h2{margin:0 auto 0 0}.sw2-panel-body{padding:20px}.sw2-label{color:#999;font-size:12px;margin:0 0 7px}.sw2-seed{padding:13px;background:#101010;border:1px solid #000;border-radius:6px;font-family:monospace;word-break:break-all}.sw2-field{width:100%;height:44px;margin-top:10px;padding:0 11px;border-radius:6px;border:1px solid #555;background:#111;color:#fff;box-sizing:border-box}.sw2-modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#000b;padding:20px}.sw2-modal-card{width:min(480px,94vw);background:#272727;border:1px solid #666;border-radius:10px;padding:25px;box-sizing:border-box}.sw2-modal-card h2{margin:0 0 8px}.sw2-help{color:#aaa;font-size:12px;line-height:1.5;margin:0 0 15px}@media(max-width:700px){#savedWorlds .sw2-head{flex-wrap:wrap;padding:12px 14px}.sw2-title{width:100%;font-size:22px}.sw2-count{margin-left:auto}.sw2-grid{grid-template-columns:1fr}.sw2-panel{right:12px;top:12px;width:calc(100% - 24px);max-height:calc(100% - 24px)}}`;
+#savedWorlds{position:fixed;inset:0;z-index:240;display:none;background:rgba(8,8,8,.72);color:#fff;font-family:Arial,sans-serif}
+#savedWorlds .sw2-wrap{height:100%;display:flex;flex-direction:column;background:rgba(10,10,10,.58)}
+#savedWorlds .sw2-head{display:flex;align-items:center;gap:14px;padding:14px 22px;background:#b7b7b7;color:#151515;border-bottom:2px solid #7a7a7a;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+#savedWorlds .sw2-title{margin:0 auto 0 0;font-family:"MinecraftFont",monospace;font-size:26px;font-weight:700;text-shadow:1px 1px 0 rgba(255,255,255,.45)}
+#savedWorlds .sw2-count{color:#424242;font:12px Arial,sans-serif;margin-left:10px}
+.sw2-btn{min-height:42px;padding:9px 14px;border:2px solid #1b1b1b;border-top-color:#a4a4a4;border-left-color:#a4a4a4;border-radius:0;background:linear-gradient(180deg,#737373,#565656);color:#fff;cursor:pointer;font-family:"MinecraftFont",monospace;font-size:12px;text-shadow:2px 2px 0 #333;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62);transition:none}
+.sw2-btn:hover,.sw2-btn:active{background:linear-gradient(180deg,#737373,#565656);filter:none;transform:none}
+.sw2-btn:focus,.sw2-btn:focus-visible{outline:none}
+.sw2-btn:disabled{opacity:.5;cursor:default}
+.sw2-green,.sw2-red{background:linear-gradient(180deg,#737373,#565656)}
+#savedWorlds .sw2-create-wrap{max-width:1180px;width:calc(100% - 44px);margin:22px auto 12px}
+#savedWorlds .sw2-create{width:100%;min-height:52px;padding:12px 18px;border:2px solid #1b1b1b;border-top-color:#a4a4a4;border-left-color:#a4a4a4;border-radius:0;background:linear-gradient(180deg,#858585,#666);color:#fff;font-family:"MinecraftFont",monospace;font-size:16px;text-shadow:2px 2px 0 #333;box-shadow:inset 2px 2px 0 rgba(255,255,255,.16),inset -2px -3px 0 rgba(0,0,0,.28),0 4px 0 rgba(0,0,0,.62);cursor:pointer;transition:none}
+#savedWorlds .sw2-create:hover,#savedWorlds .sw2-create:active{background:linear-gradient(180deg,#858585,#666);filter:none;transform:none}
+#savedWorlds .sw2-body{flex:1;overflow:auto;padding:0 22px 30px}
+#savedWorlds .sw2-grid{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+#savedWorlds .sw2-card{display:grid;grid-template-columns:250px minmax(0,1fr) auto;align-items:center;gap:18px;background:rgba(40,40,40,.84);border:2px solid #101010;border-top-color:#6e6e6e;border-left-color:#6e6e6e;border-radius:0;padding:12px;box-shadow:4px 4px 0 rgba(0,0,0,.5);min-height:148px}
+#savedWorlds .sw2-preview{width:250px;height:118px;display:block;object-fit:cover;background:linear-gradient(145deg,#5d6d78 0%,#8ba1af 45%,#6a7d55 46%,#415337 100%);border:2px solid #121212;image-rendering:auto}
+#savedWorlds .sw2-info{min-width:0;display:flex;flex-direction:column;gap:8px}
+#savedWorlds .sw2-name{margin:0;font-family:"MinecraftFont",monospace;font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#savedWorlds .sw2-mode{display:inline-flex;align-items:center;gap:7px;color:#d8d8d8;font-size:12px}
+#savedWorlds .sw2-mode-icon{display:inline-grid;place-items:center;width:24px;height:24px;background:#4b4b4b;border:1px solid #777;font-size:14px}
+#savedWorlds .sw2-details{display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:6px 18px;color:#b9b9b9;font-size:12px}
+#savedWorlds .sw2-detail-label{color:#808080;text-transform:uppercase;font-size:9px;letter-spacing:.8px}
+#savedWorlds .sw2-actions{display:flex;flex-direction:column;gap:8px;min-width:110px}
+#savedWorlds .sw2-empty{max-width:760px;margin:18px auto;padding:34px;text-align:center;background:rgba(32,32,32,.82);border:2px solid #111;border-top-color:#707070;border-left-color:#707070;border-radius:0;color:#aaa}
+#savedWorlds .sw2-empty h2{color:#fff;margin:0 0 10px;font-size:26px}
+#savedWorlds .sw2-empty .sw2-btn{margin-top:12px}
+#savedWorlds .sw2-panel{position:fixed;right:24px;top:94px;width:min(430px,calc(100% - 48px));max-height:calc(100% - 118px);overflow:auto;transform:none;display:none;background:#252525;border:2px solid #101010;border-top-color:#777;border-left-color:#777;border-radius:0;box-shadow:8px 8px 0 rgba(0,0,0,.55)}
+#savedWorlds .sw2-panel.open{display:block}
+#savedWorlds .sw2-panel-head{padding:15px;border-bottom:2px solid #111;display:flex;align-items:center}
+#savedWorlds .sw2-panel-head h2{margin:0 auto 0 0}
+#savedWorlds .sw2-panel-body{padding:18px}
+#savedWorlds .sw2-label{color:#aaa;font-size:12px;margin:0 0 7px}
+#savedWorlds .sw2-seed{padding:12px;background:#111;border:1px solid #555;border-radius:0;font-family:monospace;word-break:break-all}
+#savedWorlds .sw2-field{width:100%;height:44px;margin-top:10px;padding:0 11px;border-radius:0;border:2px solid #151515;border-top-color:#777;border-left-color:#777;background:#111;color:#fff;box-sizing:border-box}
+#savedWorlds .sw2-modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.7);padding:20px}
+#savedWorlds .sw2-modal-card{width:min(480px,94vw);background:#272727;border:2px solid #111;border-top-color:#777;border-left-color:#777;border-radius:0;padding:25px;box-sizing:border-box}
+#savedWorlds .sw2-modal-card h2{margin:0 0 8px}
+#savedWorlds .sw2-help{color:#aaa;font-size:12px;line-height:1.5;margin:0 0 15px}
+@media(max-width:760px){#savedWorlds .sw2-head{padding:12px 14px;flex-wrap:wrap}#savedWorlds .sw2-title{font-size:22px;width:100%}#savedWorlds .sw2-count{margin-left:8px}.sw2-btn{min-height:40px}#savedWorlds .sw2-create-wrap{width:calc(100% - 28px);margin:14px auto 10px}#savedWorlds .sw2-body{padding:0 14px 24px}#savedWorlds .sw2-card{grid-template-columns:120px minmax(0,1fr);gap:12px;min-height:112px;padding:9px}#savedWorlds .sw2-preview{width:120px;height:92px}#savedWorlds .sw2-actions{grid-column:1/-1;flex-direction:row}.sw2-card .sw2-actions .sw2-btn{flex:1}.sw2-details{grid-template-columns:1fr!important}.sw2-panel{right:12px!important;top:12px!important;width:calc(100% - 24px)!important;max-height:calc(100% - 24px)!important}}`;
+
     document.head.appendChild(style);
 }
 
@@ -248,7 +292,7 @@ function buildUI() {
     addStyle();
     overlay = document.createElement("div");
     overlay.id = "savedWorlds";
-    overlay.innerHTML = `<div class="sw2-wrap"><div class="sw2-head"><h1 class="sw2-title">Saved Worlds <span class="sw2-count"></span></h1><button class="sw2-btn" data-act="reload">↻ Reload</button><button class="sw2-btn sw2-green" data-act="new">+ New World</button><button class="sw2-btn" data-act="back">← Back</button></div><div class="sw2-body"><div class="sw2-grid"></div><aside class="sw2-panel"><div class="sw2-panel-head"><h2></h2><button class="sw2-btn" data-act="close">×</button></div><div class="sw2-panel-body"><p class="sw2-label">World seed</p><div class="sw2-seed" data-seed>—</div><p class="sw2-help">Your complete world, including block changes, is stored in this browser and synced to your account when signed in.</p><button class="sw2-btn" style="width:100%;margin:5px 0" data-act="copy">Copy Seed</button><button class="sw2-btn sw2-green" style="width:100%;margin:5px 0" data-act="play">Play World</button><button class="sw2-btn sw2-red" style="width:100%;margin:5px 0" data-act="delete">Delete World</button><div data-message style="min-height:20px;margin-top:8px;font-size:12px"></div></div></aside><div class="sw2-modal"><div class="sw2-modal-card"><h2>Create New World</h2><p class="sw2-help">Give the world a name. The seed below is unique and can be copied later.</p><p class="sw2-label">Seed</p><div class="sw2-seed" data-new-seed></div><input class="sw2-field" maxlength="40" placeholder="World name" data-name><div data-create-message style="min-height:20px;font-size:12px;margin-top:8px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px"><button class="sw2-btn sw2-green" data-act="create">Create & Play</button><button class="sw2-btn" data-act="cancel">Cancel</button></div></div></div></div>`;
+    overlay.innerHTML = `<div class="sw2-wrap"><div class="sw2-head"><h1 class="sw2-title">Worlds <span class="sw2-count"></span></h1><button class="sw2-btn" data-act="back">← Back</button></div><div class="sw2-create-wrap"><button class="sw2-create" data-act="new">+ Create New</button></div><div class="sw2-body"><div class="sw2-grid"></div><aside class="sw2-panel"><div class="sw2-panel-head"><h2></h2><button class="sw2-btn" data-act="close">×</button></div><div class="sw2-panel-body"><p class="sw2-label">World seed</p><div class="sw2-seed" data-seed>—</div><p class="sw2-help">Your complete world, including block changes, is stored in this browser and synced to your account when signed in.</p><button class="sw2-btn" style="width:100%;margin:5px 0" data-act="copy">Copy Seed</button><button class="sw2-btn sw2-green" style="width:100%;margin:5px 0" data-act="play">Play World</button><button class="sw2-btn sw2-red" style="width:100%;margin:5px 0" data-act="delete">Delete World</button><div data-message style="min-height:20px;margin-top:8px;font-size:12px"></div></div></aside><div class="sw2-modal"><div class="sw2-modal-card"><h2>Create New World</h2><p class="sw2-help">Give the world a name. The seed below is unique and can be copied later.</p><p class="sw2-label">Seed</p><div class="sw2-seed" data-new-seed></div><input class="sw2-field" maxlength="40" placeholder="World name" data-name><div data-create-message style="min-height:20px;font-size:12px;margin-top:8px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px"><button class="sw2-btn sw2-green" data-act="create">Create & Play</button><button class="sw2-btn" data-act="cancel">Cancel</button></div></div></div></div>`;
     document.body.appendChild(overlay);
     list = overlay.querySelector(".sw2-grid");
     details = overlay.querySelector(".sw2-panel");
@@ -256,7 +300,6 @@ function buildUI() {
     overlay.addEventListener("click", event => {
         const action = event.target.closest("[data-act]")?.dataset.act;
         if (!action) return;
-        if (action === "reload") reload();
         if (action === "new") openCreate();
         if (action === "back") closeMenu();
         if (action === "close") closeDetails();
@@ -296,16 +339,75 @@ function closeMenu() {
     if (menu) menu.style.display = "flex";
 }
 
+function formatSize(world) {
+    try {
+        const bytes = new Blob([JSON.stringify(world)]).size;
+        if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${bytes} B`;
+    } catch { return "Storage size unavailable"; }
+}
+
+function formatLastPlayed(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "Never";
+    return date.toLocaleDateString([], { year:"numeric", month:"short", day:"numeric" });
+}
+
+function getMode(world) {
+    try {
+        const stored = localStorage.getItem(`webminecraft-world-mode-${world.seed}`);
+        return stored === "creative" || world.mode === "creative" ? "creative" : "survival";
+    } catch { return world.mode === "creative" ? "creative" : "survival"; }
+}
+
+function getPreviewUrl(world) {
+    try {
+        const preview = localStorage.getItem(`webminecraft-world-preview-${world.seed}`);
+        if (preview) return preview;
+    } catch {}
+    return "";
+}
+
+function renderPreviewFallback(world) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 500; canvas.height = 236;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+    ctx.imageSmoothingEnabled = false;
+    const sky = ctx.createLinearGradient(0,0,0,150);
+    sky.addColorStop(0,"#657988"); sky.addColorStop(1,"#aebac0");
+    ctx.fillStyle=sky; ctx.fillRect(0,0,500,236);
+    ctx.fillStyle="#48613e"; ctx.fillRect(0,145,500,91);
+    const entries=Object.entries(world.blocks||{}).slice(0,180);
+    const cols=["#5d5d5d","#826647","#7b8b4f","#777777","#a08a5e","#4a6b42"];
+    entries.forEach(([key,value],index)=>{
+        const parts=key.split(",").map(Number);
+        if(parts.length!==3||parts.some(n=>!Number.isFinite(n))) return;
+        const x=((parts[0]*17+index*13)%470+470)%470;
+        const y=145-Math.max(0,Math.min(95,Math.floor((parts[1]-8)*7)));
+        ctx.fillStyle=cols[Math.abs(Number(value)||0)%cols.length];
+        ctx.fillRect(x,y,18,18);
+    });
+    ctx.fillStyle="rgba(0,0,0,.24)"; ctx.fillRect(0,0,500,236);
+    return canvas.toDataURL("image/png");
+}
+
 function render(worlds) {
-    worldsCache = worlds.map(normalize).filter(Boolean).sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    worldsCache = worlds.map(normalize).filter(Boolean).sort((a,b) => new Date(b.lastPlayedAt || b.updatedAt).getTime() - new Date(a.lastPlayedAt || a.updatedAt).getTime());
     writeIndex(worldsCache);
     overlay.querySelector(".sw2-count").textContent = `${worldsCache.length} world${worldsCache.length === 1 ? "" : "s"}`;
     if (!worldsCache.length) {
-        list.innerHTML = `<div class="sw2-empty"><h2>No saved worlds</h2><p>Create a world and your block changes will be saved here automatically.</p><button class="sw2-btn sw2-green" data-act="new">+ Create New World</button></div>`;
+        list.innerHTML = `<div class="sw2-empty"><h2>No worlds yet</h2><p>Create a new world to get started.</p><button class="sw2-btn" data-act="new">+ Create New</button></div>`;
         return;
     }
-    list.innerHTML = worldsCache.map((world, i) => `<article class="sw2-card"><h3>${esc(world.name || `World ${i+1}`)}</h3><span class="sw2-badge">Synced</span><div class="sw2-meta">Seed: ${esc(world.seed)}<br>${esc(formatSaved(world.updatedAt))}</div><div class="sw2-actions"><button class="sw2-btn sw2-green" data-play-seed="${world.seed}">Play</button><button class="sw2-btn" data-details-seed="${world.seed}">Details</button></div></article>`).join("");
-    list.querySelectorAll("[data-play-seed]").forEach(button => button.addEventListener("click", () => playWorld(worldsCache.find(w => w.seed === seedOf(button.dataset.playSeed)))));
+    list.innerHTML = worldsCache.map((world, i) => {
+        const mode=getMode(world);
+        const preview=getPreviewUrl(world) || renderPreviewFallback(world);
+        const safePreview=preview ? `<img class="sw2-preview" src="${esc(preview)}" alt="Screenshot preview of ${esc(world.name || `World ${i+1}`)}">` : `<div class="sw2-preview" aria-label="World preview"></div>`;
+        return `<article class="sw2-card"><div>${safePreview}</div><div class="sw2-info"><h3 class="sw2-name">${esc(world.name || `World ${i+1}`)}</h3><div class="sw2-mode"><span class="sw2-mode-icon">${mode === "creative" ? "▦" : "⛏"}</span><span>${mode === "creative" ? "Creative" : "Survival"}</span></div><div class="sw2-details"><div><div class="sw2-detail-label">Storage</div>${esc(formatSize(world))}</div><div><div class="sw2-detail-label">Last Played</div>${esc(formatLastPlayed(world.lastPlayedAt || world.updatedAt))}</div></div></div><div class="sw2-actions"><button class="sw2-btn" data-play-seed="${world.seed}">Play</button><button class="sw2-btn" data-details-seed="${world.seed}">Details</button></div></article>`;
+    }).join("");
+    list.querySelectorAll("[data-play-seed]").forEach(button => button.addEventListener("click", () => void playWorld(worldsCache.find(w => w.seed === seedOf(button.dataset.playSeed)))));
     list.querySelectorAll("[data-details-seed]").forEach(button => button.addEventListener("click", () => openDetails(worldsCache.find(w => w.seed === seedOf(button.dataset.detailsSeed)))));
 }
 
@@ -329,13 +431,20 @@ async function copySelected() {
     message.textContent = ok ? "Seed copied!" : "Could not copy the seed.";
 }
 
-function playWorld(world) {
+async function playWorld(world) {
     if (!world || !openWorldCallback) return;
+    const now = new Date().toISOString();
+    world.lastPlayedAt = now;
+    world.updatedAt = world.updatedAt || now;
+    world.mode = getMode(world);
+    try {
+        await putRecord(world);
+    } catch {}
     closeMenu();
     openWorldCallback(world.seed);
 }
 
-function playSelected() { playWorld(selected); }
+function playSelected() { void playWorld(selected); }
 
 async function deleteSelected() {
     if (!selected) return;
@@ -400,7 +509,9 @@ async function createWorld() {
         while (await getRecord(seed)) seed = randomSeed();
         unmarkDeleted(seed);
         const now = new Date().toISOString();
-        const world = await putRecord({ seed, name, createdAt: now, updatedAt: now, blocks: {} });
+        let mode = "survival";
+        try { mode = localStorage.getItem(`webminecraft-world-mode-${seed}`) === "creative" ? "creative" : "survival"; } catch {}
+        const world = await putRecord({ seed, name, createdAt: now, updatedAt: now, lastPlayedAt: now, mode, blocks: {} });
         if (typeof window.webMinecraftClearCloudWorldDeletion === "function") {
             try { await window.webMinecraftClearCloudWorldDeletion(seed); } catch {}
         }
@@ -461,21 +572,6 @@ async function refreshFromLiveCloud() {
     } finally {
         liveCloudRefreshRunning = false;
     }
-}
-
-async function reload() {
-    const button = overlay.querySelector('[data-act="reload"]');
-    button.disabled = true;
-    try {
-        await retryCloudDeletes();
-        const worlds = await allRecords();
-        render(worlds);
-        if (typeof window.webMinecraftCloudSync === "function") {
-            try { await window.webMinecraftCloudSync(); } catch {}
-            render(await allRecords());
-        }
-    } catch (error) { console.error("Could not reload worlds:", error); }
-    finally { button.disabled = false; }
 }
 
 async function openMenu() {
