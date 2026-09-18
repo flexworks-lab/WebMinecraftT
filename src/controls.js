@@ -46,6 +46,44 @@ let blockTouchStartX = 0;
 let blockTouchStartY = 0;
 let lastJumpTapTime = 0;
 
+let keyboardLockRequested = false;
+async function lockGameKeyboard() {
+    if (keyboardLockRequested) return;
+    if (!document.body.classList.contains("webminecraft-in-world")) return;
+    const keyboard = navigator.keyboard;
+    if (!keyboard?.lock) return;
+    keyboardLockRequested = true;
+    try {
+        await keyboard.lock(["KeyW"]);
+    } catch {
+        keyboardLockRequested = false;
+    }
+}
+function unlockGameKeyboard() {
+    keyboardLockRequested = false;
+    try { navigator.keyboard?.unlock?.(); } catch {}
+}
+
+window.addEventListener("keydown", event => {
+    const inWorld = document.body.classList.contains("webminecraft-in-world");
+    if (!inWorld) return;
+    if (event.ctrlKey && (event.code === "KeyW" || String(event.key).toLowerCase() === "w")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+}, true);
+
+document.addEventListener("pointerlockchange", () => {
+    if (document.body.classList.contains("webminecraft-in-world") && document.pointerLockElement === document.body) {
+        void lockGameKeyboard();
+    }
+}, true);
+
+const gameplayStateObserver = new MutationObserver(() => {
+    if (!document.body.classList.contains("webminecraft-in-world")) unlockGameKeyboard();
+});
+gameplayStateObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function toNdcX(clientX) { return (clientX / Math.max(window.innerWidth, 1)) * 2 - 1; }
 function toNdcY(clientY) { return 1 - (clientY / Math.max(window.innerHeight, 1)) * 2; }
@@ -300,11 +338,6 @@ html,body,.mobile-mode,canvas{touch-action:none;overscroll-behavior:none}
 
 export function setupControls() {
     window.addEventListener("keydown", event => {
-        if (document.body.classList.contains("webminecraft-in-world") && event.ctrlKey && event.code === "KeyW") {
-            event.preventDefault();
-            event.stopPropagation();
-            return;
-        }
         if (document.body.classList.contains("mobile-mode")) {
             for (const code of Object.keys(keys)) keys[code] = false;
             return;
