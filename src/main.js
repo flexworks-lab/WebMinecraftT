@@ -11,7 +11,7 @@ import { clearHotbar } from "./inventory.js";
 import "./background.js";
 import "./auth.js";
 import "./chat.js";
-import "./survivalMode.js";
+import { getWorldMode } from "./survivalMode.js";
 import "./survivalRules.js";
 
 const scene = new THREE.Scene();
@@ -313,9 +313,15 @@ async function copyText(text) {
         helper.remove(); return ok;
     }
 }
-function startWorldWithSeed(seed) {
+function startWorldWithSeed(seed, savedMode = null) {
     clearHotbar();
     setWorldSeed(seed);
+    const mode = savedMode === "creative" || savedMode === "survival" ? savedMode : getWorldMode(seed);
+    window.webMinecraftSelectedWorldMode = mode;
+    window.__webminecraftPendingSingleplayerMode = mode;
+    document.body.classList.toggle("webminecraft-survival", mode === "survival");
+    document.body.classList.toggle("webminecraft-creative", mode === "creative");
+    window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode } }));
     createWorld(scene);
     setupWaterPhysics(scene);
     setWorldCloudSeed(seed);
@@ -326,7 +332,7 @@ function startWorldWithSeed(seed) {
     if (mainMenu) mainMenu.style.display = "none";
     setMenuUiVisible(false);
     requestPointerLock();
-    void setWorldSeedForPersistence(seed).catch(error => console.warn("World persistence load failed:", error));
+    void setWorldSeedForPersistence(seed).then(() => { const restoredMode = getWorldMode(seed); window.webMinecraftSelectedWorldMode = restoredMode; document.body.classList.toggle("webminecraft-survival", restoredMode === "survival"); document.body.classList.toggle("webminecraft-creative", restoredMode === "creative"); window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode: restoredMode } })); }).catch(error => console.warn("World persistence load failed:", error));
 }
 
 initSavedWorlds({ onOpenWorld: startWorldWithSeed });
