@@ -95,11 +95,10 @@ function addStyles() {
     const style = document.createElement("style");
     style.id = FRIENDS_STYLE_ID;
     style.textContent = `
-#friendsButton{position:fixed !important;left:158px !important;bottom:28px !important;width:126px !important;height:48px !important;margin:0 !important;z-index:98 !important;display:flex !important;align-items:center !important;justify-content:center !important;gap:8px !important;padding:0 14px !important;border:2px solid #111 !important;border-top-color:#9a9a9a !important;border-left-color:#9a9a9a !important;border-radius:5px !important;background:linear-gradient(#5f7fa0,#3d5873) !important;color:#fff !important;font:bold 13px Arial,sans-serif !important;letter-spacing:.2px !important;cursor:pointer !important;text-shadow:2px 2px 0 #18212a !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.13),inset -2px -3px 0 rgba(0,0,0,.32),0 4px 0 #151515 !important;transition:transform .08s ease,filter .08s ease !important}
+#friendsButton{position:fixed !important;left:158px !important;bottom:28px !important;width:126px !important;height:48px !important;margin:0 !important;z-index:98 !important;display:flex !important;align-items:center !important;justify-content:center !important;gap:8px !important;padding:0 14px !important;border:2px solid #1b1b1b !important;border-top-color:#a4a4a4 !important;border-left-color:#a4a4a4 !important;border-radius:0 !important;background:linear-gradient(#737373,#565656) !important;color:#fff !important;font:bold 13px Arial,sans-serif !important;letter-spacing:.2px !important;cursor:pointer !important;text-shadow:2px 2px 0 #333 !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62) !important;transition:none !important;outline:none !important}
 #friendsButton::before{content:"♟";font-size:17px;line-height:1;transform:rotate(180deg);display:inline-block;opacity:.95}
-#friendsButton:hover{filter:brightness(1.12) !important;transform:translateY(-1px) !important}
-#friendsButton:active{transform:translateY(2px) !important;box-shadow:inset 2px 2px 0 rgba(0,0,0,.25),inset -2px -2px 0 rgba(255,255,255,.06),0 1px 0 #171717 !important}
-#friendsButton.friendAlert{animation:friendsButtonPulse .8s steps(2,end) infinite !important}
+#friendsButton:hover,#friendsButton:active{filter:none !important;transform:none !important}
+#friendsButton.friendAlert{animation:none !important}
 #friendsButton .friendsBadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border:2px solid #111;border-radius:2px;background:#b83d3d;color:#fff;font:bold 10px Arial,sans-serif;box-shadow:1px 1px 0 #000;text-shadow:none}
 @keyframes friendsButtonPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
 #accountUser #friendCodeBox,#accountUser .friendSection{display:none !important}
@@ -600,3 +599,5 @@ if (document.readyState === "loading") {
 } else {
     init();
 }
+
+<style id="friendsButtonStaticStyle">#friendsButton:focus,#friendsButton:focus-visible{outline:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62)!important}</style>
