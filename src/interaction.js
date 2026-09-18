@@ -11,10 +11,10 @@ import "./heldBlock3D.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
-const INTERACTION_DISTANCE = 5;
+const SURVIVAL_REACH = 4.5;
+const CREATIVE_REACH = 12;
 let selectedSlot = 0;
-let lastPunch = false;
-let lastPlace = false;
+
 
 function setupTexturedHotbar() {
     let hotbar = document.getElementById("hotbar");
@@ -134,13 +134,13 @@ export function setupInteraction(scene, camera) {
     });
     function pollTouchActions() {
         const mobile = document.body.classList.contains("mobile-mode");
-        const punch = mobile && !!touchInput.punchPressed;
-        const place = mobile && !!touchInput.placePressed;
-        if (punch && !lastPunch && isSurvivalWorldActive()) startSurvivalMining(scene, camera);
-        else if (punch && !lastPunch) breakBlock();
-        if (place && !lastPlace) placeBlock();
-        lastPunch = punch;
-        lastPlace = place;
+        if (mobile && touchInput.blockTapPending) {
+            const ndcX = Number(touchInput.blockTapX) || 0;
+            const ndcY = Number(touchInput.blockTapY) || 0;
+            touchInput.blockTapPending = false;
+            if (isSurvivalWorldActive()) placeBlock(ndcX, ndcY);
+            else if (document.body.classList.contains("webminecraft-creative")) breakBlock(ndcX, ndcY);
+        }
         positionMobileInventoryButton();
         requestAnimationFrame(pollTouchActions);
     }
@@ -151,12 +151,12 @@ export function setupInteraction(scene, camera) {
     function notifyBlockChange(x, y, z, type) {
         window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type } }));
     }
-    function breakBlock() {
+    function breakBlock(ndcX = 0, ndcY = 0) {
         if (handleDoorTarget("break")) {
             sendPlayerAction("mine");
             return;
         }
-        const target = getTargetBlock(scene, camera, BLOCK);
+        const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
         if (!target) return;
         const type = getBlockAt(target.x, target.y, target.z);
         if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) return;
@@ -166,7 +166,8 @@ export function setupInteraction(scene, camera) {
         notifyBlockChange(target.x, target.y, target.z, BLOCK.AIR);
         createBreakParticles(scene, new THREE.Vector3(target.x, target.y, target.z), type, BLOCK);
     }
-    function placeBlock() {
+    function placeBlock(ndcX = 0, ndcY = 0) {
+        const creative = document.body.classList.contains("webminecraft-creative");
         if (getDoorSelectionTarget()) {
             if (handleDoorTarget("use")) sendPlayerAction("place");
             return;
@@ -177,14 +178,14 @@ export function setupInteraction(scene, camera) {
             const target = getTargetBlock(scene, camera, BLOCK);
             if (!target) return;
             if (placeDoor(target)) {
-                if (itemId === 17) consumeSelected(selectedSlot);
+                if (!creative && itemId === 17) consumeSelected(selectedSlot);
                 sendPlayerAction("place");
             }
             return;
         }
         if (itemId === 16) {
             if (tryIgniteTNT(scene, camera, itemId)) {
-                consumeSelected(selectedSlot);
+                if (!creative) consumeSelected(selectedSlot);
                 sendPlayerAction("place");
             }
             return;
@@ -193,7 +194,7 @@ export function setupInteraction(scene, camera) {
         const target = getTargetBlock(scene, camera, BLOCK);
         if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId)) {
-            if (consumeSelected(selectedSlot)) sendPlayerAction("place");
+            if (creative || consumeSelected(selectedSlot)) sendPlayerAction("place");
             return;
         }
         const normal = target.normal.clone().set(
@@ -207,7 +208,7 @@ export function setupInteraction(scene, camera) {
         if (getBlockAt(x, y, z) !== BLOCK.AIR) return;
         if (playerOverlapsBlock({ x, y, z }, camera)) return;
         if (!setBlockAt(x, y, z, itemId)) return;
-        if (!consumeSelected(selectedSlot)) { setBlockAt(x, y, z, BLOCK.AIR); return; }
+        if (!creative && !consumeSelected(selectedSlot)) { setBlockAt(x, y, z, BLOCK.AIR); return; }
         sendPlayerAction("place");
         sendBlockChange(x, y, z, itemId);
         notifyBlockChange(x, y, z, itemId);
@@ -241,13 +242,15 @@ export function setupInteraction(scene, camera) {
     updateHotbar();
 }
 
-function getTargetBlock(scene, camera, BLOCK) {
+function getTargetBlock(scene, camera, BLOCK, ndcX = 0, ndcY = 0) {
     const doorTarget = getDoorSelectionTarget();
     if (doorTarget) return doorTarget;
     camera.updateMatrixWorld(true);
-    raycaster.setFromCamera(CENTER, camera);
+    const screenPoint = Number.isFinite(ndcX) && Number.isFinite(ndcY) && (ndcX !== 0 || ndcY !== 0) ? new THREE.Vector2(ndcX, ndcY) : CENTER;
+    raycaster.setFromCamera(screenPoint, camera);
     raycaster.near = 0.01;
-    raycaster.far = INTERACTION_DISTANCE;
+    const reach = document.body.classList.contains("webminecraft-creative") ? CREATIVE_REACH : SURVIVAL_REACH;
+    raycaster.far = reach;
     const hits = raycaster.intersectObjects(scene.children, true);
     const hit = hits.find(entry => {
         if (!entry.object?.userData?.isChunk || !entry.face) return false;
@@ -260,7 +263,7 @@ function getTargetBlock(scene, camera, BLOCK) {
     });
     raycaster.near = 0;
     raycaster.far = Infinity;
-    if (!hit || hit.distance > INTERACTION_DISTANCE) return null;
+    if (!hit || hit.distance > reach) return null;
     const normal = hit.face.normal.clone().normalize();
     const point = hit.point.clone();
     const voxel = {
