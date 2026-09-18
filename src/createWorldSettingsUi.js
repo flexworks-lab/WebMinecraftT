@@ -306,6 +306,8 @@ function enhance(modal) {
     const applyCreateMode = () => {
         const mode = gameModeSelect?.value === "creative" ? "creative" : "survival";
         window.webMinecraftSelectedWorldMode = mode;
+        window.__webminecraftPendingSingleplayerMode = mode;
+        try { localStorage.setItem("webminecraft-pending-singleplayer-mode", mode); } catch {}
         const seed = Number(newSeedDisplay?.textContent?.trim());
         if (Number.isFinite(seed)) setWorldMode(seed, mode);
         document.body.classList.toggle("webminecraft-survival", mode === "survival");
