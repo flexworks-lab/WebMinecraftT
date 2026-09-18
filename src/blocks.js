@@ -158,11 +158,12 @@ const sprucePlanksMaterial = new THREE.MeshPhongMaterial({ map: sprucePlanksText
 const warpedPlanksMaterial = new THREE.MeshPhongMaterial({ map: warpedPlanksTexture, color: textureShade, ...materialOptions });
 
 const furnaceFrontMaterial = new THREE.MeshPhongMaterial({ map: furnaceFrontTexture, color: textureShade, ...materialOptions });
+const blastFurnaceFrontMaterial = new THREE.MeshPhongMaterial({ map: blastFurnaceFrontTexture, color: textureShade, ...materialOptions });
 const blastFurnaceSideMaterial = new THREE.MeshPhongMaterial({ map: blastFurnaceSideTexture, color: textureShade, ...materialOptions });
 const blastFurnaceTopMaterial = new THREE.MeshPhongMaterial({ map: blastFurnaceTopTexture, color: textureShade, ...materialOptions });
 const blastFurnaceMaterial = [
     blastFurnaceSideMaterial, blastFurnaceSideMaterial, blastFurnaceTopMaterial,
-    blastFurnaceSideMaterial, furnaceFrontMaterial, blastFurnaceSideMaterial
+    blastFurnaceSideMaterial, blastFurnaceFrontMaterial, blastFurnaceSideMaterial
 ];
 
 const furnaceSideMaterial = new THREE.MeshPhongMaterial({ map: furnaceSideTexture, color: textureShade, ...materialOptions });
