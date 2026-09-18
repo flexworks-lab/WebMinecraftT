@@ -320,6 +320,23 @@ function handleMessage(ws, raw, state) {
         if (changes.length) broadcast(room, { type: "block_changes", changes }, player.id);
         return;
     }
+    if (message.type === "slab_place") {
+        const x = Math.floor(numberOr(message.x, NaN));
+        const y = Math.floor(numberOr(message.y, NaN));
+        const z = Math.floor(numberOr(message.z, NaN));
+        const type = Math.floor(numberOr(message.blockType, NaN));
+        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 51 || type > 74) return;
+        const room = rooms.get(player.room);
+        if (!room) return;
+        const key = `${x},${y},${z}`;
+        room.blockChanges.set(key, { x, y, z, type });
+        while (room.blockChanges.size > 50000) {
+            const oldest = room.blockChanges.keys().next().value;
+            if (oldest) room.blockChanges.delete(oldest); else break;
+        }
+        broadcast(room, { type: "block_change", x, y, z, blockType: type }, player.id);
+        return;
+    }
     if (message.type === "block_change") {
         const x = Math.floor(numberOr(message.x, NaN));
         const y = Math.floor(numberOr(message.y, NaN));
