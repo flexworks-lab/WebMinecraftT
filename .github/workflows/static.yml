@@ -33,8 +33,11 @@ jobs:
       - name: Install production dependencies
         run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
+      - name: Install Vite build tool
+        run: npm install --no-save vite@7.3.6 --ignore-scripts --no-audit --no-fund
+
       - name: Build Vite site
-        run: npx --yes vite@7.3.6 build
+        run: ./node_modules/.bin/vite build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
