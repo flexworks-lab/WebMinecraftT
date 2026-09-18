@@ -300,6 +300,11 @@ html,body,.mobile-mode,canvas{touch-action:none;overscroll-behavior:none}
 
 export function setupControls() {
     window.addEventListener("keydown", event => {
+        if (document.body.classList.contains("webminecraft-in-world") && event.ctrlKey && event.code === "KeyW") {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
         if (document.body.classList.contains("mobile-mode")) {
             for (const code of Object.keys(keys)) keys[code] = false;
             return;
