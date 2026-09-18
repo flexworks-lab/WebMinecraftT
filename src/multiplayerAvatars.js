@@ -216,6 +216,8 @@ function normalizeAngle(angle) {
 
 function animateAvatar(entry, player, time) {
     const parts = entry.parts;
+    const sneaking = Boolean(player.sneaking);
+    const crouch = sneaking ? 1 : 0;
     const previous = entry.lastPosition;
     const current = entry.group.position;
     const dx = current.x - previous.x;
@@ -243,8 +245,16 @@ function animateAvatar(entry, player, time) {
     parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, swing * 0.8, 0.35);
     parts.leftHand.rotation.x = THREE.MathUtils.lerp(parts.leftHand.rotation.x, -swing * 0.35, 0.35);
     parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, swing * 0.35, 0.35);
-    parts.torso.position.y = THREE.MathUtils.lerp(parts.torso.position.y, 1.1 + bob, 0.3);
-    parts.head.position.y = THREE.MathUtils.lerp(parts.head.position.y, 1.8 + bob * 0.7, 0.3);
+    const targetTorsoY = 1.1 + bob - crouch * 0.16;
+    const targetHeadY = 1.8 + bob * 0.7 - crouch * 0.38;
+    parts.torso.position.y = THREE.MathUtils.lerp(parts.torso.position.y, targetTorsoY, 0.3);
+    parts.head.position.y = THREE.MathUtils.lerp(parts.head.position.y, targetHeadY, 0.3);
+    parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, crouch * 0.28, 0.22);
+    parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, crouch * 0.18, 0.22);
+    parts.leftLeg.rotation.x = THREE.MathUtils.lerp(parts.leftLeg.rotation.x, (moving ? swing : 0) + crouch * 0.22, 0.25);
+    parts.rightLeg.rotation.x = THREE.MathUtils.lerp(parts.rightLeg.rotation.x, (moving ? -swing : 0) - crouch * 0.22, 0.25);
+    parts.leftArm.position.y = THREE.MathUtils.lerp(parts.leftArm.position.y, 1.23 - crouch * 0.16, 0.25);
+    parts.rightArm.position.y = THREE.MathUtils.lerp(parts.rightArm.position.y, 1.23 - crouch * 0.16, 0.25);
 
     const action = String(player.action || "idle");
     if (action === "mine") {
