@@ -83,6 +83,8 @@ function createCrosshair() {
 #webMinecraftCrosshair span:last-child{top:1px;bottom:1px;left:8px;width:2px}
 body.webminecraft-in-world #webMinecraftCrosshair{display:block}
 body:not(.webminecraft-in-world) #webMinecraftCrosshair{display:none}
+body.mobile-mode #webMinecraftCrosshair{display:none!important}
+body.mobile-mode #crosshair{display:none!important}
 `;
     document.head.appendChild(style);
     document.body.appendChild(crosshair);
@@ -189,7 +191,7 @@ export function setupInteraction(scene, camera) {
             return;
         }
         if (itemId === 16) {
-            if (tryIgniteTNT(scene, camera, itemId)) {
+            if (tryIgniteTNT(scene, camera, itemId, ndcX, ndcY)) {
                 if (!creative) consumeSelected(selectedSlot);
                 sendPlayerAction("place");
             }
@@ -235,7 +237,16 @@ export function setupInteraction(scene, camera) {
         button.style.setProperty("z-index", "10001", "important");
     }
     function updateSelection() {
-        const target = getTargetBlock(scene, camera, BLOCK);
+        const mobile = document.body.classList.contains("mobile-mode");
+        const target = mobile && !touchInput.blockTouchActive
+            ? null
+            : getTargetBlock(
+                scene,
+                camera,
+                BLOCK,
+                mobile ? Number(touchInput.blockTouchX) || 0 : 0,
+                mobile ? Number(touchInput.blockTouchY) || 0 : 0
+            );
         if (!target) outline.visible = false;
         else {
             updateSelectionOutline(outline, target, camera);
