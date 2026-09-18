@@ -41,22 +41,24 @@ async function verifyToken(request) {
 }
 function normalizedEmail(data) { return String(data?.email || "").trim().toLowerCase(); }
 function verifiedEmail(data) { return data?.email_verified === true || data?.email_verified === "true"; }
-async function firestoreAdminEnabled(uid, token) {
-    if (!uid || !token) return false;
+async function firestoreAdminRole(uid, token) {
+    if (!uid || !token) return "";
     const id = encodeURIComponent(uid);
     try {
         const response = await fetch(`${FIRESTORE_BASE}/admins/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!response.ok) return false;
+        if (!response.ok) return "";
         const data = await response.json();
-        return data?.fields?.enabled?.booleanValue === true && String(data?.fields?.uid?.stringValue || id) === uid;
-    } catch { return false; }
+        if (data?.fields?.enabled?.booleanValue !== true || String(data?.fields?.uid?.stringValue || id) !== uid) return "";
+        return String(data?.fields?.role?.stringValue || "admin").toLowerCase() === "main" ? "main" : "admin";
+    } catch { return ""; }
 }
 async function authenticate(request) {
     const auth = String(request.headers.authorization || ""); const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
     const data = await verifyToken(request); if (!data || !verifiedEmail(data)) return null;
     const email = normalizedEmail(data); const uid = String(data?.sub || "").trim();
     if (email === DEV_EMAIL.toLowerCase()) return { role: "developer", email, uid, token, data };
-    if (await firestoreAdminEnabled(uid, token)) return { role: "admin", email, uid, token, data };
+    const adminRole = await firestoreAdminRole(uid, token);
+    if (adminRole) return { role: adminRole, email, uid, token, data };
     return null;
 }
 function roomInfo(room) { return { id: room.id, name: room.name, owner: room.ownerName, players: [...room.players.values()].map(player => ({ id: player.id, name: player.name })), chat: [...(room.adminChat || [])], private: Boolean(room.isPrivate), createdAt: room.createdAt }; }
@@ -75,7 +77,7 @@ export async function handleAdminRequest(request, response, rooms, cleanRoom) {
         if (!room) return sendJson(response, 404, { ok: false, error: "Server not found." });
         if (action === "kick") { const player = room.players.get(String(body?.playerId || "")); if (!player) return sendJson(response, 404, { ok: false, error: "Player not found." }); try { player.ws.sendText(JSON.stringify({ type: "player_kicked", message: "You were kicked from the server by a server administrator." })); } catch {} try { player.ws.close(); } catch {} sendJson(response, 200, { ok: true, message: `${player.name} was kicked.` }); return true; }
         if (action === "warn") { const playerIds = Array.isArray(body?.playerIds) ? body.playerIds : [body?.playerId]; const players = [...new Set(playerIds.map(id => String(id || "")).filter(Boolean))].map(id => room.players.get(id)).filter(Boolean); if (!players.length) return sendJson(response, 404, { ok: false, error: "No players selected." }); const text = String(body?.text || "Please behave appropriately and follow the server rules.").replace(/[\r\n]+/g, " ").replace(/[<>]/g, "").trim().slice(0, MAX_CHAT_LENGTH) || "Please behave appropriately and follow the server rules."; const payload = JSON.stringify({ type: "chat_system", text: `${auth.role === "developer" ? "Developer" : "Admin"} warning: ${text}` }); for (const player of players) try { if (player.ws?.connected) player.ws.sendText(payload); } catch {} sendJson(response, 200, { ok: true, message: `Warning sent to ${players.length} player${players.length === 1 ? "" : "s"}.` }); return true; }
-        const isAdmin = auth.role === "admin"; const displayName = isAdmin ? "admin" : "Developer"; const text = addChat(room, displayName, body?.text, isAdmin); if (!text) return sendJson(response, 400, { ok: false, error: "Message is empty." }); broadcast(room, { type: "chat_message", playerId: auth.role, name: displayName, text, isAdmin }); sendJson(response, 200, { ok: true }); return true;
+        const isAdmin = auth.role === "admin" || auth.role === "main"; const displayName = auth.role === "main" ? "main" : (isAdmin ? "admin" : "Developer"); const text = addChat(room, displayName, body?.text, isAdmin); if (!text) return sendJson(response, 400, { ok: false, error: "Message is empty." }); broadcast(room, { type: "chat_message", playerId: auth.role, name: displayName, text, isAdmin }); sendJson(response, 200, { ok: true }); return true;
     }
     if (action === "shutdown" || action === "delete") { if (auth.role !== "developer") return sendJson(response, 403, { ok: false, error: "Only the developer can shut down or delete servers." }); if (!room) return sendJson(response, 404, { ok: false, error: "Server not found." }); const message = action === "delete" ? "This server was deleted by the developer. Returning to the main menu." : "This server was shut down by the developer. Returning to the main menu."; for (const player of [...room.players.values()]) { try { player.ws.sendText(JSON.stringify({ type: "server_removed", message })); } catch {} } for (const player of [...room.players.values()]) { try { player.ws.close(); } catch {} } rooms.delete(room.id); sendJson(response, 200, { ok: true, message: `${room.name} was ${action === "delete" ? "deleted" : "shut down"}.` }); return true; }
     sendJson(response, 400, { ok: false, error: "Unknown action." }); return true;
