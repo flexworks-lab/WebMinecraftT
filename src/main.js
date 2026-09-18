@@ -16,7 +16,6 @@ import "./survivalRules.js";
 
 const scene = new THREE.Scene();
 const skyColor = new THREE.Color(0x87ceeb);
-const undergroundColor = new THREE.Color(0x11151a);
 const underwaterColor = new THREE.Color(0x071b2b);
 scene.background = skyColor.clone();
 scene.fog = new THREE.Fog(skyColor.clone(), 40, 120);
@@ -111,20 +110,16 @@ function applySettings() {
 }
 function smoothStep(edge0, edge1, value) { const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1); return t * t * (3 - 2 * t); }
 function updateDepthLighting() {
-    const y = camera.position.y;
-    const underground = 1 - smoothStep(-1, 8, y);
-    const deepDark = 1 - smoothStep(-24, -1, y);
     const underwater = isPointInWater(camera.position.x, camera.position.y, camera.position.z);
     const profile = getLightingProfile();
-    const sunlightFactor = THREE.MathUtils.lerp(1, profile.undergroundSun, underground);
-    const skyFactor = THREE.MathUtils.lerp(1, profile.ambientFloor, underground);
-    const exposure = THREE.MathUtils.lerp(1, 0.62, deepDark) * (0.9 + settings.brightness * 0.35);
     const underwaterExposure = underwater ? 0.68 : 1;
-    const finalExposure = exposure * underwaterExposure;
-    sun.intensity = profile.sun * sunlightFactor * (underwater ? 0.55 : 1);
-    skyLight.intensity = profile.sky * skyFactor * (underwater ? 0.62 : 1);
-    depthLight.intensity = underground * (0.08 + (1 - deepDark) * 0.08);
-    depthLight.position.set(camera.position.x, camera.position.y + 1, camera.position.z);
+    const finalExposure = (0.9 + settings.brightness * 0.35) * underwaterExposure;
+
+    // Keep world lighting consistent at every depth. Going underground no
+    // longer progressively removes sunlight, ambient light, or visibility.
+    sun.intensity = profile.sun * (underwater ? 0.55 : 1);
+    skyLight.intensity = profile.sky * (underwater ? 0.62 : 1);
+    depthLight.intensity = 0;
     renderer.toneMappingExposure = finalExposure;
 
     if (underwater) {
@@ -133,10 +128,10 @@ function updateDepthLighting() {
         scene.fog.near = 2.5;
         scene.fog.far = 30;
     } else {
-        scene.background.lerpColors(skyColor, undergroundColor, underground * 0.86);
-        scene.fog.color.lerpColors(skyColor, undergroundColor, underground * 0.9);
-        scene.fog.near = THREE.MathUtils.lerp(40, 8, underground);
-        scene.fog.far = THREE.MathUtils.lerp(120, 55, underground);
+        scene.background.copy(skyColor);
+        scene.fog.color.copy(skyColor);
+        scene.fog.near = 40;
+        scene.fog.far = 120;
     }
 }
 applySettings();
