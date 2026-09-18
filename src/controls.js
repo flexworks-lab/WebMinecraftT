@@ -1,3 +1,32 @@
+import "./auth.js";
+
+export const keys = {};
+
+export let yaw = 0;
+export let pitch = 0;
+export let isFlying = false;
+
+export function setFlying(value) {
+    isFlying = !!value;
+}
+
+export function toggleFlying() {
+    isFlying = !isFlying;
+    return isFlying;
+}
+
+export function resetView(newYaw = 0, newPitch = 0) { yaw = newYaw; pitch = newPitch; }
+
+export const touchInput = {
+    moveX: 0,
+    moveZ: 0,
+    jump: false,
+    sprint: false,
+    sneak: false,
+    lookActive: false,
+    blockTouchActive: false,
+    blockTouchStarted: 0,
+    blockTouchX: 0,
     blockTouchY: 0,
     blockTapPending: false,
     blockTapDuration: 0,
