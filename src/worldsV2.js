@@ -64,6 +64,7 @@ function normalize(world, fallbackIndex = 0) {
         updatedAt: world?.updatedAt || createdAt,
         lastPlayedAt: world?.lastPlayedAt || world?.updatedAt || createdAt,
         mode: world?.mode === "creative" ? "creative" : "survival",
+        preview: typeof world?.preview === "string" && world.preview.startsWith("data:image/") ? world.preview : null,
         blocks: world?.blocks && typeof world.blocks === "object" && !Array.isArray(world.blocks) ? world.blocks : {}
     };
 }
@@ -166,7 +167,15 @@ function writeIndex(worlds) {
 async function getRecord(seed) {
     const s = seedOf(seed);
     if (s === null || deletedSeeds().has(s)) return null;
-    return (await cacheRead(s)) || fallbackRead(s);
+    const record = (await cacheRead(s)) || fallbackRead(s);
+    if (!record) return null;
+    if (!record.preview) {
+        try {
+            const legacy = localStorage.getItem(`webminecraft-world-preview-${s}`);
+            if (legacy && legacy.startsWith("data:image/")) record.preview = legacy;
+        } catch {}
+    }
+    return record;
 }
 
 async function putRecord(world) {
@@ -362,9 +371,10 @@ function getMode(world) {
 }
 
 function getPreviewUrl(world) {
+    if (typeof world?.preview === "string" && world.preview.startsWith("data:image/")) return world.preview;
     try {
         const preview = localStorage.getItem(`webminecraft-world-preview-${world.seed}`);
-        if (preview) return preview;
+        if (preview && preview.startsWith("data:image/")) return preview;
     } catch {}
     return "";
 }
