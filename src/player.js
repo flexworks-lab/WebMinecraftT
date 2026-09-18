@@ -14,8 +14,12 @@ let lastNetworkSend = 0;
 const avatarDots = new Map();
 
 const PLAYER_WIDTH = 0.80;
-const PLAYER_HEIGHT = 1.8;
+const PLAYER_HEIGHT_STANDING = 1.8;
+const PLAYER_HEIGHT_SNEAKING = 1.5;
+let PLAYER_HEIGHT = PLAYER_HEIGHT_STANDING;
 const HALF_WIDTH = PLAYER_WIDTH / 2;
+let sneakCameraTarget = 0;
+let sneakCameraOffset = 0;
 
 const WALK_SPEED = 4.3;
 const SPRINT_SPEED = 5.6;
@@ -254,8 +258,46 @@ function approach(current, target, amount) {
     return target;
 }
 
+function isSneaking() {
+    return !isFlying && (touchInput.sneak || !!keys["ControlLeft"] || !!keys["ControlRight"]);
+}
+
+function updateSneakCamera(camera, dt) {
+    const sneaking = isSneaking();
+    const targetOffset = sneaking ? -0.34 : 0;
+    if (sneaking && !isFlying) {
+        PLAYER_HEIGHT = PLAYER_HEIGHT_SNEAKING;
+        sneakCameraTarget = targetOffset;
+    } else {
+        // Stand back up only after checking that there is enough room.
+        const previousHeight = PLAYER_HEIGHT;
+        PLAYER_HEIGHT = PLAYER_HEIGHT_STANDING;
+        const clearanceBox = getBox(camera);
+        if (collides(camera) || !sneaking) {
+            if (sneaking) {
+                PLAYER_HEIGHT = previousHeight;
+            } else {
+                // The camera is raised gradually below.
+            }
+        }
+        sneakCameraTarget = PLAYER_HEIGHT === PLAYER_HEIGHT_STANDING ? 0 : -0.34;
+    }
+
+    sneakCameraOffset = THREE.MathUtils.lerp(
+        sneakCameraOffset,
+        sneakCameraTarget,
+        Math.min(1, dt * 12)
+    );
+
+    if (!isFlying) camera.position.y += sneakCameraOffset - (camera.userData.__webminecraftLastSneakOffset || 0);
+    camera.userData.__webminecraftLastSneakOffset = sneakCameraOffset;
+}
+
 function physicsStep(camera, dt) {
     if (isFlying) {
+        PLAYER_HEIGHT = PLAYER_HEIGHT_STANDING;
+        sneakCameraOffset = 0;
+        camera.userData.__webminecraftLastSneakOffset = 0;
         const forwardX = -Math.sin(yaw);
         const forwardZ = -Math.cos(yaw);
         const rightX = Math.cos(yaw);
@@ -287,6 +329,7 @@ function physicsStep(camera, dt) {
     }
 
     updateGround(camera);
+    updateSneakCamera(camera, dt);
     const forwardX = -Math.sin(yaw);
     const forwardZ = -Math.cos(yaw);
     const rightX = Math.cos(yaw);
@@ -422,6 +465,8 @@ function syncMultiplayerState(camera) {
         { x: camera.position.x, y: camera.position.y, z: camera.position.z },
         { x: pitch, y: yaw, z: 0 },
         getSelectedItemId(window.webMinecraftSelectedSlot ?? 0) ?? 0,
+        null,
+        isSneaking(),
     );
 }
 
