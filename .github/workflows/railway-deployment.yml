@@ -56,3 +56,37 @@ jobs:
           curl --fail --silent --show-error --retry 3             https://webminecraftt-multiplayer-production.up.railway.app/health
           echo
           echo "Railway multiplayer server is online."
+
+      - name: Restore Railway deployment entry
+        uses: actions/github-script@v7
+        env:
+          RAILWAY_URL: https://webminecraftt-multiplayer-production.up.railway.app
+          RAILWAY_WS: wss://webminecraftt-multiplayer-production.up.railway.app/multiplayer
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+
+            const deployment = await github.rest.repos.createDeployment({
+              owner,
+              repo,
+              ref: context.sha,
+              task: 'deploy',
+              auto_merge: false,
+              required_contexts: [],
+              environment: 'railway-multiplayer',
+              description: 'WebMinecraftT Multiplayer — Railway',
+              production_environment: true,
+              transient_environment: false
+            });
+
+            await github.rest.repos.createDeploymentStatus({
+              owner,
+              repo,
+              deployment_id: deployment.data.id,
+              state: 'success',
+              description: 'Railway multiplayer server is online',
+              environment_url: process.env.RAILWAY_URL,
+              target_url: process.env.RAILWAY_WS
+            });
+
+            core.info(`Restored Railway deployment ${deployment.data.id}`);
