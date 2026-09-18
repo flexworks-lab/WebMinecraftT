@@ -293,6 +293,77 @@ select {
   color:#d0d0d0;
 }
 
+/* Static square menu UI */
+#mainMenu,
+#menuPanel,
+#menuTitle,
+#menuSplash,
+#menuButtons,
+#menuUpdates,
+#menuUpdate,
+.menuUpdate,
+#seedMenu,
+#seedPanel,
+#seedInput,
+.seedButton,
+#openWorldButton,
+#backSeedButton,
+#settingsMenu,
+#settingsPanel,
+#settingsSidebar,
+#settingsContent,
+#settingsHeader,
+.settingsTab,
+.setting,
+#settingsCloseTop,
+#closeSettings,
+#settingsScroll select {
+  border-radius:0 !important;
+  animation:none !important;
+  transition:none !important;
+}
+#menuButtons .menuButton,
+#playButton,
+#multiplayerButton,
+#menuSettingsButton,
+#mobileModeButton,
+.menuButton,
+.seedButton,
+#settingsCloseTop,
+#closeSettings,
+.settingsTab,
+.setting {
+  animation:none !important;
+  transition:none !important;
+  border-radius:0 !important;
+}
+#menuTitle,
+#menuSplash,
+#menuUpdates,
+#menuPanel,
+#seedPanel,
+#settingsPanel {
+  animation:none !important;
+  transition:none !important;
+}
+#mainMenu.menu-entering #menuPanel,
+#mainMenu.menu-ready #menuPanel {
+  opacity:1 !important;
+  transform:none !important;
+}
+#menuSplash {
+  transform:none !important;
+}
+#menuButtons .menuButton:hover,
+#menuButtons .menuButton:active,
+.seedButton:hover,
+.settingsTab:hover,
+.settingsTab.active,
+#settingsCloseTop:hover,
+#closeSettings:hover {
+  transform:none !important;
+}
+
 </style>
 </head>
 <body>
@@ -356,28 +427,6 @@ select {
     <script type="module" src="./src/firebaseConfig.js"></script>
     <script type="module" src="./src/main.js"></script>
     <script type="module" src="./src/menuUpdates.js"></script>
-<script>
-/* WebMinecraft opening animation v1 */
-(() => {
-  const start = () => {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    if (document.getElementById('webminecraftBootScreen')) return;
-    const overlay = document.createElement('div');
-    overlay.id = 'webminecraftBootScreen';
-    overlay.innerHTML = '<div id="wmBootInner"><div id="wmBootLogo">WebMinecraft</div><div id="wmBootTag">Loading your world...</div><div id="wmBootBar"><div id="wmBootFill"></div></div><div id="wmBootTip">Building blocks. One pixel at a time.</div></div>';
-    document.body.appendChild(overlay);
-    const menu = document.getElementById('mainMenu');
-    menu?.classList.add('menu-entering');
-    window.setTimeout(() => {
-      overlay.classList.add('boot-done');
-      menu?.classList.remove('menu-entering');
-      menu?.classList.add('menu-ready');
-      window.setTimeout(() => overlay.remove(), 520);
-    }, 1050);
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once:true });
-  else start();
-})();
-</script>
+
 </body>
 </html>
