@@ -305,12 +305,18 @@ export function setupControls() {
             return;
         }
         if (event.code === "KeyF" && !event.repeat) toggleFlying();
+        if ((event.code === "ControlLeft" || event.code === "ControlRight") && !event.repeat) {
+            touchInput.sneak = true;
+        }
         keys[event.code] = true;
         if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
     });
     window.addEventListener("keyup", event => {
         if (document.body.classList.contains("mobile-mode")) {
             keys[event.code] = false;
+        if (event.code === "ControlLeft" || event.code === "ControlRight") {
+            touchInput.sneak = false;
+        }
             return;
         }
         keys[event.code] = false;
