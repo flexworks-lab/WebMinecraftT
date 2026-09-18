@@ -39,7 +39,7 @@ function injectStyle() {
 .createWorldSettingsRow{display:grid;grid-template-columns:minmax(0,1fr) 320px;align-items:center;gap:18px;min-height:62px;margin:6px 0;padding:10px 13px;background:linear-gradient(180deg,#595959,#505050);border:1px solid #292929;border-top-color:#747474;border-left-color:#747474;border-radius:0;box-shadow:none}
 .createWorldSettingsRow label{display:block;margin-bottom:3px;color:#fff;font-size:12px;font-weight:700}
 .createWorldSettingsRow small{display:block;color:#c0c0c0;font-size:9px;line-height:1.35}
-.createWorldSettingsControl{display:flex;justify-content:flex-end;align-items:center}
+.createWorldSettingsControl{display:flex;justify-content:flex-end;align-items:center}\n.createWorldSettingsSelect{width:320px;min-height:36px;box-sizing:border-box;padding:7px 9px;background:#aaa;color:#222;border:1px solid #171717;border-top-color:#777;border-left-color:#777;border-radius:0;outline:none;font-family:"MinecraftFont",monospace;font-size:11px;cursor:pointer}\n.createWorldSettingsSelect:focus{border-color:#bdbdbd;box-shadow:none}\n
 .createWorldSettingsInput{width:320px;min-height:36px;box-sizing:border-box;padding:7px 9px;background:#272727;color:#fff;border:1px solid #111;border-top-color:#777;border-left-color:#777;border-radius:0;outline:none}
 .createWorldSettingsInput:focus{border-color:#8a8a8a;box-shadow:none}
 .createWorldSettingsSeed{font-family:monospace;word-break:break-all}
@@ -117,7 +117,7 @@ function enhance(modal) {
             </aside>
             <section id="createWorldSettingsContent">
                 <header id="createWorldSettingsHeader">
-                    <h3 id="createWorldSettingsSectionTitle">Game</h3>
+                    <h3 id="createWorldSettingsSectionTitle">General</h3>
                     <button id="createWorldSettingsClose" type="button" aria-label="Close create world">×</button>
                 </header>
                 <div id="createWorldSettingsScroll">
