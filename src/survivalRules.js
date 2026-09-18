@@ -1,4 +1,5 @@
 import { isSurvivalWorld } from "./survivalMode.js";
+import { setFlying } from "./controls.js";
 import "./survivalInventory.js";
 import "./survivalInventoryCompact.css";
 import "./survivalMiningSystem.js";
@@ -72,7 +73,7 @@ function syncState() {
         addHealthHud();
         updateHealthHud();
         positionHealthHud();
-        document.getElementById("touchFly")?.classList.remove("pressed");
+        setFlying(false);
     }
 }
 function init() {
