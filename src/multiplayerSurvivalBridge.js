@@ -20,7 +20,7 @@ function decodeHeldItem(player) {
     if (!Number.isFinite(encoded) || Math.abs(encoded) < 900) return;
     const heldItemId = Math.floor(encoded / HELD_ITEM_ROTATION_TAG);
     const actualZ = encoded - heldItemId * HELD_ITEM_ROTATION_TAG;
-    if (heldItemId >= 0 && heldItemId <= 15 && Math.abs(actualZ) < 20) {
+    if (heldItemId >= 0 && heldItemId <= 50 && Math.abs(actualZ) < 20) {
         player.heldItemId = heldItemId;
         player.rotation.z = actualZ;
     }
