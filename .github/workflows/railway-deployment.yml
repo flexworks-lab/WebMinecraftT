@@ -15,6 +15,9 @@ permissions:
 jobs:
   railway-multiplayer:
     runs-on: ubuntu-latest
+    environment:
+      name: railway-multiplayer
+      url: https://webminecraftt-multiplayer-production.up.railway.app
     steps:
       - name: Remove old webminecraft-server deployment
         uses: actions/github-script@v7
