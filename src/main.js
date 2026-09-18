@@ -212,8 +212,13 @@ body.mobile-mode #settingsButton{
     document.body.appendChild(button);
 }
 function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); } }
-function closeSettingsMenu() { if (settingsMenu) { settingsMenu.style.display = "none"; if (gameStarted && !mobileMode) requestPointerLock(); } }
 function requestPointerLock() { if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) document.body.requestPointerLock?.(); }
+function closeSettingsMenu(lockMouse = false) {
+    if (!settingsMenu) return;
+    if (lockMouse) requestPointerLock();
+    settingsMenu.style.display = "none";
+    if (!lockMouse && gameStarted && !mobileMode) setTimeout(requestPointerLock, 0);
+}
 function setMobileMode(enabled) { const url = new URL(window.location.href); if (enabled) url.searchParams.set("mobile", "1"); else url.searchParams.delete("mobile"); url.searchParams.delete("mode"); window.location.href = url.toString(); }
 function setMenuUiVisible(visible) {
     const display = visible ? "" : "none";
@@ -376,12 +381,12 @@ if (menuSettingsButton) menuSettingsButton.addEventListener("click", openSetting
 if (mobileModeButton) mobileModeButton.addEventListener("click", () => setMobileMode(!mobileMode));
 if (settingsButton) settingsButton.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); openSettings(); });
 if (closeSettings) {
-    closeSettings.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-    closeSettings.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
+    closeSettings.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(true); }, { capture:true });
+    closeSettings.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(true); });
 }
 if (settingsCloseTop) {
-    settingsCloseTop.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
-    settingsCloseTop.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(); });
+    settingsCloseTop.addEventListener("pointerdown", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(true); }, { capture:true });
+    settingsCloseTop.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); closeSettingsMenu(true); });
 }
 document.addEventListener("keydown", event => {
     if (event.code !== "Escape") return;
