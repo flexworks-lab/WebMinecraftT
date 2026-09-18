@@ -204,6 +204,7 @@ async function uploadWorld(world) {
         createdAt: world.createdAt || updatedAt,
         updatedAt,
         preview: typeof world.preview === "string" && world.preview.startsWith("data:image/") ? world.preview : null,
+        mode: world.mode === "creative" ? "creative" : "survival",
         deleted: false
     };
 
@@ -269,6 +270,7 @@ export async function loadCloudWorld(seed, localWorld = null) {
             createdAt: meta.createdAt || localWorld?.createdAt || new Date().toISOString(),
             updatedAt: meta.updatedAt || localWorld?.updatedAt || new Date().toISOString(),
             preview: meta.preview || localWorld?.preview || null,
+            mode: meta.mode === "creative" ? "creative" : (localWorld?.mode === "creative" ? "creative" : "survival"),
             blocks
         };
     } catch (error) {
