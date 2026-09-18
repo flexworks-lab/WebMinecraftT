@@ -20,7 +20,14 @@ import {
     stoneBricksMaterial,
     crackedStoneBricksMaterial,
     mossyStoneBricksMaterial,
-    dirtPathMaterial
+    dirtPathMaterial,
+    acaciaPlanksMaterial, bambooPlanksMaterial, birchPlanksMaterial, crimsonPlanksMaterial,
+    darkOakPlanksMaterial, junglePlanksMaterial, mangrovePlanksMaterial, sprucePlanksMaterial, warpedPlanksMaterial,
+    blastFurnaceMaterial, furnaceMaterial, chiseledDeepslateMaterial, cobbledDeepslateMaterial,
+    crackedDeepslateBricksMaterial, crackedDeepslateTilesMaterial, deepslateMaterial, deepslateBricksMaterial,
+    deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
+    deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
+    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial
 } from "./blocks.js";
 
 const ITEM_MATERIALS = {
@@ -43,7 +50,35 @@ const ITEM_MATERIALS = {
     19: stoneBricksMaterial,
     20: crackedStoneBricksMaterial,
     21: mossyStoneBricksMaterial,
-    22: dirtPathMaterial
+    22: dirtPathMaterial,
+    23: acaciaPlanksMaterial,
+    24: bambooPlanksMaterial,
+    25: birchPlanksMaterial,
+    26: crimsonPlanksMaterial,
+    27: darkOakPlanksMaterial,
+    28: junglePlanksMaterial,
+    29: mangrovePlanksMaterial,
+    30: sprucePlanksMaterial,
+    31: warpedPlanksMaterial,
+    32: blastFurnaceMaterial,
+    33: chiseledDeepslateMaterial,
+    34: cobbledDeepslateMaterial,
+    35: crackedDeepslateBricksMaterial,
+    36: crackedDeepslateTilesMaterial,
+    37: deepslateMaterial,
+    38: deepslateBricksMaterial,
+    39: deepslateCoalOreMaterial,
+    40: deepslateCopperOreMaterial,
+    41: deepslateDiamondOreMaterial,
+    42: deepslateEmeraldOreMaterial,
+    43: deepslateGoldOreMaterial,
+    44: deepslateIronOreMaterial,
+    45: deepslateLapisOreMaterial,
+    46: deepslateRedstoneOreMaterial,
+    47: deepslateTilesMaterial,
+    48: polishedDeepslateMaterial,
+    49: reinforcedDeepslateMaterial,
+    50: furnaceMaterial
 };
 
 const BASE_POS = new THREE.Vector3(0.84, -0.76, -1.05);
