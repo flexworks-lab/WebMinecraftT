@@ -4,7 +4,14 @@ import {
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial,
     coalMaterial, ironMaterial, oakLogMaterial, oakPlankMaterial,
     leavesMaterial, snowMaterial, tntSideMaterial, tntTopMaterial, tntBottomMaterial,
-    bricksMaterial, stoneBricksMaterial, crackedStoneBricksMaterial, mossyStoneBricksMaterial, dirtPathMaterial
+    bricksMaterial, stoneBricksMaterial, crackedStoneBricksMaterial, mossyStoneBricksMaterial, dirtPathMaterial,
+    acaciaPlanksMaterial, bambooPlanksMaterial, birchPlanksMaterial, crimsonPlanksMaterial, darkOakPlanksMaterial,
+    junglePlanksMaterial, mangrovePlanksMaterial, sprucePlanksMaterial, warpedPlanksMaterial,
+    blastFurnaceMaterial, furnaceMaterial, chiseledDeepslateMaterial, cobbledDeepslateMaterial,
+    crackedDeepslateBricksMaterial, crackedDeepslateTilesMaterial, deepslateMaterial, deepslateBricksMaterial,
+    deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
+    deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
+    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial
 } from "./blocks.js";
 
 export const CHUNK_SIZE = 19;
@@ -19,7 +26,14 @@ const BLOCK = {
     AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, SAND: 4,
     OAK: 5, LEAVES: 6, COBBLESTONE: 7, GRAVEL: 8,
     SANDSTONE: 9, BEDROCK: 10, COAL_ORE: 11, IRON_ORE: 12,
-    OAK_PLANKS: 13, SNOW: 14, TNT: 15, OAK_DOOR: 17, BRICKS: 18, STONE_BRICKS: 19, CRACKED_STONE_BRICKS: 20, MOSSY_STONE_BRICKS: 21, DIRT_PATH: 22
+    OAK_PLANKS: 13, SNOW: 14, TNT: 15, OAK_DOOR: 17, BRICKS: 18, STONE_BRICKS: 19, CRACKED_STONE_BRICKS: 20, MOSSY_STONE_BRICKS: 21, DIRT_PATH: 22,
+    ACACIA_PLANKS: 23, BAMBOO_PLANKS: 24, BIRCH_PLANKS: 25, CRIMSON_PLANKS: 26, DARK_OAK_PLANKS: 27,
+    JUNGLE_PLANKS: 28, MANGROVE_PLANKS: 29, SPRUCE_PLANKS: 30, WARPED_PLANKS: 31, BLAST_FURNACE: 32,
+    CHISELED_DEEPSLATE: 33, COBBLED_DEEPSLATE: 34, CRACKED_DEEPSLATE_BRICKS: 35, CRACKED_DEEPSLATE_TILES: 36,
+    DEEPSLATE: 37, DEEPSLATE_BRICKS: 38, DEEPSLATE_COAL_ORE: 39, DEEPSLATE_COPPER_ORE: 40,
+    DEEPSLATE_DIAMOND_ORE: 41, DEEPSLATE_EMERALD_ORE: 42, DEEPSLATE_GOLD_ORE: 43, DEEPSLATE_IRON_ORE: 44,
+    DEEPSLATE_LAPIS_ORE: 45, DEEPSLATE_REDSTONE_ORE: 46, DEEPSLATE_TILES: 47, POLISHED_DEEPSLATE: 48,
+    REINFORCED_DEEPSLATE: 49, FURNACE: 50
 };
 
 const WORLD_TYPE_PREFIX = "webminecraft-world-type-";
@@ -73,7 +87,17 @@ const chunkMaterials = [
     bedrockMaterial, coalMaterial, ironMaterial, oakPlankMaterial, snowMaterial,
     tntSideMaterial, tntTopMaterial, tntBottomMaterial, bricksMaterial,
     stoneBricksMaterial, crackedStoneBricksMaterial, mossyStoneBricksMaterial,
-    dirtPathMaterial[0], dirtPathMaterial[2]
+    dirtPathMaterial[0], dirtPathMaterial[2],
+    acaciaPlanksMaterial, bambooPlanksMaterial, birchPlanksMaterial, crimsonPlanksMaterial,
+    darkOakPlanksMaterial, junglePlanksMaterial, mangrovePlanksMaterial, sprucePlanksMaterial, warpedPlanksMaterial,
+    blastFurnaceMaterial[4], blastFurnaceMaterial[0], blastFurnaceMaterial[2],
+    chiseledDeepslateMaterial, cobbledDeepslateMaterial, crackedDeepslateBricksMaterial, crackedDeepslateTilesMaterial,
+    deepslateMaterial[0], deepslateMaterial[1], deepslateBricksMaterial,
+    deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
+    deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
+    deepslateTilesMaterial, polishedDeepslateMaterial,
+    reinforcedDeepslateMaterial[2], reinforcedDeepslateMaterial[0], reinforcedDeepslateMaterial[1],
+    furnaceMaterial[4], furnaceMaterial[0], furnaceMaterial[2]
 ];
 
 const waterMaterial = new THREE.MeshPhongMaterial({
@@ -352,7 +376,57 @@ function generateTerrain(chunk){const startX=chunk.x*CHUNK_SIZE,startZ=chunk.z*C
 function generateTrees(chunk){if(isFlatWorld())return;const startX=chunk.x*CHUNK_SIZE,startZ=chunk.z*CHUNK_SIZE;for(let lx=2;lx<CHUNK_SIZE-2;lx++){for(let lz=2;lz<CHUNK_SIZE-2;lz++){const x=startX+lx,z=startZ+lz,biome=getBiome(x,z);if(biome!=="forest"&&biome!=="plains")continue;const surfaceY=getTerrainProfile(x,z).height;if(surfaceY<SEA_LEVEL+1||getBlockType(x,surfaceY,z)!==BLOCK.GRASS||!treeChance(x,z))continue;let crowded=false;for(let dx=-1;dx<=1&&!crowded;dx++){for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0)continue;if(treeChance(x+dx,z+dz)&&hash2D(x+dx,z+dz,1417)>.48){crowded=true;break;}}}if(!crowded)addTree(x,surfaceY+1,z);}}}
 function applyWorldOverridesToChunk(chunk){for(const[key,type]of worldOverrides){const[x,y,z]=key.split(',').map(Number);if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;if(Math.floor(x/CHUNK_SIZE)!==chunk.x||Math.floor(z/CHUNK_SIZE)!==chunk.z||y<MIN_Y||y>WORLD_TOP)continue;const localX=((x%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,localZ=((z%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;chunk.blocks[blockIndex(localX,y,localZ)]=type;}}
 function generateChunk(chunkX,chunkZ){const key=chunkKey(chunkX,chunkZ);if(chunks.has(key))return chunks.get(key);const chunk={x:chunkX,z:chunkZ,blocks:new Uint8Array(CHUNK_SIZE*CHUNK_SIZE*CHUNK_HEIGHT),generated:false,waterMesh:null};chunks.set(key,chunk);generateTerrain(chunk);generateTrees(chunk);applyWorldOverridesToChunk(chunk);chunk.generated=true;return chunk;}
-function materialIndexFor(type,faceIndex){switch(type){case BLOCK.GRASS:return faceIndex===2?1:faceIndex===3?2:0;case BLOCK.DIRT:return 2;case BLOCK.STONE:return 3;case BLOCK.SAND:return 4;case BLOCK.OAK:return faceIndex===2||faceIndex===3?6:5;case BLOCK.LEAVES:return 7;case BLOCK.COBBLESTONE:return 8;case BLOCK.GRAVEL:return 9;case BLOCK.SANDSTONE:return faceIndex===2?11:faceIndex===3?12:10;case BLOCK.BEDROCK:return 13;case BLOCK.COAL_ORE:return 14;case BLOCK.IRON_ORE:return 15;case BLOCK.OAK_PLANKS:return 16;case BLOCK.SNOW:return 17;case BLOCK.TNT:return faceIndex===2?19:faceIndex===3?20:18;case BLOCK.BRICKS:return 21;case BLOCK.STONE_BRICKS:return 22;case BLOCK.CRACKED_STONE_BRICKS:return 23;case BLOCK.MOSSY_STONE_BRICKS:return 24;case BLOCK.DIRT_PATH:return faceIndex===2?26:25;default:return 0;}}
+function materialIndexFor(type,faceIndex){switch(type){
+    case BLOCK.GRASS:return faceIndex===2?1:faceIndex===3?2:0;
+    case BLOCK.DIRT:return 2;
+    case BLOCK.STONE:return 3;
+    case BLOCK.SAND:return 4;
+    case BLOCK.OAK:return faceIndex===2||faceIndex===3?6:5;
+    case BLOCK.LEAVES:return 7;
+    case BLOCK.COBBLESTONE:return 8;
+    case BLOCK.GRAVEL:return 9;
+    case BLOCK.SANDSTONE:return faceIndex===2?11:faceIndex===3?12:10;
+    case BLOCK.BEDROCK:return 13;
+    case BLOCK.COAL_ORE:return 14;
+    case BLOCK.IRON_ORE:return 15;
+    case BLOCK.OAK_PLANKS:return 16;
+    case BLOCK.SNOW:return 17;
+    case BLOCK.TNT:return faceIndex===2?19:faceIndex===3?20:18;
+    case BLOCK.BRICKS:return 21;
+    case BLOCK.STONE_BRICKS:return 22;
+    case BLOCK.CRACKED_STONE_BRICKS:return 23;
+    case BLOCK.MOSSY_STONE_BRICKS:return 24;
+    case BLOCK.DIRT_PATH:return faceIndex===2?26:25;
+    case BLOCK.ACACIA_PLANKS:return 27;
+    case BLOCK.BAMBOO_PLANKS:return 28;
+    case BLOCK.BIRCH_PLANKS:return 29;
+    case BLOCK.CRIMSON_PLANKS:return 30;
+    case BLOCK.DARK_OAK_PLANKS:return 31;
+    case BLOCK.JUNGLE_PLANKS:return 32;
+    case BLOCK.MANGROVE_PLANKS:return 33;
+    case BLOCK.SPRUCE_PLANKS:return 34;
+    case BLOCK.WARPED_PLANKS:return 35;
+    case BLOCK.BLAST_FURNACE:return faceIndex===2?38:faceIndex>=4?36:37;
+    case BLOCK.CHISELED_DEEPSLATE:return 39;
+    case BLOCK.COBBLED_DEEPSLATE:return 40;
+    case BLOCK.CRACKED_DEEPSLATE_BRICKS:return 41;
+    case BLOCK.CRACKED_DEEPSLATE_TILES:return 42;
+    case BLOCK.DEEPSLATE:return faceIndex===2?44:43;
+    case BLOCK.DEEPSLATE_BRICKS:return 45;
+    case BLOCK.DEEPSLATE_COAL_ORE:return 46;
+    case BLOCK.DEEPSLATE_COPPER_ORE:return 47;
+    case BLOCK.DEEPSLATE_DIAMOND_ORE:return 48;
+    case BLOCK.DEEPSLATE_EMERALD_ORE:return 49;
+    case BLOCK.DEEPSLATE_GOLD_ORE:return 50;
+    case BLOCK.DEEPSLATE_IRON_ORE:return 51;
+    case BLOCK.DEEPSLATE_LAPIS_ORE:return 52;
+    case BLOCK.DEEPSLATE_REDSTONE_ORE:return 53;
+    case BLOCK.DEEPSLATE_TILES:return 54;
+    case BLOCK.POLISHED_DEEPSLATE:return 55;
+    case BLOCK.REINFORCED_DEEPSLATE:return faceIndex===2?58:faceIndex===3?56:57;
+    case BLOCK.FURNACE:return faceIndex===2?61:faceIndex>=4?59:60;
+    default:return 0;
+}}
 function isSolid(type){return type!==BLOCK.AIR&&type!==BLOCK.OAK_DOOR;}
 function getUnderwaterShade(surfaceY,y,x,z){if(surfaceY>=SEA_LEVEL||y>surfaceY)return 1;const depth=Math.max(0,SEA_LEVEL-(y+.5)),depthT=THREE.MathUtils.clamp(depth/24,0,1),shade=THREE.MathUtils.lerp(1,.43,depthT),variation=.96+hash3D(x,y,z,1911)*.06;return THREE.MathUtils.clamp(shade*variation,.40,1);}
 function makeGeometryForChunk(chunk){const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);let vertexCount=0;for(let lx=0;lx<CHUNK_SIZE;lx++){for(let lz=0;lz<CHUNK_SIZE;lz++){const x=chunk.x*CHUNK_SIZE+lx,z=chunk.z*CHUNK_SIZE+lz,surfaceY=getTerrainProfile(x,z).height;for(let y=MIN_Y;y<=WORLD_TOP;y++){const type=chunk.blocks[blockIndex(lx,y,lz)];if(!isSolid(type))continue;const underwaterShade=getUnderwaterShade(surfaceY,y,x,z);for(let faceIndex=0;faceIndex<6;faceIndex++){const face=FACES[faceIndex],neighbor=getBlockType(x+face.normal[0],y+face.normal[1],z+face.normal[2]);if(isSolid(neighbor)&&neighbor!==BLOCK.LEAVES)continue;const base=vertexCount;for(const corner of face.corners){positions.push(x+corner[0],y+corner[1],z+corner[2]);normals.push(face.normal[0],face.normal[1],face.normal[2]);colors.push(underwaterShade,underwaterShade,underwaterShade);}const sideTopV=type===BLOCK.DIRT_PATH&&faceIndex!==2?15/16:1;uvs.push(0,0,0,sideTopV,1,sideTopV,1,0);const matIndex=materialIndexFor(type,faceIndex);groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);vertexCount+=4;}}}}if(vertexCount===0)return null;const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute("normal",new THREE.Float32BufferAttribute(normals,3));geometry.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));const index=[];for(let i=0;i<groups.length;i++){const start=index.length;index.push(...groups[i]);if(groups[i].length)geometry.addGroup(start,groups[i].length,i);}geometry.setIndex(index);geometry.computeBoundingSphere();geometry.computeBoundingBox();return geometry;}
