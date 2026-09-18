@@ -162,14 +162,14 @@ const blastFurnaceSideMaterial = new THREE.MeshPhongMaterial({ map: blastFurnace
 const blastFurnaceTopMaterial = new THREE.MeshPhongMaterial({ map: blastFurnaceTopTexture, color: textureShade, ...materialOptions });
 const blastFurnaceMaterial = [
     blastFurnaceSideMaterial, blastFurnaceSideMaterial, blastFurnaceTopMaterial,
-    blastFurnaceSideMaterial, furnaceFrontMaterial, furnaceFrontMaterial
+    blastFurnaceSideMaterial, furnaceFrontMaterial, blastFurnaceSideMaterial
 ];
 
 const furnaceSideMaterial = new THREE.MeshPhongMaterial({ map: furnaceSideTexture, color: textureShade, ...materialOptions });
 const furnaceTopMaterial = new THREE.MeshPhongMaterial({ map: furnaceTopTexture, color: textureShade, ...materialOptions });
 const furnaceMaterial = [
     furnaceSideMaterial, furnaceSideMaterial, furnaceTopMaterial,
-    furnaceSideMaterial, furnaceFrontMaterial, furnaceFrontMaterial
+    furnaceSideMaterial, furnaceFrontMaterial, furnaceSideMaterial
 ];
 
 const chiseledDeepslateMaterial = new THREE.MeshPhongMaterial({ map: chiseledDeepslateTexture, color: textureShade, ...materialOptions });
