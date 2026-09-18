@@ -77,30 +77,81 @@ function getTarget(ndcX = 0, ndcY = 0) {
 
 function crackMap(stage) {
     const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = 128;
+    canvas.width = canvas.height = 32;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    ctx.strokeStyle = "rgba(0,0,0,.96)";
-    ctx.lineWidth = 4;
-    ctx.lineCap = "square";
+
+    // Draw at a low resolution so the crack texture stays intentionally blocky.
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, 32, 32);
+
     const paths = [
-        [[64,63],[51,49],[56,30],[43,15]], [[64,63],[78,49],[71,32],[87,19]],
-        [[64,63],[47,69],[29,63],[14,73]], [[64,63],[78,71],[95,66],[113,79]],
-        [[64,63],[60,80],[50,98],[43,114]], [[64,63],[72,78],[84,97],[90,114]],
-        [[64,63],[58,51],[40,41],[24,38]], [[64,63],[73,53],[91,43],[108,46]]
+        [[16,16],[14,13],[15,10],[13,7],[11,4]],
+        [[16,16],[19,13],[18,10],[20,7],[22,4]],
+        [[16,16],[13,18],[10,18],[7,20],[4,23]],
+        [[16,16],[19,18],[22,17],[25,19],[28,21]],
+        [[16,16],[15,20],[13,23],[11,27],[10,30]],
+        [[16,16],[18,20],[20,23],[22,27],[23,30]],
+        [[16,16],[14,14],[11,13],[8,12],[5,11]],
+        [[16,16],[19,14],[22,13],[25,12],[28,13]],
     ];
-    const count = Math.min(paths.length, 1 + stage * 2);
-    for (let i = 0; i < count; i++) {
-        const path = paths[i];
-        ctx.beginPath();
-        ctx.moveTo(path[0][0], path[0][1]);
-        for (let p = 1; p < path.length; p++) ctx.lineTo(path[p][0], path[p][1]);
-        ctx.stroke();
+
+    const segmentsPerStage = [1, 3, 5, 7, paths.length];
+    const segmentLimit = segmentsPerStage[Math.max(0, Math.min(4, stage))];
+
+    function drawPixelLine(a, b, size = 1) {
+        let x = a[0];
+        let y = a[1];
+        const dx = Math.abs(b[0] - a[0]);
+        const dy = Math.abs(b[1] - a[1]);
+        const sx = a[0] < b[0] ? 1 : -1;
+        const sy = a[1] < b[1] ? 1 : -1;
+        let error = dx - dy;
+
+        while (true) {
+            ctx.fillRect(x - Math.floor(size / 2), y - Math.floor(size / 2), size, size);
+            if (x === b[0] && y === b[1]) break;
+
+            const twice = error * 2;
+            if (twice > -dy) { error -= dy; x += sx; }
+            if (twice < dx) { error += dx; y += sy; }
+        }
     }
+
+    // A darker one-pixel shadow makes the cracks read clearly against bright blocks.
+    ctx.fillStyle = "rgba(0,0,0,.9)";
+    for (let i = 0; i < segmentLimit; i++) {
+        const path = paths[i];
+        for (let p = 1; p < path.length; p++) drawPixelLine(path[p - 1], path[p], stage >= 3 ? 2 : 1);
+    }
+
+    // Chunky fracture chips appear as the block gets closer to breaking.
+    if (stage >= 1) {
+        const chips = [
+            [13,12],[20,11],[10,20],[22,18],[14,23],[20,23],
+            [8,14],[24,14],[7,22],[26,20],[12,28],[24,27]
+        ];
+        const chipCount = Math.min(chips.length, 2 + stage * 2);
+        ctx.fillStyle = "rgba(0,0,0,.96)";
+        for (let i = 0; i < chipCount; i++) {
+            const [x, y] = chips[i];
+            ctx.fillRect(x, y, stage >= 3 ? 2 : 1, stage >= 4 ? 2 : 1);
+        }
+    }
+
+    // Final stage gets a dense center fracture for a stronger break cue.
+    if (stage >= 4) {
+        ctx.fillRect(14, 15, 5, 2);
+        ctx.fillRect(15, 13, 2, 6);
+        ctx.fillRect(12, 17, 7, 2);
+    }
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    texture.needsUpdate = true;
     return texture;
 }
 
