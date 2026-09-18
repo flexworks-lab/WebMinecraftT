@@ -257,7 +257,7 @@ function approach(current, target, amount) {
 }
 
 function isSneaking() {
-    return !isFlying && (touchInput.sneak || !!keys["ControlLeft"] || !!keys["ControlRight"]);
+    return !isFlying && (touchInput.sneak || !!keys["KeyC"]);
 }
 
 function updateSneakCamera(camera, dt) {
