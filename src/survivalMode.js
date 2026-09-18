@@ -118,9 +118,14 @@ function loadSingleplayerWorldState() {
 
     const state = readWorldState(seed);
     const pendingMode = window.__webminecraftPendingSingleplayerMode;
+    let storedMode = null;
+    try {
+        const value = localStorage.getItem("${MODE_PREFIX}" + seed);
+        if (value === "survival" || value === "creative") storedMode = value;
+    } catch {}
     const mode = pendingMode === "survival" || pendingMode === "creative"
         ? pendingMode
-        : normalizeMode(state?.mode || getStoredMode(seed));
+        : storedMode || normalizeMode(state?.mode);
     setWorldMode(seed, mode);
     window.webMinecraftSelectedWorldMode = mode;
     document.body.classList.toggle("webminecraft-survival", mode === "survival");
