@@ -55,7 +55,31 @@ const ITEM_TYPES = [
     { id: 47, name: "Deepslate Tiles", texture: "deepslate_tiles.png", category: "natural" },
     { id: 48, name: "Polished Deepslate", texture: "polished_deepslate.png", category: "natural" },
     { id: 49, name: "Reinforced Deepslate", texture: "reinforced_deepslate_top.png", category: "natural" },
-    { id: 50, name: "Furnace", texture: "furnace_front.png", category: "natural" }
+    { id: 50, name: "Furnace", texture: "furnace_front.png", category: "natural" },
+    { id: 51, name: "Stone Slab", texture: "stone.png", category: "natural" },
+    { id: 52, name: "Cobblestone Slab", texture: "cobblestone.png", category: "natural" },
+    { id: 53, name: "Stone Bricks Slab", texture: "stone_bricks.png", category: "natural" },
+    { id: 54, name: "Cracked Stone Bricks Slab", texture: "cracked_stone_bricks.png", category: "natural" },
+    { id: 55, name: "Mossy Stone Bricks Slab", texture: "mossy_stone_bricks.png", category: "natural" },
+    { id: 56, name: "Oak Planks Slab", texture: "oak_planks.png", category: "natural" },
+    { id: 57, name: "Acacia Planks Slab", texture: "acacia_planks.png", category: "natural" },
+    { id: 58, name: "Bamboo Planks Slab", texture: "bamboo_planks.png", category: "natural" },
+    { id: 59, name: "Birch Planks Slab", texture: "birch_planks.png", category: "natural" },
+    { id: 60, name: "Crimson Planks Slab", texture: "crimson_planks.png", category: "natural" },
+    { id: 61, name: "Dark Oak Planks Slab", texture: "dark_oak_planks.png", category: "natural" },
+    { id: 62, name: "Jungle Planks Slab", texture: "jungle_planks.png", category: "natural" },
+    { id: 63, name: "Mangrove Planks Slab", texture: "mangrove_planks.png", category: "natural" },
+    { id: 64, name: "Spruce Planks Slab", texture: "spruce_planks.png", category: "natural" },
+    { id: 65, name: "Warped Planks Slab", texture: "warped_planks.png", category: "natural" },
+    { id: 66, name: "Chiseled Deepslate Slab", texture: "chiseled_deepslate.png", category: "natural" },
+    { id: 67, name: "Cobbled Deepslate Slab", texture: "cobbled_deepslate.png", category: "natural" },
+    { id: 68, name: "Cracked Deepslate Bricks Slab", texture: "cracked_deepslate_bricks.png", category: "natural" },
+    { id: 69, name: "Cracked Deepslate Tiles Slab", texture: "cracked_deepslate_tiles.png", category: "natural" },
+    { id: 70, name: "Deepslate Slab", texture: "deepslate.png", category: "natural" },
+    { id: 71, name: "Deepslate Bricks Slab", texture: "deepslate_bricks.png", category: "natural" },
+    { id: 72, name: "Deepslate Tiles Slab", texture: "deepslate_tiles.png", category: "natural" },
+    { id: 73, name: "Polished Deepslate Slab", texture: "polished_deepslate.png", category: "natural" },
+    { id: 74, name: "Reinforced Deepslate Slab", texture: "reinforced_deepslate_top.png", category: "natural" }
 ];
 
 const TAB_DEFS = [
@@ -270,7 +294,8 @@ body.inventory-open #hotbar.textured-hotbar{display:none!important}
 .inventorySlot,.destroySlot,.offhandSlot{position:relative;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;box-shadow:inset -1px -1px 0 #666;min-width:0}
 .inventorySlot{cursor:grab;touch-action:none}.inventorySlot:hover{filter:brightness(1.12);border-color:#fff}.inventorySlot.dragging{opacity:.42}
 .slotTexture{position:absolute;inset:6px;background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.slotFallback{position:absolute;inset:6px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;text-shadow:2px 2px 0 #222}
-.slotCount{position:absolute;right:3px;bottom:1px;font:bold 14px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none}.slotNumber{position:absolute;left:3px;top:1px;font:bold 11px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none}
+.slotCount{position:absolute;right:3px;bottom:1px;font:bold 14px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none}
+body.webminecraft-creative .slotCount,body.webminecraft-creative .hotbarCount{display:none!important}.slotNumber{position:absolute;left:3px;top:1px;font:bold 11px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none}
 .destroySlot,.offhandSlot{width:64px;height:64px;justify-self:center;display:flex;align-items:center;justify-content:center;font-size:38px;color:#d33;background:#7b4a4a;cursor:pointer}
 .destroySlot{color:#ff5a5a}.destroySlot:hover{background:#955252;filter:brightness(1.08)}.offhandSlot{color:#bbb;font-size:13px;cursor:default}
 .offhandSlot::after{content:"";position:absolute;inset:10px;border:2px dashed #aaa;opacity:.35}
@@ -516,6 +541,8 @@ function createHeld3D(camera) {
     held3D = { root, block, forearm, hand };
 }
 
+function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
+
 function updateHeldBlock() {
     const inWorld = document.body.classList.contains("webminecraft-in-world") && !inventoryOpen;
     const slotIndex = Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0;
@@ -527,6 +554,9 @@ function updateHeldBlock() {
     if (!info || !textureName) { held3D.root.visible = false; return; }
     const texture = loadHeldTexture({ ...info, texture: textureName });
     for (const material of held3D.block.material) { material.map = texture; material.needsUpdate = true; }
+    const slab = isSlabItem(item.itemId);
+    held3D.block.scale.y = slab ? 0.5 : 1;
+    held3D.block.position.y = slab ? 0.115 : 0.26;
     held3D.root.visible = true;
 }
 
