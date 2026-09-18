@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock } from "./world.js";
+import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType } from "./world.js";
 import { touchInput } from "./controls.js";
 import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
@@ -212,6 +212,21 @@ export function setupInteraction(scene, camera) {
             Math.round(target.normal.y),
             Math.round(target.normal.z)
         );
+        const targetType = getBlockAt(target.x, target.y, target.z);
+        // Two matching bottom slabs stack into the corresponding full block
+        // when the second slab is placed against the top face.
+        if (isSlabBlock(itemId) && isSlabBlock(targetType) && normal.y > 0.5 && itemId === targetType) {
+            const fullBlock = slabParentType(itemId);
+            if (!setBlockAt(target.x, target.y, target.z, fullBlock)) return;
+            if (!creative && !consumeSelected(selectedSlot)) {
+                setBlockAt(target.x, target.y, target.z, targetType);
+                return;
+            }
+            sendPlayerAction("place");
+            sendBlockChange(target.x, target.y, target.z, fullBlock);
+            notifyBlockChange(target.x, target.y, target.z, fullBlock);
+            return;
+        }
         const x = target.x + normal.x;
         const y = target.y + normal.y;
         const z = target.z + normal.z;
