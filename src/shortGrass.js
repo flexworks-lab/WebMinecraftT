@@ -217,10 +217,10 @@ function scan() {
     mesh.instanceMatrix.needsUpdate = true;
 }
 
-function getGrassHit() {
+function getGrassHit(ndcX = 0, ndcY = 0) {
     if (!mesh || !root?.visible) return null;
     const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), cameraRef);
+    raycaster.setFromCamera(new THREE.Vector2(Number(ndcX) || 0, Number(ndcY) || 0), cameraRef);
     const hit = raycaster.intersectObject(mesh, false)[0];
     if (!hit || hit.instanceId == null || hit.distance > 5) return null;
     const matrix = new THREE.Matrix4();
@@ -244,10 +244,15 @@ function updateGrassOutline() {
 function punchGrass(event) {
     if (!mesh || !root?.visible || event.button !== 0) return;
     if (event.target?.closest?.("#hotbar, #inventoryScreen, button, input, select, textarea, a")) return;
-    const target = getGrassHit();
-    if (!target) return;
+    removeGrassAtRay(0, 0);
+}
+
+function removeGrassAtRay(ndcX = 0, ndcY = 0) {
+    const target = getGrassHit(ndcX, ndcY);
+    if (!target) return false;
     removedGrass.add(`${target.x},${target.y},${target.z}`);
     scan();
+    return true;
 }
 
 function tick(now) {
@@ -261,6 +266,7 @@ function tick(now) {
 
 export function initShortGrass(scene, camera) {
     cameraRef = camera;
+    window.__webMinecraftTryBreakShortGrass = removeGrassAtRay;
     if (!root) { root = new THREE.Group(); root.name = ROOT_NAME; root.renderOrder = 5; scene.add(root); }
     ensureMesh();
     ensureGrassOutline();
