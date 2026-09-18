@@ -92,7 +92,7 @@ function selectSlot(index) {
     document.dispatchEvent(event);
     renderSlots();
 }
-function close() { open = false; root?.classList.remove("open"); document.body.classList.remove("survival-inventory-open"); cancelAnimationFrame(previewFrame); }
+function close() { open = false; root?.classList.remove("open"); document.body.classList.remove("survival-inventory-open"); cancelAnimationFrame(previewFrame); if (!document.body.classList.contains("mobile-mode") && isInWorld()) { try { document.body.requestPointerLock?.(); } catch {} } }
 function openInventory() {
     if (!isInWorld() || !isSurvivalWorld()) return false;
     loadData();
@@ -101,6 +101,7 @@ function openInventory() {
     root.classList.add("open");
     document.body.classList.add("survival-inventory-open");
     open = true;
+    document.exitPointerLock?.();
     startPreview();
     return true;
 }
@@ -181,15 +182,15 @@ function createUI() {
     root.querySelector("#svi-recipe-book").addEventListener("click", recipeBook);
     const style = document.createElement("style");
     style.textContent = `
-#survivalInventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.64);z-index:1000000;font-family:Arial,sans-serif;color:#fff}
+#survivalInventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000000;font-family:Arial,sans-serif;color:#fff}
 #survivalInventoryScreen.open{display:flex}
-#svi-panel{width:min(790px,92vw);height:min(585px,88vh);box-sizing:border-box;padding:10px;background:linear-gradient(#353535,#2a2a2a);border:2px solid #141414;border-top-color:#8b8b8b;border-left-color:#8b8b8b;box-shadow:8px 8px 0 rgba(0,0,0,.38),inset 1px 1px #555;display:flex;flex-direction:column;gap:8px;overflow:auto;border-radius:4px}
-#svi-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;text-shadow:2px 2px #111;min-height:30px}#svi-close{width:32px;height:30px;background:#5d5d5d;color:#fff;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;border-radius:3px;font-size:22px;line-height:22px;cursor:pointer;box-shadow:inset -1px -1px #333}#svi-close:hover{filter:brightness(1.12)}
+#svi-panel{width:min(790px,92vw);height:min(585px,88vh);box-sizing:border-box;padding:10px;background:linear-gradient(#555,#444);border:2px solid #262626;border-top-color:#a8a8a8;border-left-color:#a8a8a8;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset 1px 1px #777;display:flex;flex-direction:column;gap:8px;overflow:auto;border-radius:4px}
+#svi-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;text-shadow:2px 2px #111;min-height:30px}#svi-close{width:32px;height:30px;background:#888;color:#fff;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;border-radius:3px;font-size:22px;line-height:22px;cursor:pointer;box-shadow:inset -1px -1px #333}#svi-close:hover{filter:brightness(1.12)}
 #svi-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:205px}.svi-section-title{font-size:13px;font-weight:800;margin-bottom:5px;text-shadow:1px 1px #111}.svi-section-title small{color:#aaa;font-size:10px;font-weight:600}
-#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#222;border:2px solid #0f0f0f;padding:8px;box-sizing:border-box;border-radius:3px;box-shadow:inset 1px 1px rgba(255,255,255,.05)}.svi-box-label{display:block;color:#999;font-size:10px;margin-top:4px}
-#svi-player-box{position:relative;display:grid;grid-template-columns:1fr 58px;grid-template-rows:1fr 40px;min-height:205px}#svi-player-preview{width:100%;height:100%;min-height:145px;background:radial-gradient(circle,#565656 0%,#252525 70%)}#svi-armor{display:flex;flex-direction:column;gap:4px;padding-left:6px;align-items:center;justify-content:center}.svi-armor-slot,.svi-craft-slot,.svi-craft-output,#svi-offhand{border:2px solid #555;border-top-color:#1d1d1d;border-left-color:#1d1d1d;background:#747474;box-shadow:inset -1px -1px #414141;display:grid;place-items:center;font-size:20px;color:#ddd;border-radius:2px}.svi-armor-slot{width:38px;height:38px}.svi-armor-slot:hover,#svi-offhand:hover{filter:brightness(1.15)}#svi-offhand{width:40px;height:40px;grid-column:2;grid-row:2;justify-self:center}
-#svi-crafting{display:flex;flex-direction:column;align-items:center}.svi-craft-row{display:flex;align-items:center;justify-content:center;gap:9px;flex:1}.svi-arrow{font-size:30px;color:#bbb}.svi-craft-output{width:48px;height:48px}.svi-craft-slot{width:42px;height:42px}.svi-craft-slot:hover,.svi-craft-output:hover{filter:brightness(1.15)}#svi-craft-grid{display:grid;grid-template-columns:repeat(2,42px);gap:4px}#svi-recipe-book{margin-top:5px;border:2px solid #315d34;background:#4c8a50;color:#fff;border-radius:4px;padding:5px 9px;cursor:pointer;font-weight:800;font-size:11px}#svi-recipe-book.active{background:#6cad6c}#svi-recipe-panel{width:100%;margin-top:5px;padding:6px;background:#171717;border:1px solid #555;color:#aaa;font-size:10px;text-align:center;border-radius:2px}
-#svi-storage-section{flex:1;min-height:174px}#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(34px,1fr));gap:4px}.svi-slot{position:relative;aspect-ratio:1;background:#7c7c7c;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px}.svi-slot:hover{filter:brightness(1.12)}.svi-slot.selected{border:2px solid #fff;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111}.svi-item{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:cover;object-position:center;image-rendering:pixelated;pointer-events:none}.svi-color{background:var(--c);box-shadow:inset 3px 3px rgba(255,255,255,.15),inset -3px -3px rgba(0,0,0,.2)}.svi-slot b{position:absolute;right:3px;bottom:1px;font-size:12px;text-shadow:2px 2px #111}.svi-slot::after{content:attr(data-index);position:absolute;left:3px;top:1px;color:rgba(255,255,255,.55);font-size:8px;text-shadow:1px 1px #111;pointer-events:none}
+#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#363636;border:2px solid #222;padding:8px;box-sizing:border-box;border-radius:3px;box-shadow:inset 1px 1px rgba(255,255,255,.05)}.svi-box-label{display:block;color:#999;font-size:10px;margin-top:4px}
+#svi-player-box{position:relative;display:grid;grid-template-columns:1fr 58px;grid-template-rows:1fr 40px;min-height:205px}#svi-player-preview{width:100%;height:100%;min-height:145px;background:radial-gradient(circle,#777 0%,#4a4a4a 70%)}#svi-armor{display:flex;flex-direction:column;gap:4px;padding-left:6px;align-items:center;justify-content:center}.svi-armor-slot,.svi-craft-slot,.svi-craft-output,#svi-offhand{border:2px solid #555;border-top-color:#1d1d1d;border-left-color:#1d1d1d;background:#969696;box-shadow:inset -1px -1px #414141;display:grid;place-items:center;font-size:20px;color:#ddd;border-radius:2px}.svi-armor-slot{width:38px;height:38px}.svi-armor-slot:hover,#svi-offhand:hover{filter:brightness(1.15)}#svi-offhand{width:40px;height:40px;grid-column:2;grid-row:2;justify-self:center}
+#svi-crafting{display:flex;flex-direction:column;align-items:center}.svi-craft-row{display:flex;align-items:center;justify-content:center;gap:9px;flex:1}.svi-arrow{font-size:30px;color:#bbb}.svi-craft-output{width:48px;height:48px}.svi-craft-slot{width:42px;height:42px}.svi-craft-slot:hover,.svi-craft-output:hover{filter:brightness(1.15)}#svi-craft-grid{display:grid;grid-template-columns:repeat(2,42px);gap:4px}#svi-recipe-book{margin-top:5px;border:2px solid #315d34;background:#4c8a50;color:#fff;border-radius:4px;padding:5px 9px;cursor:pointer;font-weight:800;font-size:11px}#svi-recipe-book.active{background:#6cad6c}#svi-recipe-panel{width:100%;margin-top:5px;padding:6px;background:#2d2d2d;border:1px solid #6a6a6a;color:#ddd;font-size:10px;text-align:center;border-radius:2px}
+#svi-storage-section{flex:1;min-height:174px}#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(34px,1fr));gap:4px}.svi-slot{position:relative;aspect-ratio:1;background:#989898;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px}.svi-slot:hover{filter:brightness(1.12)}.svi-slot.selected{border:2px solid #fff;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111}.svi-item{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:cover;object-position:center;image-rendering:pixelated;pointer-events:none}.svi-color{background:var(--c);box-shadow:inset 3px 3px rgba(255,255,255,.15),inset -3px -3px rgba(0,0,0,.2)}.svi-slot b{position:absolute;right:3px;bottom:1px;font-size:12px;text-shadow:2px 2px #111}.svi-slot::after{content:attr(data-index);position:absolute;left:3px;top:1px;color:rgba(255,255,255,.55);font-size:8px;text-shadow:1px 1px #111;pointer-events:none}
 #svi-hotbar-section{flex:0 0 auto}#svi-hotbar{grid-template-columns:repeat(9,42px);justify-content:center}.survival-inventory-open #hotbar{display:none!important}.survival-inventory-open #inventoryScreen{display:none!important}
 @media(max-width:720px){#svi-panel{width:min(520px,94vw);height:88vh;padding:8px;gap:6px}#svi-top{grid-template-columns:1fr;min-height:0;gap:6px}#svi-player-box{min-height:180px}#svi-player-preview{min-height:120px}#svi-storage-section{min-height:0}.svi-slot{min-width:0}.svi-item{inset:3px;width:calc(100% - 6px);height:calc(100% - 6px)}#svi-hotbar{grid-template-columns:repeat(9,minmax(26px,40px))}.svi-section-title{font-size:12px}}
 `;
@@ -198,9 +199,9 @@ function createUI() {
 function init() {
     document.addEventListener("keydown", event => {
         if (!isInWorld() || !isSurvivalWorld()) return;
-        if (event.code === "KeyE" || event.code === "KeyI") {
+        if (event.code === "KeyE") {
             event.preventDefault(); event.stopImmediatePropagation();
-            openInventory();
+            open ? close() : openInventory();
         }
         if (event.code === "Escape" && open) { event.preventDefault(); close(); }
     }, true);
