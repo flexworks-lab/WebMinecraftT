@@ -13,97 +13,56 @@ permissions:
   deployments: write
 
 jobs:
-  railway-deployment:
+  railway-multiplayer:
     runs-on: ubuntu-latest
+    environment:
+      name: railway-multiplayer
+      url: https://webminecraftt-multiplayer-production.up.railway.app
     steps:
-      - name: Record Railway deployment and remove old Render deployments
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const railwayUrl = 'https://webminecraftt-multiplayer-production.up.railway.app';
-            const railwayWs = 'wss://webminecraftt-multiplayer-production.up.railway.app/multiplayer';
-            const oldRenderHost = 'webminecraft-server.onrender.com';
+      - name: Check Railway multiplayer server
+        run: |
+          set -e
+          curl --fail --silent --show-error --retry 3             https://webminecraftt-multiplayer-production.up.railway.app/health
+          echo
+          echo "Railway multiplayer server is online."
 
-            const deployment = await github.rest.repos.createDeployment({
-              owner,
-              repo,
-              ref: context.sha,
-              task: 'deploy',
-              auto_merge: false,
-              required_contexts: [],
-              environment: 'railway-multiplayer',
-              description: 'WebMinecraftT multiplayer server on Railway',
-              production_environment: true
-            });
+      - name: Remove old Render deployments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLD_RENDER_HOST: webminecraft-server.onrender.com
+        run: |
+          set -euo pipefail
 
-            await github.rest.repos.createDeploymentStatus({
-              owner,
-              repo,
-              deployment_id: deployment.data.id,
-              state: 'in_progress',
-              description: 'Railway multiplayer server is active',
-              environment_url: railwayUrl,
-              target_url: railwayUrl
-            });
+          gh api --paginate             "repos/${GITHUB_REPOSITORY}/deployments?per_page=100" |
+            jq -c '.[]' > /tmp/deployments.jsonl
 
-            await github.rest.repos.createDeploymentStatus({
-              owner,
-              repo,
-              deployment_id: deployment.data.id,
-              state: 'success',
-              description: 'Railway multiplayer server is online',
-              environment_url: railwayUrl,
-              target_url: railwayWs
-            });
+          while IFS= read -r deployment; do
+            [ -n "$deployment" ] || continue
 
-            const deployments = await github.paginate(
-              github.rest.repos.listDeployments,
-              { owner, repo, per_page: 100 }
-            );
+            id=$(jq -r '.id' <<<"$deployment")
+            environment=$(jq -r '.environment // ""' <<<"$deployment" | tr '[:upper:]' '[:lower:]')
+            description=$(jq -r '.description // ""' <<<"$deployment" | tr '[:upper:]' '[:lower:]')
+            payload=$(jq -c '.payload // {}' <<<"$deployment" | tr '[:upper:]' '[:lower:]')
+            creator=$(jq -r '.creator.login // ""' <<<"$deployment" | tr '[:upper:]' '[:lower:]')
 
-            for (const oldDeployment of deployments) {
-              if (oldDeployment.id === deployment.data.id) continue;
+            is_old=false
+            if [[ "$environment" == *render* ||
+                  "$description" == *render* ||
+                  "$payload" == *"$OLD_RENDER_HOST"* ||
+                  "$payload" == *"render.com"* ||
+                  "$creator" == "render" ]]; then
+              is_old=true
+            else
+              if gh api --paginate                 "repos/${GITHUB_REPOSITORY}/deployments/${id}/statuses?per_page=100" |
+                jq -e --arg host "$OLD_RENDER_HOST" '
+                  any(.[]; ((.target_url // "") | contains($host)) or ((.environment_url // "") | contains($host)))
+                ' >/dev/null; then
+                is_old=true
+              fi
+            fi
 
-              const environment = String(oldDeployment.environment || '').toLowerCase();
-              const description = String(oldDeployment.description || '').toLowerCase();
-              const payload = JSON.stringify(oldDeployment.payload || {}).toLowerCase();
-              const creator = String(oldDeployment.creator?.login || '').toLowerCase();
-
-              let isOldRender = environment.includes('render')
-                || description.includes('render')
-                || payload.includes(oldRenderHost)
-                || payload.includes('render.com')
-                || creator === 'render';
-
-              if (!isOldRender) {
-                try {
-                  const statuses = await github.paginate(
-                    github.rest.repos.listDeploymentStatuses,
-                    { owner, repo, deployment_id: oldDeployment.id, per_page: 100 }
-                  );
-                  isOldRender = statuses.some(status =>
-                    String(status.target_url || '').toLowerCase().includes(oldRenderHost)
-                    || String(status.environment_url || '').toLowerCase().includes(oldRenderHost)
-                  );
-                } catch (error) {
-                  core.warning(`Could not inspect statuses for deployment ${oldDeployment.id}: ${error.message}`);
-                }
-              }
-
-              if (isOldRender) {
-                try {
-                  await github.rest.repos.deleteDeployment({
-                    owner,
-                    repo,
-                    deployment_id: oldDeployment.id
-                  });
-                  core.info(`Removed old Render deployment ${oldDeployment.id}`);
-                } catch (error) {
-                  core.warning(`Could not remove old Render deployment ${oldDeployment.id}: ${error.message}`);
-                }
-              }
-            }
-
-            core.info(`Railway deployment recorded: ${deployment.data.id}`);
+            if [ "$is_old" = true ]; then
+              echo "Removing old Render deployment $id"
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/deployments/${id}"
+            fi
+          done < /tmp/deployments.jsonl
