@@ -149,8 +149,14 @@ function setupPauseMenu(){
     overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();overlay.style.display="none";overlay.setAttribute("aria-hidden","true");document.getElementById("settingsMenu")?.style.setProperty("display","flex");document.exitPointerLock?.();paused=false;});
     overlay.querySelector("#pauseMobile").addEventListener("click",()=>{const url=new URL(window.location.href);const enabled=url.searchParams.get("mobile")==="1"||url.searchParams.get("mode")==="mobile";if(enabled){url.searchParams.delete("mobile");url.searchParams.delete("mode");}else{url.searchParams.set("mobile","1");url.searchParams.delete("mode");}window.location.href=url.toString();});
     overlay.querySelector("#pauseReturn").addEventListener("click",()=>{
-        window.webminecraftSaveWorldPreview?.(getWorldSeed());
-        window.location.reload();
+        const saveAndReturn = async () => {
+            try {
+                window.webminecraftSaveWorldPreview?.(getWorldSeed());
+                await window.webminecraftSaveCurrentWorld?.();
+            } catch {}
+            window.location.reload();
+        };
+        void saveAndReturn();
     });
     document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(paused)close(event);else if(isGameRunning())open(event);},true);
     document.getElementById("settingsButton")?.addEventListener("pointerdown",event=>{if(!isGameRunning())return;event.preventDefault();event.stopImmediatePropagation();open(event);},true);
