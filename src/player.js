@@ -299,7 +299,7 @@ function physicsStep(camera, dt) {
         velocityZ = approach(velocityZ, targetZ, 45 * dt);
         let verticalInput = 0;
         if (keys["Space"] || touchInput.jump) verticalInput += 1;
-        if (keys["ControlLeft"] || keys["ControlRight"]) verticalInput -= 1;
+        if (keys["ControlLeft"] || keys["ControlRight"] || keys["KeyC"] || touchInput.flyDown) verticalInput -= 1;
         velocityY = approach(velocityY, verticalInput * speed, 45 * dt);
         camera.position.x += velocityX * dt;
         camera.position.y += velocityY * dt;
