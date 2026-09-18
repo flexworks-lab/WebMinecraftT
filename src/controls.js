@@ -1,6 +1,7 @@
 import "./auth.js";
 
 export const keys = {};
+export let jumpQueued = false;
 
 export let yaw = 0;
 export let pitch = 0;
@@ -281,6 +282,7 @@ export function setupControls() {
         }
         if (event.code === "KeyF" && !event.repeat) isFlying = !isFlying;
         keys[event.code] = true;
+        if (event.code === "Space") jumpQueued = true;
         if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
     });
     window.addEventListener("keyup", event => {
