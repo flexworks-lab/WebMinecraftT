@@ -298,8 +298,8 @@ function physicsStep(camera, dt) {
     if (keys["KeyD"]) { inputX += rightX; inputZ += rightZ; }
     const inputLength = Math.hypot(inputX, inputZ);
     if (inputLength > 1) { inputX /= inputLength; inputZ /= inputLength; }
-    const sprinting = ((keys["ShiftLeft"] || keys["ShiftRight"]) || touchInput.sprint) && (keys["KeyW"] || Math.hypot(touchInput.moveX, touchInput.moveZ) > 0.65);
-    const targetSpeed = sprinting ? SPRINT_SPEED : WALK_SPEED;
+    const sprinting = ((keys["ShiftLeft"] || keys["ShiftRight"]) || touchInput.sprint) && (keys["KeyW"] || Math.hypot(touchInput.moveX, touchInput.moveZ) > 0.65) && !touchInput.sneak;
+    const targetSpeed = touchInput.sneak ? WALK_SPEED * 0.38 : (sprinting ? SPRINT_SPEED : WALK_SPEED);
     const targetX = inputX * targetSpeed;
     const targetZ = inputZ * targetSpeed;
     if (inputLength > 0.02) {
