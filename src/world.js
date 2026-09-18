@@ -384,7 +384,7 @@ function generateChunk(chunkX,chunkZ){const key=chunkKey(chunkX,chunkZ);if(chunk
 export function isSlabBlock(type){return Number(type)>=BLOCK.STONE_SLAB&&Number(type)<=BLOCK.REINFORCED_DEEPSLATE_SLAB;}
 function blockShape(type,y){const slab=isSlabBlock(type);return{minY:y-0.5,maxY:slab?y:y+0.5};}
 export function getBlockCollisionBounds(type,y){return blockShape(type,y);}
-function slabParentType(type){switch(type){
+export function slabParentType(type){switch(type){
     case BLOCK.STONE_SLAB:return BLOCK.STONE; case BLOCK.COBBLESTONE_SLAB:return BLOCK.COBBLESTONE;
     case BLOCK.STONE_BRICKS_SLAB:return BLOCK.STONE_BRICKS; case BLOCK.CRACKED_STONE_BRICKS_SLAB:return BLOCK.CRACKED_STONE_BRICKS; case BLOCK.MOSSY_STONE_BRICKS_SLAB:return BLOCK.MOSSY_STONE_BRICKS;
     case BLOCK.OAK_PLANKS_SLAB:return BLOCK.OAK_PLANKS; case BLOCK.ACACIA_PLANKS_SLAB:return BLOCK.ACACIA_PLANKS; case BLOCK.BAMBOO_PLANKS_SLAB:return BLOCK.BAMBOO_PLANKS;
