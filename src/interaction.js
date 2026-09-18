@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
+import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock } from "./world.js";
 import { touchInput } from "./controls.js";
 import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
@@ -200,7 +200,7 @@ export function setupInteraction(scene, camera) {
             }
             return;
         }
-        if (itemId > BLOCK.FURNACE) return;
+        if (itemId > BLOCK.FURNACE && !isSlabBlock(itemId)) return;
         const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
         if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId, ndcX, ndcY)) {
@@ -315,11 +315,17 @@ function createSelectionOutline() {
 
 function updateSelectionOutline(outline, target, camera) {
     outline.position.set(target.x, target.y, target.z);
+    const type = getBlockAt(target.x, target.y, target.z);
+    const slab = isSlabBlock(type);
+    outline.scale.set(1, slab ? 0.5 : 1, 1);
+    outline.position.y += slab ? -0.25 : 0;
 }
 
 function playerOverlapsBlock(pos, camera) {
     const p = camera.position;
-    return p.x > pos.x - 0.3 && p.x < pos.x + 1.3 && p.z > pos.z - 0.3 && p.z < pos.z + 1.3 && p.y > pos.y - 1.8 && p.y < pos.y + 1.8;
+    const slab = isSlabBlock(getBlockAt(pos.x, pos.y, pos.z));
+    const maxY = slab ? pos.y : pos.y + 0.5;
+    return p.x > pos.x - 0.3 && p.x < pos.x + 1.3 && p.z > pos.z - 0.3 && p.z < pos.z + 1.3 && p.y > pos.y - 0.5 && p.y < maxY + 1.3;
 }
 
 function createBreakParticles(scene, center, type, BLOCK) {
