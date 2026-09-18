@@ -135,8 +135,16 @@ async function refresh() {
     ensureUi();
     const mainMenuVisible = isMainMenuVisible();
     const active = Boolean(window.__webminecraftMultiplayerActive);
-    const multiplayerMenu = document.getElementById("multiplayerMenu");
-    const multiplayerMenuOpen = Boolean(multiplayerMenu && getComputedStyle(multiplayerMenu).display !== "none");
+    const canonicalMultiplayerMenu = window.__webminecraftMultiplayerMenuOverlay;
+    const multiplayerMenus = [...document.querySelectorAll("#multiplayerMenu")];
+    const multiplayerMenuOpen = multiplayerMenus.some(menu =>
+        getComputedStyle(menu).display !== "none" && menu.getAttribute("aria-hidden") !== "true"
+    ) || Boolean(
+        canonicalMultiplayerMenu &&
+        canonicalMultiplayerMenu.isConnected &&
+        getComputedStyle(canonicalMultiplayerMenu).display !== "none" &&
+        canonicalMultiplayerMenu.getAttribute("aria-hidden") !== "true"
+    );
     if (multiplayerMenuOpen) {
         countEl.style.display = "none";
         panel.style.display = "none";
