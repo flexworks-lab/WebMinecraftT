@@ -6,7 +6,8 @@ function addFlightButton(actions, id, label, property, keyCode = null) {
     button.id = id;
     button.className = "touchControl flightVerticalButton";
     button.type = "button";
-    button.textContent = label;
+    const icon = id === "touchFlyUp" ? "↑" : "↓";
+    button.innerHTML = `<span class="touchIcon" aria-hidden="true">${icon}</span><span class="touchLabel">${label}</span>`;
     button.setAttribute("aria-label", label);
 
     const press = event => {
