@@ -36,16 +36,13 @@ function init() {
     if (!actions) return;
 
     addFlightButton(actions, "touchFlyUp", "UP", "jump");
-    addFlightButton(actions, "touchFlyDown", "DOWN", "flyDown", "ControlLeft");
 
     const style = document.createElement("style");
     style.id = "mobileFlightControlsStyles";
     style.textContent = `
-#touchFlyUp,#touchFlyDown{display:none}
-body.mobile-mode #touchFlyUp,body.mobile-mode #touchFlyDown{display:none}
-body.mobile-mode #touchFlyUp.flightVisible,body.mobile-mode #touchFlyDown.flightVisible{display:block}
+#touchFlyUp{display:none}
+body.mobile-mode #touchFlyUp.flightVisible{display:block}
 #touchFlyUp{left:0;top:0}
-#touchFlyDown{left:0;top:58px}
 `;
     document.head.appendChild(style);
 
@@ -56,6 +53,7 @@ body.mobile-mode #touchFlyUp.flightVisible,body.mobile-mode #touchFlyDown.flight
         if (!visible) {
             touchInput.jump = false;
             keys.ControlLeft = false;
+            touchInput.flyDown = false;
         }
     };
 
