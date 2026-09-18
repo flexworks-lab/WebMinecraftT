@@ -160,7 +160,7 @@ function startPhysicsLoop() {
     };
     lastPhysicsTime = performance.now(); requestAnimationFrame(loop);
 }
-function getTarget(scene, camera) {
+function getTarget(scene, camera, ndcX = 0, ndcY = 0) {
     camera.updateMatrixWorld(true); raycaster.setFromCamera(CENTER, camera); raycaster.near = 0.01; raycaster.far = INTERACTION_DISTANCE;
     const hits = raycaster.intersectObjects(scene.children, true);
     const hit = hits.find(entry => {
@@ -293,10 +293,10 @@ window.addEventListener("webminecraft:tntignite", event => {
 });
 window.addEventListener("webminecraft:blockchange", event => { if (lastScene) processBlockChangeForPhysics(lastScene, event.detail); });
 
-export function tryIgniteTNT(scene, camera, itemId) {
+export function tryIgniteTNT(scene, camera, itemId, ndcX = 0, ndcY = 0) {
     lastScene = scene; startPhysicsLoop();
     if (itemId !== FLINT_AND_STEEL_ITEM_ID) return false;
-    const BLOCK = getBlockTypes(), target = getTarget(scene, camera);
+    const BLOCK = getBlockTypes(), target = getTarget(scene, camera, ndcX, ndcY);
     if (!target || target.type !== BLOCK.TNT) return false;
     return startFuse(scene, target.x, target.y, target.z, true, false);
 }
