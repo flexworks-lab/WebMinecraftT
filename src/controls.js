@@ -252,8 +252,7 @@ body.mobile-mode #touchControls{display:block}
 .touchControl{position:absolute;width:70px;height:52px;border:2px solid #111;border-right-color:#555;border-bottom-color:#555;border-radius:2px;background:#7b7b7b;color:#fff;font:700 11px Arial,sans-serif;letter-spacing:.5px;text-shadow:2px 2px 0 #333;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;box-shadow:inset 2px 2px 0 rgba(255,255,255,.22),inset -2px -2px 0 rgba(0,0,0,.28)}
 .touchControl.pressed{background:#9a9a9a;transform:translate(1px,1px);box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -1px -1px 0 rgba(0,0,0,.3)}
 #touchJump{right:0;top:0;width:82px;height:64px;font-size:12px}
-#touchBreak{right:0;top:76px}#touchPlace{right:0;top:134px}#touchSprint{left:0;top:76px}#touchFly{left:0;top:134px}
-#touchFly.pressed{background:#6f914b;border-right-color:#3f572d;border-bottom-color:#3f572d}
+#touchSprint{right:0;top:76px}
 #touchAimKnob{position:fixed;width:32px;height:32px;margin:-16px 0 0 -16px;border-radius:0;border:2px solid rgba(255,255,255,.75);background:rgba(255,255,255,.08);box-shadow:0 0 0 2px rgba(0,0,0,.55);pointer-events:none;z-index:4;opacity:0;transition:opacity .08s ease}
 #touchAimKnob.visible{opacity:1}
 #touchHint{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:90%;text-align:center;color:rgba(255,255,255,.5);font:11px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none;z-index:7}
