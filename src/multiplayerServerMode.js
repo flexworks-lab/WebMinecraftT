@@ -1,4 +1,5 @@
 import { setWorldMode } from "./survivalMode.js";
+import { setFlying } from "./controls.js";
 
 const STORAGE_KEY = "webminecraft-multiplayer-game-mode";
 const VALID_MODES = new Set(["survival", "creative"]);
@@ -24,16 +25,7 @@ function setSelectedMode(mode) {
 
 function forceDisableFlight() {
     try {
-        import("./controls.js").then(({ isFlying }) => {
-            if (!isFlying) return;
-            const mobile = document.body.classList.contains("mobile-mode");
-            if (mobile) {
-                const flyButton = document.getElementById("touchFly");
-                flyButton?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerId: -1, pointerType: "touch" }));
-            } else {
-                window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, code: "KeyF", key: "f" }));
-            }
-        }).catch(() => {});
+        setFlying(false);
     } catch {}
 }
 
