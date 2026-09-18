@@ -386,7 +386,6 @@ if (settingsCloseTop) {
 document.addEventListener("keydown", event => {
     if (event.code !== "Escape") return;
     if (settingsMenu?.style.display === "flex") closeSettingsMenu();
-    else if (gameStarted) setTimeout(openSettings, 0);
 });
 if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
 
