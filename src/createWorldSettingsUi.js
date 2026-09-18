@@ -12,25 +12,25 @@ function injectStyle() {
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-#createWorldSettingsRoot{position:relative;width:min(1180px,94vw);height:min(760px,92vh);display:flex;overflow:hidden;background:#e8e8e8;color:#222;font-family:Arial,sans-serif;border:2px solid #555;box-shadow:0 14px 0 rgba(0,0,0,.22),0 22px 55px rgba(0,0,0,.42)}
+#createWorldSettingsRoot{position:absolute;inset:0;width:100%;height:100%;display:flex;overflow:hidden;background:#e8e8e8;color:#222;font-family:Arial,sans-serif;border:0;box-shadow:none}
 #createWorldSettingsSidebar{width:292px;flex:0 0 292px;background:#d2d2d2;border-right:2px solid #777;display:flex;flex-direction:column;overflow:hidden}
 #createWorldSettingsPreview{position:relative;width:calc(100% - 20px);height:150px;margin:0 10px 10px;flex:0 0 150px;overflow:hidden;background:linear-gradient(180deg,#88b6d1 0%,#d9ecf2 52%,#a4be7c 53%,#547247 100%);border:2px solid #777;box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
 #createWorldSettingsPreview:before{content:"";position:absolute;inset:0;background:linear-gradient(154deg,transparent 0 44%,rgba(54,73,44,.92) 44% 62%,transparent 62%),linear-gradient(25deg,transparent 0 50%,rgba(76,91,57,.9) 50% 69%,transparent 69%);clip-path:polygon(0 66%,10% 53%,20% 63%,31% 41%,42% 58%,55% 37%,66% 56%,79% 46%,90% 60%,100% 49%,100% 100%,0 100%)}
 #createWorldSettingsPreview:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 73% 21%,rgba(255,255,220,.58) 0 22px,transparent 23px),linear-gradient(180deg,transparent 0 63%,rgba(0,0,0,.18) 63% 100%)}
 #createWorldSettingsPreviewLabel{position:absolute;left:14px;top:13px;z-index:2;padding:6px 9px;background:rgba(0,0,0,.58);font-family:"MinecraftFont",monospace;font-size:12px;text-shadow:2px 2px #000}
 #createWorldSettingsCreateWrap{padding:10px 10px 12px;background:#d2d2d2;border-bottom:2px solid #777}
-#createWorldSettingsCreate{width:100%;min-height:48px;padding:11px 18px;border:2px solid #173b18;background:#35b747;color:#fff;font-family:"MinecraftFont",monospace;font-size:15px;text-shadow:2px 2px #236b28;box-shadow:inset 0 2px 0 rgba(255,255,255,.22),0 3px 0 #6b6b6b;cursor:pointer;border-radius:0}
-#createWorldSettingsCreate:hover,#createWorldSettingsCreate:active{background:#35b747;filter:none;transform:none}
+#createWorldSettingsCreate{width:100%;min-height:48px;padding:11px 18px;border:2px solid #666;background:#999;color:#222;font-family:"MinecraftFont",monospace;font-size:15px;text-shadow:none;box-shadow:0 2px 0 #777;cursor:pointer;border-radius:0}
+#createWorldSettingsCreate:hover,#createWorldSettingsCreate:active{background:#999;filter:none;transform:none}
 #createWorldSettingsTabs{flex:1;overflow:auto;padding:10px}
-.createWorldSettingsTab{width:100%;min-height:44px;margin:3px 0;padding:9px 12px;text-align:left;border:2px solid transparent;background:#c0c0c0;color:#292929;font-family:"MinecraftFont",monospace;font-size:13px;cursor:pointer;border-radius:0;text-shadow:2px 2px #111}
-.createWorldSettingsTab:hover,.createWorldSettingsTab:active{background:#c0c0c0;filter:none;transform:none}
-.createWorldSettingsTab.active{background:#f1f1f1;color:#111;border-color:#777;box-shadow:inset 3px 0 0 #555}
+.createWorldSettingsTab{width:100%;min-height:44px;margin:3px 0;padding:9px 12px;text-align:left;border:2px solid #999;background:#bcbcbc;color:#292929;font-family:"MinecraftFont",monospace;font-size:13px;cursor:pointer;border-radius:0;text-shadow:2px 2px #111}
+.createWorldSettingsTab:hover,.createWorldSettingsTab:active{background:#bcbcbc;filter:none;transform:none}
+.createWorldSettingsTab.active{background:#d8d8d8;color:#111;border-color:#777;box-shadow:inset 3px 0 0 #666}
 #createWorldSettingsSidebarFooter{padding:10px 14px 13px;color:#666;background:#c6c6c6;font-size:10px;line-height:1.4;border-top:1px solid #888}
 #createWorldSettingsContent{min-width:0;flex:1;display:flex;flex-direction:column;background:#ededed}
 #createWorldSettingsHeader{height:64px;flex:0 0 64px;display:flex;align-items:center;padding:0 20px;background:#d7d7d7;border-bottom:2px solid #777}
 #createWorldSettingsSectionTitle{margin:0;color:#222;font-family:"MinecraftFont",monospace;font-size:20px;text-shadow:none}
-#createWorldSettingsClose{margin-left:auto;width:40px;height:40px;border:2px solid #666;background:#bdbdbd;color:#222;font-size:22px;cursor:pointer;border-radius:0;line-height:1}
-#createWorldSettingsClose:hover{background:#bdbdbd;filter:none}
+#createWorldSettingsClose{margin-left:auto;width:40px;height:40px;border:2px solid #666;background:#aaa;color:#222;font-size:22px;cursor:pointer;border-radius:0;line-height:1}
+#createWorldSettingsClose:hover{background:#aaa;filter:none}
 #createWorldSettingsScroll{flex:1;overflow:auto;padding:20px 24px 30px}
 .createWorldSettingsPage{display:none;max-width:980px;margin:0 auto}
 .createWorldSettingsPage.active{display:block}
@@ -55,10 +55,10 @@ function injectStyle() {
 .createWorldSettingsPackName{font-family:"MinecraftFont",monospace;font-size:11px;color:#222}
 .createWorldSettingsPackState{margin-left:auto;color:#777;font-size:10px}
 #createWorldSettingsActions{max-width:980px;margin:12px auto 0;display:flex;justify-content:flex-end;gap:10px}
-.createWorldSettingsAction{min-width:140px;min-height:46px;padding:10px 16px;border:2px solid #666;background:#b9b9b9;color:#222;font-family:"MinecraftFont",monospace;font-size:12px;cursor:pointer;text-shadow:none;border-radius:0;box-shadow:0 2px 0 #888}
-.createWorldSettingsAction:hover{background:#b9b9b9;filter:none;transform:none}
-#createWorldSettingsCancel{background:#b9b9b9}
-#createWorldSettingsMessage{min-height:18px;margin:7px 0 0;color:#4b874e;font-size:11px;text-align:right}
+.createWorldSettingsAction{min-width:140px;min-height:46px;padding:10px 16px;border:2px solid #666;background:#9f9f9f;color:#222;font-family:"MinecraftFont",monospace;font-size:12px;cursor:pointer;text-shadow:none;border-radius:0;box-shadow:0 2px 0 #888}
+.createWorldSettingsAction:hover{background:#9f9f9f;filter:none;transform:none}
+#createWorldSettingsCancel{background:#9f9f9f}
+#createWorldSettingsMessage{min-height:18px;margin:7px 0 0;color:#5d6b5d;font-size:11px;text-align:right}
 @media(max-width:760px){
 #createWorldSettingsRoot{width:100%;height:100%;border:0;box-shadow:none;flex-direction:column}
 #createWorldSettingsSidebar{width:100%;flex:0 0 auto;max-height:260px;border-right:0;border-bottom:2px solid #080808}
@@ -97,7 +97,7 @@ function enhance(modal) {
     if (!nameField || !seedDisplay || !message || !createButton || !cancelButton) return;
 
     modal.setAttribute(MODAL_MARK, "1");
-    modal.style.cssText = "position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.58);padding:20px;z-index:20;box-sizing:border-box";
+    modal.style.cssText = "position:absolute;inset:0;display:none;background:rgba(0,0,0,.58);padding:0;z-index:20;box-sizing:border-box";
     modal.innerHTML = `
         <div id="createWorldSettingsRoot">
             <aside id="createWorldSettingsSidebar">
