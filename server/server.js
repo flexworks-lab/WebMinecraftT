@@ -85,6 +85,8 @@ function publicPlayer(player) {
         position: player.position,
         rotation: player.rotation,
         heldItemId: Number.isFinite(player.heldItemId) ? player.heldItemId : 0,
+        sneaking: Boolean(player.sneaking),
+        action: String(player.action || "idle"),
     };
 }
 
@@ -260,6 +262,8 @@ function handleMessage(ws, raw, state) {
             position: { x: numberOr(message.position?.x), y: numberOr(message.position?.y), z: numberOr(message.position?.z) },
             rotation: { x: numberOr(message.rotation?.x), y: numberOr(message.rotation?.y), z: numberOr(message.rotation?.z) },
             heldItemId: 0,
+            sneaking: false,
+            action: "idle",
             lastUpdate: 0,
         };
         room.players.set(player.id, player);
@@ -397,6 +401,8 @@ function handleMessage(ws, raw, state) {
             player.rotation.z = numberOr(message.rotation.z, player.rotation.z);
             const heldItemId = Math.floor(numberOr(message.heldItemId, player.heldItemId));
             player.heldItemId = heldItemId >= 0 && heldItemId <= 22 ? heldItemId : 0;
+            player.sneaking = Boolean(message.sneaking);
+            player.action = ["idle", "walk", "mine", "place", "jump"].includes(message.action) ? message.action : "idle";
             player.lastUpdate = now;
         }
         return;
