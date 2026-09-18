@@ -161,7 +161,9 @@ function startPhysicsLoop() {
     lastPhysicsTime = performance.now(); requestAnimationFrame(loop);
 }
 function getTarget(scene, camera, ndcX = 0, ndcY = 0) {
-    camera.updateMatrixWorld(true); raycaster.setFromCamera(CENTER, camera); raycaster.near = 0.01; raycaster.far = INTERACTION_DISTANCE;
+    camera.updateMatrixWorld(true);
+    const point = Number.isFinite(ndcX) && Number.isFinite(ndcY) && (ndcX !== 0 || ndcY !== 0) ? new THREE.Vector2(ndcX, ndcY) : CENTER;
+    raycaster.setFromCamera(point, camera); raycaster.near = 0.01; raycaster.far = INTERACTION_DISTANCE;
     const hits = raycaster.intersectObjects(scene.children, true);
     const hit = hits.find(entry => {
         if (!entry.object?.userData?.isChunk || !entry.face) return false;
