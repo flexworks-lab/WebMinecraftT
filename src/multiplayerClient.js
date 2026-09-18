@@ -156,6 +156,7 @@ function makeStyle() {
         #multiplayerPanel.servers-screen #multiplayerSteps{display:none}
         #multiplayerPanel.servers-screen #multiplayerContent{padding:0}
         #multiplayerPanel.servers-screen #multiplayerButtons{position:absolute;top:14px;right:22px;z-index:3;padding:0;background:transparent;border:0;display:flex;gap:8px}
+        #multiplayerPanel.servers-screen #multiplayerRefresh{margin-right:92px}
         #multiplayerPanel.servers-screen #multiplayerJoin{display:none}
         #multiplayerPanel.servers-screen #multiplayerBack{min-width:0;min-height:38px;padding:8px 14px}
         
