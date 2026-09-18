@@ -49,7 +49,6 @@ body.mobile-mode #touchFlyUp.flightVisible{display:block}
     const sync = () => {
         const visible = document.body.classList.contains("mobile-mode") && isFlying;
         document.getElementById("touchFlyUp")?.classList.toggle("flightVisible", visible);
-        document.getElementById("touchFlyDown")?.classList.toggle("flightVisible", visible);
         if (!visible) {
             touchInput.jump = false;
             keys.ControlLeft = false;
