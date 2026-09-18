@@ -8,7 +8,6 @@ let localId = null;
 
 const HELD_ITEM_ROTATION_TAG = 1000;
 
-window.__webminecraftGetRemotePlayers = () => remotePlayers;
 window.__webminecraftTouchInput = touchInput;
 
 function survivalActive() {
@@ -29,6 +28,7 @@ function decodeHeldItem(player) {
 
 function syncPlayers(message) {
     if (!message || typeof message !== "object") return;
+    if (!survivalActive()) return;
     if (message.type === "joined") {
         localId = String(message.playerId || "");
         remotePlayers.clear();
