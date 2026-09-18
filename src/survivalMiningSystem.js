@@ -7,7 +7,8 @@ import { isSurvivalWorld } from "./survivalMode.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
-const RANGE = 5;
+const RANGE = 4.5;
+const HOLD_TO_MINE_MS = 320;
 const MAX_DROP_DISTANCE = 2.5;
 const PICKUP_RANGE = 2.5;
 const DROP_DESPAWN_MS = 5 * 60 * 1000;
@@ -44,10 +45,11 @@ function textureUrl(name) {
     return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}`;
 }
 
-function getTarget() {
+function getTarget(ndcX = 0, ndcY = 0) {
     if (!sceneRef || !cameraRef) return null;
     cameraRef.updateMatrixWorld(true);
-    raycaster.setFromCamera(CENTER, cameraRef);
+    const screenPoint = Number.isFinite(ndcX) && Number.isFinite(ndcY) && (ndcX !== 0 || ndcY !== 0) ? new THREE.Vector2(ndcX, ndcY) : CENTER;
+    raycaster.setFromCamera(screenPoint, cameraRef);
     raycaster.near = 0.01;
     raycaster.far = RANGE;
     const hits = raycaster.intersectObjects(sceneRef.children, true);
@@ -330,16 +332,16 @@ function updateDrops(time) {
     }
 }
 
-export function startSurvivalMining(scene, camera) {
+export function startSurvivalMining(scene, camera, ndcX = 0, ndcY = 0) {
     if (scene) sceneRef = scene;
     if (camera) cameraRef = camera;
     if (!isSurvivalWorld() || !document.body.classList.contains("webminecraft-in-world") || mining) return;
     if (handleDoorTarget("break")) { sendPlayerAction("mine"); return; }
-    const target = getTarget();
+    const target = getTarget(ndcX, ndcY);
     if (!target) return;
     const duration = HARDNESS[target.type] ?? 700;
     if (!Number.isFinite(duration)) return;
-    mining = { ...target, started: performance.now(), duration, overlay: createCracks(target) };
+    mining = { ...target, ndcX, ndcY, started: performance.now(), duration, overlay: createCracks(target) };
     updateCracks(mining.overlay, .01);
     sendPlayerAction("mine");
 }
@@ -362,14 +364,42 @@ function finishMining() {
     mining = null;
 }
 
+function showTouchMiningProgress(ndcX, ndcY, progress) {
+    let indicator = document.getElementById("touchMiningProgress");
+    if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.id = "touchMiningProgress";
+        indicator.innerHTML = "<div class="touchMiningProgressFill"></div>";
+        document.body.appendChild(indicator);
+        const style = document.createElement("style");
+        style.id = "touchMiningProgressStyles";
+        style.textContent = `
+#touchMiningProgress{display:none;position:fixed;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;z-index:10020;pointer-events:none;background:conic-gradient(rgba(255,255,255,.95) 0deg,rgba(255,255,255,.95) 0deg,rgba(0,0,0,.5) 0deg,rgba(0,0,0,.5) 360deg);box-shadow:0 0 0 2px rgba(0,0,0,.75);}
+#touchMiningProgressFill{position:absolute;inset:6px;border-radius:50%;background:rgba(0,0,0,.55);}
+body:not(.mobile-mode) #touchMiningProgress{display:none!important}
+`;
+        document.head.appendChild(style);
+    }
+    indicator.style.left = `${((ndcX + 1) * 0.5) * window.innerWidth}px`;
+    indicator.style.top = `${((1 - ndcY) * 0.5) * window.innerHeight}px`;
+    const angle = Math.max(0, Math.min(1, progress)) * 360;
+    indicator.style.background = `conic-gradient(rgba(255,255,255,.95) 0deg,rgba(255,255,255,.95) ${angle}deg,rgba(0,0,0,.5) ${angle}deg,rgba(0,0,0,.5) 360deg)`;
+    indicator.style.display = "block";
+}
+
+function hideTouchMiningProgress() {
+    document.getElementById("touchMiningProgress")?.style.setProperty("display", "none");
+}
+
 function tickMining(time, held) {
     if (!mining) return;
-    if (!held) { cancelMining(); return; }
+    if (!held) { hideTouchMiningProgress(); cancelMining(); return; }
     const target = getTarget();
     if (!target || target.x !== mining.x || target.y !== mining.y || target.z !== mining.z) { cancelMining(); return; }
     const progress = Math.min(1, (time - mining.started) / mining.duration);
     updateCracks(mining.overlay, progress);
-    if (progress >= 1) finishMining();
+    if (document.body.classList.contains("mobile-mode")) showTouchMiningProgress(mining.ndcX, mining.ndcY, progress);
+    if (progress >= 1) { hideTouchMiningProgress(); finishMining(); }
 }
 
 function init() {
@@ -388,8 +418,14 @@ function init() {
     document.addEventListener("visibilitychange", () => { if (document.hidden) cancelMining(); });
     function frame(time) {
         const mobile = document.body.classList.contains("mobile-mode");
-        const held = mobile ? !!touchInput.punchPressed : !!mining;
-        if (mobile && held && !mining) startSurvivalMining(sceneRef, cameraRef);
+        if (mobile && touchInput.blockTouchActive && !touchInput.blockHoldTriggered) {
+            const heldFor = performance.now() - Number(touchInput.blockTouchStarted || performance.now());
+            if (isSurvivalWorld() && heldFor >= HOLD_TO_MINE_MS) {
+                touchInput.blockHoldTriggered = true;
+                startSurvivalMining(sceneRef, cameraRef, Number(touchInput.blockTouchX) || 0, Number(touchInput.blockTouchY) || 0);
+            }
+        }
+        const held = mobile ? !!(touchInput.blockTouchActive && touchInput.blockHoldTriggered) : !!mining;
         tickMining(time, held);
         updateDrops(time);
         requestAnimationFrame(frame);
