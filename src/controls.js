@@ -3,6 +3,12 @@ import "./auth.js";
 export const keys = {};
 export let jumpQueued = false;
 
+export function consumeJumpQueued() {
+    const queued = jumpQueued;
+    jumpQueued = false;
+    return queued;
+}
+
 export let yaw = 0;
 export let pitch = 0;
 export let isFlying = false;
