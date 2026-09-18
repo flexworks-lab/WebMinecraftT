@@ -92,7 +92,7 @@ document.addEventListener("fullscreenchange", () => {
     }
 }, true);
 
-export { lockGameplayKeyboard };
+export { lockGameplayKeyboard, lockGameplayKeyboard as enterGameplayKeyboardCapture };
 
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
