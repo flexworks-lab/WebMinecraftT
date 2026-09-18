@@ -179,6 +179,120 @@ button{touch-action:manipulation}
 @keyframes wmBootLoad{from{width:0}to{width:100%}}
 @media(max-width:700px){#menuUpdates{width:190px}.setting{grid-template-columns:1fr}.settingControl{justify-content:flex-start}#seedActions{grid-template-columns:1fr}.menuButton{height:44px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}#webminecraftBootScreen{display:none!important}}
+/* Menu UI neutral gray theme */
+#mainMenu {
+  background: linear-gradient(180deg, rgba(12,12,12,.16), rgba(12,12,12,.48));
+}
+#menuButtons .menuButton,
+#menuButtons #playButton,
+#menuButtons #multiplayerButton,
+#menuButtons #menuSettingsButton,
+#menuButtons #mobileModeButton {
+  background: linear-gradient(180deg,#737373,#565656) !important;
+  border-radius: 7px;
+  border-color: #1b1b1b;
+  border-top-color: #a4a4a4;
+  border-left-color: #a4a4a4;
+  box-shadow: inset 2px 2px 0 rgba(255,255,255,.14), inset -2px -3px 0 rgba(0,0,0,.3), 0 4px 0 rgba(0,0,0,.62);
+}
+#menuButtons .menuButton:hover,
+#menuButtons #playButton:hover,
+#menuButtons #multiplayerButton:hover,
+#menuButtons #menuSettingsButton:hover,
+#menuButtons #mobileModeButton:hover {
+  background: linear-gradient(180deg,#858585,#666666) !important;
+}
+#menuButtons .menuButton:active {
+  background:#4d4d4d !important;
+}
+#menuUpdates {
+  border-radius: 0 0 9px 0;
+  background: linear-gradient(180deg,#303030,#202020);
+  border-color:#111;
+}
+.menuUpdate {
+  border-radius:7px;
+  background:linear-gradient(180deg,#4c4c4c,#383838);
+  border-color:#1b1b1b;
+  border-top-color:#777;
+  border-left-color:#777;
+}
+.menuUpdateVersion { color:#d0d0d0; }
+.menuUpdateText { color:#e2e2e2; }
+#seedMenu {
+  background:#202020;
+}
+#seedPanel {
+  background:linear-gradient(180deg,#333333,#202020);
+  border-radius:12px;
+  box-shadow:0 8px 28px rgba(0,0,0,.45);
+}
+#seedInput {
+  background:#171717;
+  border-radius:7px;
+  border-color:#0b0b0b;
+  border-top-color:#777;
+  border-left-color:#777;
+}
+.seedButton,
+#openWorldButton,
+#backSeedButton {
+  background:linear-gradient(180deg,#727272,#555555) !important;
+  border-radius:7px;
+  border-color:#171717;
+  border-top-color:#919191;
+  border-left-color:#919191;
+}
+.seedButton:hover {
+  background:linear-gradient(180deg,#858585,#666666) !important;
+}
+#settingsMenu {
+  background:#202020;
+}
+#settingsPanel {
+  background:#242424;
+  border-radius:12px;
+  overflow:hidden;
+}
+#settingsSidebar {
+  background:linear-gradient(180deg,#303030,#1e1e1e);
+}
+.settingsTab {
+  background:linear-gradient(180deg,#505050,#3b3b3b) !important;
+  border-radius:7px;
+  border-color:#161616;
+  border-top-color:#777;
+  border-left-color:#777;
+}
+.settingsTab:hover,
+.settingsTab.active {
+  background:linear-gradient(180deg,#707070,#555555) !important;
+}
+#settingsContent,
+#settingsHeader {
+  background:#2b2b2b;
+}
+#settingsCloseTop,
+#closeSettings {
+  background:linear-gradient(180deg,#727272,#555555) !important;
+  border-radius:7px;
+}
+.setting {
+  background:linear-gradient(180deg,#414141,#303030);
+  border-radius:8px;
+  border-color:#171717;
+  border-top-color:#666;
+  border-left-color:#666;
+}
+select {
+  background:#242424;
+  border-radius:7px;
+}
+#menuFooter,
+#menuCopyright {
+  color:#d0d0d0;
+}
+
 </style>
 </head>
 <body>
