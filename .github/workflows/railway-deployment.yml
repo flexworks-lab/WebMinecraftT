@@ -1,0 +1,109 @@
+name: Railway Multiplayer Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - ".github/workflows/railway-deployment.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  railway-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record Railway deployment and remove old Render deployments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const railwayUrl = 'https://webminecraftt-multiplayer-production.up.railway.app';
+            const railwayWs = 'wss://webminecraftt-multiplayer-production.up.railway.app/multiplayer';
+            const oldRenderHost = 'webminecraft-server.onrender.com';
+
+            const deployment = await github.rest.repos.createDeployment({
+              owner,
+              repo,
+              ref: context.sha,
+              task: 'deploy',
+              auto_merge: false,
+              required_contexts: [],
+              environment: 'railway-multiplayer',
+              description: 'WebMinecraftT multiplayer server on Railway',
+              production_environment: true
+            });
+
+            await github.rest.repos.createDeploymentStatus({
+              owner,
+              repo,
+              deployment_id: deployment.data.id,
+              state: 'in_progress',
+              description: 'Railway multiplayer server is active',
+              environment_url: railwayUrl,
+              target_url: railwayUrl
+            });
+
+            await github.rest.repos.createDeploymentStatus({
+              owner,
+              repo,
+              deployment_id: deployment.data.id,
+              state: 'success',
+              description: 'Railway multiplayer server is online',
+              environment_url: railwayUrl,
+              target_url: railwayWs
+            });
+
+            const deployments = await github.paginate(
+              github.rest.repos.listDeployments,
+              { owner, repo, per_page: 100 }
+            );
+
+            for (const oldDeployment of deployments) {
+              if (oldDeployment.id === deployment.data.id) continue;
+
+              const environment = String(oldDeployment.environment || '').toLowerCase();
+              const description = String(oldDeployment.description || '').toLowerCase();
+              const payload = JSON.stringify(oldDeployment.payload || {}).toLowerCase();
+              const creator = String(oldDeployment.creator?.login || '').toLowerCase();
+
+              let isOldRender = environment.includes('render')
+                || description.includes('render')
+                || payload.includes(oldRenderHost)
+                || payload.includes('render.com')
+                || creator === 'render';
+
+              if (!isOldRender) {
+                try {
+                  const statuses = await github.paginate(
+                    github.rest.repos.listDeploymentStatuses,
+                    { owner, repo, deployment_id: oldDeployment.id, per_page: 100 }
+                  );
+                  isOldRender = statuses.some(status =>
+                    String(status.target_url || '').toLowerCase().includes(oldRenderHost)
+                    || String(status.environment_url || '').toLowerCase().includes(oldRenderHost)
+                  );
+                } catch (error) {
+                  core.warning(`Could not inspect statuses for deployment ${oldDeployment.id}: ${error.message}`);
+                }
+              }
+
+              if (isOldRender) {
+                try {
+                  await github.rest.repos.deleteDeployment({
+                    owner,
+                    repo,
+                    deployment_id: oldDeployment.id
+                  });
+                  core.info(`Removed old Render deployment ${oldDeployment.id}`);
+                } catch (error) {
+                  core.warning(`Could not remove old Render deployment ${oldDeployment.id}: ${error.message}`);
+                }
+              }
+            }
+
+            core.info(`Railway deployment recorded: ${deployment.data.id}`);
