@@ -178,7 +178,7 @@ function createTouchControls() {
     const aimKnob = root.querySelector("#touchAimKnob");
 
     lookArea.addEventListener("pointerdown", event => {
-        if (event.pointerType === "mouse") return;
+        if (!document.body.classList.contains("mobile-mode") && event.pointerType === "mouse") return;
         event.preventDefault();
         if (lookPointer !== null || blockTouchPointer !== null) return;
         blockTouchPointer = event.pointerId;
