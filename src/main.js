@@ -435,7 +435,8 @@ function getMenuCameraHeight() {
     return 32;
 }
 function updateMenuCamera(deltaTime) {
-    if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
+    const worldsMenuOpen = document.body.classList.contains("webminecraft-worlds-menu");
+    if (gameStarted || !mainMenu || (mainMenu.style.display === "none" && !worldsMenuOpen)) return;
     panoramaCamera.angle += panoramaCamera.speed * deltaTime;
     menuLook.x = THREE.MathUtils.lerp(menuLook.x, menuLook.targetX, Math.min(deltaTime * 2.5, 1));
     menuLook.y = THREE.MathUtils.lerp(menuLook.y, menuLook.targetY, Math.min(deltaTime * 2.5, 1));
