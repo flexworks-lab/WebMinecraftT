@@ -137,6 +137,8 @@ function saveWorldPreview(seed) {
     }
 }
 
+window.webminecraftSaveWorldPreview = saveWorldPreview;
+
 function writePlayerState(seed, force = false) {
     const key = playerStateKey(seed);
     const camera = window.__webminecraftCamera;
@@ -427,9 +429,18 @@ async function initialize() {
 }
 
 window.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") void saveCurrentWorld();
+    if (document.visibilityState === "hidden") {
+        saveWorldPreview(getSeedFromUrl());
+        void saveCurrentWorld();
+    }
 });
-window.addEventListener("pagehide", () => { void saveCurrentWorld(); });
-window.addEventListener("beforeunload", () => { void saveCurrentWorld(); });
+window.addEventListener("pagehide", () => {
+    saveWorldPreview(getSeedFromUrl());
+    void saveCurrentWorld();
+});
+window.addEventListener("beforeunload", () => {
+    saveWorldPreview(getSeedFromUrl());
+    void saveCurrentWorld();
+});
 
 initialize().catch(error => console.warn("World persistence initialization failed:", error));
