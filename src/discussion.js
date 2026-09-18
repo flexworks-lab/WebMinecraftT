@@ -64,8 +64,8 @@ function addStyles() {
     const style = document.createElement("style");
     style.id = "discussionStyles";
     style.textContent = `
-#discussionButton{position:fixed;left:28px;bottom:82px;width:118px;min-height:48px;z-index:97;border:2px solid #111;border-top-color:#888;border-left-color:#888;border-radius:3px;background:linear-gradient(#666,#4c4c4c);color:#fff;font-family:MinecraftFont,monospace;font-size:12px;cursor:pointer;text-shadow:2px 2px 0 #222;box-shadow:0 3px 0 #111}
-#discussionButton:hover{filter:brightness(1.1)}
+#discussionButton{position:fixed;left:28px;bottom:82px;width:118px;min-height:48px;z-index:97;border:2px solid #1b1b1b;border-top-color:#a4a4a4;border-left-color:#a4a4a4;border-radius:0;background:linear-gradient(#737373,#565656);color:#fff;font-family:MinecraftFont,monospace;font-size:12px;cursor:pointer;text-shadow:2px 2px 0 #333;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62);outline:none;transition:none}
+#discussionButton:hover,#discussionButton:active{filter:none;transform:none}
 body.webminecraft-in-world #discussionButton{display:none !important}
 body.webminecraft-in-world #discussionModal{display:none !important}
 #discussionModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:260;padding:20px;box-sizing:border-box}
@@ -320,3 +320,4 @@ async function init() {
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
 else init();
+<style id="discussionButtonStaticStyle">#discussionButton:focus,#discussionButton:focus-visible{outline:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62)!important}</style>
