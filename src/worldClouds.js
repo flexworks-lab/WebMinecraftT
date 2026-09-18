@@ -119,7 +119,10 @@ function createSkyDome(scene) {
     sunDisc = new THREE.Mesh(sunGeometry, sunMaterial);
     sunDisc.name = "MinecraftSunDisc";
     sunDisc.frustumCulled = false;
-    sunDisc.renderOrder = -90;
+    sunDisc.renderOrder = 1000;
+    sunDisc.material.fog = false;
+    sunDisc.material.depthTest = false;
+    sunDisc.material.depthWrite = false;
     scene.add(sunDisc);
 }
 function createUndergroundLighting(scene) {
