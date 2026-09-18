@@ -138,7 +138,16 @@ function removeWaterSpecularHighlights(scene) {
     });
 }
 function updateSkyPosition(){if(cloudCamera&&skyDome)skyDome.position.copy(cloudCamera.position);}
-function updateUndergroundAmbient(){if(!cloudCamera||!undergroundAmbient)return;const y=cloudCamera.position.y;const underground=1-THREE.MathUtils.smoothstep(y,-1,8);const deepDark=1-THREE.MathUtils.smoothstep(y,-24,-1);const outdoorVisible=y>=8;for(const light of outdoorLights)light.visible=outdoorVisible;undergroundAmbient.intensity=underground*(0.08+(1-deepDark)*0.04);}
+function updateUndergroundAmbient(){
+    if (!cloudCamera || !undergroundAmbient) return;
+
+    // Never disable the main world lights based on player height. Doing so
+    // made every Phong-textured block render almost black below Y=8.
+    for (const light of outdoorLights) light.visible = true;
+
+    // The main scene now keeps a consistent lighting level at every depth.
+    undergroundAmbient.intensity = 0;
+}
 function clearClouds(){cloudEntries.length=0;if(!cloudRoot)return;while(cloudRoot.children.length)cloudRoot.remove(cloudRoot.children[0]);}
 function rebuildCloudField(seed){cloudSeed=(Math.floor(Math.abs(Number(seed)))>>>0)||0;clearClouds();for(let cellX=-CLOUD_GRID_RADIUS;cellX<=CLOUD_GRID_RADIUS;cellX++)for(let cellZ=-CLOUD_GRID_RADIUS;cellZ<=CLOUD_GRID_RADIUS;cellZ++){if(seedHash(cellX,cellZ,97)<0.32)continue;makeCloud(cellX,cellZ);}updateSkyPosition();}
 function tick(now){const delta=Math.min((now-lastFrame)/1000,0.1);lastFrame=now;windDistance+=CLOUD_WIND_SPEED*delta;if(windDistance>CLOUD_WRAP)windDistance-=CLOUD_WRAP;if(cloudRoot?.visible)for(const entry of cloudEntries)entry.mesh.position.set(entry.baseX+windDistance,entry.baseY,entry.baseZ);updateSkyPosition();updateUndergroundAmbient();requestAnimationFrame(tick);}
