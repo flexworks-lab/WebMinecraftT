@@ -199,7 +199,7 @@ function createMobileSettingsButton() {
     font-size:27px;
     line-height:1;
     cursor:pointer;
-    z-index:999999;
+    z-index:80;
     box-shadow:0 4px 0 #171b17,0 6px 15px rgba(0,0,0,.28);
     touch-action:manipulation;
 }
