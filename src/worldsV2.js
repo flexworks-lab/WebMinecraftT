@@ -446,12 +446,14 @@ async function copySelected() {
 async function playWorld(world) {
     if (!world || !openWorldCallback) return;
     const now = new Date().toISOString();
+    const mode = getMode(world);
     world.lastPlayedAt = now;
     world.updatedAt = world.updatedAt || now;
-    world.mode = getMode(world);
-    try {
-        await putRecord(world);
-    } catch {}
+    world.mode = mode;
+    // Persist the mode by seed so returning to this world restores the
+    // exact mode even after a page reload or a later Worlds-menu session.
+    try { localStorage.setItem(`webminecraft-world-mode-${world.seed}`, mode); } catch {}
+    try { await putRecord(world); } catch {}
     closeMenu();
     openWorldCallback(world.seed);
 }
@@ -522,7 +524,12 @@ async function createWorld() {
         unmarkDeleted(seed);
         const now = new Date().toISOString();
         let mode = "survival";
-        try { mode = localStorage.getItem(`webminecraft-world-mode-${seed}`) === "creative" ? "creative" : "survival"; } catch {}
+        try {
+            const pending = localStorage.getItem("webminecraft-pending-singleplayer-mode");
+            const seeded = localStorage.getItem(`webminecraft-world-mode-${seed}`);
+            mode = pending === "creative" || seeded === "creative" ? "creative" : "survival";
+        } catch {}
+        try { localStorage.setItem(`webminecraft-world-mode-${seed}`, mode); } catch {}
         const world = await putRecord({ seed, name, createdAt: now, updatedAt: now, lastPlayedAt: now, mode, blocks: {} });
         if (typeof window.webMinecraftClearCloudWorldDeletion === "function") {
             try { await window.webMinecraftClearCloudWorldDeletion(seed); } catch {}
@@ -575,6 +582,7 @@ async function refreshFromLiveCloud() {
                 name: cloud.name || local?.name,
                 createdAt: cloud.createdAt || local?.createdAt,
                 updatedAt: cloud.updatedAt || local?.updatedAt,
+                mode: cloud.mode || local?.mode || "survival",
                 blocks: local?.blocks || {}
             });
         }).filter(Boolean);
