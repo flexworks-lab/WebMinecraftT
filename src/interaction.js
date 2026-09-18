@@ -200,7 +200,7 @@ export function setupInteraction(scene, camera) {
             }
             return;
         }
-        if (itemId > BLOCK.DIRT_PATH) return;
+        if (itemId > BLOCK.FURNACE) return;
         const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
         if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId, ndcX, ndcY)) {
