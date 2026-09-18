@@ -108,21 +108,9 @@ function getRemotePlayers() {
 }
 
 function findPlayerForAvatar(avatar, players) {
-    let best = null;
-    let bestDistance = Infinity;
-    for (const player of players.values()) {
-        const p = player?.position;
-        if (!p) continue;
-        const dx = Number(p.x) - avatar.position.x;
-        const dy = Number(p.y) - avatar.position.y;
-        const dz = Number(p.z) - avatar.position.z;
-        const distance = dx * dx + dy * dy + dz * dz;
-        if (distance < bestDistance) {
-            bestDistance = distance;
-            best = player;
-        }
-    }
-    return bestDistance <= 4 ? best : null;
+    const id = String(avatar?.userData?.multiplayerPlayerId || "");
+    if (id && players.has(id)) return players.get(id);
+    return null;
 }
 
 function updateHeldMesh(avatar, player) {
