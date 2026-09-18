@@ -119,7 +119,7 @@ function createCracks(target) {
         const normal = faces[faceIndex].normal;
         const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
         for (let stage = 0; stage < 5; stage++) {
-            const material = new THREE.MeshBasicMaterial({ map: crackMap(stage), transparent: true, depthTest: false, side: THREE.DoubleSide });
+            const material = new THREE.MeshBasicMaterial({ map: crackMap(stage), transparent: true, depthTest: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
             const plane = new THREE.Mesh(geometry, material);
             plane.quaternion.copy(quaternion);
             plane.position.copy(normal).multiplyScalar(0.508);
