@@ -77,6 +77,7 @@ const ITEM_MATERIALS = {
     46: deepslateRedstoneOreMaterial,
     47: deepslateTilesMaterial,
     48: polishedDeepslateMaterial,
+    49: reinforcedDeepslateMaterial,
      50: furnaceMaterial,
     51: stoneMaterial, 52: cobblestoneMaterial, 53: stoneBricksMaterial, 54: crackedStoneBricksMaterial, 55: mossyStoneBricksMaterial,
     56: oakPlankMaterial, 57: acaciaPlanksMaterial, 58: bambooPlanksMaterial, 59: birchPlanksMaterial, 60: crimsonPlanksMaterial,
