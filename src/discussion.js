@@ -320,4 +320,3 @@ async function init() {
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
 else init();
-<style id="discussionButtonStaticStyle">#discussionButton:focus,#discussionButton:focus-visible{outline:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62)!important}</style>
