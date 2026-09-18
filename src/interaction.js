@@ -13,6 +13,7 @@ const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
 const SURVIVAL_REACH = 4.5;
 const CREATIVE_REACH = 12;
+const CREATIVE_PLACE_TAP_MAX_MS = 180;
 let selectedSlot = 0;
 
 
@@ -139,7 +140,11 @@ export function setupInteraction(scene, camera) {
             const ndcY = Number(touchInput.blockTapY) || 0;
             touchInput.blockTapPending = false;
             if (isSurvivalWorldActive()) placeBlock(ndcX, ndcY);
-            else if (document.body.classList.contains("webminecraft-creative")) breakBlock(ndcX, ndcY);
+            else if (document.body.classList.contains("webminecraft-creative")) {
+                const duration = Number(touchInput.blockTapDuration) || 0;
+                if (duration <= CREATIVE_PLACE_TAP_MAX_MS) placeBlock(ndcX, ndcY);
+                else breakBlock(ndcX, ndcY);
+            }
         }
         positionMobileInventoryButton();
         requestAnimationFrame(pollTouchActions);
