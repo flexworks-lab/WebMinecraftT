@@ -170,7 +170,7 @@ function setMenuUiVisible(visible) {
     const display = visible ? "" : "none";
     if (crosshair) crosshair.style.display = display;
     if (hotbar) hotbar.style.display = display;
-    if (settingsButton) settingsButton.style.display = display;
+    if (settingsButton) settingsButton.style.display = (!visible && gameStarted && mobileMode) ? "flex" : display;
     if (menuUpdates) menuUpdates.style.display = visible ? "block" : "none";
     if (performanceHud) performanceHud.style.display = display;
 }
