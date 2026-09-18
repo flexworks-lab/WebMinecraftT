@@ -362,7 +362,7 @@ function handleMessage(ws, raw, state) {
         const z = Math.floor(numberOr(message.z, NaN));
         const blockType = Math.floor(numberOr(message.blockType, NaN));
         const progress = Number(message.progress);
-        if (![x, y, z, blockType, progress].every(Number.isFinite) || y < -32 || y > 95 || blockType < 0 || blockType > 22 || progress < 0 || progress > 1) return;
+        if (![x, y, z, blockType, progress].every(Number.isFinite) || y < -32 || y > 95 || blockType < 0 || blockType > 74 || progress < 0 || progress > 1) return;
         const room = rooms.get(player.room);
         if (!room) return;
         broadcast(room, { type: "block_mining", playerId: player.id, x, y, z, blockType, progress }, player.id);
