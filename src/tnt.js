@@ -472,14 +472,6 @@ function explode(scene, cx, cy, cz) {
     });
 }
 
-function explode(scene, cx, cy, cz) {
-    const BLOCK = getBlockTypes();
-    const explosion = { scene, cx, cy, cz, BLOCK, offsets: EXPLOSION_OFFSETS, chainTNT: new Set() };
-    activeExplosions.add(explosion);
-    // All blocks in the radius are removed immediately in this same frame.
-    processExplosion(explosion);
-}
-
 window.addEventListener("webminecraft:tntignite", event => {
     if (!lastScene) return;
     const x = Number(event.detail?.x), y = Number(event.detail?.y), z = Number(event.detail?.z);
