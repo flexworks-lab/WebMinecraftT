@@ -77,8 +77,12 @@ const ITEM_MATERIALS = {
     46: deepslateRedstoneOreMaterial,
     47: deepslateTilesMaterial,
     48: polishedDeepslateMaterial,
-    49: reinforcedDeepslateMaterial,
-    50: furnaceMaterial
+     50: furnaceMaterial,
+    51: stoneMaterial, 52: cobblestoneMaterial, 53: stoneBricksMaterial, 54: crackedStoneBricksMaterial, 55: mossyStoneBricksMaterial,
+    56: oakPlankMaterial, 57: acaciaPlanksMaterial, 58: bambooPlanksMaterial, 59: birchPlanksMaterial, 60: crimsonPlanksMaterial,
+    61: darkOakPlanksMaterial, 62: junglePlanksMaterial, 63: mangrovePlanksMaterial, 64: sprucePlanksMaterial, 65: warpedPlanksMaterial,
+    66: chiseledDeepslateMaterial, 67: cobbledDeepslateMaterial, 68: crackedDeepslateBricksMaterial, 69: crackedDeepslateTilesMaterial,
+    70: deepslateMaterial, 71: deepslateBricksMaterial, 72: deepslateTilesMaterial, 73: polishedDeepslateMaterial, 74: reinforcedDeepslateMaterial
 };
 
 const avatars = new Set();
@@ -168,6 +172,9 @@ function updateHeldMesh(avatar, player) {
             mesh.userData.itemId = itemId;
         }
     }
+    const slab = itemId >= 51 && itemId <= 74;
+    mesh.scale.y = slab ? 0.5 : 1;
+    mesh.position.y = slab ? 0.81 : 0.87;
     mesh.visible = true;
 }
 
