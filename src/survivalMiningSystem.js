@@ -395,7 +395,7 @@ function hideTouchMiningProgress() {
 function tickMining(time, held) {
     if (!mining) return;
     if (!held) { hideTouchMiningProgress(); cancelMining(); return; }
-    const target = getTarget();
+    const target = document.body.classList.contains("mobile-mode") ? getTarget(mining.ndcX, mining.ndcY) : getTarget();
     if (!target || target.x !== mining.x || target.y !== mining.y || target.z !== mining.z) { cancelMining(); return; }
     const progress = Math.min(1, (time - mining.started) / mining.duration);
     updateCracks(mining.overlay, progress);
