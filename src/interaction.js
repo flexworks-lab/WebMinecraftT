@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType } from "./world.js";
 import { touchInput } from "./controls.js";
-import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
+import { sendBlockChange, sendSlabPlacement, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
 import { tryIgniteTNT, registerTNTPhysicsScene } from "./tnt.js";
 import { setupDoorSystem, isDoorSelected, placeDoor, handleDoorTarget, getDoorSelectionTarget } from "./door.js";
@@ -235,7 +235,8 @@ export function setupInteraction(scene, camera) {
         if (!setBlockAt(x, y, z, itemId)) return;
         if (!creative && !consumeSelected(selectedSlot)) { setBlockAt(x, y, z, BLOCK.AIR); return; }
         sendPlayerAction("place");
-        sendBlockChange(x, y, z, itemId);
+        if (isSlabBlock(itemId)) sendSlabPlacement(x, y, z, itemId);
+        else sendBlockChange(x, y, z, itemId);
         notifyBlockChange(x, y, z, itemId);
     }
     function positionMobileInventoryButton() {
