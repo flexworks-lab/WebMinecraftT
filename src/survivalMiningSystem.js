@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
-import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop } from "./multiplayerClient.js";
+import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop, sendItemDrop, sendItemClaim } from "./multiplayerClient.js";
 import { handleDoorTarget } from "./door.js";
 import { isSurvivalWorld } from "./survivalMode.js";
 
@@ -567,7 +567,7 @@ function finishMining() {
     const dropId = "drop:" + Date.now() + ":" + Math.random().toString(36).slice(2, 10);
     const drop = createDrop(mining.type, new THREE.Vector3(mining.x, mining.y, mining.z), { dropId, networked: true });
     if (drop) {
-        import("./multiplayerClient.js").then(({ sendItemDrop }) => sendItemDrop({
+        sendItemDrop({
             id: drop.userData.dropId,
             itemType: drop.userData.type,
             count: drop.userData.count,
@@ -577,7 +577,7 @@ function finishMining() {
             velocityX: drop.userData.velocityX,
             velocityY: drop.userData.velocityY,
             velocityZ: drop.userData.velocityZ
-        })).catch(() => {});
+        });
     }
     destroyCracks(mining.overlay);
     mining = null;
