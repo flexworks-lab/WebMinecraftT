@@ -10,8 +10,6 @@ const HELD_ITEM_ROTATION_TAG = 1000;
 
 window.__webminecraftGetRemotePlayers = () => remotePlayers;
 window.__webminecraftTouchInput = touchInput;
-window.__webminecraftTouchPunchPressed = () => !!touchInput.punchPressed;
-window.__webminecraftConsumeTouchPunch = () => { touchInput.punchPressed = false; };
 
 function survivalActive() {
     return document.body.classList.contains("webminecraft-multiplayer") && document.body.classList.contains("webminecraft-survival");
