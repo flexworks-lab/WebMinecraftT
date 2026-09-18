@@ -492,7 +492,7 @@ function makeGeometryForChunk(chunk){
                     normals.push(face.normal[0],face.normal[1],face.normal[2]);
                     colors.push(underwaterShade,underwaterShade,underwaterShade);
                 }
-                const sideTopV=type===BLOCK.DIRT_PATH&&faceIndex!==2?15/16:1;
+                const sideTopV=type===BLOCK.DIRT_PATH&&faceIndex!==2?15/16:(isSlabBlock(type)&&faceIndex!==2&&faceIndex!==3?0.5:1);
                 uvs.push(0,0,0,sideTopV,1,sideTopV,1,0);
                 const matIndex=materialIndexFor(type,faceIndex);
                 groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
