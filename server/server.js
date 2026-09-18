@@ -389,7 +389,7 @@ function handleMessage(ws, raw, state) {
         const velocityY = numberOr(message.velocityY, 0);
         const velocityZ = numberOr(message.velocityZ, 0);
         if (!id || ![itemType, count, x, y, z, velocityX, velocityY, velocityZ].every(Number.isFinite)) return;
-        if (itemType < 1 || itemType > 22 || count > 64 || y < -64 || y > 128) return;
+        if (itemType < 1 || itemType > 74 || count > 64 || y < -64 || y > 128) return;
         const room = rooms.get(player.room);
         if (!room) return;
         if (room.drops.size >= 5000 && !room.drops.has(id)) return;
@@ -437,7 +437,7 @@ function handleMessage(ws, raw, state) {
             player.rotation.y = numberOr(message.rotation.y, player.rotation.y);
             player.rotation.z = numberOr(message.rotation.z, player.rotation.z);
             const heldItemId = Math.floor(numberOr(message.heldItemId, player.heldItemId));
-            player.heldItemId = heldItemId >= 0 && heldItemId <= 22 ? heldItemId : 0;
+            player.heldItemId = heldItemId >= 0 && heldItemId <= 74 ? heldItemId : 0;
             player.sneaking = Boolean(message.sneaking);
             player.action = ["idle", "walk", "mine", "place", "jump"].includes(message.action) ? message.action : "idle";
             player.lastUpdate = now;
