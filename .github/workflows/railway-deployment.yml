@@ -16,27 +16,19 @@ jobs:
   railway-multiplayer:
     runs-on: ubuntu-latest
     steps:
-      - name: Register Railway deployment and remove old server
+      - name: Remove old webminecraft-server deployment
         uses: actions/github-script@v7
-        env:
-          RAILWAY_URL: https://webminecraftt-multiplayer-production.up.railway.app
-          RAILWAY_WS: wss://webminecraftt-multiplayer-production.up.railway.app/multiplayer
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
-            const health = await fetch(process.env.RAILWAY_URL + '/health', {
-              headers: { 'cache-control': 'no-cache' }
-            });
-            if (!health.ok) {
-              throw new Error(`Railway health check failed: HTTP ${health.status}`);
-            }
-
             const deployments = await github.paginate(
               github.rest.repos.listDeployments,
               { owner, repo, per_page: 100 }
             );
+
+            let removed = 0;
 
             for (const deployment of deployments) {
               const environment = String(deployment.environment || '').trim().toLowerCase();
@@ -45,35 +37,22 @@ jobs:
               if (environment !== 'webminecraft-server') continue;
               if (ref && ref !== 'main') continue;
 
-              core.info(`Deleting old deployment ${deployment.id} (${deployment.ref} - ${deployment.environment})`);
+              core.info(`Removing old deployment ${deployment.id}: ${deployment.ref} - ${deployment.environment}`);
 
               await github.rest.repos.deleteDeployment({
                 owner,
                 repo,
                 deployment_id: deployment.id
               });
+
+              removed += 1;
             }
 
-            const railwayDeployment = await github.rest.repos.createDeployment({
-              owner,
-              repo,
-              ref: context.sha,
-              task: 'deploy',
-              auto_merge: false,
-              required_contexts: [],
-              environment: 'railway-multiplayer',
-              description: 'WebMinecraftT Multiplayer — Railway',
-              production_environment: true
-            });
+            core.info(`Removed ${removed} old webminecraft-server deployment(s).`);
 
-            await github.rest.repos.createDeploymentStatus({
-              owner,
-              repo,
-              deployment_id: railwayDeployment.data.id,
-              state: 'success',
-              description: 'Railway multiplayer server is online',
-              environment_url: process.env.RAILWAY_URL,
-              target_url: process.env.RAILWAY_WS
-            });
-
-            core.info(`Railway deployment registered: ${railwayDeployment.data.id}`);
+      - name: Check Railway multiplayer server
+        run: |
+          set -e
+          curl --fail --silent --show-error --retry 3             https://webminecraftt-multiplayer-production.up.railway.app/health
+          echo
+          echo "Railway multiplayer server is online."
