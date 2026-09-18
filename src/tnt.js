@@ -175,8 +175,8 @@ function getTarget(scene, camera, ndcX = 0, ndcY = 0) {
     raycaster.near = 0; raycaster.far = Infinity;
     if (!hit || hit.distance > reach) return null;
     const normal = hit.face.normal.clone().normalize();
-    const point = hit.point.clone().sub(normal.clone().multiplyScalar(0.01));
-    const x = Math.floor(point.x + 0.5), y = Math.floor(point.y + 0.5), z = Math.floor(point.z + 0.5), type = getBlockAt(x, y, z);
+    const targetPoint = hit.point.clone().sub(normal.clone().multiplyScalar(0.01));
+    const x = Math.floor(targetPoint.x + 0.5), y = Math.floor(targetPoint.y + 0.5), z = Math.floor(targetPoint.z + 0.5), type = getBlockAt(x, y, z);
     if (!type) return null;
     return { x, y, z, type };
 }
