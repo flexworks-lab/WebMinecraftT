@@ -73,8 +73,6 @@ function installCreativeInputBridge() {
     style.id = "multiplayerGameplayStateFixStyles";
     style.textContent = `
 body.webminecraft-multiplayer #heldBlock3DCanvas{display:block!important;visibility:visible!important;opacity:1!important}
-body.webminecraft-multiplayer.webminecraft-creative #touchFly{display:block!important;pointer-events:auto!important}
-body.webminecraft-multiplayer.webminecraft-survival #touchFly{display:none!important;pointer-events:none!important}
 body.webminecraft-multiplayer #hotbar{visibility:visible!important;opacity:1!important}
 body.webminecraft-multiplayer #webMinecraftCrosshair{visibility:visible!important;opacity:1!important}
 `;
