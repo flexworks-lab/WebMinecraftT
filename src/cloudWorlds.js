@@ -203,6 +203,7 @@ async function uploadWorld(world) {
         seed,
         createdAt: world.createdAt || updatedAt,
         updatedAt,
+        preview: typeof world.preview === "string" && world.preview.startsWith("data:image/") ? world.preview : null,
         deleted: false
     };
 
@@ -267,6 +268,7 @@ export async function loadCloudWorld(seed, localWorld = null) {
             name: String(meta.name || localWorld?.name || `World ${normalizedSeed}`),
             createdAt: meta.createdAt || localWorld?.createdAt || new Date().toISOString(),
             updatedAt: meta.updatedAt || localWorld?.updatedAt || new Date().toISOString(),
+            preview: meta.preview || localWorld?.preview || null,
             blocks
         };
     } catch (error) {
