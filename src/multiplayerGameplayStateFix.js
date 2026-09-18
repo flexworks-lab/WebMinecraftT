@@ -75,6 +75,8 @@ function installCreativeInputBridge() {
 body.webminecraft-multiplayer #heldBlock3DCanvas{display:block!important;visibility:visible!important;opacity:1!important}
 body.webminecraft-multiplayer #hotbar{visibility:visible!important;opacity:1!important}
 body.webminecraft-multiplayer #webMinecraftCrosshair{visibility:visible!important;opacity:1!important}
+body.webminecraft-multiplayer.mobile-mode #crosshair,
+body.webminecraft-multiplayer.mobile-mode #webMinecraftCrosshair{display:none!important}
 `;
     document.head.appendChild(style);
 
