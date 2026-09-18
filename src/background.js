@@ -121,7 +121,8 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
 
     const syncState = () => {
         const menuVisible = getComputedStyle(mainMenu).display !== "none";
-        const inWorld = !menuVisible;
+        const worldsMenuOpen = document.body.classList.contains("webminecraft-worlds-menu");
+        const inWorld = !menuVisible && !worldsMenuOpen;
         document.body.classList.toggle("webminecraft-in-world", inWorld);
 
         if (settingsButton) {
