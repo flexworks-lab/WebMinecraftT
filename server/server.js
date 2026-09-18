@@ -289,7 +289,7 @@ function handleMessage(ws, raw, state) {
         const y = Math.floor(numberOr(message.y, NaN));
         const z = Math.floor(numberOr(message.z, NaN));
         const type = Math.floor(numberOr(message.blockType, NaN));
-        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 15) return;
+        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 22) return;
         const room = rooms.get(player.room);
         if (!room) return;
         const key = `${x},${y},${z}`;
@@ -301,6 +301,28 @@ function handleMessage(ws, raw, state) {
         }
         broadcast(room, { type: "block_change", x, y, z, blockType: type });
         send(ws, { type: "block_change_ack", x, y, z, blockType: type });
+        return;
+    }
+    if (message.type === "block_mining") {
+        const x = Math.floor(numberOr(message.x, NaN));
+        const y = Math.floor(numberOr(message.y, NaN));
+        const z = Math.floor(numberOr(message.z, NaN));
+        const blockType = Math.floor(numberOr(message.blockType, NaN));
+        const progress = Number(message.progress);
+        if (![x, y, z, blockType, progress].every(Number.isFinite) || y < -32 || y > 95 || blockType < 0 || blockType > 22 || progress < 0 || progress > 1) return;
+        const room = rooms.get(player.room);
+        if (!room) return;
+        broadcast(room, { type: "block_mining", playerId: player.id, x, y, z, blockType, progress }, player.id);
+        return;
+    }
+    if (message.type === "block_mining_stop") {
+        const x = Math.floor(numberOr(message.x, NaN));
+        const y = Math.floor(numberOr(message.y, NaN));
+        const z = Math.floor(numberOr(message.z, NaN));
+        if (![x, y, z].every(Number.isFinite) || y < -32 || y > 95) return;
+        const room = rooms.get(player.room);
+        if (!room) return;
+        broadcast(room, { type: "block_mining_stop", playerId: player.id, x, y, z }, player.id);
         return;
     }
     if (message.type === "world_sync_request") {
