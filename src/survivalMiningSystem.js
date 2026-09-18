@@ -347,6 +347,7 @@ export function startSurvivalMining(scene, camera, ndcX = 0, ndcY = 0) {
 }
 
 function cancelMining() {
+    hideTouchMiningProgress();
     if (!mining) return;
     destroyCracks(mining.overlay);
     mining = null;
@@ -369,7 +370,7 @@ function showTouchMiningProgress(ndcX, ndcY, progress) {
     if (!indicator) {
         indicator = document.createElement("div");
         indicator.id = "touchMiningProgress";
-        indicator.innerHTML = "<div class="touchMiningProgressFill"></div>";
+        indicator.innerHTML = "<div id="touchMiningProgressFill"></div>";
         document.body.appendChild(indicator);
         const style = document.createElement("style");
         style.id = "touchMiningProgressStyles";
