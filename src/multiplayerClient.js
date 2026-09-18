@@ -4,6 +4,7 @@ let overlay = null;
 let socket = null;
 let localPlayerId = null;
 let remotePlayers = new Map();
+window.__webminecraftGetRemotePlayers = () => remotePlayers;
 const pendingWorldChanges = new Map();
 let pendingPlayerAction = "idle";
 
@@ -271,7 +272,15 @@ function startSharedWorld(worldSeed) {
 }
 
 function ensureMenu() {
-    if (overlay) return;
+    const existing = window.__webminecraftMultiplayerMenuOverlay;
+    if (existing && existing.isConnected && existing.dataset.webminecraftMenuVersion === "rooms-v2") {
+        overlay = existing;
+        return;
+    }
+    document.querySelectorAll("#multiplayerMenu").forEach(element => element.remove());
+    const staleStyle = document.getElementById("multiplayerMenuStyles");
+    if (staleStyle) staleStyle.remove();
+    overlay = null;
     makeStyle();
     overlay = document.createElement("div");
     overlay.id = "multiplayerMenu";
@@ -315,7 +324,9 @@ function ensureMenu() {
             </div>
             <div id="multiplayerButtons"><button id="multiplayerJoin" class="multiplayerButton" type="button" disabled>Join Room</button><button id="multiplayerBack" class="multiplayerButton" type="button">Back</button></div>
         </div>`;
+    overlay.dataset.webminecraftMenuVersion = "rooms-v2";
     document.body.appendChild(overlay);
+    window.__webminecraftMultiplayerMenuOverlay = overlay;
     const serverView = overlay.querySelector("#multiplayerServerView"), roomView = overlay.querySelector("#multiplayerRoomView"), serverList = overlay.querySelector("#multiplayerServerList"), serverDetails = overlay.querySelector("#multiplayerServerDetails"), roomCreateButton = overlay.querySelector("#multiplayerRoomCreateButton"), roomList = overlay.querySelector("#multiplayerRoomList"), selectedInfo = overlay.querySelector("#multiplayerSelected"), refreshButton = overlay.querySelector("#multiplayerRefresh"), nameInput = overlay.querySelector("#multiplayerName"), roomInput = overlay.querySelector("#multiplayerRoom"), serverInput = overlay.querySelector("#multiplayerServer"), publicButton = overlay.querySelector("#multiplayerPublic"), privateButton = overlay.querySelector("#multiplayerPrivate"), privateCodeWrap = overlay.querySelector("#multiplayerPrivateCode"), privateCodeInput = overlay.querySelector("#multiplayerPrivateCodeInput"), status = overlay.querySelector("#multiplayerStatus"), joinButton = overlay.querySelector("#multiplayerJoin"), backButton = overlay.querySelector("#multiplayerBack"), stepServer = overlay.querySelector("#multiplayerStepServer"), stepRoom = overlay.querySelector("#multiplayerStepRoom");
     let selectedServer = null, serverData = [], selectedPrivate = false;
     nameInput.value = localStorage.getItem("webminecraft-player-name") || "Player";
@@ -362,4 +373,4 @@ export function sendItemDrop(drop) { if (!isMultiplayerActive() || !drop) return
 export function sendItemClaim(dropId) { if (!isMultiplayerActive() || !dropId) return; socket.send(JSON.stringify({ type: "item_claim", id: String(dropId) })); }
 export function syncWorldChanges() { if (isMultiplayerActive()) applyPendingWorldChanges(); }
 export function getRemotePlayers() { return remotePlayers; }
-export function openMultiplayerMenu() { ensureMenu(); overlay.style.display = "flex"; overlay.setAttribute("aria-hidden", "false"); roomView?.classList.remove("roomsStyle","create-open"); overlay.querySelector("#multiplayerPanel")?.classList.remove("rooms-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("servers-screen"); }
+export function openMultiplayerMenu() { ensureMenu(); document.querySelectorAll("#multiplayerMenu").forEach(element => { if (element !== overlay) element.remove(); }); const stalePlayerPanel = document.getElementById("globalPlayerPanel"); const stalePlayerCount = document.getElementById("globalPlayerCount"); if (stalePlayerPanel) stalePlayerPanel.style.setProperty("display","none","important"); if (stalePlayerCount) stalePlayerCount.style.setProperty("display","none","important"); overlay.style.display = "flex"; overlay.setAttribute("aria-hidden", "false"); roomView?.classList.remove("roomsStyle","create-open"); overlay.querySelector("#multiplayerPanel")?.classList.remove("rooms-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("servers-screen"); }
