@@ -33,28 +33,6 @@ jobs:
               throw new Error(`Railway health check failed: HTTP ${health.status}`);
             }
 
-            const railwayDeployment = await github.rest.repos.createDeployment({
-              owner,
-              repo,
-              ref: context.sha,
-              task: 'deploy',
-              auto_merge: false,
-              required_contexts: [],
-              environment: 'railway-multiplayer',
-              description: 'WebMinecraftT Multiplayer — Railway',
-              production_environment: true
-            });
-
-            await github.rest.repos.createDeploymentStatus({
-              owner,
-              repo,
-              deployment_id: railwayDeployment.data.id,
-              state: 'success',
-              description: 'Railway multiplayer server is online',
-              environment_url: process.env.RAILWAY_URL,
-              target_url: process.env.RAILWAY_WS
-            });
-
             const deployments = await github.paginate(
               github.rest.repos.listDeployments,
               { owner, repo, per_page: 100 }
@@ -76,5 +54,27 @@ jobs:
                 deployment_id: deployment.id
               });
             }
+
+            const railwayDeployment = await github.rest.repos.createDeployment({
+              owner,
+              repo,
+              ref: context.sha,
+              task: 'deploy',
+              auto_merge: false,
+              required_contexts: [],
+              environment: 'railway-multiplayer',
+              description: 'WebMinecraftT Multiplayer — Railway',
+              production_environment: true
+            });
+
+            await github.rest.repos.createDeploymentStatus({
+              owner,
+              repo,
+              deployment_id: railwayDeployment.data.id,
+              state: 'success',
+              description: 'Railway multiplayer server is online',
+              environment_url: process.env.RAILWAY_URL,
+              target_url: process.env.RAILWAY_WS
+            });
 
             core.info(`Railway deployment registered: ${railwayDeployment.data.id}`);
