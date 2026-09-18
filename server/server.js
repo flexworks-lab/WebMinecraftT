@@ -281,8 +281,6 @@ function handleMessage(ws, raw, state) {
             privateCode: room.isPrivate && room.ownerName === safeName ? room.privateCode : "",
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
-            worldChanges: [...room.blockChanges.values()],
-            worldDrops: [...room.drops.values()],
             players: [...room.players.values()].map(publicPlayer),
         });
         broadcast(room, { type: "player_joined", player: publicPlayer(player) }, player.id);
