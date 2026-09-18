@@ -184,7 +184,9 @@ function createDrop(type, position) {
     group.userData.count = 1;
     group.userData.spawnedAt = performance.now();
     group.userData.bob = Math.random() * Math.PI * 2;
-    group.userData.velocityY = 1.2;
+    group.userData.velocityX = (Math.random() - 0.5) * 1.2;
+    group.userData.velocityY = 1.8;
+    group.userData.velocityZ = (Math.random() - 0.5) * 1.2;
     group.userData.grounded = false;
 
     const textureName = TEXTURES[type];
@@ -293,7 +295,28 @@ function updateDrops(time) {
 
         if (!drop.userData.grounded) {
             drop.userData.velocityY -= DROP_GRAVITY * dt;
+
+            const nextX = drop.position.x + drop.userData.velocityX * dt;
+            const nextZ = drop.position.z + drop.userData.velocityZ * dt;
             const nextY = drop.position.y + drop.userData.velocityY * dt;
+
+            const checkSolid = (x, y, z) => {
+                const block = getBlockAt(Math.floor(x + .5), Math.floor(y + .5), Math.floor(z + .5));
+                return block && block !== getBlockTypes().AIR;
+            };
+
+            if (!checkSolid(nextX, drop.position.y, drop.position.z)) {
+                drop.position.x = nextX;
+            } else {
+                drop.userData.velocityX = 0;
+            }
+
+            if (!checkSolid(drop.position.x, drop.position.y, nextZ)) {
+                drop.position.z = nextZ;
+            } else {
+                drop.userData.velocityZ = 0;
+            }
+
             const blockX = Math.floor(drop.position.x + .5);
             const blockZ = Math.floor(drop.position.z + .5);
             let supportY = null;
@@ -302,13 +325,13 @@ function updateDrops(time) {
                 const block = getBlockAt(blockX, y, blockZ);
                 if (block && block !== getBlockTypes().AIR) { supportY = y; break; }
             }
+
             if (supportY !== null && nextY - DROP_HALF_SIZE <= supportY + .5) {
                 drop.position.y = supportY + .5 + DROP_HALF_SIZE;
                 drop.userData.velocityY = 0;
                 drop.userData.grounded = true;
             } else {
-                drop.position.y = nextY;
-                if (drop.position.y < MIN_DROP_Y) drop.position.y = MIN_DROP_Y;
+                drop.position.y = Math.max(nextY, MIN_DROP_Y);
             }
         } else {
             const baseY = drop.userData.baseY ?? (drop.userData.baseY = drop.position.y);
