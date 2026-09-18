@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed } from "./world.js";
-import { setupControls, resetView, enterGameplayKeyboardCapture } from "./controls.js";
+import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
 import { initSavedWorlds } from "./worlds.js";
@@ -327,11 +327,9 @@ function startWorldWithSeed(seed) {
     setWorldUrl(seed);
     spawnPlayer();
     gameStarted = true;
-    window.__webminecraftGameStarted = true;
     closeSeedMenu();
     if (mainMenu) mainMenu.style.display = "none";
     setMenuUiVisible(false);
-    void enterGameplayKeyboardCapture();
     requestPointerLock();
     void setWorldSeedForPersistence(seed).catch(error => console.warn("World persistence load failed:", error));
 }
