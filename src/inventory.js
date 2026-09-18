@@ -208,45 +208,45 @@ function createInventoryUI() {
     const style = document.createElement("style");
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
-#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.64);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
+#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
 #inventoryScreen.open{display:flex}
 body.inventory-open #hotbar.textured-hotbar{display:none!important}
-#inventoryPanel{position:relative;z-index:1000000;width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#3b3b3b;border:3px solid #151515;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.58),inset 2px 2px 0 #5b5b5b;image-rendering:pixelated;overflow:hidden}
+#inventoryPanel{position:relative;z-index:1000000;width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#555;border:3px solid #252525;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.32),inset 2px 2px 0 #747474;image-rendering:pixelated;overflow:hidden}
 #inventoryTopBar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 4px 6px;flex:0 0 auto}
 #inventoryTitle{font-size:22px;font-weight:700;text-shadow:2px 2px 0 #171717}
-#inventoryClose{width:38px;height:36px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#696969;color:#fff;font-size:27px;line-height:25px;cursor:pointer;box-shadow:inset -2px -2px 0 #444}
+#inventoryClose{width:38px;height:36px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#8a8a8a;color:#fff;font-size:27px;line-height:25px;cursor:pointer;box-shadow:inset -2px -2px 0 #444}
 #creativeTabs{display:flex;gap:6px;flex:0 0 auto;padding:0 3px 8px;border-bottom:2px solid #171717}
-.inventoryTab{width:54px;height:48px;border:2px solid #161616;border-top-color:#8b8b8b;border-left-color:#8b8b8b;background:#5e5e5e;color:#ddd;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:inset -2px -2px 0 #444;position:relative}
-.inventoryTab:hover{filter:brightness(1.14)}.inventoryTab.active{background:#898989;border-color:#f0f0f0;color:#fff;transform:translateY(1px)}
+.inventoryTab{width:54px;height:48px;border:2px solid #161616;border-top-color:#8b8b8b;border-left-color:#8b8b8b;background:#777;color:#ddd;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:inset -2px -2px 0 #444;position:relative}
+.inventoryTab:hover{filter:brightness(1.14)}.inventoryTab.active{background:#9b9b9b;border-color:#f0f0f0;color:#fff;transform:translateY(1px)}
 .inventoryTab svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:square;stroke-linejoin:miter}.inventoryTab:nth-child(2) svg{fill:currentColor;stroke:currentColor}
 #inventoryBody{min-height:0;flex:1;display:flex;padding-top:10px}
-#catalogPanel{min-width:0;flex:1;display:flex;flex-direction:column;background:#252525;border:2px solid #111;padding:8px}
+#catalogPanel{min-width:0;flex:1;display:flex;flex-direction:column;background:#3a3a3a;border:2px solid #222;padding:8px}
 #catalogToolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex:0 0 auto}
 #catalogSectionName{font-size:16px;font-weight:700;text-shadow:1px 1px 0 #000}
-#catalogSearchWrap{width:min(300px,45%);height:34px;display:flex;align-items:center;border:2px solid #121212;background:#131313;box-shadow:inset 2px 2px 0 #080808}
+#catalogSearchWrap{width:min(300px,45%);height:34px;display:flex;align-items:center;border:2px solid #121212;background:#2a2a2a;box-shadow:inset 2px 2px 0 #181818}
 #catalogSearchWrap .searchIcon{font-size:22px;color:#aaa;padding:0 5px 2px}
 #catalogSearch{width:100%;height:100%;border:0;outline:0;background:transparent;color:#fff;padding:0 8px;font-size:14px}
 #catalogSearch::placeholder{color:#858585}
-#catalogViewport{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;padding:2px 2px 2px 1px;scrollbar-color:#777 #171717;scrollbar-width:thin}
+#catalogViewport{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;padding:2px 2px 2px 1px;scrollbar-color:#9a9a9a #2a2a2a;scrollbar-width:thin}
 #catalogGrid{display:grid;grid-template-columns:repeat(9,minmax(44px,1fr));gap:5px;align-content:start}
-.catalogSlot{position:relative;min-width:0;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#858585;cursor:grab;box-shadow:inset -1px -1px 0 #444;touch-action:none}
+.catalogSlot{position:relative;min-width:0;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;cursor:grab;box-shadow:inset -1px -1px 0 #666;touch-action:none}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
 .catalogIcon{position:absolute;inset:6px;display:block}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}
-.catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#666;color:#fff}
+.catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#858585;color:#fff}
 .catalogColor{background:var(--item-color);box-shadow:inset 3px 3px 0 rgba(255,255,255,.14),inset -3px -3px 0 rgba(0,0,0,.2)}
 .catalogName{position:absolute;left:2px;right:2px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
 .catalogSlot:hover .catalogName{opacity:1}
-#survivalPanel{flex:1;background:#252525;border:2px solid #111;padding:10px}
+#survivalPanel{flex:1;background:#3a3a3a;border:2px solid #222;padding:10px}
 #inventoryBottom{height:96px;flex:0 0 auto;display:grid;grid-template-columns:76px 1fr 76px;align-items:center;gap:12px;padding-top:10px}
 #hotbarInventory{display:grid;grid-template-columns:repeat(9,minmax(42px,58px));justify-content:center;gap:5px}
-.inventorySlot,.destroySlot,.offhandSlot{position:relative;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#858585;box-shadow:inset -1px -1px 0 #444;min-width:0}
+.inventorySlot,.destroySlot,.offhandSlot{position:relative;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;box-shadow:inset -1px -1px 0 #666;min-width:0}
 .inventorySlot{cursor:grab;touch-action:none}.inventorySlot:hover{filter:brightness(1.12);border-color:#fff}.inventorySlot.dragging{opacity:.42}
 .slotTexture{position:absolute;inset:6px;background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.slotFallback{position:absolute;inset:6px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;text-shadow:2px 2px 0 #222}
 .slotCount{position:absolute;right:3px;bottom:1px;font:bold 14px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none}.slotNumber{position:absolute;left:3px;top:1px;font:bold 11px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none}
-.destroySlot,.offhandSlot{width:64px;height:64px;justify-self:center;display:flex;align-items:center;justify-content:center;font-size:38px;color:#d33;background:#5b3838;cursor:pointer}
-.destroySlot{color:#f14}.destroySlot:hover{background:#733b3b;filter:brightness(1.15)}.offhandSlot{color:#bbb;font-size:13px;cursor:default}
+.destroySlot,.offhandSlot{width:64px;height:64px;justify-self:center;display:flex;align-items:center;justify-content:center;font-size:38px;color:#d33;background:#7b4a4a;cursor:pointer}
+.destroySlot{color:#ff5a5a}.destroySlot:hover{background:#955252;filter:brightness(1.08)}.offhandSlot{color:#bbb;font-size:13px;cursor:default}
 .offhandSlot::after{content:"";position:absolute;inset:10px;border:2px dashed #aaa;opacity:.35}
-#inventoryMobileButton{display:none;position:fixed;right:18px;bottom:84px;width:54px;height:54px;z-index:10001;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#555;color:#fff;font-size:27px;box-shadow:0 3px 0 #171717;touch-action:manipulation}
+#inventoryMobileButton{display:none;position:fixed;right:18px;bottom:84px;width:54px;height:54px;z-index:10001;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#777;color:#fff;font-size:27px;box-shadow:0 3px 0 #171717;touch-action:manipulation}
 body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block;left:calc(50% - min(252px,45vw) - 66px);right:auto;bottom:8px;z-index:10001}
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{z-index:10000!important;bottom:8px!important}
 #heldBlock{display:none!important;pointer-events:none}
