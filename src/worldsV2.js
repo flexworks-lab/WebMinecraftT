@@ -336,6 +336,7 @@ function randomSeed() {
 
 function showMenu() {
     overlay.style.display = "block";
+    document.body.classList.add("webminecraft-worlds-menu");
     document.getElementById("mainMenu")?.style && (document.getElementById("mainMenu").style.display = "none");
 }
 
@@ -344,6 +345,7 @@ function closeMenu() {
     closeDetails();
     closeCreate();
     if (overlay) overlay.style.display = "none";
+    document.body.classList.remove("webminecraft-worlds-menu");
     const menu = document.getElementById("mainMenu");
     if (menu) menu.style.display = "flex";
 }
