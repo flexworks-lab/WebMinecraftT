@@ -124,7 +124,7 @@ function findFriendLocation(servers, friendName) {
             if (!names.some(name => String(name || "").trim().toLowerCase() === target)) continue;
             return {
                 serverName: String(server.name || "Server"),
-                websocket: String(server.websocket || "wss://webminecraft-server.onrender.com/multiplayer"),
+                websocket: String(server.websocket || "wss://webminecraftt-multiplayer-production.up.railway.app/multiplayer"),
                 roomId: String(room.id || room.name || "default"),
                 roomName: String(room.name || room.id || "default"),
                 isPrivate: Boolean(room.private || room.isPrivate)
