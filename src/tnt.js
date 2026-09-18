@@ -15,7 +15,9 @@ const SAND_MAX_FALL_SPEED = 28;
 const GRAVEL_GRAVITY = 22;
 const GRAVEL_MAX_FALL_SPEED = 28;
 const MAX_TNT_CHAIN_DELAY = 300;
-const MAX_ACTIVE_EXPLOSIONS = 12;
+const MAX_TNT_VISUALS = 16;
+const MAX_TNT_FUSE_STARTS_PER_FRAME = 24;
+const MAX_EXPLOSION_EFFECTS = 6;
 
 const EXPLOSION_OFFSETS = [];
 for (let dx = -EXPLOSION_RADIUS; dx <= EXPLOSION_RADIUS; dx++) {
@@ -29,11 +31,30 @@ for (let dx = -EXPLOSION_RADIUS; dx <= EXPLOSION_RADIUS; dx++) {
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
-const primed = new Set();
+const primed = new Map();
+const pendingIgnitions = new Map();
+const pendingNetworkChanges = new Map();
 const fallingSand = new Map();
 const fallingGravel = new Map();
 const activeExplosions = new Set();
+const activeExplosionEffects = new Set();
 let suppressPhysicsBlockEvent = false;
+let primedVisualCount = 0;
+
+const primedMarkerGeometry = new THREE.SphereGeometry(0.065, 5, 4);
+const primedMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0xffdd55 });
+
+function queueNetworkBlockChange(x, y, z, type) {
+    pendingNetworkChanges.set(makeKey(x, y, z), { x, y, z, type });
+}
+function flushNetworkBlockChanges() {
+    if (!pendingNetworkChanges.size) return;
+    const changes = [...pendingNetworkChanges.values()];
+    pendingNetworkChanges.clear();
+    for (let i = 0; i < changes.length; i += 1024) {
+        sendBlockChanges(changes.slice(i, i + 1024));
+    }
+}
 let lastScene = null;
 let physicsLoopStarted = false;
 let lastPhysicsTime = performance.now();
@@ -47,7 +68,7 @@ function setBlockFromPhysics(x, y, z, type) {
     suppressPhysicsBlockEvent = true;
     try {
         if (!setBlockAt(x, y, z, type)) return false;
-        sendBlockChange(x, y, z, type);
+        queueNetworkBlockChange(x, y, z, type);
         notifyBlockChange(x, y, z, type);
         return true;
     } finally { suppressPhysicsBlockEvent = false; }
@@ -204,10 +225,17 @@ function startPhysicsLoop() {
     if (physicsLoopStarted) return;
     physicsLoopStarted = true;
     const loop = time => {
-        const deltaTime = Math.min((time - lastPhysicsTime) / 1000, 0.05);
-        lastPhysicsTime = time; updateFallingSand(deltaTime); updateFallingGravel(deltaTime); requestAnimationFrame(loop);
+        const deltaTime = Math.min(Math.max((time - lastPhysicsTime) / 1000, 0), 0.05);
+        lastPhysicsTime = time;
+        updatePendingIgnitions(time);
+        updatePrimedTNT(time, deltaTime);
+        updateFallingSand(deltaTime);
+        updateFallingGravel(deltaTime);
+        flushNetworkBlockChanges();
+        requestAnimationFrame(loop);
     };
-    lastPhysicsTime = performance.now(); requestAnimationFrame(loop);
+    lastPhysicsTime = performance.now();
+    requestAnimationFrame(loop);
 }
 function getTarget(scene, camera, ndcX = 0, ndcY = 0) {
     camera.updateMatrixWorld(true);
@@ -242,61 +270,143 @@ function setFlashState(mesh, originalColors, flashState) {
         }
     });
 }
+function scheduleFuse(scene, x, y, z, delay) {
+    const key = makeKey(x, y, z);
+    if (primed.has(key) || pendingIgnitions.has(key)) return;
+    pendingIgnitions.set(key, {
+        scene,
+        x,
+        y,
+        z,
+        dueAt: performance.now() + Math.max(0, delay)
+    });
+}
+
+function createPrimedVisual(scene, x, y, z) {
+    if (primedVisualCount >= MAX_TNT_VISUALS) return null;
+    const mesh = createDynamicBlock(scene, x, y, z, tntMaterial, "primedTNT");
+    mesh.userData.isPrimedTNT = true;
+    const marker = new THREE.Mesh(primedMarkerGeometry, primedMarkerMaterial);
+    marker.position.set(x, y + 0.58, z);
+    scene.add(marker);
+    const light = new THREE.PointLight(0xff782e, 1.8, 4);
+    light.position.set(x, y + 0.45, z);
+    scene.add(light);
+    primedVisualCount++;
+    return { mesh, marker, light, originalColors: mesh.userData.originalColors.map(color => color.clone()), lastFlashState: false };
+}
+
+function disposePrimedVisual(visual) {
+    if (!visual) return;
+    disposeDynamicMesh(visual.mesh);
+    if (visual.marker?.parent) visual.marker.parent.remove(visual.marker);
+    if (visual.light?.parent) visual.light.parent.remove(visual.light);
+    visual.light?.dispose();
+    primedVisualCount = Math.max(0, primedVisualCount - 1);
+}
+
+function updatePendingIgnitions(time) {
+    let started = 0;
+    for (const [key, pending] of pendingIgnitions) {
+        if (pending.dueAt > time) continue;
+        pendingIgnitions.delete(key);
+        startFuse(pending.scene, pending.x, pending.y, pending.z);
+        started++;
+        if (started >= MAX_TNT_FUSE_STARTS_PER_FRAME) break;
+    }
+}
+
+function updatePrimedTNT(time, deltaTime) {
+    if (primed.size === 0) return;
+    const BLOCK = getBlockTypes();
+    for (const [key, fuse] of primed) {
+        const age = time - fuse.startedAt;
+        const progress = Math.min(age / FUSE_MS, 1);
+        fuse.velocityY = Math.min(fuse.velocityY + TNT_GRAVITY * deltaTime, TNT_MAX_FALL_SPEED);
+        const nextY = fuse.currentY - fuse.velocityY * deltaTime;
+        const landingY = getLandingY(fuse.x, fuse.currentY, nextY, fuse.z, BLOCK);
+        if (landingY !== null && landingY <= fuse.currentY) {
+            fuse.currentY = landingY;
+            fuse.velocityY = 0;
+        } else {
+            fuse.currentY = nextY;
+        }
+
+        const visual = fuse.visual;
+        if (visual) {
+            visual.mesh.position.y = fuse.currentY;
+            visual.marker.position.y = fuse.currentY + 0.58;
+            visual.light.position.y = fuse.currentY + 0.45;
+            const flashInterval = THREE.MathUtils.lerp(150, 55, progress);
+            const flashState = Math.floor(age / flashInterval) % 2 === 0;
+            visual.marker.visible = flashState;
+            visual.light.intensity = 1.5 + Math.sin(age * 0.06) * 0.9;
+            if (flashState !== visual.lastFlashState) {
+                visual.lastFlashState = flashState;
+                setFlashState(visual.mesh, visual.originalColors, flashState);
+            }
+        }
+
+        if (age < FUSE_MS) continue;
+        primed.delete(key);
+        disposePrimedVisual(visual);
+        explode(fuse.scene, fuse.x, Math.round(fuse.currentY), fuse.z);
+    }
+}
+
 function startFuse(scene, x, y, z, broadcastIgnite = true, allowAir = false) {
     const key = makeKey(x, y, z), BLOCK = getBlockTypes();
+    pendingIgnitions.delete(key);
     if (primed.has(key)) return false;
     const currentType = getBlockAt(x, y, z);
     if (currentType !== BLOCK.TNT && !(allowAir && currentType === BLOCK.AIR)) return false;
     if (currentType === BLOCK.TNT) {
         if (!setBlockAt(x, y, z, BLOCK.AIR)) return false;
         notifyBlockChange(x, y, z, BLOCK.AIR);
-        if (broadcastIgnite) sendBlockChange(x, y, z, BLOCK.AIR);
+        if (broadcastIgnite) queueNetworkBlockChange(x, y, z, BLOCK.AIR);
     } else if (!allowAir) return false;
-    primed.add(key);
+
     if (broadcastIgnite) sendTNTIgnite(x, y, z);
-    const mesh = createDynamicBlock(scene, x, y, z, tntMaterial, "primedTNT");
-    mesh.userData.isPrimedTNT = true;
-    const marker = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffdd55 }));
-    marker.position.set(x, y + 0.58, z); scene.add(marker);
-    const light = new THREE.PointLight(0xff782e, 1.8, 4);
-    light.position.set(x, y + 0.45, z); scene.add(light);
-    const originalColors = mesh.userData.originalColors.map(color => color.clone());
-    let lastFlashState = false, velocityY = 0, currentY = y, lastTickTime = performance.now();
-    const started = performance.now();
-    const tick = time => {
-        const frameDelta = Math.min(Math.max((time - lastTickTime) / 1000, 0), 0.05);
-        lastTickTime = time;
-        const age = time - started, progress = Math.min(age / FUSE_MS, 1);
-        const flashInterval = THREE.MathUtils.lerp(150, 55, progress);
-        const flashState = Math.floor(age / flashInterval) % 2 === 0;
-        velocityY = Math.min(velocityY + TNT_GRAVITY * frameDelta, TNT_MAX_FALL_SPEED);
-        const nextY = currentY - velocityY * frameDelta;
-        const landingY = getLandingY(x, currentY, nextY, z, BLOCK);
-        if (landingY !== null && landingY <= currentY) { currentY = landingY; velocityY = 0; } else currentY = nextY;
-        mesh.position.y = currentY; marker.position.y = currentY + 0.58; light.position.y = currentY + 0.45;
-        marker.visible = flashState; light.intensity = 1.5 + Math.sin(age * 0.06) * 0.9;
-        if (flashState !== lastFlashState) { lastFlashState = flashState; setFlashState(mesh, originalColors, flashState); }
-        if (age < FUSE_MS) { requestAnimationFrame(tick); return; }
-        disposeDynamicMesh(mesh); scene.remove(marker); marker.geometry.dispose(); marker.material.dispose(); scene.remove(light); light.dispose(); primed.delete(key);
-        explode(scene, x, Math.round(currentY), z);
-    };
-    requestAnimationFrame(tick); return true;
+    primed.set(key, {
+        scene,
+        x,
+        y,
+        z,
+        currentY: y,
+        velocityY: 0,
+        startedAt: performance.now(),
+        visual: createPrimedVisual(scene, x, y, z)
+    });
+    return true;
 }
 function makeExplosionEffect(scene, x, y, z) {
+    if (activeExplosionEffects.size >= MAX_EXPLOSION_EFFECTS) return;
+    const effectState = { scene };
+    activeExplosionEffects.add(effectState);
     const flash = new THREE.PointLight(0xff9a42, 7, 9);
-    flash.position.set(x, y + 0.5, z); scene.add(flash);
-    const geometry = new THREE.SphereGeometry(0.35, 8, 6);
+    flash.position.set(x, y + 0.5, z);
+    scene.add(flash);
+    const geometry = new THREE.SphereGeometry(0.35, 6, 4);
     const material = new THREE.MeshBasicMaterial({ color: 0xff9a42, transparent: true, opacity: 0.72, depthWrite: false });
     const effect = new THREE.Mesh(geometry, material);
-    effect.position.set(x, y + 0.5, z); scene.add(effect);
+    effect.position.set(x, y + 0.5, z);
+    scene.add(effect);
     const start = performance.now();
     const update = time => {
-        const progress = Math.min((time - start) / 220, 1);
+        const progress = Math.min((time - start) / 180, 1);
         const scale = 0.6 + progress * (EXPLOSION_RADIUS * 0.8);
         effect.scale.setScalar(scale);
         material.opacity = 0.72 * (1 - progress);
         flash.intensity = 7 * (1 - progress);
-        if (progress >= 1) { scene.remove(effect); geometry.dispose(); material.dispose(); scene.remove(flash); flash.dispose(); return; }
+        if (progress >= 1) {
+            scene.remove(effect);
+            geometry.dispose();
+            material.dispose();
+            scene.remove(flash);
+            flash.dispose();
+            activeExplosionEffects.delete(effectState);
+            return;
+        }
         requestAnimationFrame(update);
     };
     requestAnimationFrame(update);
@@ -318,7 +428,7 @@ function processExplosion(explosion) {
                 if (!explosion.chainTNT.has(key)) {
                     explosion.chainTNT.add(key);
                     const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
-                    setTimeout(() => startFuse(scene, x, y, z), delay);
+                    scheduleFuse(scene, x, y, z, delay);
                 }
                 continue;
             }
@@ -328,7 +438,7 @@ function processExplosion(explosion) {
         endWorldEditBatch();
     }
     if (changedBlocks.length) {
-        sendBlockChanges(changedBlocks);
+        for (const change of changedBlocks) queueNetworkBlockChange(change.x, change.y, change.z, change.type);
         for (const change of changedBlocks) notifyBlockChange(change.x, change.y, change.z, change.type);
     }
     activeExplosions.delete(explosion);
@@ -336,7 +446,6 @@ function processExplosion(explosion) {
 }
 
 function explode(scene, cx, cy, cz) {
-    if (activeExplosions.size >= MAX_ACTIVE_EXPLOSIONS) return;
     const BLOCK = getBlockTypes();
     const explosion = { scene, cx, cy, cz, BLOCK, offsets: EXPLOSION_OFFSETS, chainTNT: new Set() };
     activeExplosions.add(explosion);
