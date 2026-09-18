@@ -10,7 +10,7 @@ function addGameplayLayoutStyles() {
     const style = document.createElement("style");
     style.id = "webMinecraftGameplayLayoutFixes";
     style.textContent = `
-body.mobile-mode.webminecraft-in-world #settingsButton{top:18px !important;right:18px !important;z-index:90 !important}
+body.mobile-mode.webminecraft-in-world #settingsButton{display:flex !important;align-items:center !important;justify-content:center !important;top:18px !important;right:18px !important;z-index:90 !important}
 body.mobile-mode.webminecraft-in-world #touchChatButton{top:76px !important;right:18px !important;bottom:auto !important;z-index:91 !important}
 body.mobile-mode.webminecraft-in-world #touchActions{right:18px !important;bottom:24px !important;z-index:43 !important}
 body.mobile-mode.webminecraft-in-world #touchMovePad{left:18px !important;bottom:24px !important;z-index:43 !important}
