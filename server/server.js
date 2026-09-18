@@ -300,6 +300,28 @@ function handleMessage(ws, raw, state) {
         broadcast(room, { type: "chat_message", playerId: player.id, name: player.name, text });
         return;
     }
+    if (message.type === "block_changes") {
+        if (!Array.isArray(message.changes) || message.changes.length > 1024) return;
+        const room = rooms.get(player.room);
+        if (!room) return;
+        const changes = [];
+        for (const rawChange of message.changes) {
+            const x = Math.floor(numberOr(rawChange?.x, NaN));
+            const y = Math.floor(numberOr(rawChange?.y, NaN));
+            const z = Math.floor(numberOr(rawChange?.z, NaN));
+            const type = Math.floor(numberOr(rawChange?.blockType ?? rawChange?.type, NaN));
+            if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 74) continue;
+            const key = `${x},${y},${z}`;
+            room.blockChanges.set(key, { x, y, z, type });
+            changes.push({ x, y, z, blockType: type });
+        }
+        while (room.blockChanges.size > 50000) {
+            const oldest = room.blockChanges.keys().next().value;
+            if (oldest) room.blockChanges.delete(oldest); else break;
+        }
+        if (changes.length) broadcast(room, { type: "block_changes", changes }, player.id);
+        return;
+    }
     if (message.type === "block_change") {
         const x = Math.floor(numberOr(message.x, NaN));
         const y = Math.floor(numberOr(message.y, NaN));
