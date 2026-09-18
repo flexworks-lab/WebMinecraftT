@@ -406,7 +406,7 @@ function materialIndexFor(type,faceIndex){switch(type){
     case BLOCK.MANGROVE_PLANKS:return 33;
     case BLOCK.SPRUCE_PLANKS:return 34;
     case BLOCK.WARPED_PLANKS:return 35;
-    case BLOCK.BLAST_FURNACE:return faceIndex===2?38:faceIndex>=4?36:37;
+    case BLOCK.BLAST_FURNACE:return faceIndex===2?38:faceIndex===4?36:37;
     case BLOCK.CHISELED_DEEPSLATE:return 39;
     case BLOCK.COBBLED_DEEPSLATE:return 40;
     case BLOCK.CRACKED_DEEPSLATE_BRICKS:return 41;
@@ -424,7 +424,7 @@ function materialIndexFor(type,faceIndex){switch(type){
     case BLOCK.DEEPSLATE_TILES:return 54;
     case BLOCK.POLISHED_DEEPSLATE:return 55;
     case BLOCK.REINFORCED_DEEPSLATE:return faceIndex===2?58:faceIndex===3?56:57;
-    case BLOCK.FURNACE:return faceIndex===2?61:faceIndex>=4?59:60;
+    case BLOCK.FURNACE:return faceIndex===2?61:faceIndex===4?59:60;
     default:return 0;
 }}
 function isSolid(type){return type!==BLOCK.AIR&&type!==BLOCK.OAK_DOOR;}
