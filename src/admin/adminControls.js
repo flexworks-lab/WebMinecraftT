@@ -3,24 +3,32 @@ const DEV_EMAIL = "worthmarcus19@gmail.com";
 const ADMIN_COLLECTION = "admins";
 let adminModal = null;
 let adminPoll = null;
+let currentAdminRole = "admin";
 
 function firebaseUser() { try { return window.firebase?.auth?.()?.currentUser || null; } catch { return null; } }
 function isDeveloper() { return String(firebaseUser()?.email || "").toLowerCase() === DEV_EMAIL.toLowerCase(); }
 
-async function isAdminUser() {
+async function getAdminRole() {
     const user = firebaseUser();
-    if (!user) return false;
-    if (isDeveloper()) return true;
+    if (!user) return "";
+    if (isDeveloper()) return "developer";
     try {
         const uid = String(user.uid || "").trim();
         const firestore = window.firebase?.firestore?.();
-        if (!uid || !firestore) return false;
+        if (!uid || !firestore) return "";
         const doc = await firestore.collection(ADMIN_COLLECTION).doc(uid).get();
-        return doc.exists && doc.data()?.enabled === true;
+        const data = doc.data() || {};
+        if (!doc.exists || data.enabled !== true) return "";
+        return String(data.role || "admin").toLowerCase() === "main" ? "main" : "admin";
     } catch (error) {
         console.warn("Could not check admin access:", error);
-        return false;
+        return "";
     }
+}
+async function isAdminUser() {
+    const role = await getAdminRole();
+    currentAdminRole = role || "admin";
+    return Boolean(role);
 }
 
 async function adminToken() { const user = firebaseUser(); if (!user) return ""; try { return await user.getIdToken(); } catch { return ""; } }
@@ -58,7 +66,8 @@ function addStyles() {
 .adminServerGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.adminServerCard{background:#202020;border:1px solid #383838;padding:0;overflow:hidden}.adminServerCard:hover{border-color:#4b4b4b}.adminServerHead{display:flex;align-items:center;gap:10px;padding:13px 14px;background:#292929;border-bottom:1px solid #111}.adminServerIcon{width:34px;height:34px;display:grid;place-items:center;background:#333;border:1px solid #444;font-size:17px}.adminServerName{font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.adminServerMeta{font-size:10px;color:#8fbc72}.adminServerBody{padding:11px}.adminServerLabel{color:#777;text-transform:uppercase;letter-spacing:.08em;font-size:8px;margin-bottom:6px}.adminServerPlayers{display:flex;flex-direction:column;gap:5px}.adminPlayer{display:flex;align-items:center;gap:9px;background:#171717;border:1px solid #303030;padding:7px 8px;font-size:11px}.adminPlayerAvatar{width:26px;height:26px;background:#3b3b3b;display:grid;place-items:center;font-size:11px}.adminPlayerName{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.adminOnlineDot{width:6px;height:6px;border-radius:50%;background:#84c65c}.adminKick{background:#633f3b;color:#fff;border:1px solid #7a4843;padding:5px 8px;font-size:9px;cursor:pointer}.adminKick:hover{background:#7b4c48}.adminEmpty{color:#777;padding:20px;text-align:center;font-size:11px;background:#171717;border:1px dashed #303030}
 .adminChat{margin-top:10px;border:1px solid #303030;background:#111}.adminChatTitle{padding:7px 9px;border-bottom:1px solid #292929;color:#999;font-size:9px;text-transform:uppercase;letter-spacing:.08em}.adminChatFeed{max-height:130px;min-height:38px;overflow:auto;padding:8px;font-size:10px;display:flex;flex-direction:column;gap:5px}.adminChatLine{line-height:1.4;color:#ddd}.adminChatLine strong{color:#9fc87f}.adminChatLine.adminChatAdmin strong{color:#55ff55}.adminChatVerify{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:3px;margin-right:3px;border-radius:50%;background:#3f8cff;color:#fff;font:700 9px Arial,sans-serif;text-shadow:none;vertical-align:-1px;box-shadow:0 0 2px rgba(0,0,0,.8)}.adminChatInputRow{display:flex;gap:6px;padding:7px;border-top:1px solid #292929}.adminChatInput{flex:1;min-width:0;background:#222;color:#fff;border:1px solid #4a4a4a;padding:8px;font-size:10px;outline:none}.adminChatInput:focus{border-color:#719d50}.adminChatSend{background:#587640;color:#fff;border:1px solid #111;padding:7px 12px;font-family:MinecraftFont,monospace;font-size:9px;cursor:pointer}.adminChatSend:hover{filter:brightness(1.1)}
 .adminDiscussionCard{background:#202020;border:1px solid #383838;padding:12px;margin-bottom:9px}.adminDiscussionTop{display:flex;align-items:center;gap:8px;margin-bottom:8px}.adminDiscussionChannel{padding:4px 7px;background:#34462a;border:1px solid #4c673b;color:#a8cd8c;font-size:9px;text-transform:uppercase}.adminDiscussionUser{font-weight:700;font-size:11px}.adminDiscussionTime{margin-left:auto;color:#666;font-size:9px}.adminDiscussionText{white-space:pre-wrap;word-break:break-word;color:#e7e7e7;font-size:11px;line-height:1.45;padding:9px;background:#171717;border:1px solid #2b2b2b}.adminDeleteDiscussion{margin-top:8px;background:#633f3b;color:#fff;border:1px solid #7a4843;padding:6px 10px;font-size:9px;cursor:pointer}.adminDeleteDiscussion:hover{background:#7b4c48}
-.adminHint{color:#777;font-size:10px;line-height:1.4;padding:4px 0 10px}.adminRefresh{border:1px solid #444;background:#292929;color:#ddd;padding:6px 10px;font-size:9px;cursor:pointer}.adminRefresh:hover{background:#353535}
+.adminHint{color:#777;font-size:10px;line-height:1.4;padding:4px 0 10px}
+.adminAnnouncementPanel{display:flex;flex-direction:column;gap:9px}.adminAnnouncementLabel{font-size:11px;color:#aaa}.adminAnnouncementInput,.adminAnnouncementMessage{width:100%;box-sizing:border-box;background:#171717;color:#fff;border:1px solid #4a4a4a;padding:9px;font:12px Arial,sans-serif;outline:none}.adminAnnouncementInput{height:38px}.adminAnnouncementMessage{min-height:150px;resize:vertical;line-height:1.45}.adminAnnouncementInput:focus,.adminAnnouncementMessage:focus{border-color:#84ad5e}.adminAnnouncementStatus{min-height:18px;font-size:11px;color:#999}.adminRefresh{border:1px solid #444;background:#292929;color:#ddd;padding:6px 10px;font-size:9px;cursor:pointer}.adminRefresh:hover{background:#353535}
 @media(max-width:800px){#adminControlsPanel{width:98vw;height:96vh}.adminControlsBadge{display:none}.adminServerGrid{grid-template-columns:1fr}.adminOverview{grid-template-columns:1fr 1fr}.adminControlsSubtitle{display:none}}
 @media(max-width:520px){#adminControlsModal{padding:5px}#adminControlsPanel{width:100vw;height:100vh}.adminOverview{grid-template-columns:1fr 1fr 1fr;gap:6px}.adminStat{padding:10px}.adminStatValue{font-size:19px}.adminControlsTab{flex:1;padding:10px 6px;font-size:8px}.adminServerHead{padding:11px}.adminServerBody{padding:8px}.adminChatInputRow{flex-direction:column}.adminChatSend{width:100%}}
 `;
@@ -82,11 +91,11 @@ function installButton() {
 function createModal() {
     if (adminModal) return; addStyles();
     adminModal = document.createElement("div"); adminModal.id = "adminControlsModal";
-    adminModal.innerHTML = `<div id="adminControlsPanel"><header id="adminControlsHeader"><div class="adminControlsHeaderIcon">⚙</div><div class="adminControlsHeadText"><span class="adminControlsTitle">Admin Controls</span><span class="adminControlsSubtitle">Manage multiplayer servers and community discussions</span></div><div class="adminControlsBadge"><span class="adminControlsBadgeDot"></span>ADMIN ACCESS</div><button class="adminControlsClose" type="button" aria-label="Close">×</button></header><nav id="adminControlsTabs"><button class="adminControlsTab active" data-tab="servers" type="button">Servers</button><button class="adminControlsTab" data-tab="discussions" type="button">Discussions</button></nav><div id="adminControlsContent"><div class="adminEmpty">Loading...</div></div></div>`;
+    adminModal.innerHTML = `<div id="adminControlsPanel"><header id="adminControlsHeader"><div class="adminControlsHeaderIcon">⚙</div><div class="adminControlsHeadText"><span class="adminControlsTitle">Admin Controls</span><span class="adminControlsSubtitle">Manage multiplayer servers and community discussions</span></div><div class="adminControlsBadge"><span class="adminControlsBadgeDot"></span>ADMIN ACCESS</div><button class="adminControlsClose" type="button" aria-label="Close">×</button></header><nav id="adminControlsTabs"><button class="adminControlsTab active" data-tab="servers" type="button">Servers</button><button class="adminControlsTab" data-tab="discussions" type="button">Discussions</button><button class="adminControlsTab" data-tab="announcements" type="button" style="display:none">Announcements</button></nav><div id="adminControlsContent"><div class="adminEmpty">Loading...</div></div></div>`;
     document.body.appendChild(adminModal);
     adminModal.querySelector(".adminControlsClose").addEventListener("click", closeAdminControls);
     adminModal.addEventListener("click", e => { if (e.target === adminModal) closeAdminControls(); });
-    adminModal.querySelectorAll(".adminControlsTab").forEach(tab => tab.addEventListener("click", () => { adminModal.querySelectorAll(".adminControlsTab").forEach(t => t.classList.toggle("active", t === tab)); if (tab.dataset.tab === "servers") loadAdminServers(); else loadAdminDiscussions(); }));
+    adminModal.querySelectorAll(".adminControlsTab").forEach(tab => tab.addEventListener("click", () => { adminModal.querySelectorAll(".adminControlsTab").forEach(t => t.classList.toggle("active", t === tab)); if (tab.dataset.tab === "servers") loadAdminServers(); else if (tab.dataset.tab === "discussions") loadAdminDiscussions(); else loadAdminAnnouncements(); }));
 }
 
 function renderServerStats(servers) {
@@ -159,7 +168,54 @@ async function loadAdminDiscussions() {
     } catch(error) { content.innerHTML = `<div class="adminEmpty">${esc(error.message)}</div>`; }
 }
 
-async function openAdminControls() { if (!(await isAdminUser())) return alert("Admin access is no longer enabled for this account."); createModal(); adminModal.style.display = "flex"; await loadAdminServers(); clearInterval(adminPoll); adminPoll = setInterval(() => { if (adminModal?.style.display === "flex" && adminModal.querySelector(".adminControlsTab.active")?.dataset.tab === "servers") loadAdminServers(); }, 4000); }
+async function loadAdminAnnouncements() {
+    const content = document.getElementById("adminControlsContent"); if (!content) return;
+    if (currentAdminRole !== "main" && currentAdminRole !== "developer") {
+        content.innerHTML = '<div class="adminEmpty">Announcement access is not enabled for this account.</div>';
+        return;
+    }
+    content.innerHTML = `
+        <div class="adminSectionTitle"><div><h3>Website Announcements</h3><span>Publish a message that appears to website visitors</span></div></div>
+        <div class="adminAnnouncementPanel">
+            <label class="adminAnnouncementLabel" for="adminAnnouncementReason">Reason / title</label>
+            <input id="adminAnnouncementReason" class="adminAnnouncementInput" maxlength="100" placeholder="Example: New update">
+            <label class="adminAnnouncementLabel" for="adminAnnouncementMessage">Announcement message</label>
+            <textarea id="adminAnnouncementMessage" class="adminAnnouncementMessage" maxlength="2000" placeholder="Write the announcement here..."></textarea>
+            <div class="adminGridAction"><button id="adminPublishAnnouncement" class="adminRefresh" type="button">Publish Announcement</button><button id="adminClearAnnouncement" class="adminRefresh" type="button">Clear Announcement</button></div>
+            <div id="adminAnnouncementStatus" class="adminAnnouncementStatus"></div>
+        </div>`;
+    const style = document.createElement("style");
+    if (!document.getElementById("adminAnnouncementActionStyles")) {
+        style.id = "adminAnnouncementActionStyles";
+        style.textContent = ".adminGridAction{display:grid;grid-template-columns:1fr 1fr;gap:8px}.adminGridAction button{min-height:42px;background:#587640;color:#fff;border:1px solid #111;font-family:Arial,sans-serif;font-size:11px;cursor:pointer}.adminGridAction button:last-child{background:#633f3b}@media(max-width:520px){.adminGridAction{grid-template-columns:1fr}}";
+        document.head.appendChild(style);
+    }
+    const db = window.firebase?.firestore?.();
+    const status = content.querySelector("#adminAnnouncementStatus");
+    const user = firebaseUser();
+    const setStatus = (msg, error=false) => { status.textContent = msg; status.style.color = error ? "#e38a7b" : "#9fce72"; };
+    const publish = async () => {
+        const reason = content.querySelector("#adminAnnouncementReason").value.trim();
+        const message = content.querySelector("#adminAnnouncementMessage").value.trim();
+        if (!reason) return setStatus("Enter a reason/title first.", true);
+        if (!message) return setStatus("Enter an announcement message first.", true);
+        try {
+            await db.collection("announcements").doc("active").set({active:true,reason,message,updatedAt:new Date(),updatedBy:user?.email||""});
+            setStatus("Announcement published. Everyone will see it on their next website load.");
+        } catch (error) { setStatus(error?.message || "Could not publish announcement.", true); }
+    };
+    const clear = async () => {
+        if (!confirm("Clear the current website announcement?")) return;
+        try {
+            await db.collection("announcements").doc("active").set({active:false,updatedAt:new Date(),updatedBy:user?.email||""},{merge:true});
+            setStatus("Announcement cleared.");
+        } catch (error) { setStatus(error?.message || "Could not clear announcement.", true); }
+    };
+    content.querySelector("#adminPublishAnnouncement").addEventListener("click", publish);
+    content.querySelector("#adminClearAnnouncement").addEventListener("click", clear);
+}
+
+async function openAdminControls() { if (!(await isAdminUser())) return alert("Admin access is no longer enabled for this account."); createModal(); const announcementTab = adminModal.querySelector('[data-tab="announcements"]'); if (announcementTab) announcementTab.style.display = currentAdminRole === "main" || currentAdminRole === "developer" ? "block" : "none"; adminModal.style.display = "flex"; await loadAdminServers(); clearInterval(adminPoll); adminPoll = setInterval(() => { if (adminModal?.style.display === "flex" && adminModal.querySelector(".adminControlsTab.active")?.dataset.tab === "servers") loadAdminServers(); }, 4000); }
 function closeAdminControls() { if (adminModal) adminModal.style.display = "none"; clearInterval(adminPoll); adminPoll = null; }
 function watch() { addStyles(); installButton(); const observer = new MutationObserver(installButton); observer.observe(document.body,{childList:true,subtree:true}); setInterval(installButton,1500); }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",watch,{once:true}); else watch();
