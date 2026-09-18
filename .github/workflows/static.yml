@@ -30,11 +30,11 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install production dependencies
+        run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
       - name: Build Vite site
-        run: node ./node_modules/vite/bin/vite.js build
+        run: npx --yes vite@7.3.6 build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
