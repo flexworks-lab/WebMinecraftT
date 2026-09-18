@@ -157,19 +157,21 @@ const mangrovePlanksMaterial = new THREE.MeshPhongMaterial({ map: mangrovePlanks
 const sprucePlanksMaterial = new THREE.MeshPhongMaterial({ map: sprucePlanksTexture, color: textureShade, ...materialOptions });
 const warpedPlanksMaterial = new THREE.MeshPhongMaterial({ map: warpedPlanksTexture, color: textureShade, ...materialOptions });
 
+const blastFurnaceSideMaterial = new THREE.MeshPhongMaterial({ map: blastFurnaceSideTexture, color: textureShade, ...materialOptions });
+const blastFurnaceTopMaterial = new THREE.MeshPhongMaterial({ map: blastFurnaceTopTexture, color: textureShade, ...materialOptions });
+const blastFurnaceFrontMaterial = new THREE.MeshPhongMaterial({ map: blastFurnaceFrontTexture, color: textureShade, ...materialOptions });
 const blastFurnaceMaterial = [
-    new THREE.MeshPhongMaterial({ map: blastFurnaceSideTexture, color: textureShade, ...materialOptions }),
-    new THREE.MeshPhongMaterial({ map: blastFurnaceTopTexture, color: textureShade, ...materialOptions }),
-    new THREE.MeshPhongMaterial({ map: blastFurnaceBottomTexture ?? blastFurnaceSideTexture, color: textureShade, ...materialOptions })
+    blastFurnaceSideMaterial, blastFurnaceSideMaterial, blastFurnaceTopMaterial,
+    blastFurnaceSideMaterial, blastFurnaceFrontMaterial, blastFurnaceFrontMaterial
 ];
-blastFurnaceMaterial.front = new THREE.MeshPhongMaterial({ map: blastFurnaceFrontTexture, color: textureShade, ...materialOptions });
 
+const furnaceSideMaterial = new THREE.MeshPhongMaterial({ map: furnaceSideTexture, color: textureShade, ...materialOptions });
+const furnaceTopMaterial = new THREE.MeshPhongMaterial({ map: furnaceTopTexture, color: textureShade, ...materialOptions });
+const furnaceFrontMaterial = new THREE.MeshPhongMaterial({ map: furnaceFrontTexture, color: textureShade, ...materialOptions });
 const furnaceMaterial = [
-    new THREE.MeshPhongMaterial({ map: furnaceSideTexture, color: textureShade, ...materialOptions }),
-    new THREE.MeshPhongMaterial({ map: furnaceTopTexture, color: textureShade, ...materialOptions }),
-    new THREE.MeshPhongMaterial({ map: furnaceSideTexture, color: textureShade, ...materialOptions })
+    furnaceSideMaterial, furnaceSideMaterial, furnaceTopMaterial,
+    furnaceSideMaterial, furnaceFrontMaterial, furnaceFrontMaterial
 ];
-furnaceMaterial.front = new THREE.MeshPhongMaterial({ map: furnaceFrontTexture, color: textureShade, ...materialOptions });
 
 const chiseledDeepslateMaterial = new THREE.MeshPhongMaterial({ map: chiseledDeepslateTexture, color: textureShade, ...materialOptions });
 const cobbledDeepslateMaterial = new THREE.MeshPhongMaterial({ map: cobbledDeepslateTexture, color: textureShade, ...materialOptions });
