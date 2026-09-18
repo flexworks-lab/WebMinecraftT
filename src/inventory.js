@@ -286,7 +286,7 @@ body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #catalogGrid{display:grid;grid-template-columns:repeat(9,minmax(44px,1fr));gap:5px;align-content:start}
 .catalogSlot{position:relative;min-width:0;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;cursor:grab;box-shadow:inset -1px -1px 0 #666;touch-action:none}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
-.catalogIcon{position:absolute;inset:6px;display:block}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogTexture.slabIcon{top:44%;bottom:6px;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
+.catalogIcon{position:absolute;inset:6px;display:block}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
 .catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#858585;color:#fff}
 .catalogColor{background:var(--item-color);box-shadow:inset 3px 3px 0 rgba(255,255,255,.14),inset -3px -3px 0 rgba(0,0,0,.2)}
 .catalogName{position:absolute;left:2px;right:2px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
@@ -471,6 +471,8 @@ function syncHotbar() {
                 textureEl.style.position = "absolute";
                 const slab = isSlabItem(slot.itemId);
                 textureEl.style.inset = slab ? "44% 3px 3px" : "3px";
+                textureEl.style.backgroundSize = slab ? "100% 200%" : "100% 100%";
+                textureEl.style.backgroundPosition = slab ? "center top" : "center";
                 textureEl.style.borderTop = slab ? "2px solid rgba(255,255,255,.22)" : "";
                 textureEl.style.boxShadow = slab ? "0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)" : "";
                 textureEl.style.zIndex = "1";
