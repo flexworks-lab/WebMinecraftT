@@ -14,9 +14,7 @@ let lastNetworkSend = 0;
 const avatarDots = new Map();
 
 const PLAYER_WIDTH = 0.80;
-const PLAYER_HEIGHT_STANDING = 1.8;
-const PLAYER_HEIGHT_SNEAKING = 1.5;
-let PLAYER_HEIGHT = PLAYER_HEIGHT_STANDING;
+const PLAYER_HEIGHT = 1.8;
 const HALF_WIDTH = PLAYER_WIDTH / 2;
 let sneakCameraTarget = 0;
 let sneakCameraOffset = 0;
@@ -264,38 +262,21 @@ function isSneaking() {
 
 function updateSneakCamera(camera, dt) {
     const sneaking = isSneaking();
-    const targetOffset = sneaking ? -0.34 : 0;
-    if (sneaking && !isFlying) {
-        PLAYER_HEIGHT = PLAYER_HEIGHT_SNEAKING;
-        sneakCameraTarget = targetOffset;
-    } else {
-        // Stand back up only after checking that there is enough room.
-        const previousHeight = PLAYER_HEIGHT;
-        PLAYER_HEIGHT = PLAYER_HEIGHT_STANDING;
-        const clearanceBox = getBox(camera);
-        if (collides(camera) || !sneaking) {
-            if (sneaking) {
-                PLAYER_HEIGHT = previousHeight;
-            } else {
-                // The camera is raised gradually below.
-            }
-        }
-        sneakCameraTarget = PLAYER_HEIGHT === PLAYER_HEIGHT_STANDING ? 0 : -0.34;
-    }
-
+    const targetOffset = sneaking && !isFlying ? -0.34 : 0;
+    sneakCameraTarget = targetOffset;
     sneakCameraOffset = THREE.MathUtils.lerp(
         sneakCameraOffset,
         sneakCameraTarget,
         Math.min(1, dt * 12)
     );
-
-    if (!isFlying) camera.position.y += sneakCameraOffset - (camera.userData.__webminecraftLastSneakOffset || 0);
-    camera.userData.__webminecraftLastSneakOffset = sneakCameraOffset;
+    const previousOffset = Number(camera.userData.__webminecraftLastSneakOffset) || 0;
+    if (!isFlying) camera.position.y += sneakCameraOffset - previousOffset;
+    else sneakCameraOffset = 0;
+    camera.userData.__webminecraftLastSneakOffset = isFlying ? 0 : sneakCameraOffset;
 }
 
 function physicsStep(camera, dt) {
     if (isFlying) {
-        PLAYER_HEIGHT = PLAYER_HEIGHT_STANDING;
         sneakCameraOffset = 0;
         camera.userData.__webminecraftLastSneakOffset = 0;
         const forwardX = -Math.sin(yaw);
@@ -329,7 +310,6 @@ function physicsStep(camera, dt) {
     }
 
     updateGround(camera);
-    updateSneakCamera(camera, dt);
     const forwardX = -Math.sin(yaw);
     const forwardZ = -Math.cos(yaw);
     const rightX = Math.cos(yaw);
@@ -475,12 +455,20 @@ export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     camera.rotation.order = "YXZ";
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
+
+    // Remove the visual sneak offset before physics so collision/grounding
+    // always uses the normal player body height.
+    const previousSneakOffset = Number(camera.userData.__webminecraftLastSneakOffset) || 0;
+    if (previousSneakOffset) camera.position.y -= previousSneakOffset;
+    camera.userData.__webminecraftLastSneakOffset = 0;
+
     let remaining = deltaTime;
     while (remaining > 0) {
         const step = Math.min(remaining, MAX_PHYSICS_STEP);
         physicsStep(camera, step);
         remaining -= step;
     }
+    updateSneakCamera(camera, deltaTime);
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
     syncMultiplayerState(camera);
