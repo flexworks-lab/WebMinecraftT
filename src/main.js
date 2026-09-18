@@ -339,7 +339,7 @@ initSavedWorlds({ onOpenWorld: startWorldWithSeed });
 if (multiplayerButton) multiplayerButton.addEventListener("click", async event => {
     event.preventDefault(); event.stopPropagation();
     try {
-        const { openMultiplayerMenu } = await import("./multiplayerClient.js");
+        const { openMultiplayerMenu } = await import("./multiplayerClient.js?ui=rooms-v3");
         openMultiplayerMenu();
     } catch (error) {
         console.error("Failed to open multiplayer menu:", error);
