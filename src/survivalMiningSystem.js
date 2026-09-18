@@ -443,6 +443,9 @@ function refreshHotbarTextures() {
         if (texture && item?.count > 0) {
             const slab = Number(item?.itemId) >= 51 && Number(item?.itemId) <= 74;
             icon.style.inset = slab ? "44% 3px 3px" : "3px";
+            icon.style.backgroundSize = slab ? "100% 200%" : "100% 100%";
+            icon.style.backgroundPosition = slab ? "center top" : "center";
+            icon.style.backgroundRepeat = "no-repeat";
             icon.style.borderTop = slab ? "2px solid rgba(255,255,255,.22)" : "";
             icon.style.boxShadow = slab ? "0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)" : "";
             icon.style.backgroundImage = `url("${textureUrl(texture)}")`;
