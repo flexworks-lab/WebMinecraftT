@@ -31,7 +31,8 @@ function addStyles() {
     style.id = "newsButtonStyles";
     style.textContent = `
         #menuUpdates{display:none!important}
-        #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:1000 !important;display:block !important;pointer-events:auto !important}
+        #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:1000 !important;display:block !important;pointer-events:auto !important;border-radius:0 !important;background:linear-gradient(#737373,#565656) !important;border:2px solid #1b1b1b !important;border-top-color:#a4a4a4 !important;border-left-color:#a4a4a4 !important;outline:none !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62) !important;transition:none !important;animation:none !important}
+#newsButton:hover,#newsButton:active{filter:none !important;transform:none !important}
         #newsButton.newsHasUnread::after{content:"";position:absolute;top:7px;right:7px;width:10px;height:10px;border-radius:50%;background:#e33;border:2px solid #4b0000;box-shadow:0 0 0 1px rgba(0,0,0,.65),0 0 8px rgba(255,40,40,.55)}
         #newsCenter{position:fixed;inset:0;display:none;background:linear-gradient(180deg,#1b1b1b,#111);z-index:240;color:#fff;overflow:hidden}
         #newsPanel{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;display:grid;grid-template-columns:minmax(260px,31vw) minmax(0,1fr);grid-template-rows:100%;background:#1a1a1a;overflow:hidden}
@@ -225,3 +226,4 @@ setupSeedBackButton();
 createVersionPicker();
 
 if(seedMenu){let cleared=false;const observer=new MutationObserver(()=>{const open=getComputedStyle(seedMenu).display!=="none";if(open&&!cleared){clearWorld();cleared=true;}else if(!open)cleared=false;});observer.observe(seedMenu,{attributes:true,attributeFilter:["style","class"]});}
+<style id="newsButtonStaticStyle">#newsButton:focus,#newsButton:focus-visible{outline:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62)!important}.newsItem:focus,.newsItem:focus-visible{outline:none!important}</style>
