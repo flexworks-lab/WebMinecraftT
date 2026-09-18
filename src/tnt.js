@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
-import { sendBlockChange } from "./multiplayerClient.js";
+import { getBlockAt, setBlockAt, getBlockTypes, beginWorldEditBatch, endWorldEditBatch } from "./world.js";
+import { sendBlockChange, sendBlockChanges } from "./multiplayerClient.js";
 import { sendTNTIgnite } from "./tntMultiplayer.js";
 import { blockGeometry, tntMaterial, sandMaterial, gravelMaterial } from "./blocks.js";
 
@@ -304,25 +304,32 @@ function makeExplosionEffect(scene, x, y, z) {
 
 function processExplosion(explosion) {
     const { scene, BLOCK, offsets } = explosion;
-    for (const offset of offsets) {
-        const x = explosion.cx + offset.dx;
-        const y = explosion.cy + offset.dy;
-        const z = explosion.cz + offset.dz;
-        const type = getBlockAt(x, y, z);
-        if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
-        if (type === BLOCK.TNT && !(x === explosion.cx && y === explosion.cy && z === explosion.cz)) {
-            const key = makeKey(x, y, z);
-            if (!explosion.chainTNT.has(key)) {
-                explosion.chainTNT.add(key);
-                const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
-                setTimeout(() => startFuse(scene, x, y, z), delay);
+    const changedBlocks = [];
+    beginWorldEditBatch();
+    try {
+        for (const offset of offsets) {
+            const x = explosion.cx + offset.dx;
+            const y = explosion.cy + offset.dy;
+            const z = explosion.cz + offset.dz;
+            const type = getBlockAt(x, y, z);
+            if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
+            if (type === BLOCK.TNT && !(x === explosion.cx && y === explosion.cy && z === explosion.cz)) {
+                const key = makeKey(x, y, z);
+                if (!explosion.chainTNT.has(key)) {
+                    explosion.chainTNT.add(key);
+                    const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
+                    setTimeout(() => startFuse(scene, x, y, z), delay);
+                }
+                continue;
             }
-            continue;
+            if (setBlockAt(x, y, z, BLOCK.AIR)) changedBlocks.push({ x, y, z, type: BLOCK.AIR });
         }
-        if (setBlockAt(x, y, z, BLOCK.AIR)) {
-            sendBlockChange(x, y, z, BLOCK.AIR);
-            notifyBlockChange(x, y, z, BLOCK.AIR);
-        }
+    } finally {
+        endWorldEditBatch();
+    }
+    if (changedBlocks.length) {
+        sendBlockChanges(changedBlocks);
+        for (const change of changedBlocks) notifyBlockChange(change.x, change.y, change.z, change.type);
     }
     activeExplosions.delete(explosion);
     makeExplosionEffect(scene, explosion.cx, explosion.cy, explosion.cz);
