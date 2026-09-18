@@ -162,6 +162,63 @@ const settingsCloseTop = document.getElementById("settingsCloseTop");
 const menuUpdates = document.getElementById("menuUpdates");
 const crosshair = document.getElementById("crosshair");
 const hotbar = document.getElementById("hotbar");
+
+function createMobileSettingsButton() {
+    if (document.getElementById("mobileSettingsButton")) return;
+    const button = document.createElement("button");
+    button.id = "mobileSettingsButton";
+    button.type = "button";
+    button.setAttribute("aria-label", "Settings");
+    button.setAttribute("title", "Settings");
+    button.textContent = "⚙";
+    button.addEventListener("pointerdown", event => {
+        if (!gameStarted || !mobileMode) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (settingsMenu) {
+            settingsMenu.style.display = "flex";
+            document.exitPointerLock?.();
+        }
+    }, true);
+
+    const style = document.createElement("style");
+    style.textContent = `
+#mobileSettingsButton{
+    display:none;
+    position:fixed;
+    top:max(12px,env(safe-area-inset-top));
+    right:max(12px,env(safe-area-inset-right));
+    width:52px;
+    height:52px;
+    padding:0;
+    align-items:center;
+    justify-content:center;
+    border:2px solid #111;
+    border-top-color:#aaa;
+    border-left-color:#aaa;
+    border-radius:9px;
+    background:linear-gradient(180deg,#6b756c,#4e5751);
+    color:#fff;
+    font-size:27px;
+    line-height:1;
+    cursor:pointer;
+    z-index:999999;
+    box-shadow:0 4px 0 #171b17,0 6px 15px rgba(0,0,0,.28);
+    touch-action:manipulation;
+}
+#mobileSettingsButton:active{
+    transform:translateY(2px);
+}
+body.mobile-mode.webminecraft-in-world #mobileSettingsButton{
+    display:flex !important;
+}
+body.mobile-mode #settingsButton{
+    display:none !important;
+}
+`;
+    document.head.appendChild(style);
+    document.body.appendChild(button);
+}
 function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); } }
 function closeSettingsMenu() { if (settingsMenu) { settingsMenu.style.display = "none"; if (gameStarted && !mobileMode) requestPointerLock(); } }
 function requestPointerLock() { if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) document.body.requestPointerLock?.(); }
@@ -346,6 +403,7 @@ if (pixelQuality) { pixelQuality.value = String(settings.pixelRatio); pixelQuali
 if (lightingQuality) { lightingQuality.value = settings.lightingQuality; lightingQuality.addEventListener("change", () => { settings.lightingQuality = lightingQuality.value; saveSettings(); applySettings(); }); }
 if (brightnessControl) { brightnessControl.value = String(settings.brightness); brightnessControl.addEventListener("input", () => { settings.brightness = Number(brightnessControl.value); saveSettings(); applySettings(); }); }
 
+createMobileSettingsButton();
 setupControls();
 setupInteraction(scene, camera);
 const performanceHud = document.createElement("div");
