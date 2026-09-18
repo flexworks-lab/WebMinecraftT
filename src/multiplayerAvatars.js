@@ -269,7 +269,7 @@ function animateAvatar(entry, player, time) {
         parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, target, 0.45);
         parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, target * 0.7, 0.45);
     } else {
-        parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, 0, 0.2);
+        parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, crouch * 0.28, 0.2);
     }
 }
 
