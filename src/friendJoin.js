@@ -1,5 +1,5 @@
 const FIREBASE_VERSION = "12.18.0";
-const SERVER_LIST_URL = "https://webminecraft-server.onrender.com/servers";
+const SERVER_LIST_URL = "https://webminecraftt-multiplayer-production.up.railway.app/servers";
 const FRIEND_JOIN_STYLE_ID = "friendJoinStyles";
 
 let database = null;
