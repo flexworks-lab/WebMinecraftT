@@ -19,12 +19,15 @@ let lastFrame = performance.now();
 let visibilityObserver = null;
 let cloudCamera = null;
 let skyDome = null;
+let sunDisc = null;
 let undergroundAmbient = null;
 let legacyDepthLightNeutralized = false;
 let outdoorLights = [];
 
 const cloudMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: false, opacity: 1, depthWrite: false, depthTest: true, fog: true, toneMapped: false });
 const cloudGeometry = new THREE.BoxGeometry(CLOUD_BLOCK_SIZE, CLOUD_HEIGHT, CLOUD_BLOCK_SIZE);
+const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffe27a, toneMapped: false, depthWrite: false, depthTest: false, fog: false });
+const sunGeometry = new THREE.SphereGeometry(14, 24, 16);
 const SKY_SUN_DIRECTION = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
 
 function seedHash(a, b, c = 0) {
@@ -112,6 +115,12 @@ function createSkyDome(scene) {
     skyDome.frustumCulled = false;
     skyDome.renderOrder = -100;
     scene.add(skyDome);
+
+    sunDisc = new THREE.Mesh(sunGeometry, sunMaterial);
+    sunDisc.name = "MinecraftSunDisc";
+    sunDisc.frustumCulled = false;
+    sunDisc.renderOrder = -90;
+    scene.add(sunDisc);
 }
 function createUndergroundLighting(scene) {
     if (undergroundAmbient) return;
@@ -137,7 +146,14 @@ function removeWaterSpecularHighlights(scene) {
         material.needsUpdate = true;
     });
 }
-function updateSkyPosition(){if(cloudCamera&&skyDome)skyDome.position.copy(cloudCamera.position);}
+function updateSkyPosition(){
+    if (!cloudCamera) return;
+    if (skyDome) skyDome.position.copy(cloudCamera.position);
+    if (sunDisc) {
+        sunDisc.position.copy(cloudCamera.position)
+            .addScaledVector(SKY_SUN_DIRECTION, 820);
+    }
+}
 function updateUndergroundAmbient(){
     if (!cloudCamera || !undergroundAmbient) return;
 
