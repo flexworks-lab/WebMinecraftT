@@ -175,7 +175,7 @@ export function setupInteraction(scene, camera) {
         const itemId = getSelectedItemId(selectedSlot);
         if (!itemId) return;
         if (itemId === 17 || isDoorSelected()) {
-            const target = getTargetBlock(scene, camera, BLOCK);
+            const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
             if (!target) return;
             if (placeDoor(target)) {
                 if (!creative && itemId === 17) consumeSelected(selectedSlot);
@@ -191,7 +191,7 @@ export function setupInteraction(scene, camera) {
             return;
         }
         if (itemId > BLOCK.DIRT_PATH) return;
-        const target = getTargetBlock(scene, camera, BLOCK);
+        const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
         if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId)) {
             if (creative || consumeSelected(selectedSlot)) sendPlayerAction("place");
