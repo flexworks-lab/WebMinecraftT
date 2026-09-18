@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { getRemotePlayers as getMultiplayerRemotePlayers } from "./multiplayerClient.js";
 import {
     grassMaterial,
     dirtMaterial,
@@ -101,7 +102,7 @@ function installAvatarHook() {
 
 function getRemotePlayers() {
     try {
-        return window.__webminecraftGetRemotePlayers?.() || new Map();
+        return getMultiplayerRemotePlayers?.() || new Map();
     } catch {
         return new Map();
     }
