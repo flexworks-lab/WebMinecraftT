@@ -3,6 +3,7 @@
 // The existing worldsV2.js create/cancel handlers remain the source of truth.
 
 import { setWorldMode } from "./survivalMode.js";
+import { generateWorldPreviewSnapshot } from "./world.js";
 
 const STYLE_ID = "webminecraft-create-world-settings-ui";
 const MODAL_MARK = "data-create-world-settings-ui";
@@ -14,8 +15,8 @@ function injectStyle() {
     style.textContent = `
 #savedWorlds[data-create-open="1"] .sw2-wrap > .sw2-head,#savedWorlds[data-create-open="1"] .sw2-wrap > .sw2-create-wrap,#savedWorlds[data-create-open="1"] .sw2-wrap > .sw2-body{display:none!important}\n#createWorldSettingsRoot{position:absolute;inset:0;width:100%;height:100%;display:flex;overflow:hidden;background:#3a3a3a;color:#fff;font-family:Arial,sans-serif;border:0;box-shadow:inset 1px 1px 0 rgba(255,255,255,.05),inset -1px -1px 0 rgba(0,0,0,.16)}
 #createWorldSettingsSidebar{width:315px;flex:0 0 315px;background:#2f2f2f;border-right:2px solid #171717;display:flex;flex-direction:column;overflow:hidden}
-#createWorldSettingsPreview{position:relative;width:calc(100% - 18px);height:145px;margin:9px 9px 9px;flex:0 0 145px;overflow:hidden;background:linear-gradient(180deg,#88b6d1 0%,#d9ecf2 52%,#a4be7c 53%,#547247 100%);border:2px solid #111;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
-#createWorldSettingsPreview:before{content:"";position:absolute;inset:0;background:linear-gradient(154deg,transparent 0 44%,rgba(54,73,44,.92) 44% 62%,transparent 62%),linear-gradient(25deg,transparent 0 50%,rgba(76,91,57,.9) 50% 69%,transparent 69%);clip-path:polygon(0 66%,10% 53%,20% 63%,31% 41%,42% 58%,55% 37%,66% 56%,79% 46%,90% 60%,100% 49%,100% 100%,0 100%)}
+#createWorldSettingsPreview{position:relative;width:calc(100% - 18px);height:145px;margin:9px 9px 9px;flex:0 0 145px;overflow:hidden;background:#5f7c91;border:2px solid #111;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+#createWorldSettingsPreviewCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:auto}\n#createWorldSettingsPreview:before{content:"";position:absolute;inset:0;background:linear-gradient(154deg,transparent 0 44%,rgba(54,73,44,.92) 44% 62%,transparent 62%),linear-gradient(25deg,transparent 0 50%,rgba(76,91,57,.9) 50% 69%,transparent 69%);clip-path:polygon(0 66%,10% 53%,20% 63%,31% 41%,42% 58%,55% 37%,66% 56%,79% 46%,90% 60%,100% 49%,100% 100%,0 100%)}
 #createWorldSettingsPreview:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 73% 21%,rgba(255,255,220,.58) 0 22px,transparent 23px),linear-gradient(180deg,transparent 0 63%,rgba(0,0,0,.18) 63% 100%)}
 #createWorldSettingsPreviewLabel{position:absolute;left:8px;top:7px;z-index:2;padding:4px 6px;background:rgba(0,0,0,.62);font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px #000}
 #createWorldSettingsCreateWrap{padding:9px;background:#2f2f2f;border-bottom:1px solid #171717}
@@ -103,7 +104,7 @@ function enhance(modal) {
         <div id="createWorldSettingsRoot">
             <aside id="createWorldSettingsSidebar">
                 <h2 id="createWorldSettingsTitle">CREATE NEW WORLD</h2>
-                <div id="createWorldSettingsPreview"><div id="createWorldSettingsPreviewLabel">World Preview</div></div>
+                <div id="createWorldSettingsPreview"><canvas id="createWorldSettingsPreviewCanvas" aria-label="Generated world preview"></canvas><div id="createWorldSettingsPreviewLabel">World Preview</div></div>
                 <p id="createWorldSettingsSub">Set up your world before you create it.</p>
                 <nav id="createWorldSettingsTabs" aria-label="Create world sections">
                     ${tabButton("General", "game")}
@@ -190,6 +191,24 @@ function enhance(modal) {
     const newSeedDisplay = modal.querySelector("#cwSeed");
     const newMessage = modal.querySelector("#createWorldSettingsMessage");
     const gameModeSelect = modal.querySelector("#cwGameMode");
+    const previewCanvas = modal.querySelector("#createWorldSettingsPreviewCanvas");
+    const renderWorldPreview = () => {
+        if (!previewCanvas) return;
+        const seed = Number(newSeedDisplay?.textContent?.trim());
+        if (!Number.isFinite(seed)) return;
+        const width = Math.max(220, Math.floor(previewCanvas.clientWidth || 480));
+        const height = Math.max(100, Math.floor(previewCanvas.clientHeight || 145));
+        const worldType = modal.querySelector("#cwWorldType")?.value || "Default";
+        const generated = generateWorldPreviewSnapshot(seed, width, height, worldType);
+        if (!generated) return;
+        const ctx = previewCanvas.getContext("2d");
+        previewCanvas.width = generated.width;
+        previewCanvas.height = generated.height;
+        ctx?.drawImage(generated, 0, 0);
+        generated.width = 1;
+        generated.height = 1;
+    };
+
     const hiddenCreate = document.createElement("button");
     hiddenCreate.type = "button";
     hiddenCreate.dataset.act = "create";
@@ -219,7 +238,9 @@ function enhance(modal) {
     };
 
     gameModeSelect?.addEventListener("change", applyCreateMode);
+    modal.querySelector("#cwWorldType")?.addEventListener("change", renderWorldPreview);
     applyCreateMode();
+    requestAnimationFrame(renderWorldPreview);
 
     modal.addEventListener("click", event => {
         const tab = event.target.closest("[data-cw-tab]");
@@ -256,16 +277,18 @@ function enhance(modal) {
 
     // worldsV2.js writes the generated seed into [data-new-seed]. Mirror it to the visual seed field.
     const observer = new MutationObserver(() => {
-        newSeedDisplay.textContent = seedDisplay.textContent;
+        renderWorldPreview();
         applyCreateMode();
     });
-    observer.observe(seedDisplay, { childList:true, characterData:true, subtree:true });
+    observer.observe(newSeedDisplay, { childList:true, characterData:true, subtree:true });
+
 
     // Keep the original hidden fields synchronized whenever the modal is opened/reused.
     const syncObserver = new MutationObserver(() => {
         newSeedDisplay.textContent = seedDisplay.textContent;
         newNameField.value = nameField.value;
         if (!newMessage.textContent) newMessage.textContent = message.textContent || "";
+        renderWorldPreview();
         applyCreateMode();
     });
     syncObserver.observe(modal, { attributes:true, attributeFilter:["style"] });
