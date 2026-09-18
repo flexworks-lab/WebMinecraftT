@@ -35,6 +35,8 @@ renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.appendChild(renderer.domElement);
+window.__webminecraftRenderer = renderer;
+window.__webminecraftCamera = camera;
 
 const skyLight = new THREE.HemisphereLight(0xbfe8ff, 0x342c26, 1.35);
 scene.add(skyLight);
