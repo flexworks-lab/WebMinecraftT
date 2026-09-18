@@ -207,9 +207,12 @@ function iconSvg(name) {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16v13H4z"/><path d="M7 6.5v-2h10v2M7 10h10M7 14h4"/></svg>';
 }
 
+function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
+
 function itemVisual(item) {
     if (item.texture) {
-        return `<span class="catalogIcon catalogTexture" style="background-image:url('${textureUrl(item.texture)}')"></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
+        const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
+        return `<span class="catalogIcon catalogTexture${slabClass}" style="background-image:url('${textureUrl(item.texture)}')"></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
     }
     return `<span class="catalogIcon catalogColor" style="--item-color:#777"></span>`;
 }
@@ -283,7 +286,7 @@ body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #catalogGrid{display:grid;grid-template-columns:repeat(9,minmax(44px,1fr));gap:5px;align-content:start}
 .catalogSlot{position:relative;min-width:0;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;cursor:grab;box-shadow:inset -1px -1px 0 #666;touch-action:none}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
-.catalogIcon{position:absolute;inset:6px;display:block}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}
+.catalogIcon{position:absolute;inset:6px;display:block}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogTexture.slabIcon{top:44%;bottom:6px;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
 .catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#858585;color:#fff}
 .catalogColor{background:var(--item-color);box-shadow:inset 3px 3px 0 rgba(255,255,255,.14),inset -3px -3px 0 rgba(0,0,0,.2)}
 .catalogName{position:absolute;left:2px;right:2px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
@@ -391,7 +394,8 @@ function renderSlot(slot, index, options = {}) {
         const item = getItem(slot.itemId);
         if (item) {
             const texture = slot.texture || item.texture;
-            const visual = texture ? `<span class="slotTexture" style="background-image:url('${textureUrl(texture)}')"></span><span class="slotFallback">${item.name.charAt(0)}</span>` : `<span class="slotTexture" style="background:#777"></span>`;
+            const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
+            const visual = texture ? `<span class="slotTexture${slabClass}" style="background-image:url('${textureUrl(texture)}')"></span><span class="slotFallback">${item.name.charAt(0)}</span>` : `<span class="slotTexture${slabClass}" style="background:#777"></span>`;
             cell.innerHTML = visual + `<span class="slotCount">${slot.count > 1 ? slot.count : ""}</span>` + (options.hotbar ? `<span class="slotNumber">${index + 1}</span>` : "");
             cell.title = `${item.name} (${slot.count})`;
             cell.addEventListener("dragstart", event => {
@@ -465,7 +469,10 @@ function syncHotbar() {
                 textureEl.style.backgroundRepeat = "no-repeat";
                 textureEl.style.imageRendering = "pixelated";
                 textureEl.style.position = "absolute";
-                textureEl.style.inset = "3px";
+                const slab = isSlabItem(slot.itemId);
+                textureEl.style.inset = slab ? "44% 3px 3px" : "3px";
+                textureEl.style.borderTop = slab ? "2px solid rgba(255,255,255,.22)" : "";
+                textureEl.style.boxShadow = slab ? "0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)" : "";
                 textureEl.style.zIndex = "1";
             } else if (textureEl) {
                 textureEl.remove();
