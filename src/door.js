@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
+import { sendBlockChange } from "./multiplayerClient.js";
 
 const texturePath = file => `${import.meta.env.BASE_URL}textures/${encodeURIComponent(file)}`;
 const textureLoader = new THREE.TextureLoader();
@@ -284,6 +285,10 @@ export function handleDoorTarget(action) {
         openDoorStates.delete(key(x, y, z));
         setBlockAt(x, y, z, BLOCK.AIR);
         setBlockAt(x, y + 1, z, BLOCK.AIR);
+        sendBlockChange(x, y, z, BLOCK.AIR);
+        sendBlockChange(x, y + 1, z, BLOCK.AIR);
+        window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type: BLOCK.AIR } }));
+        window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y: y + 1, z, type: BLOCK.AIR } }));
         removeDoorMesh(x, y, z);
         return true;
     }
@@ -342,6 +347,10 @@ export function placeDoor(target) {
         return false;
     }
     createDoorMesh(x, y, z, facing);
+    sendBlockChange(x, y, z, DOOR_BLOCK);
+    sendBlockChange(x, y + 1, z, DOOR_BLOCK);
+    window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type: DOOR_BLOCK } }));
+    window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y: y + 1, z, type: DOOR_BLOCK } }));
     selected = false;
     document.getElementById("doorSelectButton")?.classList.remove("selected");
     return true;
