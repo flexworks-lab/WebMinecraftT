@@ -174,7 +174,7 @@ async function joinFriend(button) {
         }
 
         document.getElementById("friendsModal")?.classList.remove("open");
-        const multiplayer = await import("./multiplayerClient.js?ui=rooms-v3");
+        const multiplayer = await import("./multiplayerClient.js");
         multiplayer.openMultiplayerMenu();
         const menu = await waitForMultiplayerMenu();
         if (!menu) throw new Error("Multiplayer menu did not open.");
