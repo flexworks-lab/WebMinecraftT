@@ -423,8 +423,17 @@ body.webminecraft-in-world #settingsButton { display:block !important; }
             }
         };
 
-        const observer = new MutationObserver(applyMultiplayerUiGuard);
-        observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
+        let queued = false;
+        const schedule = () => {
+            if (queued) return;
+            queued = true;
+            requestAnimationFrame(() => {
+                queued = false;
+                applyMultiplayerUiGuard();
+            });
+        };
+        const observer = new MutationObserver(schedule);
+        observer.observe(document.documentElement, { childList: true, subtree: true });
         applyMultiplayerUiGuard();
     })();
     </script>
