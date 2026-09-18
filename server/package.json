@@ -1,0 +1,12 @@
+{
+  "name": "webminecraft-multiplayer-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node start.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
