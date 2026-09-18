@@ -392,6 +392,42 @@ body.webminecraft-in-world #settingsButton { display:block !important; }
 </style>
 </head>
 <body>
+    <script>
+    (() => {
+        const applyMultiplayerUiGuard = () => {
+            const menus = [...document.querySelectorAll("#multiplayerMenu")];
+            if (!menus.length) return;
+
+            // The server browser is the current multiplayer UI. Older cached
+            // clients can recreate the previous centered/step-based screen.
+            // Force the current Worlds-style server screen whenever that old
+            // structure is detected.
+            for (const menu of menus) {
+                const panel = menu.querySelector("#multiplayerPanel");
+                const serverView = menu.querySelector("#multiplayerServerView");
+                if (!panel || !serverView) continue;
+
+                const roomView = menu.querySelector("#multiplayerRoomView");
+                const roomOpen = roomView && getComputedStyle(roomView).display !== "none";
+
+                if (!roomOpen) {
+                    panel.classList.add("servers-screen");
+                    menu.dataset.webminecraftLegacyUiFixed = "1";
+                }
+
+                // Old clients did not always hide the bottom Join Room bar.
+                // The current server screen keeps only the top-right controls.
+                if (menu.dataset.webminecraftLegacyUiFixed === "1") {
+                    menu.querySelector("#multiplayerJoin")?.style.setProperty("display", "none", "important");
+                }
+            }
+        };
+
+        const observer = new MutationObserver(applyMultiplayerUiGuard);
+        observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
+        applyMultiplayerUiGuard();
+    })();
+    </script>
     <div id="mainMenu">
         <div id="menuPanel">
             <h1 id="menuTitle">MINECRAFT</h1>
