@@ -80,6 +80,8 @@ const chunkMeshes = new Map();
 const generationQueue = [];
 const queuedKeys = new Set();
 const worldOverrides = new Map();
+let worldEditBatchDepth = 0;
+const pendingChunkRebuilds = new Set();
 let worldScene = null;
 let lastPlayerChunkX = Infinity;
 let lastPlayerChunkZ = Infinity;
@@ -516,7 +518,23 @@ function queueNeededChunks(playerChunkX,playerChunkZ){const wanted=[];for(let dx
 function processChunkQueue(){const first=generationQueue.shift();if(!first)return;const key=chunkKey(first.x,first.z);queuedKeys.delete(key);if(chunks.has(key))return;const chunk=generateChunk(first.x,first.z);rebuildChunkMesh(chunk);}
 function unloadFarChunks(playerChunkX,playerChunkZ){for(const[key,chunk]of chunks){const distance=Math.max(Math.abs(chunk.x-playerChunkX),Math.abs(chunk.z-playerChunkZ));if(distance>UNLOAD_DISTANCE){disposeChunkMesh(chunk);chunks.delete(key);}}for(let i=generationQueue.length-1;i>=0;i--){const item=generationQueue[i];if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){queuedKeys.delete(chunkKey(item.x,item.z));generationQueue.splice(i,1);}}}
 function updateFacingVisibility(playerPosition,camera){if(!camera)return;const direction=new THREE.Vector3();camera.getWorldDirection(direction);direction.y=0;if(direction.lengthSq()<.0001)return;direction.normalize();const playerChunk=getChunkCoords(playerPosition.x,playerPosition.z),maxDistance=RENDER_DISTANCE+1;for(const chunk of chunks.values()){const mesh=chunkMeshes.get(chunkKey(chunk.x,chunk.z)),water=chunk.waterMesh;if(!mesh&&!water)continue;const dx=chunk.x-playerChunk.chunkX,dz=chunk.z-playerChunk.chunkZ;if(Math.max(Math.abs(dx),Math.abs(dz))>maxDistance){if(mesh)mesh.visible=false;if(water)water.visible=false;continue;}const toChunk=new THREE.Vector3(dx,0,dz),distance=toChunk.length(),shouldKeep=distance<2.4||toChunk.normalize().dot(direction)>-.72;if(mesh)mesh.visible=shouldKeep;if(water)water.visible=shouldKeep;}}
-export function setBlockAt(x,y,z,type){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);type=Math.floor(Number(type));if(![x,y,z,type].every(Number.isFinite)||y<MIN_Y||y>WORLD_TOP)return false;worldOverrides.set(`${x},${y},${z}`,type);const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk)return true;chunk.blocks[blockIndex(localX,y,localZ)]=type;rebuildChunkMesh(chunk);if(localX===0){const neighbor=getChunk(chunkX-1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localX===CHUNK_SIZE-1){const neighbor=getChunk(chunkX+1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===0){const neighbor=getChunk(chunkX,chunkZ-1);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===CHUNK_SIZE-1){const neighbor=getChunk(chunkX,chunkZ+1);if(neighbor)rebuildChunkMesh(neighbor);}return true;}
+export function beginWorldEditBatch() { worldEditBatchDepth++; }
+export function endWorldEditBatch() {
+    if (worldEditBatchDepth <= 0) return;
+    worldEditBatchDepth--;
+    if (worldEditBatchDepth !== 0) return;
+    const rebuilds = [...pendingChunkRebuilds];
+    pendingChunkRebuilds.clear();
+    for (const key of rebuilds) {
+        const parts = key.split(",").map(Number);
+        const chunk = getChunk(parts[0], parts[1]);
+        if (chunk) rebuildChunkMesh(chunk);
+    }
+}
+
+function queueChunkRebuild(chunkX, chunkZ) { pendingChunkRebuilds.add(chunkKey(chunkX, chunkZ)); }
+
+export function setBlockAt(x,y,z,type){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);type=Math.floor(Number(type));if(![x,y,z,type].every(Number.isFinite)||y<MIN_Y||y>WORLD_TOP)return false;worldOverrides.set(`${x},${y},${z}`,type);const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk)return true;chunk.blocks[blockIndex(localX,y,localZ)]=type;if(worldEditBatchDepth>0){queueChunkRebuild(chunkX,chunkZ);if(localX===0)queueChunkRebuild(chunkX-1,chunkZ);if(localX===CHUNK_SIZE-1)queueChunkRebuild(chunkX+1,chunkZ);if(localZ===0)queueChunkRebuild(chunkX,chunkZ-1);if(localZ===CHUNK_SIZE-1)queueChunkRebuild(chunkX,chunkZ+1);return true;}rebuildChunkMesh(chunk);if(localX===0){const neighbor=getChunk(chunkX-1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localX===CHUNK_SIZE-1){const neighbor=getChunk(chunkX+1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===0){const neighbor=getChunk(chunkX,chunkZ-1);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===CHUNK_SIZE-1){const neighbor=getChunk(chunkX,chunkZ+1);if(neighbor)rebuildChunkMesh(neighbor);}return true;}
 export function clearWorld(){for(const chunk of chunks.values())disposeChunkMesh(chunk);chunks.clear();chunkMeshes.clear();generationQueue.length=0;queuedKeys.clear();worldOverrides.clear();lastPlayerChunkX=Infinity;lastPlayerChunkZ=Infinity;}
 export function createWorld(scene){worldScene=scene;clearWorld();for(let dx=-1;dx<=1;dx++){for(let dz=-1;dz<=1;dz++){const chunk=generateChunk(dx,dz);rebuildChunkMesh(chunk);}}queueNeededChunks(0,0);}
 export function updateChunkVisibility(position,camera){if(!worldScene||!position)return;const{chunkX,chunkZ}=getChunkCoords(position.x,position.z);if(chunkX!==lastPlayerChunkX||chunkZ!==lastPlayerChunkZ){lastPlayerChunkX=chunkX;lastPlayerChunkZ=chunkZ;queueNeededChunks(chunkX,chunkZ);unloadFarChunks(chunkX,chunkZ);}processChunkQueue();updateFacingVisibility(position,camera);}
