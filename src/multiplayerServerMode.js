@@ -45,6 +45,8 @@ body.webminecraft-multiplayer #menuUpdates,
 body.webminecraft-multiplayer #devControlsButton{display:none!important}
 body.webminecraft-multiplayer #crosshair,
 body.webminecraft-multiplayer #webMinecraftCrosshair{display:block!important}
+body.webminecraft-multiplayer.mobile-mode #crosshair,
+body.webminecraft-multiplayer.mobile-mode #webMinecraftCrosshair{display:none!important}
 body.webminecraft-multiplayer #hotbar.textured-hotbar{display:flex!important}
 body.webminecraft-multiplayer.mobile-mode #touchControls{display:block!important}
 body.webminecraft-multiplayer:not(.mobile-mode) #touchControls{display:none!important}
