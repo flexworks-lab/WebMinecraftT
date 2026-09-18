@@ -52,14 +52,32 @@ function setBlockFromPhysics(x, y, z, type) {
         return true;
     } finally { suppressPhysicsBlockEvent = false; }
 }
-function cloneMaterials(materials) { return materials.map(material => material.clone()); }
+function cloneMaterials(materials) {
+    const source = Array.isArray(materials) ? materials : [materials];
+    const expanded = source.length === 1
+        ? [source[0], source[0], source[0], source[0], source[0], source[0]]
+        : source;
+    return expanded.map(material => {
+        const clone = material.clone();
+        // Falling blocks use the standalone box geometry, so do not require
+        // the chunk-only vertex-color attribute and keep every face visible.
+        clone.vertexColors = false;
+        clone.side = THREE.DoubleSide;
+        clone.needsUpdate = true;
+        return clone;
+    });
+}
 function createDynamicBlock(scene, x, y, z, materials, kind) {
     const cloned = cloneMaterials(materials);
     const mesh = new THREE.Mesh(blockGeometry, cloned);
-    mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
     mesh.userData.dynamicBlockType = kind;
     mesh.userData.originalColors = cloned.map(material => material.color.clone());
-    scene.add(mesh); return mesh;
+    scene.add(mesh);
+    return mesh;
 }
 function disposeDynamicMesh(mesh) {
     if (!mesh) return;
