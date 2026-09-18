@@ -22,6 +22,7 @@ export const touchInput = {
     moveZ: 0,
     jump: false,
     sprint: false,
+    sneak: false,
     lookActive: false,
     blockTouchActive: false,
     blockTouchStarted: 0,
@@ -49,12 +50,12 @@ function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function toNdcX(clientX) { return (clientX / Math.max(window.innerWidth, 1)) * 2 - 1; }
 function toNdcY(clientY) { return 1 - (clientY / Math.max(window.innerHeight, 1)) * 2; }
 
-function makeButton(id, text, className = "") {
+function makeButton(id, text, className = "", icon = text) {
     const button = document.createElement("button");
     button.id = id;
     button.className = `touchControl ${className}`.trim();
     button.type = "button";
-    button.textContent = text;
+    button.innerHTML = `<span class="touchIcon" aria-hidden="true">${icon}</span><span class="touchLabel">${text}</span>`;
     button.addEventListener("contextmenu", event => event.preventDefault());
     button.addEventListener("selectstart", event => event.preventDefault());
     return button;
@@ -97,11 +98,22 @@ function createTouchControls() {
     `;
 
     const actions = root.querySelector("#touchActions");
-    const jumpButton = makeButton("touchJump", "JUMP", "actionButton jumpButton");
-    const sprintButton = makeButton("touchSprint", "RUN", "actionButton sprintButton");
+    const jumpButton = makeButton("touchJump", "JUMP", "actionButton jumpButton", "↑");
+    const sneakButton = makeButton("touchSneak", "SNEAK", "actionButton sneakButton", "↓");
+    const sprintButton = makeButton("touchSprint", "RUN", "actionButton sprintButton", "⚡");
 
-    actions.append(sprintButton, jumpButton);
+    actions.append(sprintButton, sneakButton, jumpButton);
     addActionButton(sprintButton, "sprint");
+
+    const toggleSneak = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        touchInput.sneak = !touchInput.sneak;
+        sneakButton.classList.toggle("pressed", touchInput.sneak);
+        sneakButton.setAttribute("aria-pressed", String(touchInput.sneak));
+    };
+    sneakButton.setAttribute("aria-pressed", "false");
+    sneakButton.addEventListener("pointerdown", toggleSneak);
 
     const jumpPress = event => {
         event.preventDefault();
@@ -253,8 +265,13 @@ body.mobile-mode #touchControls{display:block}
 #touchActions{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:max(26px,env(safe-area-inset-bottom));width:185px;height:205px;z-index:6;pointer-events:none;filter:drop-shadow(3px 3px 0 rgba(0,0,0,.65))}
 .touchControl{position:absolute;width:70px;height:52px;border:2px solid #111;border-right-color:#555;border-bottom-color:#555;border-radius:2px;background:#7b7b7b;color:#fff;font:700 11px Arial,sans-serif;letter-spacing:.5px;text-shadow:2px 2px 0 #333;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;box-shadow:inset 2px 2px 0 rgba(255,255,255,.22),inset -2px -2px 0 rgba(0,0,0,.28)}
 .touchControl.pressed{background:#9a9a9a;transform:translate(1px,1px);box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -1px -1px 0 rgba(0,0,0,.3)}
-#touchJump{right:0;top:0;width:82px;height:64px;font-size:12px}
-#touchSprint{right:0;top:76px}
+#touchJump{right:0;top:0;width:82px;height:64px}
+#touchSneak{right:0;top:76px;width:82px;height:52px}
+#touchSprint{right:0;top:136px;width:82px;height:52px}
+.touchIcon{display:block;font-size:20px;line-height:20px;font-weight:700}
+.touchLabel{display:block;margin-top:2px;font-size:9px;line-height:10px;letter-spacing:.4px}
+.touchControl.pressed .touchIcon{transform:translateY(1px)}
+#touchSneak.pressed{background:#a6a6a6;box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -1px -1px 0 rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.28)}
 #touchAimKnob{position:fixed;width:32px;height:32px;margin:-16px 0 0 -16px;border-radius:0;border:2px solid rgba(255,255,255,.75);background:rgba(255,255,255,.08);box-shadow:0 0 0 2px rgba(0,0,0,.55);pointer-events:none;z-index:4;opacity:0;transition:opacity .08s ease}
 #touchAimKnob.visible{opacity:1}
 #touchHint{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:90%;text-align:center;color:rgba(255,255,255,.5);font:11px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none;z-index:7}
