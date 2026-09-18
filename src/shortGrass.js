@@ -4,8 +4,9 @@ import { sendBlockChange } from "./multiplayerClient.js";
 import { blockGeometry, gravelMaterial } from "./blocks.js";
 
 const ROOT_NAME = "ShortGrassVegetation";
-const SCAN_RADIUS = 40;
-const SCAN_INTERVAL = 700;
+const SCAN_RADIUS = 42;
+const SCAN_INTERVAL = 250;
+const MOVE_SCAN_DISTANCE = 1.5;
 const MAX_GRASS = 1800;
 const GRASS_HEIGHT = 0.82;
 const GRASS_WIDTH = 0.68;
@@ -22,6 +23,8 @@ let geometry = null;
 let material = null;
 let running = false;
 let lastScan = 0;
+let lastScanX = NaN;
+let lastScanZ = NaN;
 let lastGravelPhysicsScan = 0;
 let lastSeed = null;
 let observer = null;
@@ -192,7 +195,9 @@ function scan() {
     root.visible = document.body.classList.contains("webminecraft-in-world");
     if (!root.visible) { mesh.count = 0; if (grassOutline) grassOutline.visible = false; return; }
     const seed = getWorldSeed();
-    if (seed !== lastSeed) { lastSeed = seed; lastScan = 0; removedGrass.clear(); }
+    const movedEnough = !Number.isFinite(lastScanX) || !Number.isFinite(lastScanZ)
+        || Math.hypot(cameraRef.position.x - lastScanX, cameraRef.position.z - lastScanZ) >= MOVE_SCAN_DISTANCE;
+    if (seed !== lastSeed) { lastSeed = seed; lastScan = 0; lastScanX = NaN; lastScanZ = NaN; removedGrass.clear(); }
     const types = getBlockTypes();
     const cx = Math.floor(cameraRef.position.x), cz = Math.floor(cameraRef.position.z), cameraY = cameraRef.position.y;
     const matrix = new THREE.Matrix4(), scaleVector = new THREE.Vector3();
@@ -215,6 +220,8 @@ function scan() {
     }
     mesh.count = count;
     mesh.instanceMatrix.needsUpdate = true;
+    lastScanX = cameraRef.position.x;
+    lastScanZ = cameraRef.position.z;
 }
 
 function getGrassHit(ndcX = 0, ndcY = 0) {
@@ -256,7 +263,10 @@ function removeGrassAtRay(ndcX = 0, ndcY = 0) {
 }
 
 function tick(now) {
-    if (now - lastScan >= SCAN_INTERVAL) { lastScan = now; scan(); }
+    const movedEnough = Number.isFinite(lastScanX) && Number.isFinite(lastScanZ)
+        ? Math.hypot(cameraRef?.position?.x - lastScanX, cameraRef?.position?.z - lastScanZ) >= MOVE_SCAN_DISTANCE
+        : true;
+    if (now - lastScan >= SCAN_INTERVAL || movedEnough) { lastScan = now; scan(); }
     if (now - lastGravelPhysicsScan >= GRAVEL_PHYSICS_INTERVAL) { lastGravelPhysicsScan = now; scanForUnsupportedGravel(); }
     updateFallingGravel((now - (tick.lastTime || now)) / 1000);
     tick.lastTime = now;
