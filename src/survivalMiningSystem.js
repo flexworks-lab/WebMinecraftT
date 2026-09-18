@@ -27,20 +27,36 @@ const drops = [];
 
 const HARDNESS = {
     1: 700, 2: 430, 3: 1050, 4: 380, 5: 900, 6: 280, 7: 1050,
-    8: 420, 9: 900, 10: Infinity, 11: 1200, 12: 1250, 13: 750, 14: 300, 15: 800, 18: 900, 19: 1100, 20: 1100, 21: 1100, 22: 500
+    8: 420, 9: 900, 10: Infinity, 11: 1200, 12: 1250, 13: 750, 14: 300, 15: 800, 18: 900, 19: 1100, 20: 1100, 21: 1100, 22: 500,
+    23: 750, 24: 750, 25: 750, 26: 750, 27: 750, 28: 750, 29: 750, 30: 750, 31: 750,
+    32: 1200, 33: 1500, 34: 900, 35: 1200, 36: 1200, 37: 1400, 38: 1200,
+    39: 1500, 40: 1500, 41: 1500, 42: 1500, 43: 1500, 44: 1500, 45: 1500, 46: 1500,
+    47: 1200, 48: 1100, 49: Infinity, 50: 1200
 };
 
 const TEXTURES = {
     1: "Grass_Block_(top_texture)_JE2.png", 2: "dirt.png", 3: "stone.png", 4: "sand.png",
     5: "oak_log_top.png", 6: "oak-leaves-normal-original-default.png", 7: "cobblestone.png",
     8: "gravel.png", 9: "sandstone.png", 10: "bedrock.png", 11: "coal_ore.png",
-    12: "iron_ore.png", 13: "oak_planks.png", 14: "snow.png", 15: "tnt_side.png", 18: "bricks.png", 19: "stone_bricks.png", 20: "cracked_stone_bricks.png", 21: "mossy_stone_bricks.png", 22: "dirt_path_top.png"
+    12: "iron_ore.png", 13: "oak_planks.png", 14: "snow.png", 15: "tnt_side.png", 18: "bricks.png", 19: "stone_bricks.png", 20: "cracked_stone_bricks.png", 21: "mossy_stone_bricks.png", 22: "dirt_path_top.png",
+    23: "acacia_planks.png", 24: "bamboo_planks.png", 25: "birch_planks.png", 26: "crimson_planks.png", 27: "dark_oak_planks.png",
+    28: "jungle_planks.png", 29: "mangrove_planks.png", 30: "spruce_planks.png", 31: "warped_planks.png",
+    32: "blast_furnace_front.png", 33: "chiseled_deepslate.png", 34: "cobbled_deepslate.png",
+    35: "cracked_deepslate_bricks.png", 36: "cracked_deepslate_tiles.png", 37: "deepslate.png",
+    38: "deepslate_bricks.png", 39: "deepslate_coal_ore.png", 40: "deepslate_copper_ore.png",
+    41: "deepslate_diamond_ore.png", 42: "deepslate_emerald_ore.png", 43: "deepslate_gold_ore.png",
+    44: "deepslate_iron_ore.png", 45: "deepslate_lapis_ore.png", 46: "deepslate_redstone_ore.png",
+    47: "deepslate_tiles.png", 48: "polished_deepslate.png", 49: "reinforced_deepslate_top.png", 50: "furnace_front.png"
 };
 
 const COLORS = {
     1: 0x73a83f, 2: 0x8c5e3c, 3: 0x8c8c8c, 4: 0xd9c28b, 5: 0x8f6238,
     6: 0x3e8a3c, 7: 0x777777, 8: 0x8d806d, 9: 0xd5bd8d, 10: 0x4b4b4b,
-    11: 0x343434, 12: 0x929292, 13: 0xb68752, 14: 0xf1f7ff, 15: 0xd73636, 18: 0xa44b3b, 19: 0x7f7f7f, 20: 0x707070, 21: 0x5f7b50, 22: 0x8f7a55
+    11: 0x343434, 12: 0x929292, 13: 0xb68752, 14: 0xf1f7ff, 15: 0xd73636, 18: 0xa44b3b, 19: 0x7f7f7f, 20: 0x707070, 21: 0x5f7b50, 22: 0x8f7a55,
+    23: 0xb86f4d, 24: 0xc9a66b, 25: 0xe1d0b6, 26: 0x714a6e, 27: 0x4b3025, 28: 0x6b4a34, 29: 0x744839, 30: 0x7c5b43, 31: 0x2f6a63,
+    32: 0x5e5e59, 33: 0x52504f, 34: 0x585654, 35: 0x57534f, 36: 0x4b4947, 37: 0x4f4d4c, 38: 0x56514f,
+    39: 0x3f3d3d, 40: 0x4a403d, 41: 0x44464f, 42: 0x3f4a42, 43: 0x4b4340, 44: 0x45474a, 45: 0x3e4a52, 46: 0x4b4148,
+    47: 0x4a4847, 48: 0x4d4b4a, 49: 0x3d3e3e, 50: 0x62605b
 };
 
 function textureUrl(name) {
