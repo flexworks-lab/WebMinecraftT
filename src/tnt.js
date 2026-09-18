@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes, beginWorldEditBatch, endWorldEditBatch } from "./world.js";
-import { sendBlockChange, sendBlockChanges } from "./multiplayerClient.js";
+import { sendBlockChanges } from "./multiplayerClient.js";
 import { sendTNTIgnite } from "./tntMultiplayer.js";
 import { blockGeometry, tntMaterial, sandMaterial, gravelMaterial } from "./blocks.js";
 
@@ -17,6 +17,7 @@ const GRAVEL_MAX_FALL_SPEED = 28;
 const MAX_TNT_CHAIN_DELAY = 300;
 const MAX_TNT_VISUALS = 16;
 const MAX_TNT_FUSE_STARTS_PER_FRAME = 24;
+const MAX_EXPLOSIONS_PER_FRAME = 6;
 const MAX_EXPLOSION_EFFECTS = 6;
 
 const EXPLOSION_OFFSETS = [];
@@ -36,7 +37,8 @@ const pendingIgnitions = new Map();
 const pendingNetworkChanges = new Map();
 const fallingSand = new Map();
 const fallingGravel = new Map();
-const activeExplosions = new Set();
+const pendingExplosions = [];
+const pendingExplosionKeys = new Set();
 const activeExplosionEffects = new Set();
 let suppressPhysicsBlockEvent = false;
 let primedVisualCount = 0;
@@ -229,6 +231,7 @@ function startPhysicsLoop() {
         lastPhysicsTime = time;
         updatePendingIgnitions(time);
         updatePrimedTNT(time, deltaTime);
+        processPendingExplosions();
         updateFallingSand(deltaTime);
         updateFallingGravel(deltaTime);
         flushNetworkBlockChanges();
@@ -441,8 +444,32 @@ function processExplosion(explosion) {
         for (const change of changedBlocks) queueNetworkBlockChange(change.x, change.y, change.z, change.type);
         for (const change of changedBlocks) notifyBlockChange(change.x, change.y, change.z, change.type);
     }
-    activeExplosions.delete(explosion);
     makeExplosionEffect(scene, explosion.cx, explosion.cy, explosion.cz);
+}
+
+function processPendingExplosions() {
+    let processed = 0;
+    while (processed < MAX_EXPLOSIONS_PER_FRAME && pendingExplosions.length) {
+        const explosion = pendingExplosions.shift();
+        pendingExplosionKeys.delete(makeKey(explosion.cx, explosion.cy, explosion.cz));
+        processExplosion(explosion);
+        processed++;
+    }
+}
+
+function explode(scene, cx, cy, cz) {
+    const key = makeKey(cx, cy, cz);
+    if (pendingExplosionKeys.has(key)) return;
+    pendingExplosionKeys.add(key);
+    pendingExplosions.push({
+        scene,
+        cx,
+        cy,
+        cz,
+        BLOCK: getBlockTypes(),
+        offsets: EXPLOSION_OFFSETS,
+        chainTNT: new Set()
+    });
 }
 
 function explode(scene, cx, cy, cz) {
