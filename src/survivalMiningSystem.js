@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
-import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop, sendItemDrop, sendItemClaim } from "./multiplayerClient.js";
+import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop, sendItemDrop, sendItemClaim, isMultiplayerActive } from "./multiplayerClient.js";
 import { handleDoorTarget } from "./door.js";
 import { isSurvivalWorld } from "./survivalMode.js";
 
@@ -366,7 +366,7 @@ function mergeDrops() {
         if (!a.parent) { drops.splice(i, 1); continue; }
         for (let j = i - 1; j >= 0; j--) {
             const b = drops[j];
-            if (!b.parent || a.userData.type !== b.userData.type || a.position.distanceTo(b.position) > .7) continue;
+            if (!b.parent || a.userData.networked || b.userData.networked || a.userData.type !== b.userData.type || a.position.distanceTo(b.position) > .7) continue;
             b.userData.count += a.userData.count;
             a.parent.remove(a);
             drops.splice(i, 1);
@@ -565,8 +565,8 @@ function finishMining() {
     window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x: mining.x, y: mining.y, z: mining.z, type: getBlockTypes().AIR, brokenType: mining.type } }));
     burst(new THREE.Vector3(mining.x, mining.y, mining.z), mining.type);
     const dropId = "drop:" + Date.now() + ":" + Math.random().toString(36).slice(2, 10);
-    const drop = createDrop(mining.type, new THREE.Vector3(mining.x, mining.y, mining.z), { dropId, networked: true });
-    if (drop) {
+    const drop = createDrop(mining.type, new THREE.Vector3(mining.x, mining.y, mining.z), { dropId, networked: isMultiplayerActive() });
+    if (drop?.userData.networked) {
         sendItemDrop({
             id: drop.userData.dropId,
             itemType: drop.userData.type,
