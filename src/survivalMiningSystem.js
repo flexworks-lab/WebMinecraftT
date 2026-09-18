@@ -370,7 +370,7 @@ function showTouchMiningProgress(ndcX, ndcY, progress) {
     if (!indicator) {
         indicator = document.createElement("div");
         indicator.id = "touchMiningProgress";
-        indicator.innerHTML = "<div id="touchMiningProgressFill"></div>";
+        indicator.innerHTML = '<div id="touchMiningProgressFill"></div>';
         document.body.appendChild(indicator);
         const style = document.createElement("style");
         style.id = "touchMiningProgressStyles";
