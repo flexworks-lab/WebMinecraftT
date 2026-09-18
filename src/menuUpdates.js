@@ -226,4 +226,3 @@ setupSeedBackButton();
 createVersionPicker();
 
 if(seedMenu){let cleared=false;const observer=new MutationObserver(()=>{const open=getComputedStyle(seedMenu).display!=="none";if(open&&!cleared){clearWorld();cleared=true;}else if(!open)cleared=false;});observer.observe(seedMenu,{attributes:true,attributeFilter:["style","class"]});}
-<style id="newsButtonStaticStyle">#newsButton:focus,#newsButton:focus-visible{outline:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62)!important}.newsItem:focus,.newsItem:focus-visible{outline:none!important}</style>
