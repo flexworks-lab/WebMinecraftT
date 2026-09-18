@@ -51,7 +51,31 @@ const ITEM_DEFS = [
     { id: 47, name: "Deepslate Tiles", texture: "deepslate_tiles.png" },
     { id: 48, name: "Polished Deepslate", texture: "polished_deepslate.png" },
     { id: 49, name: "Reinforced Deepslate", texture: "reinforced_deepslate_top.png" },
-    { id: 50, name: "Furnace", texture: "furnace_front.png" }
+    { id: 50, name: "Furnace", texture: "furnace_front.png" },
+    { id: 51, name: "Stone Slab", texture: "stone.png" },
+    { id: 52, name: "Cobblestone Slab", texture: "cobblestone.png" },
+    { id: 53, name: "Stone Bricks Slab", texture: "stone_bricks.png" },
+    { id: 54, name: "Cracked Stone Bricks Slab", texture: "cracked_stone_bricks.png" },
+    { id: 55, name: "Mossy Stone Bricks Slab", texture: "mossy_stone_bricks.png" },
+    { id: 56, name: "Oak Planks Slab", texture: "oak_planks.png" },
+    { id: 57, name: "Acacia Planks Slab", texture: "acacia_planks.png" },
+    { id: 58, name: "Bamboo Planks Slab", texture: "bamboo_planks.png" },
+    { id: 59, name: "Birch Planks Slab", texture: "birch_planks.png" },
+    { id: 60, name: "Crimson Planks Slab", texture: "crimson_planks.png" },
+    { id: 61, name: "Dark Oak Planks Slab", texture: "dark_oak_planks.png" },
+    { id: 62, name: "Jungle Planks Slab", texture: "jungle_planks.png" },
+    { id: 63, name: "Mangrove Planks Slab", texture: "mangrove_planks.png" },
+    { id: 64, name: "Spruce Planks Slab", texture: "spruce_planks.png" },
+    { id: 65, name: "Warped Planks Slab", texture: "warped_planks.png" },
+    { id: 66, name: "Chiseled Deepslate Slab", texture: "chiseled_deepslate.png" },
+    { id: 67, name: "Cobbled Deepslate Slab", texture: "cobbled_deepslate.png" },
+    { id: 68, name: "Cracked Deepslate Bricks Slab", texture: "cracked_deepslate_bricks.png" },
+    { id: 69, name: "Cracked Deepslate Tiles Slab", texture: "cracked_deepslate_tiles.png" },
+    { id: 70, name: "Deepslate Slab", texture: "deepslate.png" },
+    { id: 71, name: "Deepslate Bricks Slab", texture: "deepslate_bricks.png" },
+    { id: 72, name: "Deepslate Tiles Slab", texture: "deepslate_tiles.png" },
+    { id: 73, name: "Polished Deepslate Slab", texture: "polished_deepslate.png" },
+    { id: 74, name: "Reinforced Deepslate Slab", texture: "reinforced_deepslate_top.png" }
 ];
 
 let root = null;
