@@ -113,6 +113,30 @@ function readInventory() {
     catch { return Array.from({ length: 36 }, () => null); }
 }
 
+function saveWorldPreview(seed) {
+    const normalized = normalizeSeed(seed);
+    const renderer = window.__webminecraftRenderer;
+    if (normalized === null || !renderer?.domElement) return false;
+    try {
+        const source = renderer.domElement;
+        if (!source.width || !source.height) return false;
+        const canvas = document.createElement("canvas");
+        canvas.width = 500;
+        canvas.height = 236;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return false;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.62);
+        if (!dataUrl || dataUrl.length < 100) return false;
+        localStorage.setItem(`webminecraft-world-preview-${normalized}`, dataUrl);
+        return true;
+    } catch (error) {
+        console.warn("Could not capture saved-world preview:", error);
+        return false;
+    }
+}
+
 function writePlayerState(seed, force = false) {
     const key = playerStateKey(seed);
     const camera = window.__webminecraftCamera;
@@ -343,7 +367,9 @@ export async function saveCurrentWorld() {
         const savedBlocks = { ...activeBlocks, ...readLocalBlockSnapshot(activeWorld.seed) };
         activeBlocks = savedBlocks;
         activeWorld.blocks = savedBlocks;
-        activeWorld.updatedAt = new Date().toISOString();
+        const savedAt = new Date().toISOString();
+        activeWorld.updatedAt = savedAt;
+        saveWorldPreview(activeWorld.seed);
         writeLocalBlockSnapshot(activeWorld.seed, savedBlocks);
         writePlayerState(activeWorld.seed, true);
 
@@ -376,7 +402,10 @@ export async function deleteCurrentWorld(seed) {
     }
 
     clearLocalBlockSnapshot(normalizedSeed);
-    try { localStorage.removeItem(playerStateKey(normalizedSeed)); } catch {}
+    try {
+        localStorage.removeItem(playerStateKey(normalizedSeed));
+        localStorage.removeItem(`webminecraft-world-preview-${normalizedSeed}`);
+    } catch {}
 
     const storage = await waitForStorage();
     if (!storage?.deleteLocalWorld) return false;
