@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
 import { touchInput } from "./controls.js";
-import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
+import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop } from "./multiplayerClient.js";
 import { handleDoorTarget } from "./door.js";
 import { isSurvivalWorld } from "./survivalMode.js";
 
@@ -21,6 +21,8 @@ let cameraRef = null;
 let mining = null;
 let initialized = false;
 let lastDropUpdateTime = 0;
+let lastSentMiningStage = -1;
+const remoteMining = new Map();
 const drops = [];
 
 const HARDNESS = {
@@ -196,6 +198,53 @@ function destroyCracks(overlay) {
     for (const entry of overlay.stages) if (entry.mesh.material) materials.add(entry.mesh.material);
     for (const material of materials) { material.map?.dispose(); material.dispose(); }
     overlay.group.clear();
+}
+
+function remoteMiningKey(playerId, x, y, z) { return String(playerId) + ":" + x + "," + y + "," + z; }
+function stopAllRemoteMiningAt(x, y, z) {
+    for (const [key, entry] of remoteMining) {
+        if (entry.x === x && entry.y === y && entry.z === z) {
+            destroyCracks(entry.overlay);
+            remoteMining.delete(key);
+        }
+    }
+}
+function handleRemoteMining(event) {
+    const d = event.detail || {};
+    const playerId = String(d.playerId || "");
+    const x = Math.floor(Number(d.x)), y = Math.floor(Number(d.y)), z = Math.floor(Number(d.z));
+    const blockType = Math.floor(Number(d.blockType));
+    const progress = Math.max(0, Math.min(1, Number(d.progress) || 0));
+    if (!playerId || ![x, y, z, blockType, progress].every(Number.isFinite) || !sceneRef) return;
+    if (getBlockAt(x, y, z) !== blockType) return;
+    const key = remoteMiningKey(playerId, x, y, z);
+    let entry = remoteMining.get(key);
+    if (!entry) {
+        entry = { playerId, x, y, z, blockType, overlay: createCracks({ x, y, z }) };
+        remoteMining.set(key, entry);
+    }
+    updateCracks(entry.overlay, progress);
+}
+function handleRemoteMiningStop(event) {
+    const d = event.detail || {};
+    const playerId = String(d.playerId || "");
+    const x = Math.floor(Number(d.x)), y = Math.floor(Number(d.y)), z = Math.floor(Number(d.z));
+    if (!playerId || ![x, y, z].every(Number.isFinite)) return;
+    const key = remoteMiningKey(playerId, x, y, z);
+    const entry = remoteMining.get(key);
+    if (entry) {
+        destroyCracks(entry.overlay);
+        remoteMining.delete(key);
+    }
+}
+function clearRemoteMiningForPlayer(playerId) {
+    const id = String(playerId || "");
+    for (const [key, entry] of remoteMining) {
+        if (entry.playerId === id) {
+            destroyCracks(entry.overlay);
+            remoteMining.delete(key);
+        }
+    }
 }
 
 function burst(center, type) {
@@ -435,20 +484,26 @@ export function startSurvivalMining(scene, camera, ndcX = 0, ndcY = 0) {
     const duration = HARDNESS[target.type] ?? 700;
     if (!Number.isFinite(duration)) return;
     mining = { ...target, ndcX, ndcY, started: performance.now(), duration, overlay: createCracks(target) };
+    lastSentMiningStage = -1;
     updateCracks(mining.overlay, .01);
+    sendMiningProgress(mining.x, mining.y, mining.z, mining.type, .01);
+    lastSentMiningStage = 0;
     sendPlayerAction("mine");
 }
 
 function cancelMining() {
     hideTouchMiningProgress();
     if (!mining) return;
+    sendMiningStop(mining.x, mining.y, mining.z);
     destroyCracks(mining.overlay);
     mining = null;
+    lastSentMiningStage = -1;
 }
 
 function finishMining() {
     if (!mining) return;
     if (getBlockAt(mining.x, mining.y, mining.z) !== mining.type) { cancelMining(); return; }
+    sendMiningStop(mining.x, mining.y, mining.z);
     if (!setBlockAt(mining.x, mining.y, mining.z, getBlockTypes().AIR)) { cancelMining(); return; }
     sendBlockChange(mining.x, mining.y, mining.z, getBlockTypes().AIR);
     window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x: mining.x, y: mining.y, z: mining.z, type: getBlockTypes().AIR, brokenType: mining.type } }));
@@ -492,6 +547,11 @@ function tickMining(time, held) {
     if (!target || target.x !== mining.x || target.y !== mining.y || target.z !== mining.z) { cancelMining(); return; }
     const progress = Math.min(1, (time - mining.started) / mining.duration);
     updateCracks(mining.overlay, progress);
+    const networkStage = Math.min(4, Math.floor(Math.max(0, progress) * 5));
+    if (networkStage !== lastSentMiningStage) {
+        sendMiningProgress(mining.x, mining.y, mining.z, mining.type, progress);
+        lastSentMiningStage = networkStage;
+    }
     if (document.body.classList.contains("mobile-mode")) showTouchMiningProgress(mining.ndcX, mining.ndcY, progress);
     if (progress >= 1) { hideTouchMiningProgress(); finishMining(); }
 }
@@ -510,6 +570,16 @@ function init() {
     document.addEventListener("mouseup", event => { if (event.button === 0) cancelMining(); }, true);
     window.addEventListener("blur", cancelMining);
     document.addEventListener("visibilitychange", () => { if (document.hidden) cancelMining(); });
+    window.addEventListener("webminecraft:multiplayer-mining", handleRemoteMining);
+    window.addEventListener("webminecraft:multiplayer-mining-stop", handleRemoteMiningStop);
+    window.addEventListener("webminecraft:blockchange", event => {
+        const d = event.detail || {};
+        const x = Math.floor(Number(d.x)), y = Math.floor(Number(d.y)), z = Math.floor(Number(d.z));
+        if ([x, y, z].every(Number.isFinite)) stopAllRemoteMiningAt(x, y, z);
+    });
+    window.addEventListener("webminecraft:multiplayer-player-left", event => {
+        clearRemoteMiningForPlayer(event.detail?.playerId);
+    });
     function frame(time) {
         const mobile = document.body.classList.contains("mobile-mode");
         if (mobile && touchInput.blockTouchActive && !touchInput.blockHoldTriggered) {
