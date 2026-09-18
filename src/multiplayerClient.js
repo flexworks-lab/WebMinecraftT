@@ -403,6 +403,12 @@ export function isMultiplayerActive() { return Boolean(window.__webminecraftMult
 export function sendPlayerState(position, rotation, heldItemId = 0, action = null, sneaking = false) { if (!isMultiplayerActive()) return; const outgoingAction = pendingPlayerAction !== "idle" ? pendingPlayerAction : (action || "idle"); pendingPlayerAction = "idle"; socket.send(JSON.stringify({ type: "player_state", position: { x: Number(position?.x) || 0, y: Number(position?.y) || 0, z: Number(position?.z) || 0 }, rotation: { x: Number(rotation?.x) || 0, y: Number(rotation?.y) || 0, z: Number(rotation?.z) || 0 }, heldItemId: Math.max(0, Math.floor(Number(heldItemId) || 0)), sneaking: Boolean(sneaking), action: ["idle", "walk", "mine", "place", "jump"].includes(outgoingAction) ? outgoingAction : "idle" })); }
 export function sendPlayerAction(action) { if (["mine", "place", "jump"].includes(action)) pendingPlayerAction = action; }
 export function sendBlockChange(x, y, z, blockType) { if (!isMultiplayerActive()) return; socket.send(JSON.stringify({ type: "block_change", x: Math.floor(x), y: Math.floor(y), z: Math.floor(z), blockType: Math.floor(blockType) })); }
+export function sendSlabPlacement(x, y, z, blockType) {
+    if (!isMultiplayerActive()) return;
+    const type = Math.floor(Number(blockType));
+    if (!Number.isFinite(type) || type < 51 || type > 74) return;
+    socket.send(JSON.stringify({ type: "slab_place", x: Math.floor(x), y: Math.floor(y), z: Math.floor(z), blockType: type }));
+}
 export function sendBlockChanges(changes) {
     if (!isMultiplayerActive() || !Array.isArray(changes) || changes.length === 0) return;
     const normalized = changes.map(change => ({ x: Math.floor(change.x), y: Math.floor(change.y), z: Math.floor(change.z), blockType: Math.floor(change.blockType ?? change.type) }))
