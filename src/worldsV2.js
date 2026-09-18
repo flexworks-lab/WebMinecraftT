@@ -455,7 +455,7 @@ async function playWorld(world) {
     try { localStorage.setItem(`webminecraft-world-mode-${world.seed}`, mode); } catch {}
     try { await putRecord(world); } catch {}
     closeMenu();
-    openWorldCallback(world.seed);
+    openWorldCallback(world.seed, mode);
 }
 
 function playSelected() { void playWorld(selected); }
@@ -530,6 +530,7 @@ async function createWorld() {
             mode = pending === "creative" || seeded === "creative" ? "creative" : "survival";
         } catch {}
         try { localStorage.setItem(`webminecraft-world-mode-${seed}`, mode); } catch {}
+        try { localStorage.removeItem("webminecraft-pending-singleplayer-mode"); } catch {}
         const world = await putRecord({ seed, name, createdAt: now, updatedAt: now, lastPlayedAt: now, mode, blocks: {} });
         if (typeof window.webMinecraftClearCloudWorldDeletion === "function") {
             try { await window.webMinecraftClearCloudWorldDeletion(seed); } catch {}
