@@ -260,7 +260,7 @@ function addModePicker() {
     select.innerHTML = `<option value="survival">Survival</option><option value="creative">Creative</option>`;
 
     const modes = [
-        { mode:"survival", icon:"⛏️", title:"Survival", desc:"Health, normal mining, no flying, and achievements." },
+        { mode:"survival", icon:"⛏️", title:"Survival", desc:"Health and normal mining with no flying." },
         { mode:"creative", icon:"🧱", title:"Creative", desc:"Unlimited building, instant mining, flying, no health damage." },
     ];
     const cards = [];
