@@ -111,7 +111,7 @@ function createTouchControls() {
         const doubleTap = now - lastJumpTapTime <= 320;
         lastJumpTapTime = now;
 
-        if (document.body.classList.contains("webminecraft-creative") && doubleTap) {
+        if (document.body.classList.contains("webminecraft-in-world") && document.body.classList.contains("webminecraft-creative") && doubleTap) {
             toggleFlying();
             touchInput.jump = false;
         } else {
