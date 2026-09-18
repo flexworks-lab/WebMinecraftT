@@ -16,6 +16,14 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled == true;
     }
 
+    function isMainAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled == true
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'main';
+    }
+
     match /admins/{uid} {
       allow get: if isDeveloper()
         || (request.auth != null
@@ -116,7 +124,7 @@ service cloud.firestore {
 
     match /announcements/{announcementId} {
       allow read: if announcementId == 'active';
-      allow create, update, delete: if isDeveloper();
+      allow create, update, delete: if isDeveloper() || isMainAdmin();
     }
 
     match /news/{newsId} {
