@@ -105,9 +105,9 @@ function createSkyDome(scene) {
     if (skyDome) return;
     const geometry = new THREE.SphereGeometry(1000, 32, 16);
     const material = new THREE.ShaderMaterial({
-        uniforms: { topColor: { value: new THREE.Color(0x3f9fe8) }, horizonColor: { value: new THREE.Color(0x9fddff) }, bottomColor: { value: new THREE.Color(0x72bde7) }, sunDirection: { value: SKY_SUN_DIRECTION.clone() } },
+        uniforms: { topColor: { value: new THREE.Color(0x3f9fe8) }, horizonColor: { value: new THREE.Color(0x9fddff) }, bottomColor: { value: new THREE.Color(0x72bde7) } },
         vertexShader: `varying vec3 vSkyDirection; void main(){vSkyDirection=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-        fragmentShader: `varying vec3 vSkyDirection; uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 bottomColor; uniform vec3 sunDirection; void main(){vec3 dir=normalize(vSkyDirection);float h=clamp(dir.y*0.5+0.5,0.0,1.0);vec3 sky=h<0.5?mix(bottomColor,horizonColor,h*2.0):mix(horizonColor,topColor,(h-0.5)*2.0);vec3 upAxis=abs(sunDirection.y)>0.95?vec3(1.0,0.0,0.0):vec3(0.0,1.0,0.0);vec3 sunRight=normalize(cross(sunDirection,upAxis));vec3 sunUp=normalize(cross(sunRight,sunDirection));float sx=dot(dir,sunRight);float sy=dot(dir,sunUp);float d=max(abs(sx),abs(sy));float mask=1.0-smoothstep(0.012,0.014,d);float glow=1.0-smoothstep(0.018,0.085,d);vec3 sunColor=vec3(1.0,0.86,0.36);sky+=sunColor*glow*0.18;sky=mix(sky,sunColor,mask);gl_FragColor=vec4(sky,1.0);}`,
+        fragmentShader: `varying vec3 vSkyDirection; uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 bottomColor; void main(){vec3 dir=normalize(vSkyDirection);float h=clamp(dir.y*0.5+0.5,0.0,1.0);vec3 sky=h<0.5?mix(bottomColor,horizonColor,h*2.0):mix(horizonColor,topColor,(h-0.5)*2.0);gl_FragColor=vec4(sky,1.0);}`,
         side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false, toneMapped: false
     });
     skyDome = new THREE.Mesh(geometry, material);
@@ -121,6 +121,7 @@ function createSkyDome(scene) {
     sunDisc.frustumCulled = false;
     sunDisc.renderOrder = 1000;
     sunDisc.material.fog = false;
+    sunDisc.material.side = THREE.DoubleSide;
     sunDisc.material.depthTest = false;
     sunDisc.material.depthWrite = false;
     scene.add(sunDisc);
