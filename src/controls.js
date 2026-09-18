@@ -28,6 +28,7 @@ export const touchInput = {
     blockTouchX: 0,
     blockTouchY: 0,
     blockTapPending: false,
+    blockHoldTriggered: false,
     blockTapX: 0,
     blockTapY: 0,
 };
@@ -184,6 +185,8 @@ function createTouchControls() {
         blockTouchStartY = event.clientY;
         touchInput.blockTouchX = toNdcX(event.clientX);
         touchInput.blockTouchY = toNdcY(event.clientY);
+        touchInput.blockTapPending = false;
+        touchInput.blockHoldTriggered = false;
         touchInput.blockTouchActive = true;
         touchInput.blockTouchStarted = performance.now();
         lookLastX = event.clientX;
@@ -218,7 +221,7 @@ function createTouchControls() {
         if (event.pointerId !== lookPointer) return;
         event.preventDefault();
         const moved = Math.hypot(event.clientX - blockTouchStartX, event.clientY - blockTouchStartY);
-        if (moved <= 18 && touchInput.blockTouchActive) {
+        if (moved <= 18 && touchInput.blockTouchActive && !touchInput.blockHoldTriggered) {
             touchInput.blockTapX = toNdcX(event.clientX);
             touchInput.blockTapY = toNdcY(event.clientY);
             touchInput.blockTapPending = true;
