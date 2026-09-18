@@ -3,9 +3,6 @@ name: Railway Multiplayer Deployment
 on:
   push:
     branches: [main]
-    paths:
-      - "server/**"
-      - ".github/workflows/railway-deployment.yml"
   workflow_dispatch:
 
 permissions:
