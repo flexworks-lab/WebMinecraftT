@@ -3,6 +3,7 @@ import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getBlockAt } from "./world.js";
 import { isDoorBlocking } from "./door.js";
 import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";
+import { getSelectedItemId } from "./inventory.js";
 
 let velocityX = 0;
 let velocityY = 0;
@@ -383,6 +384,7 @@ function updateMultiplayerAvatars(scene) {
                 new THREE.MeshBasicMaterial({ color: avatarColor(id) }),
             );
             dot.userData.multiplayerAvatar = true;
+            avatar.userData.multiplayerPlayerId = id;
             const nameplate = createMultiplayerNameplate(player.name);
             avatar.add(dot);
             avatar.add(nameplate);
@@ -419,6 +421,7 @@ function syncMultiplayerState(camera) {
     sendPlayerState(
         { x: camera.position.x, y: camera.position.y, z: camera.position.z },
         { x: pitch, y: yaw, z: 0 },
+        getSelectedItemId(window.webMinecraftSelectedSlot ?? 0) ?? 0,
     );
 }
 
