@@ -116,6 +116,224 @@ function octave3D(x,y,z,octaves,scale,persistence,salt){let value=0,amplitude=1,
 function getClimate(x,z){return{temperature:octave2D(x+900,z-1200,3,420,.55,11),humidity:octave2D(x-1700,z+600,3,360,.58,29)};}
 function getBiome(x,z){if(isFlatWorld())return "plains";const{temperature,humidity}=getClimate(x,z),weirdness=octave2D(x+300,z+700,2,220,.55,47);if(temperature<.24)return humidity>.45?"snow":"tundra";if(temperature>.86&&humidity<.24)return weirdness>.72?"badlands":"desert";if(humidity>.79)return"forest";if(humidity<.12)return"plains";if(weirdness>.88&&temperature>.58)return"desert";return humidity>.54?"forest":"plains";}
 function getTerrainProfile(x,z){if(isFlatWorld())return{height:FLAT_SURFACE_Y,continentalness:1,erosion:0,peaks:0,detail:0};const continentalness=octave2D(x,z,4,320,.52,61),erosion=octave2D(x+1400,z-800,3,160,.54,73),peaks=octave2D(x-600,z+1100,4,120,.5,89),detail=octave2D(x+2400,z-1700,3,28,.5,97);let baseHeight=21+(continentalness-.5)*21;baseHeight+=(.5-erosion)*10;const mountainMask=Math.max(0,(peaks-.57)/.43);baseHeight+=mountainMask*mountainMask*30;baseHeight+=(detail-.5)*5;const oceanMask=Math.max(0,.09-continentalness)/.09;baseHeight-=oceanMask*4;return{height:Math.floor(THREE.MathUtils.clamp(baseHeight,MIN_Y+4,WORLD_TOP-8)),continentalness,erosion,peaks,detail};}
+
+export function generateWorldPreviewSnapshot(seed, width = 520, height = 180, worldType = "default") {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(120, Math.floor(width));
+    canvas.height = Math.max(80, Math.floor(height));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    const savedSeed = WORLD_SEED;
+    const savedFlat = localStorage.getItem(`${WORLD_TYPE_PREFIX}${savedSeed}`);
+    WORLD_SEED = (Math.floor(Math.abs(Number(seed))) >>> 0);
+
+    const flat = String(worldType).toLowerCase() === "flat";
+    const sampleCols = 56;
+    const sampleRows = 26;
+    const heights = [];
+    const biomes = [];
+    const cells = [];
+    const waterLevel = SEA_LEVEL + 1;
+
+    const localHash2D = (x, z, salt = 0) => {
+        let h = Math.imul((x | 0) ^ 0x9e3779b9, 374761393);
+        h = Math.imul(h ^ (z | 0), 668265263);
+        h = Math.imul(h ^ (WORLD_SEED + salt), 1274126177);
+        h ^= h >>> 13;
+        h = Math.imul(h, 1103515245);
+        h ^= h >>> 16;
+        return (h >>> 0) / 4294967295;
+    };
+    const localFade = t => t * t * (3 - 2 * t);
+    const localLerp = (a, b, t) => a + (b - a) * t;
+    const localValueNoise = (x, z, scale, salt) => {
+        const sx = x / scale, sz = z / scale;
+        const x0 = Math.floor(sx), z0 = Math.floor(sz);
+        const tx = localFade(sx - x0), tz = localFade(sz - z0);
+        return localLerp(
+            localLerp(localHash2D(x0,z0,salt), localHash2D(x0+1,z0,salt), tx),
+            localLerp(localHash2D(x0,z0+1,salt), localHash2D(x0+1,z0+1,salt), tx),
+            tz
+        );
+    };
+    const localOctave = (x, z, octaves, scale, persistence, salt) => {
+        let value = 0, amplitude = 1, frequency = 1, total = 0;
+        for (let i = 0; i < octaves; i++) {
+            value += localValueNoise(x, z, scale / frequency, salt + i * 101) * amplitude;
+            total += amplitude;
+            amplitude *= persistence;
+            frequency *= 2;
+        }
+        return value / total;
+    };
+    const localClimate = (x, z) => ({
+        temperature: localOctave(x + 900, z - 1200, 3, 420, .55, 11),
+        humidity: localOctave(x - 1700, z + 600, 3, 360, .58, 29)
+    });
+    const localBiome = (x, z) => {
+        if (flat) return "plains";
+        const { temperature, humidity } = localClimate(x, z);
+        const weirdness = localOctave(x + 300, z + 700, 2, 220, .55, 47);
+        if (temperature < .24) return humidity > .45 ? "snow" : "tundra";
+        if (temperature > .86 && humidity < .24) return weirdness > .72 ? "badlands" : "desert";
+        if (humidity > .79) return "forest";
+        if (humidity < .12) return "plains";
+        if (weirdness > .88 && temperature > .58) return "desert";
+        return humidity > .54 ? "forest" : "plains";
+    };
+    const localTerrain = (x, z) => {
+        if (flat) return FLAT_SURFACE_Y;
+        const continentalness = localOctave(x, z, 4, 320, .52, 61);
+        const erosion = localOctave(x + 1400, z - 800, 3, 160, .54, 73);
+        const peaks = localOctave(x - 600, z + 1100, 4, 120, .5, 89);
+        const detail = localOctave(x + 2400, z - 1700, 3, 28, .5, 97);
+        let baseHeight = 21 + (continentalness - .5) * 21;
+        baseHeight += (.5 - erosion) * 10;
+        const mountainMask = Math.max(0, (peaks - .57) / .43);
+        baseHeight += mountainMask * mountainMask * 30;
+        baseHeight += (detail - .5) * 5;
+        const oceanMask = Math.max(0, .09 - continentalness) / .09;
+        baseHeight -= oceanMask * 4;
+        return Math.floor(THREE.MathUtils.clamp(baseHeight, MIN_Y + 4, WORLD_TOP - 8));
+    };
+
+    const originX = -50 + Math.floor(localHash2D(0, 0, 2001) * 100);
+    const originZ = -50 + Math.floor(localHash2D(0, 0, 2003) * 100);
+    let minH = Infinity, maxH = -Infinity;
+
+    for (let rz = 0; rz < sampleRows; rz++) {
+        for (let rx = 0; rx < sampleCols; rx++) {
+            const x = originX + rx * 3;
+            const z = originZ + rz * 3;
+            const h = localTerrain(x, z);
+            heights.push(h);
+            biomes.push(localBiome(x, z));
+            minH = Math.min(minH, h);
+            maxH = Math.max(maxH, h);
+        }
+    }
+
+    const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    sky.addColorStop(0, "#7ca7c2");
+    sky.addColorStop(.58, "#b9d4df");
+    sky.addColorStop(1, "#e2e7d8");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "rgba(255,250,205,.88)";
+    ctx.beginPath();
+    ctx.arc(canvas.width * .80, canvas.height * .20, Math.max(12, canvas.height * .08), 0, Math.PI * 2);
+    ctx.fill();
+
+    const sortedDepth = [];
+    for (let rz = 0; rz < sampleRows - 1; rz++) {
+        for (let rx = 0; rx < sampleCols - 1; rx++) sortedDepth.push([rx, rz]);
+    }
+
+    const scaleX = Math.min(canvas.width / (sampleCols * 1.55), canvas.height / 10);
+    const scaleZ = scaleX * .72;
+    const centerX = canvas.width * .52;
+    const baseY = canvas.height * .79;
+    const heightScale = Math.max(1.9, (canvas.height * .34) / Math.max(8, maxH - minH));
+
+    const colorFor = biome => ({
+        forest: "#4d7b43",
+        plains: "#6f914f",
+        desert: "#c9ac69",
+        badlands: "#ad7355",
+        snow: "#dfe7e7",
+        tundra: "#aab3a5"
+    }[biome] || "#6f914f");
+
+    const drawCell = (rx, rz) => {
+        const i = rz * sampleCols + rx;
+        const h = heights[i];
+        const biome = biomes[i];
+        const x = centerX + (rx - rz) * scaleX;
+        const y = baseY + (rx + rz) * scaleZ * .34 - (h - minH) * heightScale;
+        const neighborX = heights[Math.min(sampleRows * sampleCols - 1, i + 1)];
+        const neighborZ = heights[Math.min(sampleRows * sampleCols - 1, i + sampleCols)];
+        const slopeX = ((neighborX ?? h) - h) * heightScale;
+        const slopeZ = ((neighborZ ?? h) - h) * heightScale;
+        const halfX = scaleX * .92;
+        const halfZ = scaleZ * .92;
+        const topY = y;
+        const leftY = y + halfZ + slopeX * .08;
+        const rightY = y + halfZ + slopeZ * .08;
+        const bottomY = y + halfZ * 1.65 + (slopeX + slopeZ) * .04;
+        const surface = colorFor(biome);
+
+        ctx.fillStyle = surface;
+        ctx.beginPath();
+        ctx.moveTo(x, topY);
+        ctx.lineTo(x + halfX, leftY);
+        ctx.lineTo(x, bottomY);
+        ctx.lineTo(x - halfX, leftY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(35,35,35,.12)";
+        ctx.beginPath();
+        ctx.moveTo(x, topY);
+        ctx.lineTo(x + halfX, leftY);
+        ctx.lineTo(x, bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(20,20,20,.13)";
+        ctx.beginPath();
+        ctx.moveTo(x, topY);
+        ctx.lineTo(x - halfX, leftY);
+        ctx.lineTo(x, bottomY);
+        ctx.closePath();
+        ctx.fill();
+
+        if (h < waterLevel) {
+            const waterY = baseY + (rx + rz) * scaleZ * .34 - (waterLevel - minH) * heightScale;
+            ctx.fillStyle = "rgba(55,145,205,.68)";
+            ctx.beginPath();
+            ctx.moveTo(x, waterY);
+            ctx.lineTo(x + halfX, waterY + halfZ * .52);
+            ctx.lineTo(x, waterY + halfZ);
+            ctx.lineTo(x - halfX, waterY + halfZ * .52);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        if ((biome === "forest" || biome === "plains") && h > waterLevel + 2 && localHash2D(originX + rx * 3, originZ + rz * 3, 1301) < .055) {
+            const treeH = 5 + Math.floor(localHash2D(originX + rx * 3, originZ + rz * 3, 1303) * 3);
+            const tx = x, ty = topY - 5;
+            ctx.fillStyle = "#65452b";
+            ctx.fillRect(tx - 1.3, ty, 2.6, 9);
+            ctx.fillStyle = biome === "forest" ? "#315a32" : "#3d6c38";
+            ctx.beginPath();
+            ctx.arc(tx, ty - 2, 7 + treeH * .7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "rgba(255,255,255,.07)";
+            ctx.beginPath();
+            ctx.arc(tx - 4, ty - 4, 4 + treeH * .25, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    };
+
+    for (let depth = 0; depth < sampleRows + sampleCols - 2; depth++) {
+        for (let rz = 0; rz < sampleRows - 1; rz++) {
+            const rx = depth - rz;
+            if (rx < 0 || rx >= sampleCols - 1) continue;
+            drawCell(rx, rz);
+        }
+    }
+
+    ctx.fillStyle = "rgba(0,0,0,.16)";
+    ctx.fillRect(0, canvas.height - 3, canvas.width, 3);
+
+    try {
+        localStorage.setItem(`${WORLD_TYPE_PREFIX}${WORLD_SEED}`, flat ? "flat" : (savedFlat || ""));
+    } catch {}
+    WORLD_SEED = savedSeed;
+    return canvas;
+}
 function shouldCarveCave(x,y,z,surfaceY){if(isFlatWorld())return false;if(y>surfaceY-6||y>42||y<MIN_Y+3)return false;const depth=surfaceY-y,giant=octave3D(x,y,z,3,44,.55,121),spaghetti=octave3D(x,y,z,2,24,.53,157);if(depth>22&&giant>.67&&giant<.78)return true;if(depth>9&&Math.abs(spaghetti-.5)<.032)return true;return false;}
 function oreChance(x,y,z,salt,scale){return octave3D(x,y,z,2,scale,.55,salt);}
 function chooseStoneVariant(x,y,z,surfaceY){if(isFlatWorld())return BLOCK.STONE;const variation=hash3D(x,y,z,911),gravel=octave3D(x,y,z,2,13,.55,313);if(y<surfaceY-3){if(y<=18&&oreChance(x,y,z,211,22)>.765)return BLOCK.IRON_ORE;if(y>-8&&oreChance(x+73,y-19,z-51,239,16)>.79)return BLOCK.COAL_ORE;if(variation>.93&&gravel>.57)return BLOCK.COBBLESTONE;if(gravel<.2)return BLOCK.GRAVEL;}return BLOCK.STONE;}
