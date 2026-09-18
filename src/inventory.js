@@ -548,8 +548,6 @@ function createHeld3D(camera) {
     held3D = { root, block, forearm, hand };
 }
 
-function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
-
 function updateHeldBlock() {
     const inWorld = document.body.classList.contains("webminecraft-in-world") && !inventoryOpen;
     const slotIndex = Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0;
