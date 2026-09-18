@@ -24,6 +24,7 @@ function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "
         players: new Map(),
         worldSeed: Math.floor(Math.random() * 4294967296) >>> 0,
         blockChanges: new Map(),
+        drops: new Map(),
         createdAt: Date.now(),
     };
 }
@@ -267,6 +268,7 @@ function handleMessage(ws, raw, state) {
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
             worldChanges: [...room.blockChanges.values()],
+            worldDrops: [...room.drops.values()],
             players: [...room.players.values()].map(publicPlayer),
         });
         broadcast(room, { type: "player_joined", player: publicPlayer(player) }, player.id);
@@ -325,10 +327,52 @@ function handleMessage(ws, raw, state) {
         broadcast(room, { type: "block_mining_stop", playerId: player.id, x, y, z }, player.id);
         return;
     }
+    if (message.type === "item_drop") {
+        const id = String(message.id || "").trim().slice(0, 96);
+        const itemType = Math.floor(numberOr(message.itemType, NaN));
+        const count = Math.max(1, Math.floor(numberOr(message.count, 1)));
+        const x = numberOr(message.x, NaN);
+        const y = numberOr(message.y, NaN);
+        const z = numberOr(message.z, NaN);
+        const velocityX = numberOr(message.velocityX, 0);
+        const velocityY = numberOr(message.velocityY, 0);
+        const velocityZ = numberOr(message.velocityZ, 0);
+        if (!id || ![itemType, count, x, y, z, velocityX, velocityY, velocityZ].every(Number.isFinite)) return;
+        if (itemType < 1 || itemType > 22 || count > 64 || y < -64 || y > 128) return;
+        const room = rooms.get(player.room);
+        if (!room) return;
+        if (room.drops.size >= 5000 && !room.drops.has(id)) return;
+        const drop = { id, itemType, count, x, y, z, velocityX, velocityY, velocityZ, createdAt: Date.now(), ownerId: player.id };
+        room.drops.set(id, drop);
+        broadcast(room, { type: "item_drop", ...drop }, player.id);
+        return;
+    }
+    if (message.type === "item_claim") {
+        const id = String(message.id || "").trim().slice(0, 96);
+        if (!id) return;
+        const room = rooms.get(player.room);
+        if (!room) return;
+        const drop = room.drops.get(id);
+        if (!drop) {
+            send(ws, { type: "item_claim_denied", id });
+            return;
+        }
+        const dx = player.position.x - drop.x;
+        const dy = player.position.y - (drop.y + 0.28);
+        const dz = player.position.z - drop.z;
+        if (Math.hypot(dx, dy, dz) > 4.0) {
+            send(ws, { type: "item_claim_denied", id });
+            return;
+        }
+        room.drops.delete(id);
+        send(ws, { type: "item_claimed", id, itemType: drop.itemType, count: drop.count });
+        broadcast(room, { type: "item_removed", id }, player.id);
+        return;
+    }
     if (message.type === "world_sync_request") {
         const room = rooms.get(player.room);
         if (!room) return;
-        send(ws, { type: "world_sync", worldSeed: room.worldSeed, worldChanges: [...room.blockChanges.values()] });
+        send(ws, { type: "world_sync", worldSeed: room.worldSeed, worldChanges: [...room.blockChanges.values()], worldDrops: [...room.drops.values()] });
         return;
     }
     if (message.type === "player_state") {
@@ -387,7 +431,14 @@ httpServer.on("upgrade", (request, socket) => {
 });
 
 setInterval(() => {
+    const now = Date.now();
     for (const room of rooms.values()) {
+        for (const [id, drop] of room.drops) {
+            if (now - Number(drop.createdAt || now) > 5 * 60 * 1000) {
+                room.drops.delete(id);
+                broadcast(room, { type: "item_removed", id });
+            }
+        }
         if (room.players.size < 2) continue;
         const players = [...room.players.values()];
         const payload = JSON.stringify({ type: "player_states", players: players.map(publicPlayer) });
