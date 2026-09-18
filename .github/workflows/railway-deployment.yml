@@ -42,7 +42,6 @@ jobs:
               const environment = String(deployment.environment || '').trim().toLowerCase();
               const ref = String(deployment.ref || '').trim();
 
-              if (deployment.id === railwayDeployment.data.id) continue;
               if (environment !== 'webminecraft-server') continue;
               if (ref && ref !== 'main') continue;
 
