@@ -394,6 +394,195 @@ select {
 body.webminecraft-in-world #settingsButton { display:block !important; }
 
 </style>
+    <style>
+        /* Create World fun polish */
+        #seedMenu{
+          background:
+            radial-gradient(circle at 20% 18%,rgba(255,255,255,.08) 0 2px,transparent 3px),
+            radial-gradient(circle at 78% 28%,rgba(255,255,255,.06) 0 2px,transparent 3px),
+            linear-gradient(180deg,#101714 0%,#171e19 48%,#0e120f 100%);
+          background-size:auto,auto,100% 100%;
+          overflow:hidden;
+        }
+        #seedPanel{
+          align-items:center;
+          padding-top:clamp(70px,10vh,112px);
+          padding-bottom:clamp(34px,7vh,70px);
+          background:
+            radial-gradient(circle at 50% 16%,rgba(151,205,104,.2),transparent 25%),
+            linear-gradient(180deg,rgba(49,61,51,.86),rgba(25,31,26,.98));
+          border:1px solid rgba(255,255,255,.08);
+        }
+        #seedPanel::before{
+          content:"";
+          position:absolute;
+          left:0;right:0;bottom:0;height:22%;
+          background:linear-gradient(180deg,transparent,rgba(0,0,0,.18)),repeating-linear-gradient(90deg,#263326 0 28px,#202a20 28px 56px);
+          opacity:.5;
+          pointer-events:none;
+        }
+        #seedPanel::after{
+          content:"";
+          position:absolute;
+          top:22%; left:-6%; width:112%; height:1px;
+          background:rgba(255,255,255,.08);
+          box-shadow:0 38vh 0 rgba(255,255,255,.035);
+          transform:rotate(-2deg);
+          pointer-events:none;
+        }
+        #seedBackWrap{top:clamp(18px,4vh,42px)}
+        #seedBackWrap .seedButton{
+          min-width:120px;
+          box-shadow:inset 2px 2px 0 rgba(255,255,255,.15),inset -2px -2px 0 rgba(0,0,0,.25),0 4px 0 rgba(0,0,0,.42);
+        }
+        #seedTitle{
+          position:relative;
+          z-index:2;
+          margin-bottom:8px;
+          color:#fff;
+          font-size:clamp(42px,6vw,68px);
+          letter-spacing:-2px;
+          text-shadow:3px 3px 0 #111,6px 6px 0 rgba(0,0,0,.35);
+        }
+        #seedTitle::after{
+          content:"CREATE YOUR ADVENTURE";
+          display:block;
+          margin-top:9px;
+          color:#a6d67a;
+          font-family:Arial,sans-serif;
+          font-size:clamp(10px,1.2vw,13px);
+          font-weight:800;
+          letter-spacing:3px;
+          text-shadow:0 2px 0 #111;
+        }
+        #seedSubtitle{
+          position:relative;
+          z-index:2;
+          max-width:700px;
+          margin:12px auto 22px;
+          color:#d4ddd4;
+          text-shadow:0 2px 0 rgba(0,0,0,.35);
+        }
+        #seedSubtitle strong{color:#a6d67a}
+        #seedInput{
+          position:relative;
+          z-index:2;
+          width:min(720px,92vw);
+          height:68px;
+          padding:12px 20px;
+          background:rgba(12,16,13,.88);
+          border:3px solid #111;
+          border-top-color:#8fa47f;
+          border-left-color:#8fa47f;
+          box-shadow:inset 0 4px 0 rgba(255,255,255,.04),0 8px 0 rgba(0,0,0,.28),0 0 26px rgba(123,171,88,.1);
+          font-family:"MinecraftFont",monospace;
+          font-size:clamp(22px,3vw,34px);
+          letter-spacing:1px;
+        }
+        #seedInput::placeholder{color:#6f786f}
+        #seedInput:focus{
+          border-color:#a6d67a;
+          box-shadow:inset 0 4px 0 rgba(255,255,255,.05),0 8px 0 rgba(0,0,0,.28),0 0 30px rgba(166,214,122,.18);
+        }
+        #seedInput + #seedActions{position:relative;z-index:2}
+        #seedActions{
+          margin-top:18px;
+          width:min(720px,92vw);
+          grid-template-columns:1fr 1fr 1.15fr;
+          gap:10px;
+        }
+        .seedButton{
+          min-height:58px;
+          border-radius:6px;
+          border:2px solid #111;
+          border-top-color:#909790;
+          border-left-color:#909790;
+          box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -2px -3px 0 rgba(0,0,0,.27),0 4px 0 rgba(0,0,0,.4);
+          transition:transform .12s ease,filter .12s ease,box-shadow .12s ease;
+        }
+        .seedButton:hover{
+          transform:translateY(-2px);
+          filter:brightness(1.08);
+          box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.25),0 6px 0 rgba(0,0,0,.36),0 0 18px rgba(166,214,122,.08);
+        }
+        .seedButton:active{transform:translateY(2px)}
+        #copySeedButton::before{content:"◆  ";color:#a6d67a}
+        #copyWorldLinkButton::before{content:"↗  ";color:#a6d67a}
+        #openWorldButton{position:relative;overflow:hidden}
+        #openWorldButton::before{content:"▶  "}
+        #openWorldButton::after{
+          content:"";
+          position:absolute;inset:0;
+          background:linear-gradient(115deg,transparent 0 32%,rgba(255,255,255,.15) 46%,transparent 60%);
+          transform:translateX(-120%);
+          transition:transform .5s ease;
+          pointer-events:none;
+        }
+        #openWorldButton:hover::after{transform:translateX(120%)}
+        #seedLinkStatus{
+          position:relative;
+          z-index:2;
+          min-height:28px;
+          margin-top:14px;
+          padding:6px 14px;
+          border-radius:999px;
+          color:#cde7b6;
+          background:rgba(0,0,0,.22);
+          border:1px solid rgba(166,214,122,.16);
+        }
+        #seedDecoration{
+          position:absolute;
+          top:12%; right:8%;
+          width:110px; height:110px;
+          transform:rotate(-7deg);
+          pointer-events:none;
+          z-index:1;
+          filter:drop-shadow(0 10px 8px rgba(0,0,0,.3));
+        }
+        #seedDecoration::before,
+        #seedDecoration::after{
+          content:"";
+          position:absolute;
+          width:46px;height:46px;
+          border:2px solid #111;
+          box-shadow:inset 3px 3px 0 rgba(255,255,255,.12),inset -4px -5px 0 rgba(0,0,0,.2);
+        }
+        #seedDecoration::before{
+          left:6px;bottom:6px;
+          background:linear-gradient(180deg,#7fb64b 0 30%,#7b5129 30% 100%);
+        }
+        #seedDecoration::after{
+          right:7px;top:2px;
+          background:linear-gradient(180deg,#8bc55a 0 28%,#4b7c38 28% 100%);
+        }
+        #seedSpark{
+          position:absolute;
+          top:19%; left:10%;
+          color:#fff2a8;
+          font-family:"MinecraftFont",monospace;
+          font-size:18px;
+          letter-spacing:8px;
+          text-shadow:2px 2px 0 #222;
+          animation:seedSparkFloat 2.6s ease-in-out infinite;
+          pointer-events:none;
+          z-index:1;
+        }
+        @keyframes seedSparkFloat{
+          0%,100%{transform:translateY(0) rotate(-3deg);opacity:.6}
+          50%{transform:translateY(-8px) rotate(3deg);opacity:1}
+        }
+        @media(max-width:900px){
+          #seedDecoration{width:84px;height:84px;right:3%;top:9%;transform:scale(.8) rotate(-7deg)}
+          #seedSpark{left:5%;top:14%;font-size:14px}
+        }
+        @media(max-width:700px){
+          #seedTitle::after{letter-spacing:2px}
+          #seedActions{grid-template-columns:1fr}
+          #seedInput{height:60px}
+          #seedDecoration{opacity:.34;right:-10px;top:10px}
+          #seedSpark{left:12px;top:86px}
+        }
+    </style>
 </head>
 <body>
     <script>
@@ -458,9 +647,11 @@ body.webminecraft-in-world #settingsButton { display:block !important; }
     <div id="seedMenu" aria-hidden="true">
         <div id="seedPanel">
             <div id="seedBackWrap"><button id="backSeedButton" class="seedButton" type="button">← Back</button></div>
+            <div id="seedSpark">✦  ✧  ✦</div>
+            <div id="seedDecoration" aria-hidden="true"></div>
             <h2 id="seedTitle">Create World</h2>
-            <p id="seedSubtitle">Your new world seed is below. Copy it to share the exact same world later.</p>
-            <input id="seedInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="World seed">
+            <p id="seedSubtitle">Choose a seed, <strong>build anything</strong>, and make this world yours. Copy the seed to recreate it anytime.</p>
+            <input id="seedInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="World seed" placeholder="Enter a world seed...">
             <div id="seedActions">
                 <button id="copySeedButton" class="seedButton" type="button">Copy Seed</button>
                 <button id="copyWorldLinkButton" class="seedButton" type="button">Copy World Link</button>
