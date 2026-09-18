@@ -33,7 +33,12 @@ const BLOCK = {
     DEEPSLATE: 37, DEEPSLATE_BRICKS: 38, DEEPSLATE_COAL_ORE: 39, DEEPSLATE_COPPER_ORE: 40,
     DEEPSLATE_DIAMOND_ORE: 41, DEEPSLATE_EMERALD_ORE: 42, DEEPSLATE_GOLD_ORE: 43, DEEPSLATE_IRON_ORE: 44,
     DEEPSLATE_LAPIS_ORE: 45, DEEPSLATE_REDSTONE_ORE: 46, DEEPSLATE_TILES: 47, POLISHED_DEEPSLATE: 48,
-    REINFORCED_DEEPSLATE: 49, FURNACE: 50
+    REINFORCED_DEEPSLATE: 49, FURNACE: 50,
+    STONE_SLAB: 51, COBBLESTONE_SLAB: 52, STONE_BRICKS_SLAB: 53, CRACKED_STONE_BRICKS_SLAB: 54, MOSSY_STONE_BRICKS_SLAB: 55,
+    OAK_PLANKS_SLAB: 56, ACACIA_PLANKS_SLAB: 57, BAMBOO_PLANKS_SLAB: 58, BIRCH_PLANKS_SLAB: 59, CRIMSON_PLANKS_SLAB: 60,
+    DARK_OAK_PLANKS_SLAB: 61, JUNGLE_PLANKS_SLAB: 62, MANGROVE_PLANKS_SLAB: 63, SPRUCE_PLANKS_SLAB: 64, WARPED_PLANKS_SLAB: 65,
+    CHISELED_DEEPSLATE_SLAB: 66, COBBLED_DEEPSLATE_SLAB: 67, CRACKED_DEEPSLATE_BRICKS_SLAB: 68, CRACKED_DEEPSLATE_TILES_SLAB: 69,
+    DEEPSLATE_SLAB: 70, DEEPSLATE_BRICKS_SLAB: 71, DEEPSLATE_TILES_SLAB: 72, POLISHED_DEEPSLATE_SLAB: 73, REINFORCED_DEEPSLATE_SLAB: 74
 };
 
 const WORLD_TYPE_PREFIX = "webminecraft-world-type-";
@@ -376,7 +381,21 @@ function generateTerrain(chunk){const startX=chunk.x*CHUNK_SIZE,startZ=chunk.z*C
 function generateTrees(chunk){if(isFlatWorld())return;const startX=chunk.x*CHUNK_SIZE,startZ=chunk.z*CHUNK_SIZE;for(let lx=2;lx<CHUNK_SIZE-2;lx++){for(let lz=2;lz<CHUNK_SIZE-2;lz++){const x=startX+lx,z=startZ+lz,biome=getBiome(x,z);if(biome!=="forest"&&biome!=="plains")continue;const surfaceY=getTerrainProfile(x,z).height;if(surfaceY<SEA_LEVEL+1||getBlockType(x,surfaceY,z)!==BLOCK.GRASS||!treeChance(x,z))continue;let crowded=false;for(let dx=-1;dx<=1&&!crowded;dx++){for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0)continue;if(treeChance(x+dx,z+dz)&&hash2D(x+dx,z+dz,1417)>.48){crowded=true;break;}}}if(!crowded)addTree(x,surfaceY+1,z);}}}
 function applyWorldOverridesToChunk(chunk){for(const[key,type]of worldOverrides){const[x,y,z]=key.split(',').map(Number);if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;if(Math.floor(x/CHUNK_SIZE)!==chunk.x||Math.floor(z/CHUNK_SIZE)!==chunk.z||y<MIN_Y||y>WORLD_TOP)continue;const localX=((x%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,localZ=((z%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;chunk.blocks[blockIndex(localX,y,localZ)]=type;}}
 function generateChunk(chunkX,chunkZ){const key=chunkKey(chunkX,chunkZ);if(chunks.has(key))return chunks.get(key);const chunk={x:chunkX,z:chunkZ,blocks:new Uint8Array(CHUNK_SIZE*CHUNK_SIZE*CHUNK_HEIGHT),generated:false,waterMesh:null};chunks.set(key,chunk);generateTerrain(chunk);generateTrees(chunk);applyWorldOverridesToChunk(chunk);chunk.generated=true;return chunk;}
-function materialIndexFor(type,faceIndex){switch(type){
+function isSlabBlock(type){return Number(type)>=BLOCK.STONE_SLAB&&Number(type)<=BLOCK.REINFORCED_DEEPSLATE_SLAB;}
+function blockShape(type,y){const slab=isSlabBlock(type);return{minY:y-0.5,maxY:slab?y:y+0.5};}
+function slabParentType(type){switch(type){
+    case BLOCK.STONE_SLAB:return BLOCK.STONE; case BLOCK.COBBLESTONE_SLAB:return BLOCK.COBBLESTONE;
+    case BLOCK.STONE_BRICKS_SLAB:return BLOCK.STONE_BRICKS; case BLOCK.CRACKED_STONE_BRICKS_SLAB:return BLOCK.CRACKED_STONE_BRICKS; case BLOCK.MOSSY_STONE_BRICKS_SLAB:return BLOCK.MOSSY_STONE_BRICKS;
+    case BLOCK.OAK_PLANKS_SLAB:return BLOCK.OAK_PLANKS; case BLOCK.ACACIA_PLANKS_SLAB:return BLOCK.ACACIA_PLANKS; case BLOCK.BAMBOO_PLANKS_SLAB:return BLOCK.BAMBOO_PLANKS;
+    case BLOCK.BIRCH_PLANKS_SLAB:return BLOCK.BIRCH_PLANKS; case BLOCK.CRIMSON_PLANKS_SLAB:return BLOCK.CRIMSON_PLANKS; case BLOCK.DARK_OAK_PLANKS_SLAB:return BLOCK.DARK_OAK_PLANKS;
+    case BLOCK.JUNGLE_PLANKS_SLAB:return BLOCK.JUNGLE_PLANKS; case BLOCK.MANGROVE_PLANKS_SLAB:return BLOCK.MANGROVE_PLANKS; case BLOCK.SPRUCE_PLANKS_SLAB:return BLOCK.SPRUCE_PLANKS;
+    case BLOCK.WARPED_PLANKS_SLAB:return BLOCK.WARPED_PLANKS; case BLOCK.CHISELED_DEEPSLATE_SLAB:return BLOCK.CHISELED_DEEPSLATE; case BLOCK.COBBLED_DEEPSLATE_SLAB:return BLOCK.COBBLED_DEEPSLATE;
+    case BLOCK.CRACKED_DEEPSLATE_BRICKS_SLAB:return BLOCK.CRACKED_DEEPSLATE_BRICKS; case BLOCK.CRACKED_DEEPSLATE_TILES_SLAB:return BLOCK.CRACKED_DEEPSLATE_TILES;
+    case BLOCK.DEEPSLATE_SLAB:return BLOCK.DEEPSLATE; case BLOCK.DEEPSLATE_BRICKS_SLAB:return BLOCK.DEEPSLATE_BRICKS;
+    case BLOCK.DEEPSLATE_TILES_SLAB:return BLOCK.DEEPSLATE_TILES; case BLOCK.POLISHED_DEEPSLATE_SLAB:return BLOCK.POLISHED_DEEPSLATE; case BLOCK.REINFORCED_DEEPSLATE_SLAB:return BLOCK.REINFORCED_DEEPSLATE;
+    default:return type;
+}}
+function materialIndexFor(type,faceIndex){type=slabParentType(type);switch(type){
     case BLOCK.GRASS:return faceIndex===2?1:faceIndex===3?2:0;
     case BLOCK.DIRT:return 2;
     case BLOCK.STONE:return 3;
@@ -428,8 +447,67 @@ function materialIndexFor(type,faceIndex){switch(type){
     default:return 0;
 }}
 function isSolid(type){return type!==BLOCK.AIR&&type!==BLOCK.OAK_DOOR;}
+function horizontalFaceVisible(currentMin,currentMax,neighborType,neighborY){
+    if(!isSolid(neighborType)||neighborType===BLOCK.LEAVES)return{minY:currentMin,maxY:currentMax};
+    const neighbor=blockShape(neighborType,neighborY);
+    const overlapMin=Math.max(currentMin,neighbor.minY);
+    const overlapMax=Math.min(currentMax,neighbor.maxY);
+    if(overlapMax-overlapMin<=0.0001)return{minY:currentMin,maxY:currentMax};
+    if(overlapMin<=currentMin+0.0001&&overlapMax>=currentMax-0.0001)return null;
+    if(overlapMin<=currentMin+0.0001)return{minY:overlapMax,maxY:currentMax};
+    if(overlapMax>=currentMax-0.0001)return{minY:currentMin,maxY:overlapMin};
+    return{minY:currentMin,maxY:currentMax};
+}
 function getUnderwaterShade(surfaceY,y,x,z){if(surfaceY>=SEA_LEVEL||y>surfaceY)return 1;const depth=Math.max(0,SEA_LEVEL-(y+.5)),depthT=THREE.MathUtils.clamp(depth/24,0,1),shade=THREE.MathUtils.lerp(1,.43,depthT),variation=.96+hash3D(x,y,z,1911)*.06;return THREE.MathUtils.clamp(shade*variation,.40,1);}
-function makeGeometryForChunk(chunk){const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);let vertexCount=0;for(let lx=0;lx<CHUNK_SIZE;lx++){for(let lz=0;lz<CHUNK_SIZE;lz++){const x=chunk.x*CHUNK_SIZE+lx,z=chunk.z*CHUNK_SIZE+lz,surfaceY=getTerrainProfile(x,z).height;for(let y=MIN_Y;y<=WORLD_TOP;y++){const type=chunk.blocks[blockIndex(lx,y,lz)];if(!isSolid(type))continue;const underwaterShade=getUnderwaterShade(surfaceY,y,x,z);for(let faceIndex=0;faceIndex<6;faceIndex++){const face=FACES[faceIndex],neighbor=getBlockType(x+face.normal[0],y+face.normal[1],z+face.normal[2]);if(isSolid(neighbor)&&neighbor!==BLOCK.LEAVES)continue;const base=vertexCount;for(const corner of face.corners){positions.push(x+corner[0],y+corner[1],z+corner[2]);normals.push(face.normal[0],face.normal[1],face.normal[2]);colors.push(underwaterShade,underwaterShade,underwaterShade);}const sideTopV=type===BLOCK.DIRT_PATH&&faceIndex!==2?15/16:1;uvs.push(0,0,0,sideTopV,1,sideTopV,1,0);const matIndex=materialIndexFor(type,faceIndex);groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);vertexCount+=4;}}}}if(vertexCount===0)return null;const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute("normal",new THREE.Float32BufferAttribute(normals,3));geometry.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));const index=[];for(let i=0;i<groups.length;i++){const start=index.length;index.push(...groups[i]);if(groups[i].length)geometry.addGroup(start,groups[i].length,i);}geometry.setIndex(index);geometry.computeBoundingSphere();geometry.computeBoundingBox();return geometry;}
+function makeGeometryForChunk(chunk){
+    const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);
+    let vertexCount=0;
+    for(let lx=0;lx<CHUNK_SIZE;lx++)for(let lz=0;lz<CHUNK_SIZE;lz++){
+        const x=chunk.x*CHUNK_SIZE+lx,z=chunk.z*CHUNK_SIZE+lz,surfaceY=getTerrainProfile(x,z).height;
+        for(let y=MIN_Y;y<=WORLD_TOP;y++){
+            const type=chunk.blocks[blockIndex(lx,y,lz)];
+            if(!isSolid(type))continue;
+            const shape=blockShape(type,y),underwaterShade=getUnderwaterShade(surfaceY,y,x,z);
+            for(let faceIndex=0;faceIndex<6;faceIndex++){
+                const face=FACES[faceIndex],neighborY=y+face.normal[1],neighbor=getBlockType(x+face.normal[0],neighborY,z+face.normal[2]);
+                let faceMinY=shape.minY,faceMaxY=shape.maxY;
+                if(faceIndex===0||faceIndex===1||faceIndex===4||faceIndex===5){
+                    const visible=horizontalFaceVisible(faceMinY,faceMaxY,neighbor,neighborY);
+                    if(!visible)continue;
+                    faceMinY=visible.minY; faceMaxY=visible.maxY;
+                }else if(isSolid(neighbor)&&neighbor!==BLOCK.LEAVES){
+                    const neighborShape=blockShape(neighbor,neighborY);
+                    if(faceIndex===2&&neighborShape.minY<=shape.maxY+0.0001)continue;
+                    if(faceIndex===3&&neighborShape.maxY>=shape.minY-0.0001)continue;
+                }
+                const base=vertexCount;
+                for(const corner of face.corners){
+                    const px=x+corner[0],pz=z+corner[2];
+                    let py=y+corner[1];
+                    if(faceIndex===2)py=shape.maxY;
+                    else if(faceIndex===3)py=shape.minY;
+                    else py=corner[1]>0?faceMaxY:faceMinY;
+                    positions.push(px,py,pz);
+                    normals.push(face.normal[0],face.normal[1],face.normal[2]);
+                    colors.push(underwaterShade,underwaterShade,underwaterShade);
+                }
+                const sideTopV=type===BLOCK.DIRT_PATH&&faceIndex!==2?15/16:1;
+                uvs.push(0,0,0,sideTopV,1,sideTopV,1,0);
+                const matIndex=materialIndexFor(type,faceIndex);
+                groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
+                vertexCount+=4;
+            }
+        }
+    }
+    if(vertexCount===0)return null;
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
+    geometry.setAttribute("normal",new THREE.Float32BufferAttribute(normals,3));
+    geometry.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));
+    geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));
+    const index=[];for(let i=0;i<groups.length;i++){const startIndex=index.length;index.push(...groups[i]);if(groups[i].length)geometry.addGroup(startIndex,groups[i].length,i);}
+    geometry.setIndex(index);geometry.computeBoundingSphere();geometry.computeBoundingBox();return geometry;
+}
 function makeWaterGeometry(chunk){const positions=[],normals=[],uvs=[],colors=[],indices=[];let vertices=0;const startX=chunk.x*CHUNK_SIZE,startZ=chunk.z*CHUNK_SIZE;for(let lx=0;lx<CHUNK_SIZE;lx++){for(let lz=0;lz<CHUNK_SIZE;lz++){const x=startX+lx,z=startZ+lz,surfaceY=getTerrainProfile(x,z).height;if(surfaceY>=SEA_LEVEL)continue;const y=SEA_LEVEL+.42,waveA=Math.sin((x+z)*.19)*.042,waveB=Math.sin((x*.31-z*.17)+1.7)*.025,waveC=Math.cos((x*.13+z*.27)-.6)*.02,base=vertices;positions.push(x-.5,y+waveA+waveC,z-.5,x-.5,y+waveB,z+.5,x+.5,y-waveA+waveC*.5,z+.5,x+.5,y-waveB,z-.5);normals.push(0,1,0,0,1,0,0,1,0,0,1,0);const shimmer=.94+hash2D(x,z,1931)*.12;colors.push(.16*shimmer,.52*shimmer,.80*shimmer,.20*shimmer,.59*shimmer,.86*shimmer,.13*shimmer,.47*shimmer,.75*shimmer,.19*shimmer,.56*shimmer,.84*shimmer);uvs.push(0,0,0,1,1,1,1,0);indices.push(base,base+1,base+2,base,base+2,base+3);vertices+=4;}}if(vertices===0)return null;const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute("normal",new THREE.Float32BufferAttribute(normals,3));geometry.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));geometry.setIndex(indices);geometry.computeBoundingSphere();return geometry;}
 function disposeChunkMesh(chunk){if(!chunk||!worldScene)return;const key=chunkKey(chunk.x,chunk.z),mesh=chunkMeshes.get(key);if(mesh){worldScene.remove(mesh);mesh.geometry.dispose();chunkMeshes.delete(key);}if(chunk.waterMesh){worldScene.remove(chunk.waterMesh);chunk.waterMesh.geometry.dispose();chunk.waterMesh=null;}}
 function rebuildChunkMesh(chunk){if(!chunk||!worldScene)return;disposeChunkMesh(chunk);const geometry=makeGeometryForChunk(chunk);if(geometry){const mesh=new THREE.Mesh(geometry,chunkMaterials);mesh.userData.isChunk=true;mesh.castShadow=true;mesh.receiveShadow=true;worldScene.add(mesh);chunkMeshes.set(chunkKey(chunk.x,chunk.z),mesh);}const waterGeometry=makeWaterGeometry(chunk);if(waterGeometry){const waterMesh=new THREE.Mesh(waterGeometry,waterMaterial);waterMesh.userData.isChunk=true;waterMesh.userData.isWater=true;waterMesh.castShadow=false;waterMesh.receiveShadow=false;worldScene.add(waterMesh);chunk.waterMesh=waterMesh;}}
