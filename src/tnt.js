@@ -112,43 +112,74 @@ function processBlockChangeForPhysics(scene, detail) {
     }
 }
 function getLandingY(x, startY, nextY, z, BLOCK) {
-    const highestSupportY = Math.floor(startY - 0.5 + 0.00001);
-    const lowestSupportY = Math.floor(nextY - 0.5 + 0.00001);
+    if (nextY >= startY) return null;
+    const topStart = startY - 0.5;
+    const topNext = nextY - 0.5;
+    const highestSupportY = Math.floor(topStart + 0.00001);
+    const lowestSupportY = Math.floor(topNext + 0.00001);
     for (let supportY = highestSupportY; supportY >= lowestSupportY; supportY--) {
         if (isSolidBlock(getBlockAt(x, supportY, z), BLOCK)) return supportY + 1;
     }
     return null;
 }
-function updateFallingSand(deltaTime) {
-    if (!lastScene || fallingSand.size === 0) return;
-    const BLOCK = getBlockTypes(), dt = Math.min(Math.max(deltaTime, 0), 0.05);
-    for (const [key, entity] of fallingSand) {
-        if (!entity.mesh?.parent) { fallingSand.delete(key); continue; }
-        entity.velocity = Math.min(entity.velocity + SAND_GRAVITY * dt, SAND_MAX_FALL_SPEED);
-        const startY = entity.y, nextY = startY - entity.velocity * dt;
+function stepFallingEntity(entity, gravity, maxFallSpeed, deltaTime, BLOCK) {
+    let remaining = Math.min(Math.max(deltaTime, 0), 0.05);
+    const MAX_SUBSTEP = 1 / 240;
+    while (remaining > 0) {
+        const step = Math.min(remaining, MAX_SUBSTEP);
+        const startY = entity.y;
+        entity.velocity = Math.min(entity.velocity + gravity * step, maxFallSpeed);
+        const nextY = startY - entity.velocity * step;
         const landingY = getLandingY(entity.x, startY, nextY, entity.z, BLOCK);
         if (landingY !== null && landingY <= startY) {
-            entity.y = landingY; entity.mesh.position.y = landingY; fallingSand.delete(key); disposeDynamicMesh(entity.mesh);
-            setBlockFromPhysics(entity.x, landingY, entity.z, BLOCK.SAND); continue;
+            entity.y = landingY;
+            entity.velocity = 0;
+            return true;
         }
-        entity.y = nextY; entity.mesh.position.y = nextY;
-        if (nextY < -60) { fallingSand.delete(key); disposeDynamicMesh(entity.mesh); }
+        entity.y = nextY;
+        remaining -= step;
+        if (entity.y < -60) return false;
+    }
+    return false;
+}
+function updateFallingSand(deltaTime) {
+    if (!lastScene || fallingSand.size === 0) return;
+    const BLOCK = getBlockTypes();
+    const dt = Math.min(Math.max(deltaTime, 0), 0.05);
+    for (const [key, entity] of fallingSand) {
+        if (!entity.mesh?.parent) { fallingSand.delete(key); continue; }
+        const landed = stepFallingEntity(entity, SAND_GRAVITY, SAND_MAX_FALL_SPEED, dt, BLOCK);
+        entity.mesh.position.y = entity.y;
+        if (landed) {
+            fallingSand.delete(key);
+            disposeDynamicMesh(entity.mesh);
+            setBlockFromPhysics(entity.x, entity.y, entity.z, BLOCK.SAND);
+            continue;
+        }
+        if (entity.y < -60) {
+            fallingSand.delete(key);
+            disposeDynamicMesh(entity.mesh);
+        }
     }
 }
 function updateFallingGravel(deltaTime) {
     if (!lastScene || fallingGravel.size === 0) return;
-    const BLOCK = getBlockTypes(), dt = Math.min(Math.max(deltaTime, 0), 0.05);
+    const BLOCK = getBlockTypes();
+    const dt = Math.min(Math.max(deltaTime, 0), 0.05);
     for (const [key, entity] of fallingGravel) {
         if (!entity.mesh?.parent) { fallingGravel.delete(key); continue; }
-        entity.velocity = Math.min(entity.velocity + GRAVEL_GRAVITY * dt, GRAVEL_MAX_FALL_SPEED);
-        const startY = entity.y, nextY = startY - entity.velocity * dt;
-        const landingY = getLandingY(entity.x, startY, nextY, entity.z, BLOCK);
-        if (landingY !== null && landingY <= startY) {
-            entity.y = landingY; entity.mesh.position.y = landingY; fallingGravel.delete(key); disposeDynamicMesh(entity.mesh);
-            setBlockFromPhysics(entity.x, landingY, entity.z, BLOCK.GRAVEL); continue;
+        const landed = stepFallingEntity(entity, GRAVEL_GRAVITY, GRAVEL_MAX_FALL_SPEED, dt, BLOCK);
+        entity.mesh.position.y = entity.y;
+        if (landed) {
+            fallingGravel.delete(key);
+            disposeDynamicMesh(entity.mesh);
+            setBlockFromPhysics(entity.x, entity.y, entity.z, BLOCK.GRAVEL);
+            continue;
         }
-        entity.y = nextY; entity.mesh.position.y = nextY;
-        if (nextY < -60) { fallingGravel.delete(key); disposeDynamicMesh(entity.mesh); }
+        if (entity.y < -60) {
+            fallingGravel.delete(key);
+            disposeDynamicMesh(entity.mesh);
+        }
     }
 }
 function startPhysicsLoop() {
