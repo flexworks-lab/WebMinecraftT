@@ -14,12 +14,17 @@ const MAX_CHAT_LENGTH = 120;
 
 const rooms = new Map();
 
-function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "") {
+function normalizeMode(value) {
+    return String(value ?? "").toLowerCase() === "creative" ? "creative" : "survival";
+}
+
+function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "", mode = "survival") {
     return {
         id,
         name: id,
         ownerName,
         isPrivate: Boolean(isPrivate),
+        mode: normalizeMode(mode),
         privateCode: privateCode || (isPrivate ? String(Math.floor(100000 + Math.random() * 900000)) : ""),
         players: new Map(),
         worldSeed: Math.floor(Math.random() * 4294967296) >>> 0,
@@ -29,11 +34,11 @@ function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "
     };
 }
 
-function getOrCreateRoom(id, ownerName = "Player", isPrivate = false) {
+function getOrCreateRoom(id, ownerName = "Player", isPrivate = false, mode = "survival") {
     let room = rooms.get(id);
     if (room) return room;
     if (rooms.size >= MAX_ROOMS) return null;
-    room = createRoom(id, ownerName, isPrivate);
+    room = createRoom(id, ownerName, isPrivate, "", mode);
     rooms.set(id, room);
     return room;
 }
@@ -92,6 +97,7 @@ function publicRoom(room) {
         playerNames: [...room.players.values()].map(player => player.name),
         maxPlayers: MAX_PLAYERS_PER_SERVER,
         private: Boolean(room.isPrivate),
+        mode: normalizeMode(room.mode),
         worldSeed: room.worldSeed,
         createdAt: room.createdAt,
     };
@@ -234,6 +240,7 @@ function handleMessage(ws, raw, state) {
         const roomId = sanitizeRoom(message.room);
         const safeName = sanitizeName(message.name);
         const wantsPrivate = Boolean(message.private);
+        const requestedMode = normalizeMode(message.mode);
         const suppliedCode = String(message.privateCode ?? "").trim().slice(0, 16);
         let room = rooms.get(roomId);
         if (room && room.isPrivate && suppliedCode !== room.privateCode) {
@@ -241,7 +248,7 @@ function handleMessage(ws, raw, state) {
             ws.close();
             return;
         }
-        room = getOrCreateRoom(roomId, safeName, wantsPrivate);
+        room = getOrCreateRoom(roomId, safeName, wantsPrivate, requestedMode);
         if (!room) { send(ws, { type: "error", code: "server_limit", message: "The server has reached its room limit." }); ws.close(); return; }
         if (room.players.size >= MAX_PLAYERS_PER_SERVER) { send(ws, { type: "error", code: "server_full", message: "This server is full." }); ws.close(); return; }
 
@@ -266,6 +273,7 @@ function handleMessage(ws, raw, state) {
             serverName: room.name,
             ownerName: room.ownerName,
             private: Boolean(room.isPrivate),
+            mode: normalizeMode(room.mode),
             privateCode: room.isPrivate && room.ownerName === safeName ? room.privateCode : "",
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
