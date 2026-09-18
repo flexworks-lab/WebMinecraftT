@@ -3,7 +3,6 @@
 // The existing worldsV2.js create/cancel handlers remain the source of truth.
 
 import { setWorldMode } from "./survivalMode.js";
-import { generateWorldPreviewSnapshot } from "./world.js";
 
 const STYLE_ID = "webminecraft-create-world-settings-ui";
 const MODAL_MARK = "data-create-world-settings-ui";
@@ -23,8 +22,9 @@ function injectStyle() {
 #createWorldSettingsCreate{width:100%;min-height:44px;padding:9px 14px;border:2px solid #1d5c20;background:#39a83f;color:#fff;font-family:"MinecraftFont",monospace;font-size:14px;text-shadow:2px 2px #256a29;box-shadow:0 2px 0 #151515;cursor:pointer;border-radius:0}
 #createWorldSettingsCreate:hover,#createWorldSettingsCreate:active{background:#39a83f;filter:none;transform:none}
 #createWorldSettingsTabs{flex:1;overflow:auto;padding:7px 8px}
-.createWorldSettingsTab{width:100%;min-height:40px;margin:3px 0;padding:8px 10px;text-align:left;border:1px solid #1a1a1a;background:#777;color:#eee;font-family:"MinecraftFont",monospace;font-size:12px;cursor:pointer;border-radius:0;text-shadow:1px 1px #333;box-shadow:inset 2px 2px 0 rgba(255,255,255,.08),inset -2px -2px 0 rgba(0,0,0,.16)}
-.createWorldSettingsTab:hover,.createWorldSettingsTab:active{background:#7e7e7e;filter:none;transform:none}
+.createWorldSettingsTab{width:100%;min-height:40px;margin:3px 0;padding:8px 10px;text-align:left;border:2px solid #1a1a1a;border-top-color:#999;border-left-color:#999;background:linear-gradient(180deg,#858585,#666);color:#eee;font-family:"MinecraftFont",monospace;font-size:12px;cursor:pointer;border-radius:3px;text-shadow:1px 1px #333;box-shadow:inset 2px 2px 0 rgba(255,255,255,.1),inset -3px -4px 0 rgba(0,0,0,.2),0 4px 0 #1c1c1c;transition:transform .08s ease,filter .08s ease,box-shadow .08s ease}
+.createWorldSettingsTab:hover{background:linear-gradient(180deg,#949494,#707070);filter:brightness(1.04);transform:translateY(-1px)}
+.createWorldSettingsTab:active{transform:translateY(2px);box-shadow:inset 2px 2px 0 rgba(0,0,0,.2),inset -2px -2px 0 rgba(255,255,255,.08),0 2px 0 #1c1c1c}
 .createWorldSettingsTab.active{background:#999;color:#fff;border-color:#bdbdbd;box-shadow:inset 3px 0 0 #eee}\n.createWorldSettingsTab::before{content:"▣ ";color:#ddd;font-size:11px}
 #createWorldSettingsSidebarFooter{padding:8px 10px 10px;color:#999;background:#292929;font-size:9px;line-height:1.35;border-top:1px solid #171717}
 #createWorldSettingsContent{min-width:0;flex:1;display:flex;flex-direction:column;background:#424242}
@@ -46,7 +46,7 @@ function injectStyle() {
 .createWorldSettingsSeed{font-family:monospace;word-break:break-all}
 .createWorldSettingsToggle{width:18px;height:18px;accent-color:#43b84f;cursor:pointer}
 .createWorldSettingsMode{display:grid;grid-template-columns:1fr 1fr;width:320px;border:1px solid #161616}
-.createWorldSettingsMode button,.createWorldSettingsDifficulty button{min-height:36px;border:0;border-right:1px solid #666;background:#aaa;color:#222;font-family:"MinecraftFont",monospace;font-size:11px;cursor:pointer;border-radius:0}
+.createWorldSettingsMode button,.createWorldSettingsDifficulty button{min-height:36px;border:2px solid #555;border-right-width:1px;border-top-color:#aaa;border-left-color:#aaa;background:linear-gradient(180deg,#aaa,#888);color:#222;font-family:"MinecraftFont",monospace;font-size:11px;cursor:pointer;border-radius:2px;box-shadow:inset 2px 2px 0 rgba(255,255,255,.16),inset -2px -2px 0 rgba(0,0,0,.18),0 3px 0 #555;transition:transform .08s ease,filter .08s ease,box-shadow .08s ease}
 .createWorldSettingsMode button:last-child,.createWorldSettingsDifficulty button:last-child{border-right:0}
 .createWorldSettingsMode button.active,.createWorldSettingsDifficulty button.active{background:#8d8d8d;color:#fff}
 .createWorldSettingsDifficulty{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:600px;border:1px solid #161616}
@@ -58,7 +58,7 @@ function injectStyle() {
 #createWorldSettingsActions{max-width:980px;margin:12px auto 0;display:flex;justify-content:flex-end;gap:10px}
 .createWorldSettingsAction{min-width:135px;min-height:38px;padding:7px 12px;border:1px solid #222;background:#aaa;color:#222;font-family:"MinecraftFont",monospace;font-size:10px;cursor:pointer;text-shadow:none;border-radius:0;box-shadow:0 2px 0 #888}
 .createWorldSettingsAction:hover{background:#aaa;filter:none;transform:none}
-#createWorldSettingsCancel{background:#aaa}
+#createWorldSettingsCancel{background:linear-gradient(180deg,#8a8a8a,#666)}
 #createWorldSettingsMessage{min-height:14px;margin:4px 0 0;color:#b7b7b7;font-size:11px;text-align:right}
 @media(max-width:760px){
 #createWorldSettingsSidebar{width:180px;flex-basis:180px}
@@ -104,7 +104,8 @@ function enhance(modal) {
         <div id="createWorldSettingsRoot">
             <aside id="createWorldSettingsSidebar">
                 <h2 id="createWorldSettingsTitle">CREATE NEW WORLD</h2>
-                <div id="createWorldSettingsPreview"><canvas id="createWorldSettingsPreviewCanvas" aria-label="Generated world preview"></canvas><div id="createWorldSettingsPreviewLabel">World Preview</div></div>
+                <div id="createWorldSettingsPreview"><img id="createWorldSettingsPreviewImg" src="./wrld%20preview.png" alt="World preview"><div id="createWorldSettingsPreviewLabel">World Preview</div></div>
+                <div id="createWorldSettingsCreateWrap"><button id="createWorldSettingsCreate" class="createWorldSettingsAction" type="button">Create World</button></div>
                 <p id="createWorldSettingsSub">Set up your world before you create it.</p>
                 <nav id="createWorldSettingsTabs" aria-label="Create world sections">
                     ${tabButton("General", "game")}
@@ -179,7 +180,6 @@ function enhance(modal) {
                     </section>
                     <div id="createWorldSettingsActions">
                         <button id="createWorldSettingsCancel" class="createWorldSettingsAction" type="button">Cancel</button>
-                        <button id="createWorldSettingsCreate" class="createWorldSettingsAction" type="button">Create World</button>
                     </div>
                     <div id="createWorldSettingsMessage" aria-live="polite"></div>
                 </div>
@@ -191,23 +191,7 @@ function enhance(modal) {
     const newSeedDisplay = modal.querySelector("#cwSeed");
     const newMessage = modal.querySelector("#createWorldSettingsMessage");
     const gameModeSelect = modal.querySelector("#cwGameMode");
-    const previewCanvas = modal.querySelector("#createWorldSettingsPreviewCanvas");
-    const renderWorldPreview = () => {
-        if (!previewCanvas) return;
-        const seed = Number(newSeedDisplay?.textContent?.trim());
-        if (!Number.isFinite(seed)) return;
-        const width = Math.max(220, Math.floor(previewCanvas.clientWidth || 480));
-        const height = Math.max(100, Math.floor(previewCanvas.clientHeight || 145));
-        const worldType = modal.querySelector("#cwWorldType")?.value || "Default";
-        const generated = generateWorldPreviewSnapshot(seed, width, height, worldType);
-        if (!generated) return;
-        const ctx = previewCanvas.getContext("2d");
-        previewCanvas.width = generated.width;
-        previewCanvas.height = generated.height;
-        ctx?.drawImage(generated, 0, 0);
-        generated.width = 1;
-        generated.height = 1;
-    };
+    const renderWorldPreview = () => {};// Static preview image is used for the Create World screen.
 
     const hiddenCreate = document.createElement("button");
     hiddenCreate.type = "button";
@@ -240,7 +224,6 @@ function enhance(modal) {
     gameModeSelect?.addEventListener("change", applyCreateMode);
     modal.querySelector("#cwWorldType")?.addEventListener("change", renderWorldPreview);
     applyCreateMode();
-    requestAnimationFrame(renderWorldPreview);
 
     modal.addEventListener("click", event => {
         const tab = event.target.closest("[data-cw-tab]");
