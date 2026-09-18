@@ -131,7 +131,31 @@ function inventoryTexture(itemId) {
         47: "deepslate_tiles.png",
         48: "polished_deepslate.png",
         49: "reinforced_deepslate_top.png",
-        50: "furnace_front.png"
+        50: "furnace_front.png",
+        51: "stone.png",
+        52: "cobblestone.png",
+        53: "stone_bricks.png",
+        54: "cracked_stone_bricks.png",
+        55: "mossy_stone_bricks.png",
+        56: "oak_planks.png",
+        57: "acacia_planks.png",
+        58: "bamboo_planks.png",
+        59: "birch_planks.png",
+        60: "crimson_planks.png",
+        61: "dark_oak_planks.png",
+        62: "jungle_planks.png",
+        63: "mangrove_planks.png",
+        64: "spruce_planks.png",
+        65: "warped_planks.png",
+        66: "chiseled_deepslate.png",
+        67: "cobbled_deepslate.png",
+        68: "cracked_deepslate_bricks.png",
+        69: "cracked_deepslate_tiles.png",
+        70: "deepslate.png",
+        71: "deepslate_bricks.png",
+        72: "deepslate_tiles.png",
+        73: "polished_deepslate.png",
+        74: "reinforced_deepslate_top.png"
     };
     return textures[Number(itemId)] || null;
 }
