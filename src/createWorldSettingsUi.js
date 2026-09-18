@@ -81,7 +81,98 @@ function injectStyle() {
 #createWorldSettingsActions{justify-content:stretch}
 .createWorldSettingsAction{flex:1;min-width:0}
 #createWorldSettingsMessage{text-align:left}
-}`;
+}
+/* Create World visual correction v2 */
+#createWorldSettingsPreview{
+    position:relative!important;
+    width:calc(100% - 18px)!important;
+    height:145px!important;
+    margin:9px 9px 8px!important;
+    flex:0 0 145px!important;
+    overflow:hidden!important;
+    background:#111!important;
+    border:3px solid #111!important;
+    border-top-color:#a4a4a4!important;
+    border-left-color:#a4a4a4!important;
+    box-shadow:inset 3px 3px 0 rgba(255,255,255,.12),inset -4px -4px 0 rgba(0,0,0,.34),0 5px 0 #151515,0 9px 14px rgba(0,0,0,.24)!important;
+}
+#createWorldSettingsPreview:before,
+#createWorldSettingsPreview:after{
+    display:none!important;
+}
+#createWorldSettingsPreviewImg{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    display:block!important;
+    object-fit:cover!important;
+    object-position:center!important;
+}
+#createWorldSettingsCreateWrap{
+    padding:8px 9px 10px!important;
+    background:#2f2f2f!important;
+}
+#createWorldSettingsCreate{
+    width:100%!important;
+    min-height:50px!important;
+    padding:10px 14px!important;
+    border:2px solid #173b19!important;
+    border-top-color:#91d395!important;
+    border-left-color:#91d395!important;
+    background:linear-gradient(180deg,#45bb4b,#2e8f37)!important;
+    color:#fff!important;
+    font-family:"MinecraftFont",monospace!important;
+    font-size:14px!important;
+    text-shadow:2px 2px #205d24!important;
+    box-shadow:inset 3px 3px 0 rgba(255,255,255,.16),inset -4px -5px 0 rgba(0,0,0,.3),0 5px 0 #151515,0 8px 13px rgba(0,0,0,.22)!important;
+    cursor:pointer!important;
+    border-radius:3px!important;
+    transition:transform .08s ease,filter .08s ease,box-shadow .08s ease!important;
+}
+#createWorldSettingsCreate:hover{
+    filter:brightness(1.08)!important;
+    transform:translateY(-1px)!important;
+}
+#createWorldSettingsCreate:active{
+    transform:translateY(3px)!important;
+    box-shadow:inset 3px 3px 0 rgba(0,0,0,.24),inset -2px -2px 0 rgba(255,255,255,.08),0 2px 0 #151515!important;
+}
+#createWorldSettingsRoot button{
+    position:relative;
+}
+.createWorldSettingsTab,
+.createWorldSettingsAction,
+#createWorldSettingsClose,
+.createWorldSettingsMode button,
+.createWorldSettingsDifficulty button{
+    border-top-color:#aaaaaa!important;
+    border-left-color:#aaaaaa!important;
+    border-right-color:#222222!important;
+    border-bottom-color:#222222!important;
+    border-width:2px!important;
+    box-shadow:inset 3px 3px 0 rgba(255,255,255,.13),inset -4px -5px 0 rgba(0,0,0,.24),0 4px 0 #151515,0 7px 12px rgba(0,0,0,.16)!important;
+}
+.createWorldSettingsTab:hover,
+.createWorldSettingsAction:hover,
+#createWorldSettingsClose:hover,
+.createWorldSettingsMode button:hover,
+.createWorldSettingsDifficulty button:hover{
+    filter:brightness(1.07)!important;
+    transform:translateY(-1px)!important;
+}
+.createWorldSettingsTab:active,
+.createWorldSettingsAction:active,
+#createWorldSettingsClose:active,
+.createWorldSettingsMode button:active,
+.createWorldSettingsDifficulty button:active{
+    transform:translateY(3px)!important;
+    box-shadow:inset 3px 3px 0 rgba(0,0,0,.22),inset -2px -2px 0 rgba(255,255,255,.08),0 2px 0 #151515!important;
+}
+.createWorldSettingsTab.active{
+    box-shadow:inset 3px 0 0 #eee,inset -4px -4px 0 rgba(0,0,0,.22),0 4px 0 #151515!important;
+}
+    `;
     document.head.appendChild(style);
 }
 
