@@ -7,8 +7,8 @@ let remotePlayers = new Map();
 const pendingWorldChanges = new Map();
 let pendingPlayerAction = "idle";
 
-const PRODUCTION_SERVER_URL = "wss://webminecraft-server.onrender.com/multiplayer";
-const PRODUCTION_API_URL = "https://webminecraft-server.onrender.com";
+const PRODUCTION_SERVER_URL = "wss://webminecraftt-multiplayer-production.up.railway.app/multiplayer";
+const PRODUCTION_API_URL = "https://webminecraftt-multiplayer-production.up.railway.app";
 
 function queueWorldChange(change) {
     const x = Math.floor(Number(change?.x));
