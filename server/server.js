@@ -305,7 +305,7 @@ function handleMessage(ws, raw, state) {
         const y = Math.floor(numberOr(message.y, NaN));
         const z = Math.floor(numberOr(message.z, NaN));
         const type = Math.floor(numberOr(message.blockType, NaN));
-        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 22) return;
+        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 74) return;
         const room = rooms.get(player.room);
         if (!room) return;
         const key = `${x},${y},${z}`;
