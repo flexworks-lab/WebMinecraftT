@@ -77,8 +77,12 @@ const ITEM_MATERIALS = {
     46: deepslateRedstoneOreMaterial,
     47: deepslateTilesMaterial,
     48: polishedDeepslateMaterial,
-    49: reinforcedDeepslateMaterial,
-    50: furnaceMaterial
+    50: furnaceMaterial,
+    51: stoneMaterial, 52: cobblestoneMaterial, 53: stoneBricksMaterial, 54: crackedStoneBricksMaterial, 55: mossyStoneBricksMaterial,
+    56: oakPlankMaterial, 57: acaciaPlanksMaterial, 58: bambooPlanksMaterial, 59: birchPlanksMaterial, 60: crimsonPlanksMaterial,
+    61: darkOakPlanksMaterial, 62: junglePlanksMaterial, 63: mangrovePlanksMaterial, 64: sprucePlanksMaterial, 65: warpedPlanksMaterial,
+    66: chiseledDeepslateMaterial, 67: cobbledDeepslateMaterial, 68: crackedDeepslateBricksMaterial, 69: crackedDeepslateTilesMaterial,
+    70: deepslateMaterial, 71: deepslateBricksMaterial, 72: deepslateTilesMaterial, 73: polishedDeepslateMaterial, 74: reinforcedDeepslateMaterial
 };
 
 const BASE_POS = new THREE.Vector3(0.84, -0.76, -1.05);
@@ -88,6 +92,7 @@ const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURICo
 
 let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
 let visible = false;
+function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
 let selectedItemId = 0;
 let selectedSlot = 0;
 let action = null;
@@ -187,7 +192,8 @@ function updateBlock() {
 
     if (ITEM_MATERIALS[selectedItemId]) {
         blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.64, 0.64), getMaterials(selectedItemId));
-        blockMesh.position.set(-0.04, 0.10, 0);
+        blockMesh.position.set(-0.04, isSlabItem(selectedItemId) ? -0.06 : 0.10, 0);
+        blockMesh.scale.y = isSlabItem(selectedItemId) ? 0.5 : 1;
         blockMesh.rotation.set(0.06, 0.32, -0.06);
         blockMesh.renderOrder = 2;
         heldRoot.add(blockMesh);
