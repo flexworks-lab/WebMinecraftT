@@ -16,7 +16,8 @@ body.mobile-mode.webminecraft-in-world #touchActions{right:18px !important;botto
 body.mobile-mode.webminecraft-in-world #touchMovePad{left:18px !important;bottom:24px !important;z-index:43 !important}
 body.mobile-mode.webminecraft-in-world #touchLookArea{left:34% !important;right:0 !important;top:0 !important;bottom:0 !important}
 body.mobile-mode.webminecraft-in-world #hotbar{bottom:18px !important;z-index:12 !important}
-body.mobile-mode.webminecraft-in-world #crosshair{z-index:10 !important}
+body.mobile-mode.webminecraft-in-world #crosshair{display:none!important}
+body.mobile-mode.webminecraft-in-world #webMinecraftCrosshair{display:none!important}
 @media(max-width:700px){
 body.mobile-mode.webminecraft-in-world #hotbar{transform:translateX(-50%) scale(.88);transform-origin:center bottom}
 body.mobile-mode.webminecraft-in-world #touchActions{transform:scale(.9);transform-origin:right bottom}
