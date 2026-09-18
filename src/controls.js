@@ -92,7 +92,7 @@ function createTouchControls() {
         <div id="touchActions"></div>
         <div id="touchAimKnob" aria-hidden="true"></div>
         <div id="touchLookArea"></div>
-        <div id="touchHint">Drag to look • Tap a block to mine</div>
+        <div id="touchHint">Drag to look • Survival: tap to place, hold to mine • Creative: tap to break</div>
     `;
 
     const actions = root.querySelector("#touchActions");
