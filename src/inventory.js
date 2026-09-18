@@ -306,7 +306,7 @@ body.webminecraft-creative .slotCount,body.webminecraft-creative .hotbarCount{di
 body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block;left:calc(50% - min(252px,45vw) - 66px);right:auto;bottom:8px;z-index:10001}
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{z-index:10000!important;bottom:8px!important}
 #heldBlock{display:none!important;pointer-events:none}
-@media(max-width:700px){#inventoryPanel{width:96vw;height:94vh;padding:7px}#catalogGrid{grid-template-columns:repeat(6,minmax(42px,1fr))}#creativeTabs{gap:4px}.inventoryTab{width:48px;height:44px}#catalogToolbar{align-items:flex-start;flex-direction:column;gap:6px}#catalogSearchWrap{width:100%}#catalogViewport{touch-action:pan-y;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:auto}#catalogSlot{touch-action:manipulation}.catalogSlot{touch-action:manipulation}#inventoryBottom{grid-template-columns:54px 1fr 54px;gap:5px}#hotbarInventory{grid-template-columns:repeat(9,minmax(27px,1fr));gap:3px}.destroySlot,.offhandSlot{width:50px;height:50px;font-size:30px}}
+@media(max-width:700px){#inventoryPanel{width:96vw;height:94vh;padding:7px}#catalogGrid{grid-template-columns:repeat(6,minmax(42px,1fr))}#creativeTabs{gap:4px}.inventoryTab{width:48px;height:44px}#catalogToolbar{align-items:flex-start;flex-direction:column;gap:6px}#catalogSearchWrap{width:100%}#catalogViewport{touch-action:pan-y;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:auto}.catalogSlot{touch-action:pan-y;user-select:none;-webkit-user-select:none}#inventoryBottom{grid-template-columns:54px 1fr 54px;gap:5px}#hotbarInventory{grid-template-columns:repeat(9,minmax(27px,1fr));gap:3px}.destroySlot,.offhandSlot{width:50px;height:50px;font-size:30px}}
 `;
     document.head.appendChild(style);
 
@@ -368,7 +368,9 @@ function renderCatalog() {
     grid.innerHTML = items.length ? items.map(item => `<div class="catalogSlot" draggable="true" data-item-id="${item.id}" title="${item.name}">${itemVisual(item)}<span class="catalogName">${item.name}</span></div>`).join("") : `<div style="grid-column:1/-1;color:#999;text-align:center;padding:30px 10px;font-size:13px">No items found</div>`;
     grid.querySelectorAll(".catalogSlot").forEach(cell => {
         const itemId = Number(cell.dataset.itemId);
+        cell.draggable = !document.body.classList.contains("mobile-mode");
         cell.addEventListener("dragstart", event => {
+            if (document.body.classList.contains("mobile-mode")) { event.preventDefault(); return; }
             draggedCatalog = itemId;
             cell.style.opacity = ".45";
             event.dataTransfer.effectAllowed = "copy";
