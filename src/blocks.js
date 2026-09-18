@@ -54,6 +54,8 @@ const cobblestoneTexture = loadTexture(texturePath("cobblestone.png"), "cobblest
 const gravelTexture = loadTexture(texturePath("gravel.png"), "gravel");
 const sandTexture = loadTexture(texturePath("sand.png"), "sand");
 const sandstoneTexture = loadTexture(texturePath("sandstone.png"), "sandstone");
+const sandstoneTopTexture = loadTexture(texturePath("sandstone_top.png"), "sandstone top");
+const sandstoneBottomTexture = loadTexture(texturePath("sandstone_bottom.png"), "sandstone bottom");
 const bedrockTexture = loadTexture(texturePath("bedrock.png"), "bedrock");
 const coalTexture = loadTexture(texturePath("coal_ore.png"), "coal ore");
 const ironTexture = loadTexture(texturePath("iron_ore.png"), "iron ore");
@@ -90,7 +92,10 @@ const stoneMaterial = new THREE.MeshPhongMaterial({ map: stoneTexture, color: te
 const cobblestoneMaterial = new THREE.MeshPhongMaterial({ map: cobblestoneTexture, color: textureShade, ...materialOptions });
 const gravelMaterial = new THREE.MeshPhongMaterial({ map: gravelTexture, color: textureShade, ...materialOptions });
 const sandMaterial = new THREE.MeshPhongMaterial({ map: sandTexture, color: textureShade, ...materialOptions });
-const sandstoneMaterial = new THREE.MeshPhongMaterial({ map: sandstoneTexture, color: textureShade, ...materialOptions });
+const sandstoneSideMaterial = new THREE.MeshPhongMaterial({ map: sandstoneTexture, color: textureShade, ...materialOptions });
+const sandstoneTopMaterial = new THREE.MeshPhongMaterial({ map: sandstoneTopTexture, color: textureShade, ...materialOptions });
+const sandstoneBottomMaterial = new THREE.MeshPhongMaterial({ map: sandstoneBottomTexture, color: textureShade, ...materialOptions });
+const sandstoneMaterial = [sandstoneSideMaterial, sandstoneSideMaterial, sandstoneTopMaterial, sandstoneBottomMaterial, sandstoneSideMaterial, sandstoneSideMaterial];
 const bedrockMaterial = new THREE.MeshPhongMaterial({ map: bedrockTexture, color: textureShade, ...materialOptions });
 const coalMaterial = new THREE.MeshPhongMaterial({ map: coalTexture, color: textureShade, ...materialOptions });
 const ironMaterial = new THREE.MeshPhongMaterial({ map: ironTexture, color: textureShade, ...materialOptions });
@@ -140,7 +145,7 @@ function createBlock(scene, x, y, z, material) {
 
 export {
     blockGeometry, grassMaterial, dirtMaterial, stoneMaterial, cobblestoneMaterial,
-    gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial, coalMaterial,
+    gravelMaterial, sandMaterial, sandstoneMaterial, sandstoneSideMaterial, sandstoneTopMaterial, sandstoneBottomMaterial, bedrockMaterial, coalMaterial,
     ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,
     tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntMaterial,
     bricksMaterial, bricksTexture, stoneBricksMaterial, crackedStoneBricksMaterial, mossyStoneBricksMaterial, dirtPathMaterial,
