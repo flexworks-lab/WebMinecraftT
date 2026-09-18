@@ -406,13 +406,15 @@ function updateDrops(time) {
             drop.position.y = baseY + Math.sin(time * .003 + drop.userData.bob) * .045;
         }
 
-        drop.rotation.y += .018;
-        const distance = drop.position.distanceTo(player);
-        if (distance <= MAX_DROP_DISTANCE) {
-            const direction = player.clone().sub(drop.position);
-            const strength = Math.min(.24, Math.max(.055, (MAX_DROP_DISTANCE - distance) * .11));
-            if (direction.lengthSq() > 0.0001) drop.position.addScaledVector(direction.normalize(), strength);
+        // Once an item lands, stop all horizontal motion so it never drifts across the ground.
+        if (drop.userData.grounded) {
+            drop.userData.velocityX = 0;
+            drop.userData.velocityZ = 0;
         }
+        drop.rotation.y += .018;
+
+        // Items are picked up when the player reaches them; do not magnetically pull them,
+        // since that causes visible drifting even when the item is resting on a block.
         if (drop.position.distanceTo(player) <= PICKUP_RANGE) {
             if (addToInventory(drop.userData.type, drop.userData.count)) {
                 drop.parent.remove(drop);
