@@ -86,7 +86,7 @@ jobs:
               state: 'success',
               description: 'Railway multiplayer server is online',
               environment_url: process.env.RAILWAY_URL,
-              target_url: process.env.RAILWAY_WS
+              target_url: process.env.RAILWAY_URL
             });
 
             core.info(`Restored Railway deployment ${deployment.data.id}`);
