@@ -219,6 +219,7 @@ function makeStyle() {
         #multiplayerRoomView.roomsStyle #multiplayerRoomCreate{margin:0 22px 12px}
         #multiplayerRoomView.roomsStyle #multiplayerRoomCreateButton{min-height:40px;padding:8px 14px;background:linear-gradient(#686868,#505050);color:#fff;border:2px solid #111;border-top-color:#888;border-left-color:#888;cursor:pointer;font-family:"MinecraftFont",monospace;font-size:10px;box-shadow:3px 3px 0 rgba(0,0,0,.35)}
         #multiplayerPanel.rooms-screen .multiplayerAdvanced{display:none;margin:0 22px 14px;padding:16px;background:#272727;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:5px 5px 0 rgba(0,0,0,.35)}
+        #multiplayerRoomView.roomsStyle #multiplayerCreateAndJoin{width:100%;margin-top:12px;background:linear-gradient(#719251,#57743e)}
         #multiplayerPanel.rooms-screen .roomsStyle.create-open .multiplayerAdvanced{display:block}
         #multiplayerRoomView.roomsStyle .multiplayerAdvanced .multiplayerField:last-of-type{margin-bottom:0}
         #multiplayerRoomView.roomsStyle .multiplayerAdvanced + .multiplayerHint{padding:0 22px 16px;color:#666;font-size:9px}
@@ -306,6 +307,7 @@ function ensureMenu() {
                         <div id="multiplayerServerType" role="group" aria-label="Server type"><button id="multiplayerPublic" class="multiplayerTypeButton selected" type="button">PUBLIC</button><button id="multiplayerPrivate" class="multiplayerTypeButton" type="button">PRIVATE</button></div>
                         <div id="multiplayerPrivateCode" class="multiplayerField"><label for="multiplayerPrivateCodeInput">Private Code</label><input id="multiplayerPrivateCodeInput" maxlength="16" autocomplete="off" placeholder="Enter code or leave blank to create"></div>
                         <div class="multiplayerField"><label for="multiplayerServer">Server Address</label><input id="multiplayerServer" autocomplete="off" placeholder="ws://localhost:2567"></div>
+                        <button id="multiplayerCreateAndJoin" class="multiplayerButton" type="button">Create & Join</button>
                     </div>
                     <div class="multiplayerHint">Public and private servers both work. Private rooms require the correct code.</div>
                     <div id="multiplayerStatus" aria-live="polite"></div>
@@ -321,7 +323,9 @@ function ensureMenu() {
     serverInput.value = defaultServerUrl();
     const setStatus = (text, error = false) => { status.textContent = text; status.style.color = error ? "#ef9a8e" : "#a8ca8e"; status.style.borderLeftColor = error ? "#b96a60" : "#6f8e58"; };
     const setServerType = isPrivate => { selectedPrivate = Boolean(isPrivate); publicButton.classList.toggle("selected", !selectedPrivate); privateButton.classList.toggle("selected", selectedPrivate); privateCodeWrap.classList.toggle("visible", selectedPrivate); if (!selectedPrivate) privateCodeInput.value = ""; };
-    roomCreateButton.addEventListener("click", () => { const open = roomView.classList.toggle("create-open"); roomCreateButton.textContent = open ? "× Cancel" : "+ Create Room"; if (open) { roomInput.value = ""; setServerType(false); joinButton.disabled = false; requestAnimationFrame(() => roomInput.focus()); } });
+    roomCreateButton.addEventListener("click", () => { const open = roomView.classList.toggle("create-open"); roomCreateButton.textContent = open ? "× Cancel" : "+ Create Room"; if (open) { roomInput.value = ""; setServerType(false); joinButton.disabled = false; requestAnimationFrame(() => roomInput.focus()); } else { roomInput.value = ""; } });
+    const createAndJoinButton = overlay.querySelector("#multiplayerCreateAndJoin");
+    createAndJoinButton.addEventListener("click", () => { const roomName = (roomInput.value.trim() || "").slice(0,32); if (!roomName) { roomInput.focus(); setStatus("Enter a room name first.", true); return; } joinButton.disabled = false; joinButton.click(); });
     publicButton.addEventListener("click", () => setServerType(false));
     privateButton.addEventListener("click", () => setServerType(true));
     const closeServerDetails = () => { selectedServer = null; serverDetails?.classList.remove("open"); serverDetails?.setAttribute("aria-hidden","true"); };
