@@ -305,7 +305,7 @@ export function setupControls() {
             return;
         }
         if (event.code === "KeyF" && !event.repeat) toggleFlying();
-        if ((event.code === "ControlLeft" || event.code === "ControlRight") && !event.repeat) {
+        if (event.code === "KeyC") {
             touchInput.sneak = true;
         }
         keys[event.code] = true;
@@ -317,7 +317,7 @@ export function setupControls() {
             return;
         }
         keys[event.code] = false;
-        if (event.code === "ControlLeft" || event.code === "ControlRight") {
+        if (event.code === "KeyC") {
             touchInput.sneak = false;
         }
     });
