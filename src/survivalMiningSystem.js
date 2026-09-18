@@ -277,16 +277,19 @@ function burst(center, type) {
     requestAnimationFrame(tick);
 }
 
-function createDrop(type, position) {
+function createDrop(type, position, options = {}) {
     const group = new THREE.Group();
     group.name = "survivalDroppedItem";
     group.userData.type = type;
-    group.userData.count = 1;
+    group.userData.count = Math.max(1, Math.floor(Number(options.count) || 1));
+    group.userData.dropId = String(options.dropId || ("drop:" + Date.now() + ":" + Math.random().toString(36).slice(2, 10)));
+    group.userData.networked = options.networked !== false;
+    group.userData.claimRequested = false;
     group.userData.spawnedAt = performance.now();
     group.userData.bob = Math.random() * Math.PI * 2;
-    group.userData.velocityX = (Math.random() - 0.5) * 1.2;
-    group.userData.velocityY = 1.8;
-    group.userData.velocityZ = (Math.random() - 0.5) * 1.2;
+    group.userData.velocityX = Number.isFinite(Number(options.velocityX)) ? Number(options.velocityX) : (Math.random() - 0.5) * 1.2;
+    group.userData.velocityY = Number.isFinite(Number(options.velocityY)) ? Number(options.velocityY) : 1.8;
+    group.userData.velocityZ = Number.isFinite(Number(options.velocityZ)) ? Number(options.velocityZ) : (Math.random() - 0.5) * 1.2;
     group.userData.grounded = false;
 
     const textureName = TEXTURES[type];
@@ -305,6 +308,56 @@ function createDrop(type, position) {
     group.position.copy(position).add(new THREE.Vector3(0, .28, 0));
     sceneRef.add(group);
     drops.push(group);
+    return group;
+}
+
+function findDropById(dropId) {
+    const id = String(dropId || "");
+    return drops.find(drop => drop?.userData?.dropId === id) || null;
+}
+
+function removeDropById(dropId) {
+    const drop = findDropById(dropId);
+    if (!drop) return null;
+    const index = drops.indexOf(drop);
+    if (drop.parent) drop.parent.remove(drop);
+    if (index >= 0) drops.splice(index, 1);
+    return drop;
+}
+
+function handleRemoteItemDrop(event) {
+    const d = event.detail || {};
+    const id = String(d.id || "");
+    const itemType = Math.floor(Number(d.itemType));
+    const count = Math.max(1, Math.floor(Number(d.count) || 1));
+    const x = Number(d.x), y = Number(d.y), z = Number(d.z);
+    if (!id || ![itemType, count, x, y, z].every(Number.isFinite) || !sceneRef) return;
+    if (findDropById(id)) return;
+    createDrop(itemType, new THREE.Vector3(x, y, z), {
+        dropId: id,
+        count,
+        networked: true,
+        velocityX: Number(d.velocityX),
+        velocityY: Number(d.velocityY),
+        velocityZ: Number(d.velocityZ)
+    });
+}
+
+function handleRemoteItemClaimed(event) {
+    const d = event.detail || {};
+    const id = String(d.id || "");
+    const drop = removeDropById(id);
+    if (!drop) return;
+    if (addToInventory(Number(drop.userData.type), Number(drop.userData.count))) refreshHotbarTextures();
+}
+
+function handleRemoteItemRemoved(event) {
+    removeDropById(event.detail?.id);
+}
+
+function handleRemoteItemClaimDenied(event) {
+    const drop = findDropById(event.detail?.id);
+    if (drop) drop.userData.claimRequested = false;
 }
 
 function mergeDrops() {
@@ -464,8 +517,11 @@ function updateDrops(time) {
 
         // Items are picked up when the player reaches them; do not magnetically pull them,
         // since that causes visible drifting even when the item is resting on a block.
-        if (drop.position.distanceTo(player) <= PICKUP_RANGE) {
-            if (addToInventory(drop.userData.type, drop.userData.count)) {
+        if (drop.position.distanceTo(player) <= PICKUP_RANGE && !drop.userData.claimRequested) {
+            if (drop.userData.networked) {
+                drop.userData.claimRequested = true;
+                sendItemClaim(drop.userData.dropId);
+            } else if (addToInventory(drop.userData.type, drop.userData.count)) {
                 drop.parent.remove(drop);
                 drops.splice(i, 1);
                 refreshHotbarTextures();
@@ -508,7 +564,21 @@ function finishMining() {
     sendBlockChange(mining.x, mining.y, mining.z, getBlockTypes().AIR);
     window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x: mining.x, y: mining.y, z: mining.z, type: getBlockTypes().AIR, brokenType: mining.type } }));
     burst(new THREE.Vector3(mining.x, mining.y, mining.z), mining.type);
-    createDrop(mining.type, new THREE.Vector3(mining.x, mining.y, mining.z));
+    const dropId = "drop:" + Date.now() + ":" + Math.random().toString(36).slice(2, 10);
+    const drop = createDrop(mining.type, new THREE.Vector3(mining.x, mining.y, mining.z), { dropId, networked: true });
+    if (drop) {
+        import("./multiplayerClient.js").then(({ sendItemDrop }) => sendItemDrop({
+            id: drop.userData.dropId,
+            itemType: drop.userData.type,
+            count: drop.userData.count,
+            x: drop.position.x,
+            y: drop.position.y - 0.28,
+            z: drop.position.z,
+            velocityX: drop.userData.velocityX,
+            velocityY: drop.userData.velocityY,
+            velocityZ: drop.userData.velocityZ
+        })).catch(() => {});
+    }
     destroyCracks(mining.overlay);
     mining = null;
 }
@@ -580,6 +650,10 @@ function init() {
     window.addEventListener("webminecraft:multiplayer-player-left", event => {
         clearRemoteMiningForPlayer(event.detail?.playerId);
     });
+    window.addEventListener("webminecraft:multiplayer-item-drop", handleRemoteItemDrop);
+    window.addEventListener("webminecraft:multiplayer-item-claimed", handleRemoteItemClaimed);
+    window.addEventListener("webminecraft:multiplayer-item-removed", handleRemoteItemRemoved);
+    window.addEventListener("webminecraft:multiplayer-item-claim-denied", handleRemoteItemClaimDenied);
     function frame(time) {
         const mobile = document.body.classList.contains("mobile-mode");
         if (mobile && touchInput.blockTouchActive && !touchInput.blockHoldTriggered) {
