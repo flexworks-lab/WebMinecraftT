@@ -120,7 +120,7 @@ function loadSingleplayerWorldState() {
     const pendingMode = window.__webminecraftPendingSingleplayerMode;
     let storedMode = null;
     try {
-        const value = localStorage.getItem("${MODE_PREFIX}" + seed);
+        const value = localStorage.getItem(`${MODE_PREFIX}${seed}`);
         if (value === "survival" || value === "creative") storedMode = value;
     } catch {}
     const mode = pendingMode === "survival" || pendingMode === "creative"
