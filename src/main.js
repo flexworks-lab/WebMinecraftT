@@ -212,7 +212,34 @@ body.mobile-mode #settingsButton{
     document.body.appendChild(button);
 }
 function openSettings() { if (settingsMenu) { settingsMenu.style.display = "flex"; document.exitPointerLock?.(); } }
-function requestPointerLock() { if (gameStarted && !mobileMode && document.pointerLockElement !== document.body) document.body.requestPointerLock?.(); }
+function hasOpenMenuScreen() {
+    const selectors = [
+        "#mainMenu",
+        "#seedMenu",
+        "#settingsMenu",
+        "#pauseMenu",
+        "#inventoryScreen",
+        "#survivalInventoryScreen",
+        "#multiplayerMenu",
+        "#friendsModal",
+        "#newsCenter",
+        "#accountModal",
+        "#welcomeScreen",
+        "#devControlsPanel"
+    ];
+    return selectors.some(selector => {
+        const element = document.querySelector(selector);
+        if (!element) return false;
+        if (element.classList.contains("open")) return true;
+        if (element.getAttribute("aria-hidden") === "false") return true;
+        return getComputedStyle(element).display !== "none";
+    });
+}
+window.__webminecraftHasOpenMenu = hasOpenMenuScreen;
+function requestPointerLock() {
+    if (!gameStarted || mobileMode || hasOpenMenuScreen()) return;
+    if (document.pointerLockElement !== document.body) document.body.requestPointerLock?.();
+}
 function closeSettingsMenu(lockMouse = false) {
     if (!settingsMenu) return;
     if (lockMouse) requestPointerLock();
