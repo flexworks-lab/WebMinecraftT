@@ -25,7 +25,9 @@
     },
     "publicProfiles": {
       ".read": true,
-      ".indexOn": ["friendCode"],
+      ".indexOn": [
+        "friendCode"
+      ],
       "$uid": {
         ".write": "auth != null && auth.uid === $uid"
       }
@@ -46,6 +48,15 @@
       ".read": "auth != null",
       "$uid": {
         ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "gameInvites": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$inviteId": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === newData.child('fromUid').val())",
+          ".validate": "newData.hasChildren(['inviteId','fromUid','toUid','fromName','room','serverName','websocket','mode','createdAt','status']) && newData.child('inviteId').isString() && newData.child('fromUid').isString() && newData.child('toUid').val() === $uid && newData.child('room').isString() && newData.child('serverName').isString() && newData.child('websocket').isString() && newData.child('mode').isString() && newData.child('status').isString()"
+        }
       }
     }
   }
