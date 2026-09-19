@@ -503,7 +503,7 @@ function horizontalFaceVisible(currentMin,currentMax,neighborType,neighborY){
     return{minY:currentMin,maxY:currentMax};
 }
 function getUnderwaterShade(surfaceY,y,x,z){if(surfaceY>=SEA_LEVEL||y>surfaceY)return 1;const depth=Math.max(0,SEA_LEVEL-(y+.5)),depthT=THREE.MathUtils.clamp(depth/24,0,1),shade=THREE.MathUtils.lerp(1,.43,depthT),variation=.96+hash3D(x,y,z,1911)*.06;return THREE.MathUtils.clamp(shade*variation,.40,1);}
-function appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,minX,maxX,minY,maxY,minZ,maxZ,materialType,underwaterShade,skipBottom=false){
+function appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,minX,maxX,minY,maxY,minZ,maxZ,materialType,underwaterShade,skipBottom=false,verticalTextureScale=1){
     const faces = [
         { normal:[1,0,0], corners:[[maxX,maxY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[maxX,maxY,maxZ]] },
         { normal:[-1,0,0], corners:[[minX,maxY,maxZ],[minX,minY,maxZ],[minX,minY,minZ],[minX,maxY,minZ]] },
@@ -520,7 +520,8 @@ function appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,m
             normals.push(face.normal[0],face.normal[1],face.normal[2]);
             colors.push(underwaterShade,underwaterShade,underwaterShade);
         }
-        uvs.push(0,0,0,1,1,1,1,0);
+        const vScale=(faceIndex===2||faceIndex===3)?1:verticalTextureScale;
+        uvs.push(0,0,0,vScale,1,vScale,1,0);
         const matIndex=materialIndexFor(materialType,faceIndex);
         groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
         vertexRef.count+=4;
@@ -544,10 +545,10 @@ function makeGeometryForChunk(chunk){
             if(isStairBlock(type)){
                 const facing=stairFacing(type);
                 // Lower half of the stair.
-                appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,-0.5,0.5,-0.5,0,-0.5,0.5,type,underwaterShade,false);
+                appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,-0.5,0.5,-0.5,0,-0.5,0.5,type,underwaterShade,false,0.5);
                 // Upper half sits on the high side.
                 const [minX,maxX,minZ,maxZ]=stairUpperBounds(facing);
-                appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,minX,maxX,0,0.5,minZ,maxZ,type,underwaterShade,true);
+                appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,minX,maxX,0,0.5,minZ,maxZ,type,underwaterShade,true,0.5);
                 continue;
             }
             const shape=blockShape(type,y);
