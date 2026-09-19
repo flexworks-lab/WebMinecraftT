@@ -333,10 +333,11 @@ export function setupDoorSystem(nextScene, nextCamera) {
 export function placeDoor(target) {
     if (!scene || !camera || !target) return false;
     const normal = target.normal.clone().set(Math.round(target.normal.x), Math.round(target.normal.y), Math.round(target.normal.z));
-    if (normal.y < 0) return false;
-    const x = target.x + normal.x;
-    const y = target.y + normal.y;
-    const z = target.z + normal.z;
+    // Doors must be placed on the top face of a solid block so their bottom sits flush on the floor.
+    if (normal.y !== 1) return false;
+    const x = target.x;
+    const y = target.y + 1;
+    const z = target.z;
     if (getBlockAt(x, y, z) !== BLOCK.AIR || getBlockAt(x, y + 1, z) !== BLOCK.AIR) return false;
     if (getBlockAt(x, y - 1, z) === BLOCK.AIR) return false;
     const facing = Math.abs(normal.x) > Math.abs(normal.z) ? "x" : "z";
