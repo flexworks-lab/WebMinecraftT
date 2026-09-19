@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType } from "./world.js";
-import { touchInput } from "./controls.js";
+import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType, isStairBlock, stairOrientedType } from "./world.js";
+import { touchInput, yaw } from "./controls.js";
 import { sendBlockChange, sendSlabPlacement, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
 import { tryIgniteTNT, registerTNTPhysicsScene } from "./tnt.js";
@@ -193,6 +193,32 @@ export function setupInteraction(scene, camera) {
             }
             return;
         }
+        if (itemId >= 75 && itemId <= 84) {
+            const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
+            if (!target) return;
+            const normal = target.normal.clone().set(
+                Math.round(target.normal.x),
+                Math.round(target.normal.y),
+                Math.round(target.normal.z)
+            );
+            const x = target.x + normal.x;
+            const y = target.y + normal.y;
+            const z = target.z + normal.z;
+            if (getBlockAt(x, y, z) !== BLOCK.AIR) return;
+            if (playerOverlapsBlock({ x, y, z }, camera)) return;
+            const quarter = Math.round(Number(yaw) / (Math.PI / 2));
+            const facing = ((quarter % 4) + 4) % 4;
+            const placedType = stairOrientedType(itemId, facing);
+            if (!isStairBlock(placedType) || !setBlockAt(x, y, z, placedType)) return;
+            if (!creative && !consumeSelected(selectedSlot)) {
+                setBlockAt(x, y, z, BLOCK.AIR);
+                return;
+            }
+            sendPlayerAction("place");
+            sendBlockChange(x, y, z, placedType);
+            notifyBlockChange(x, y, z, placedType);
+            return;
+        }
         if (itemId === 16) {
             if (tryIgniteTNT(scene, camera, itemId, ndcX, ndcY)) {
                 if (!creative) consumeSelected(selectedSlot);
@@ -200,7 +226,7 @@ export function setupInteraction(scene, camera) {
             }
             return;
         }
-        if (itemId > BLOCK.FURNACE && !isSlabBlock(itemId)) return;
+        if (itemId > BLOCK.FURNACE && !isSlabBlock(itemId) && !(itemId >= 75 && itemId <= 84)) return;
         const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
         if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId, ndcX, ndcY)) {
