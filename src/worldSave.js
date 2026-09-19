@@ -1,4 +1,4 @@
-import { setBlockAt } from "./world.js";
+import { setBlockAt, beginWorldEditBatch, endWorldEditBatch } from "./world.js";
 import { loadCloudWorld, saveCloudWorld } from "./cloudWorlds.js";
 import { isWorldDeleted } from "./worlds.js";
 
@@ -244,58 +244,122 @@ async function resolveActiveWorld(seed, switchId) {
     return activeWorld || world;
 }
 
-async function loadSavedBlocks(seed, switchId) {
-    const normalizedSeed = normalizeSeed(seed);
-    if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
+async function applySavedBlocks(seed, switchId, world, blocks) {
+    if (!world || switchId !== worldSwitchId || activeWorldSeed !== seed || isWorldDeleted(seed)) return false;
 
+    activeWorld = { ...world, seed, blocks: { ...(blocks || {}) } };
+    activeWorldSeed = seed;
+    activeBlocks = { ...activeWorld.blocks };
+    worldDirty = false;
+
+    // Apply all saved blocks as one world-edit batch. This rebuilds each affected
+    // chunk once instead of rebuilding the mesh after every restored block.
+    beginWorldEditBatch();
     try {
-        const localWorld = await resolveActiveWorld(normalizedSeed, switchId);
-        if (switchId !== worldSwitchId || isWorldDeleted(normalizedSeed)) return null;
-
-        const cloudWorld = await loadCloudWorld(normalizedSeed, localWorld).catch(() => null);
-        if (switchId !== worldSwitchId || isWorldDeleted(normalizedSeed)) return null;
-
-        const storedBlocks = readLocalBlockSnapshot(normalizedSeed);
-        const cloudBlocks = cloudWorld?.blocks && typeof cloudWorld.blocks === "object" ? cloudWorld.blocks : {};
-        const localBlocks = localWorld?.blocks && typeof localWorld.blocks === "object" ? localWorld.blocks : {};
-
-        const liveEdits = {};
-        for (const change of pendingChanges.values()) {
-            liveEdits[`${change.x},${change.y},${change.z}`] = change.type;
-        }
-
-        const mergedBlocks = { ...cloudBlocks, ...localBlocks, ...storedBlocks, ...liveEdits };
-
-        const baseWorld = cloudWorld || localWorld;
-        if (!baseWorld) return null;
-        const storedPreview = baseWorld?.preview || localWorld?.preview || readWorldPreview(normalizedSeed);
-        activeWorld = { ...baseWorld, seed: normalizedSeed, blocks: mergedBlocks, preview: storedPreview || null };
-        activeWorldSeed = normalizedSeed;
-        activeBlocks = { ...mergedBlocks };
-        worldDirty = false;
-
-        const storage = await waitForStorage();
-        if (!storage || isWorldDeleted(normalizedSeed) || switchId !== worldSwitchId) return null;
-        await storage.saveLocalWorld(activeWorld).catch(() => {});
-
         for (const [key, value] of Object.entries(activeBlocks)) {
-            if (switchId !== worldSwitchId || activeWorldSeed !== normalizedSeed || isWorldDeleted(normalizedSeed)) return null;
+            if (switchId !== worldSwitchId || activeWorldSeed !== seed || isWorldDeleted(seed)) return false;
             const parts = key.split(",").map(Number);
             if (parts.length !== 3 || parts.some(number => !Number.isFinite(number))) continue;
             const type = Number(value);
             if (!Number.isFinite(type)) continue;
             setBlockAt(parts[0], parts[1], parts[2], type);
         }
+    } finally {
+        endWorldEditBatch();
+    }
 
-        writeLocalBlockSnapshot(normalizedSeed, activeBlocks);
-        startLiveCloudSave();
+    // Rebuild the queued chunks once after the whole snapshot has been applied.
+    // The world module handles the actual queued mesh work.
+    writeLocalBlockSnapshot(seed, activeBlocks);
+    startLiveCloudSave();
+    return true;
+}
+
+async function reconcileCloudWorld(seed, switchId, localWorld, localBlocks) {
+    try {
+        const cloudWorld = await loadCloudWorld(seed, localWorld).catch(() => null);
+        if (!cloudWorld || switchId !== worldSwitchId || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
+
+        const cloudBlocks = cloudWorld.blocks && typeof cloudWorld.blocks === "object" ? cloudWorld.blocks : {};
+        const liveEdits = {};
+        for (const change of pendingChanges.values()) {
+            liveEdits[\`${change.x},${change.y},${change.z}\`] = change.type;
+        }
+
+        // Preserve the existing precedence: cloud -> local world -> local snapshot
+        // -> edits made while the cloud request was in flight.
+        const mergedBlocks = { ...cloudBlocks, ...(localWorld?.blocks || {}), ...localBlocks, ...liveEdits };
+        const storedPreview = cloudWorld.preview || localWorld?.preview || readWorldPreview(seed);
+        const changed = Object.keys(mergedBlocks).length !== Object.keys(activeBlocks).length ||
+            Object.entries(mergedBlocks).some(([key, value]) => Number(activeBlocks[key]) !== Number(value));
+
+        if (!changed) {
+            activeWorld = { ...activeWorld, ...cloudWorld, seed, blocks: activeBlocks, preview: storedPreview || null };
+            return;
+        }
+
+        const previousBlocks = activeBlocks;
+        activeWorld = { ...cloudWorld, seed, blocks: mergedBlocks, preview: storedPreview || null };
+        activeBlocks = { ...mergedBlocks };
+
+        beginWorldEditBatch();
+        try {
+            for (const [key, value] of Object.entries(mergedBlocks)) {
+                const previous = Number(previousBlocks[key]);
+                const next = Number(value);
+                if (previous === next) continue;
+                const parts = key.split(",").map(Number);
+                if (parts.length !== 3 || parts.some(number => !Number.isFinite(number))) continue;
+                if (!Number.isFinite(next)) continue;
+                setBlockAt(parts[0], parts[1], parts[2], next);
+            }
+        } finally {
+            endWorldEditBatch();
+        }
+
+        writeLocalBlockSnapshot(seed, activeBlocks);
+        const storage = await waitForStorage();
+        if (storage?.saveLocalWorld && switchId === worldSwitchId && activeWorldSeed === seed && !isWorldDeleted(seed)) {
+            await storage.saveLocalWorld(activeWorld).catch(() => {});
+        }
+    } catch (error) {
+        console.warn("Could not reconcile saved cloud world:", error);
+    }
+}
+
+async function loadSavedBlocks(seed, switchId) {
+    const normalizedSeed = normalizeSeed(seed);
+    if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
+
+    try {
+        // Fast path: local browser storage is the first source of truth for startup.
+        // Do not make the player wait on Firebase/auth/network before entering the world.
+        const localWorld = await resolveActiveWorld(normalizedSeed, switchId);
+        if (switchId !== worldSwitchId || isWorldDeleted(normalizedSeed)) return null;
+
+        const storedBlocks = readLocalBlockSnapshot(normalizedSeed);
+        const localBlocks = localWorld?.blocks && typeof localWorld.blocks === "object" ? localWorld.blocks : {};
+
+        const liveEdits = {};
+        for (const change of pendingChanges.values()) {
+            liveEdits[\`${change.x},${change.y},${change.z}\`] = change.type;
+        }
+
+        const mergedBlocks = { ...localBlocks, ...storedBlocks, ...liveEdits };
+        const baseWorld = localWorld || { seed: normalizedSeed };
+        const storedPreview = baseWorld.preview || readWorldPreview(normalizedSeed);
+
+        // Enter immediately using the local snapshot. Cloud reconciliation continues
+        // in the background and only applies differences if it finds anything newer.
+        await applySavedBlocks(normalizedSeed, switchId, { ...baseWorld, preview: storedPreview || null }, mergedBlocks);
+
+        void reconcileCloudWorld(normalizedSeed, switchId, localWorld, storedBlocks);
         return activeWorld;
     } catch (error) {
         console.warn("Could not load saved world blocks:", error);
         return null;
     }
 }
-
 async function saveCloudNow(world, switchId = worldSwitchId) {
     if (!world || isWorldDeleted(world.seed)) return false;
     if (switchId !== worldSwitchId || activeWorldSeed !== world.seed || activeWorld !== world) return false;
