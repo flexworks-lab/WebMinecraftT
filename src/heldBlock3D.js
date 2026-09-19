@@ -94,6 +94,7 @@ let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
 let visible = false;
 function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
 function isStairItem(itemId) { return Number(itemId) >= 75 && Number(itemId) <= 84; }
+function isStairItem(itemId) { return Number(itemId) >= 75 && Number(itemId) <= 84; }
 let selectedItemId = 0;
 let selectedSlot = 0;
 let action = null;
@@ -192,12 +193,28 @@ function updateBlock() {
     }
 
     if (ITEM_MATERIALS[selectedItemId]) {
-        blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.64, 0.64), getMaterials(selectedItemId));
-        blockMesh.position.set(-0.04, isSlabItem(selectedItemId) ? -0.06 : 0.10, 0);
-        blockMesh.scale.y = isSlabItem(selectedItemId) ? 0.5 : 1;
-        blockMesh.rotation.set(0.06, 0.32, -0.06);
-        blockMesh.renderOrder = 2;
-        heldRoot.add(blockMesh);
+        if (isStairItem(selectedItemId)) {
+            const material = getMaterials(selectedItemId);
+            const topMaterial = Array.isArray(material) ? material.map(m => m?.clone?.() || m) : (material?.clone?.() || material);
+            const lower = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.32, 0.64), material);
+            lower.position.set(-0.04, -0.02, 0);
+            const upper = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.64), topMaterial);
+            upper.position.set(0.12, 0.14, 0);
+            const stairGroup = new THREE.Group();
+            stairGroup.add(lower, upper);
+            stairGroup.position.set(-0.04, 0.10, 0);
+            stairGroup.rotation.set(0.06, 0.32, -0.06);
+            stairGroup.renderOrder = 2;
+            blockMesh = stairGroup;
+            heldRoot.add(stairGroup);
+        } else {
+            blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.64, 0.64), getMaterials(selectedItemId));
+            blockMesh.position.set(-0.04, isSlabItem(selectedItemId) ? -0.06 : 0.10, 0);
+            blockMesh.scale.y = isSlabItem(selectedItemId) ? 0.5 : 1;
+            blockMesh.rotation.set(0.06, 0.32, -0.06);
+            blockMesh.renderOrder = 2;
+            heldRoot.add(blockMesh);
+        }
     }
 }
 
