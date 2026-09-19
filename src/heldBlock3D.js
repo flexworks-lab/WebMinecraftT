@@ -82,7 +82,9 @@ const ITEM_MATERIALS = {
     56: oakPlankMaterial, 57: acaciaPlanksMaterial, 58: bambooPlanksMaterial, 59: birchPlanksMaterial, 60: crimsonPlanksMaterial,
     61: darkOakPlanksMaterial, 62: junglePlanksMaterial, 63: mangrovePlanksMaterial, 64: sprucePlanksMaterial, 65: warpedPlanksMaterial,
     66: chiseledDeepslateMaterial, 67: cobbledDeepslateMaterial, 68: crackedDeepslateBricksMaterial, 69: crackedDeepslateTilesMaterial,
-    70: deepslateMaterial, 71: deepslateBricksMaterial, 72: deepslateTilesMaterial, 73: polishedDeepslateMaterial, 74: reinforcedDeepslateMaterial
+    70: deepslateMaterial, 71: deepslateBricksMaterial, 72: deepslateTilesMaterial, 73: polishedDeepslateMaterial, 74: reinforcedDeepslateMaterial,
+    75: oakPlankMaterial, 76: acaciaPlanksMaterial, 77: bambooPlanksMaterial, 78: birchPlanksMaterial, 79: crimsonPlanksMaterial,
+    80: darkOakPlanksMaterial, 81: junglePlanksMaterial, 82: mangrovePlanksMaterial, 83: sprucePlanksMaterial, 84: warpedPlanksMaterial
 };
 
 const BASE_POS = new THREE.Vector3(0.84, -0.76, -1.05);
@@ -157,7 +159,13 @@ function updateVisibility() {
 
 function clearHeldMesh() {
     if (blockMesh) {
-        blockMesh.geometry.dispose();
+        blockMesh.traverse?.(child => {
+            if (!child?.isMesh) return;
+            child.geometry?.dispose?.();
+            if (Array.isArray(child.material)) child.material.forEach(m => m?.dispose?.());
+            else child.material?.dispose?.();
+        });
+        blockMesh.geometry?.dispose?.();
         if (Array.isArray(blockMesh.material)) blockMesh.material.forEach(m => m?.dispose?.());
         else blockMesh.material?.dispose?.();
         heldRoot.remove(blockMesh);
