@@ -434,3 +434,30 @@ export function sendItemClaim(dropId) { if (!isMultiplayerActive() || !dropId) r
 export function syncWorldChanges() { if (isMultiplayerActive()) applyPendingWorldChanges(); }
 export function getRemotePlayers() { return remotePlayers; }
 export function openMultiplayerMenu() { ensureMenu(); document.querySelectorAll("#multiplayerMenu").forEach(element => { if (element !== overlay) element.remove(); }); const stalePlayerPanel = document.getElementById("globalPlayerPanel"); const stalePlayerCount = document.getElementById("globalPlayerCount"); if (stalePlayerPanel) stalePlayerPanel.style.setProperty("display","none","important"); if (stalePlayerCount) stalePlayerCount.style.setProperty("display","none","important"); overlay.style.display = "flex"; overlay.setAttribute("aria-hidden", "false"); roomView?.classList.remove("roomsStyle","create-open"); overlay.querySelector("#multiplayerPanel")?.classList.remove("rooms-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("servers-screen"); }
+export function joinMultiplayerRoomFromInvite(details = {}) {
+    ensureMenu();
+    const server = overlay?.querySelector("#multiplayerServer");
+    const room = overlay?.querySelector("#multiplayerRoom");
+    const publicButton = overlay?.querySelector("#multiplayerPublic");
+    const privateButton = overlay?.querySelector("#multiplayerPrivate");
+    const joinButton = overlay?.querySelector("#multiplayerJoin");
+    if (!server || !room || !joinButton) return false;
+    const websocket = String(details.websocket || "").trim();
+    const roomName = String(details.room || "default").trim().slice(0, 32);
+    if (!websocket || !/^wss?:\/\//i.test(websocket) || !roomName || roomName.toLowerCase() === "player") return false;
+    window.__webminecraftMultiplayerMode = String(details.mode || "survival").toLowerCase() === "creative" ? "creative" : "survival";
+    server.value = websocket;
+    room.value = roomName;
+    if (details.private) privateButton?.click(); else publicButton?.click();
+    if (details.private) {
+        const code = String(details.privateCode || "").trim().slice(0, 16);
+        const codeInput = overlay.querySelector("#multiplayerPrivateCodeInput");
+        if (codeInput) codeInput.value = code;
+    }
+    openMultiplayerMenu();
+    requestAnimationFrame(() => {
+        joinButton.disabled = false;
+        joinButton.click();
+    });
+    return true;
+}
