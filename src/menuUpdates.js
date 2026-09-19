@@ -144,11 +144,11 @@ function setupPauseMenu(){
         "#pauseMain{position:relative;min-width:0;display:flex;flex-direction:column;align-items:center;padding:clamp(34px,7vh,72px) 7vw 28px;box-sizing:border-box;justify-content:flex-start}",
         "#pauseLogo{display:block;width:min(500px,76%);height:auto;max-height:150px;object-fit:contain;image-rendering:auto;margin:0 0 clamp(22px,4vh,38px);filter:drop-shadow(4px 5px 0 rgba(0,0,0,.62))}",
         "#pauseLogoSub{margin-top:-18px;margin-bottom:clamp(34px,7vh,62px);color:#a9cf87;font:800 11px Arial,sans-serif;letter-spacing:4px;text-shadow:0 2px 0 #111}",
-        "#pauseNav{width:min(390px,100%);margin-left:-7vw;margin-top:clamp(18px,4vh,34px);display:grid;gap:7px}",
+        "#pauseNav{width:min(390px,100%);margin-left:-7vw;margin-top:clamp(88px,14vh,150px);display:grid;gap:6px}",
         ".pauseButton{width:100%;min-height:48px;padding:11px 16px;border:2px solid #111;border-top-color:#919791;border-left-color:#919791;background:linear-gradient(#6b6d6b,#505451);color:#fff;font-family:Arial Black,Arial,sans-serif;font-size:13px;text-align:left;cursor:pointer;text-shadow:2px 2px 0 #222;box-shadow:inset 2px 2px 0 rgba(255,255,255,.08),inset -3px -3px 0 rgba(0,0,0,.28),0 4px 0 #111}",
         ".pauseButton:hover{filter:brightness(1.08)}.pauseButton:active{transform:translateY(2px)}",
         "#pauseResume{background:linear-gradient(#6f9a4d,#537539);font-size:14px}",
-        "#pauseNavSpacer{height:clamp(8px,1.5vh,14px)}#pauseQuit{margin-top:clamp(10px,2vh,16px);background:linear-gradient(#5c5c5c,#434343)}",
+        "#pauseNavSpacer{display:none}#pauseQuit{margin-top:2px;background:linear-gradient(#5c5c5c,#434343)}",
         "#pauseSide{min-width:0;min-height:0;padding:clamp(28px,5vh,50px) clamp(22px,3vw,42px);box-sizing:border-box;background:linear-gradient(180deg,#252a26,#1a1f1b);border-left:2px solid #111;box-shadow:inset 2px 0 0 rgba(255,255,255,.04)}",
         "#pauseSideHeader{padding-bottom:16px;border-bottom:2px solid #101310}#pauseSideTitle{margin:0;font-family:Arial Black,Arial,sans-serif;font-size:24px;text-shadow:3px 3px 0 #111}#pauseSideSubtitle{margin:7px 0 0;color:#9ea79f;font-size:11px;line-height:1.45}",
         ".pauseInfoCard{margin-top:14px;padding:13px;background:#202520;border:2px solid #101310;border-top-color:#687166;border-left-color:#687166;box-shadow:3px 3px 0 rgba(0,0,0,.3)}.pauseInfoLabel{color:#8f9b90;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px}.pauseInfoValue{margin-top:5px;color:#fff;font-family:Arial Black,Arial,sans-serif;font-size:14px;line-height:1.4;overflow-wrap:anywhere;text-shadow:1px 1px 0 #111}.pauseMeta{margin-top:8px;color:#afb7b0;font-size:10px;line-height:1.6}",
@@ -161,7 +161,7 @@ function setupPauseMenu(){
     const overlay=document.createElement("div"); overlay.id="pauseMenu"; overlay.setAttribute("aria-hidden","true");
     overlay.innerHTML=[
         "<div id=\"pauseShell\">",
-        "<main id=\"pauseMain\"><div id=\"pauseLogo\">MINECRAFT</div><div id=\"pauseLogoSub\">WEB EDITION</div><div id=\"pauseNav\">",
+        "<main id=\"pauseMain\"><img id=\"pauseLogo\" src=\"" + import.meta.env.BASE_URL + "WEBMINECRAFT-9-12-2026.png\" alt=\"WebMinecraftT\"><div id=\"pauseLogoSub\">WEB EDITION</div><div id=\"pauseNav\">",
         "<button id=\"pauseResume\" class=\"pauseButton\" type=\"button\">Resume Game</button>",
         "<button id=\"pauseSettings\" class=\"pauseButton\" type=\"button\">Settings</button>",
         "<div id=\"pauseNavSpacer\"></div><button id=\"pauseQuit\" class=\"pauseButton\" type=\"button\">Save &amp; Quit</button></div><div id=\"pauseFooter\">WebMinecraftT</div></main>",
