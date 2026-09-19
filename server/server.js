@@ -67,7 +67,7 @@ function loadRoomsState() {
         const now = Date.now();
         for (const data of saved) {
             const id = String(data?.id || "").trim();
-            if (!id || rooms.has(id)) continue;
+            if (!id || id.toLowerCase() === "player" || rooms.has(id)) continue;
 
             const emptySince = Number(data?.emptySince) || Number(data?.createdAt) || now;
             if (now - emptySince > EMPTY_ROOM_RETENTION_MS) continue;
