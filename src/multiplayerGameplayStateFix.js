@@ -47,7 +47,7 @@ function installCreativeInputBridge() {
         const canvas = document.querySelector("body > canvas");
         if (!canvas) return;
 
-        if (document.pointerLockElement !== document.body && typeof document.body.requestPointerLock === "function") {
+        if (!window.__webminecraftHasOpenMenu?.() && document.pointerLockElement !== document.body && typeof document.body.requestPointerLock === "function") {
             try { document.body.requestPointerLock(); } catch {}
         }
 
