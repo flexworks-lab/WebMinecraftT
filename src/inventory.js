@@ -80,7 +80,17 @@ const ITEM_TYPES = [
     { id: 71, name: "Deepslate Bricks Slab", texture: "deepslate_bricks.png", category: "natural" },
     { id: 72, name: "Deepslate Tiles Slab", texture: "deepslate_tiles.png", category: "natural" },
     { id: 73, name: "Polished Deepslate Slab", texture: "polished_deepslate.png", category: "natural" },
-    { id: 74, name: "Reinforced Deepslate Slab", texture: "reinforced_deepslate_top.png", category: "natural" }
+    { id: 74, name: "Reinforced Deepslate Slab", texture: "reinforced_deepslate_top.png", category: "natural" },
+    { id: 75, name: "Oak Planks Stairs", texture: "oak_planks.png", category: "natural" },
+    { id: 76, name: "Acacia Planks Stairs", texture: "acacia_planks.png", category: "natural" },
+    { id: 77, name: "Bamboo Planks Stairs", texture: "bamboo_planks.png", category: "natural" },
+    { id: 78, name: "Birch Planks Stairs", texture: "birch_planks.png", category: "natural" },
+    { id: 79, name: "Crimson Planks Stairs", texture: "crimson_planks.png", category: "natural" },
+    { id: 80, name: "Dark Oak Planks Stairs", texture: "dark_oak_planks.png", category: "natural" },
+    { id: 81, name: "Jungle Planks Stairs", texture: "jungle_planks.png", category: "natural" },
+    { id: 82, name: "Mangrove Planks Stairs", texture: "mangrove_planks.png", category: "natural" },
+    { id: 83, name: "Spruce Planks Stairs", texture: "spruce_planks.png", category: "natural" },
+    { id: 84, name: "Warped Planks Stairs", texture: "warped_planks.png", category: "natural" }
 ];
 
 const TAB_DEFS = [
@@ -103,6 +113,12 @@ const CATALOG_GROUPS = {
         label: "Planks",
         primaryId: 13,
         variantIds: [13, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+    },
+    wood_stairs: {
+        id: "wood_stairs",
+        label: "Stairs",
+        primaryId: 75,
+        variantIds: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
     }
 };
 
@@ -214,10 +230,9 @@ function itemsForCurrentTab() {
     if (selectedTab === "search") return ITEM_TYPES.filter(itemMatchesSearch);
     if (selectedTab === "survival") return [];
     if (selectedTab === "building") {
-        const group = CATALOG_GROUPS.wood_planks;
-        const groupItems = group.variantIds.map(getItem).filter(Boolean).filter(itemMatchesSearch);
-        if (!searchQuery.trim()) return [{ group: true, ...group, variants: groupItems }];
-        return groupItems;
+        const groups = Object.values(CATALOG_GROUPS);
+        if (!searchQuery.trim()) return groups.map(group => ({ group: true, ...group, variants: group.variantIds.map(getItem).filter(Boolean) }));
+        return groups.flatMap(group => group.variantIds.map(getItem).filter(Boolean).filter(itemMatchesSearch));
     }
     return ITEM_TYPES.filter(item => item.category === selectedTab && !item.name.toLowerCase().includes("planks") && itemMatchesSearch(item));
 }
@@ -231,6 +246,7 @@ function iconSvg(name) {
 }
 
 function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
+function isStairItem(itemId) { return Number(itemId) >= 75 && Number(itemId) <= 84; }
 
 function itemVisual(item) {
     if (item.texture) {
