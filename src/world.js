@@ -38,7 +38,15 @@ const BLOCK = {
     OAK_PLANKS_SLAB: 56, ACACIA_PLANKS_SLAB: 57, BAMBOO_PLANKS_SLAB: 58, BIRCH_PLANKS_SLAB: 59, CRIMSON_PLANKS_SLAB: 60,
     DARK_OAK_PLANKS_SLAB: 61, JUNGLE_PLANKS_SLAB: 62, MANGROVE_PLANKS_SLAB: 63, SPRUCE_PLANKS_SLAB: 64, WARPED_PLANKS_SLAB: 65,
     CHISELED_DEEPSLATE_SLAB: 66, COBBLED_DEEPSLATE_SLAB: 67, CRACKED_DEEPSLATE_BRICKS_SLAB: 68, CRACKED_DEEPSLATE_TILES_SLAB: 69,
-    DEEPSLATE_SLAB: 70, DEEPSLATE_BRICKS_SLAB: 71, DEEPSLATE_TILES_SLAB: 72, POLISHED_DEEPSLATE_SLAB: 73, REINFORCED_DEEPSLATE_SLAB: 74
+    DEEPSLATE_SLAB: 70, DEEPSLATE_BRICKS_SLAB: 71, DEEPSLATE_TILES_SLAB: 72, POLISHED_DEEPSLATE_SLAB: 73, REINFORCED_DEEPSLATE_SLAB: 74,
+    OAK_PLANKS_STAIRS: 75, ACACIA_PLANKS_STAIRS: 76, BAMBOO_PLANKS_STAIRS: 77, BIRCH_PLANKS_STAIRS: 78, CRIMSON_PLANKS_STAIRS: 79,
+    DARK_OAK_PLANKS_STAIRS: 80, JUNGLE_PLANKS_STAIRS: 81, MANGROVE_PLANKS_STAIRS: 82, SPRUCE_PLANKS_STAIRS: 83, WARPED_PLANKS_STAIRS: 84,
+    OAK_PLANKS_STAIRS_E: 85, ACACIA_PLANKS_STAIRS_E: 86, BAMBOO_PLANKS_STAIRS_E: 87, BIRCH_PLANKS_STAIRS_E: 88, CRIMSON_PLANKS_STAIRS_E: 89,
+    DARK_OAK_PLANKS_STAIRS_E: 90, JUNGLE_PLANKS_STAIRS_E: 91, MANGROVE_PLANKS_STAIRS_E: 92, SPRUCE_PLANKS_STAIRS_E: 93, WARPED_PLANKS_STAIRS_E: 94,
+    OAK_PLANKS_STAIRS_S: 95, ACACIA_PLANKS_STAIRS_S: 96, BAMBOO_PLANKS_STAIRS_S: 97, BIRCH_PLANKS_STAIRS_S: 98, CRIMSON_PLANKS_STAIRS_S: 99,
+    DARK_OAK_PLANKS_STAIRS_S: 100, JUNGLE_PLANKS_STAIRS_S: 101, MANGROVE_PLANKS_STAIRS_S: 102, SPRUCE_PLANKS_STAIRS_S: 103, WARPED_PLANKS_STAIRS_S: 104,
+    OAK_PLANKS_STAIRS_W: 105, ACACIA_PLANKS_STAIRS_W: 106, BAMBOO_PLANKS_STAIRS_W: 107, BIRCH_PLANKS_STAIRS_W: 108, CRIMSON_PLANKS_STAIRS_W: 109,
+    DARK_OAK_PLANKS_STAIRS_W: 110, JUNGLE_PLANKS_STAIRS_W: 111, MANGROVE_PLANKS_STAIRS_W: 112, SPRUCE_PLANKS_STAIRS_W: 113, WARPED_PLANKS_STAIRS_W: 114
 };
 
 const WORLD_TYPE_PREFIX = "webminecraft-world-type-";
@@ -384,6 +392,10 @@ function generateTrees(chunk){if(isFlatWorld())return;const startX=chunk.x*CHUNK
 function applyWorldOverridesToChunk(chunk){for(const[key,type]of worldOverrides){const[x,y,z]=key.split(',').map(Number);if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;if(Math.floor(x/CHUNK_SIZE)!==chunk.x||Math.floor(z/CHUNK_SIZE)!==chunk.z||y<MIN_Y||y>WORLD_TOP)continue;const localX=((x%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,localZ=((z%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;chunk.blocks[blockIndex(localX,y,localZ)]=type;}}
 function generateChunk(chunkX,chunkZ){const key=chunkKey(chunkX,chunkZ);if(chunks.has(key))return chunks.get(key);const chunk={x:chunkX,z:chunkZ,blocks:new Uint8Array(CHUNK_SIZE*CHUNK_SIZE*CHUNK_HEIGHT),generated:false,waterMesh:null};chunks.set(key,chunk);generateTerrain(chunk);generateTrees(chunk);applyWorldOverridesToChunk(chunk);chunk.generated=true;return chunk;}
 export function isSlabBlock(type){return Number(type)>=BLOCK.STONE_SLAB&&Number(type)<=BLOCK.REINFORCED_DEEPSLATE_SLAB;}
+export function isStairBlock(type){return Number(type)>=BLOCK.OAK_PLANKS_STAIRS&&Number(type)<=BLOCK.WARPED_PLANKS_STAIRS_W;}
+export function stairBaseType(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return n;return 75+((Math.floor(n)-75)%10);}
+export function stairFacing(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return 0;return Math.floor((n-75)/10);}
+export function stairOrientedType(baseType,facing=0){const base=stairBaseType(baseType);if(!isStairBlock(base))return base;return 75+((base-75)%10)+((Math.floor(facing)%4+4)%4)*10;}
 function blockShape(type,y){const slab=isSlabBlock(type);return{minY:y-0.5,maxY:slab?y:y+0.5};}
 export function getBlockCollisionBounds(type,y){return blockShape(type,y);}
 export function slabParentType(type){switch(type){
@@ -398,7 +410,7 @@ export function slabParentType(type){switch(type){
     case BLOCK.DEEPSLATE_TILES_SLAB:return BLOCK.DEEPSLATE_TILES; case BLOCK.POLISHED_DEEPSLATE_SLAB:return BLOCK.POLISHED_DEEPSLATE; case BLOCK.REINFORCED_DEEPSLATE_SLAB:return BLOCK.REINFORCED_DEEPSLATE;
     default:return type;
 }}
-function materialIndexFor(type,faceIndex){type=slabParentType(type);switch(type){
+function materialIndexFor(type,faceIndex){type=isStairBlock(type)?stairBaseType(type):slabParentType(type);switch(type){
     case BLOCK.GRASS:return faceIndex===2?1:faceIndex===3?2:0;
     case BLOCK.DIRT:return 2;
     case BLOCK.STONE:return 3;
@@ -462,28 +474,66 @@ function horizontalFaceVisible(currentMin,currentMax,neighborType,neighborY){
     return{minY:currentMin,maxY:currentMax};
 }
 function getUnderwaterShade(surfaceY,y,x,z){if(surfaceY>=SEA_LEVEL||y>surfaceY)return 1;const depth=Math.max(0,SEA_LEVEL-(y+.5)),depthT=THREE.MathUtils.clamp(depth/24,0,1),shade=THREE.MathUtils.lerp(1,.43,depthT),variation=.96+hash3D(x,y,z,1911)*.06;return THREE.MathUtils.clamp(shade*variation,.40,1);}
+function appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,minX,maxX,minY,maxY,minZ,maxZ,materialType,underwaterShade,skipBottom=false){
+    const faces = [
+        { normal:[1,0,0], corners:[[maxX,maxY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[maxX,maxY,maxZ]] },
+        { normal:[-1,0,0], corners:[[minX,maxY,maxZ],[minX,minY,maxZ],[minX,minY,minZ],[minX,maxY,minZ]] },
+        { normal:[0,1,0], corners:[[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]] },
+        { normal:[0,-1,0], corners:[[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]] },
+        { normal:[0,0,1], corners:[[maxX,maxY,maxZ],[maxX,minY,maxZ],[minX,minY,maxZ],[minX,maxY,maxZ]] },
+        { normal:[0,0,-1], corners:[[minX,maxY,minZ],[minX,minY,minZ],[maxX,minY,minZ],[maxX,maxY,minZ]] }
+    ];
+    for(let faceIndex=0;faceIndex<6;faceIndex++){
+        if(skipBottom&&faceIndex===3)continue;
+        const face=faces[faceIndex],base=vertexRef.count++;
+        for(const corner of face.corners){
+            positions.push(x+corner[0],y+corner[1],z+corner[2]);
+            normals.push(face.normal[0],face.normal[1],face.normal[2]);
+            colors.push(underwaterShade,underwaterShade,underwaterShade);
+        }
+        uvs.push(0,0,0,1,1,1,1,0);
+        const matIndex=materialIndexFor(materialType,faceIndex);
+        groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
+    }
+}
+function stairUpperBounds(facing){
+    if(facing===0)return[-0.5,0.5,-0.5,0];
+    if(facing===1)return[0,0.5,-0.5,0.5];
+    if(facing===2)return[-0.5,0.5,0,0.5];
+    return[-0.5,0,-0.5,0.5];
+}
 function makeGeometryForChunk(chunk){
     const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);
-    let vertexCount=0;
+    const vertexRef={count:0};
     for(let lx=0;lx<CHUNK_SIZE;lx++)for(let lz=0;lz<CHUNK_SIZE;lz++){
         const x=chunk.x*CHUNK_SIZE+lx,z=chunk.z*CHUNK_SIZE+lz,surfaceY=getTerrainProfile(x,z).height;
         for(let y=MIN_Y;y<=WORLD_TOP;y++){
             const type=chunk.blocks[blockIndex(lx,y,lz)];
             if(!isSolid(type))continue;
-            const shape=blockShape(type,y),underwaterShade=getUnderwaterShade(surfaceY,y,x,z);
+            const underwaterShade=getUnderwaterShade(surfaceY,y,x,z);
+            if(isStairBlock(type)){
+                const facing=stairFacing(type);
+                // Lower half of the stair.
+                appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,-0.5,0.5,-0.5,0,-0.5,0.5,type,underwaterShade,false);
+                // Upper half sits on the high side.
+                const [minX,maxX,minZ,maxZ]=stairUpperBounds(facing);
+                appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,minX,maxX,0,0.5,minZ,maxZ,type,underwaterShade,true);
+                continue;
+            }
+            const shape=blockShape(type,y);
             for(let faceIndex=0;faceIndex<6;faceIndex++){
                 const face=FACES[faceIndex],neighborY=y+face.normal[1],neighbor=getBlockType(x+face.normal[0],neighborY,z+face.normal[2]);
                 let faceMinY=shape.minY,faceMaxY=shape.maxY;
                 if(faceIndex===0||faceIndex===1||faceIndex===4||faceIndex===5){
                     const visible=horizontalFaceVisible(faceMinY,faceMaxY,neighbor,neighborY);
                     if(!visible)continue;
-                    faceMinY=visible.minY; faceMaxY=visible.maxY;
+                    faceMinY=visible.minY;faceMaxY=visible.maxY;
                 }else if(isSolid(neighbor)&&neighbor!==BLOCK.LEAVES){
                     const neighborShape=blockShape(neighbor,neighborY);
                     if(faceIndex===2&&neighborShape.minY<=shape.maxY+0.0001)continue;
                     if(faceIndex===3&&neighborShape.maxY>=shape.minY-0.0001)continue;
                 }
-                const base=vertexCount;
+                const base=vertexRef.count;
                 for(const corner of face.corners){
                     const px=x+corner[0],pz=z+corner[2];
                     let py=y+corner[1];
@@ -494,15 +544,15 @@ function makeGeometryForChunk(chunk){
                     normals.push(face.normal[0],face.normal[1],face.normal[2]);
                     colors.push(underwaterShade,underwaterShade,underwaterShade);
                 }
-                const sideTopV=type===BLOCK.DIRT_PATH&&faceIndex!==2?15/16:(isSlabBlock(type)&&faceIndex!==2&&faceIndex!==3?0.5:1);
+                const sideTopV=type===BLOCK.DIRT_PATH&&faceIndex!==2?(15/16):(isSlabBlock(type)&&faceIndex!==2&&faceIndex!==3?0.5:1);
                 uvs.push(0,0,0,sideTopV,1,sideTopV,1,0);
                 const matIndex=materialIndexFor(type,faceIndex);
                 groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
-                vertexCount+=4;
+                vertexRef.count+=4;
             }
         }
     }
-    if(vertexCount===0)return null;
+    if(vertexRef.count===0)return null;
     const geometry=new THREE.BufferGeometry();
     geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
     geometry.setAttribute("normal",new THREE.Float32BufferAttribute(normals,3));
