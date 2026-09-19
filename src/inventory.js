@@ -732,7 +732,7 @@ function closeInventory() {
     document.body.classList.remove("inventory-open");
     document.getElementById("inventoryScreen")?.classList.remove("open");
     updateHeldBlock();
-    if (!document.body.classList.contains("mobile-mode") && document.body.classList.contains("webminecraft-in-world")) {
+    if (!document.body.classList.contains("mobile-mode") && document.body.classList.contains("webminecraft-in-world") && !window.__webminecraftHasOpenMenu?.()) {
         try { document.body.requestPointerLock?.(); } catch {}
     }
 }
