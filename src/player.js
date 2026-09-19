@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
-import { getBlockAt, getBlockCollisionBounds } from "./world.js";
+import { getBlockAt, getBlockCollisionBounds, getBlockCollisionBoxes } from "./world.js";
 import { isDoorBlocking } from "./door.js";
 import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";
 import { getSelectedItemId } from "./inventory.js";
@@ -57,14 +57,14 @@ function getBox(camera) {
 }
 
 function intersectsBlock(box, x, y, z) {
-    const bounds = getBlockCollisionBounds(getBlockAt(x, y, z), y);
-    return (
-        box.minX < x + 0.5 - HORIZONTAL_SKIN &&
-        box.maxX > x - 0.5 + HORIZONTAL_SKIN &&
+    const collisionBoxes = getBlockCollisionBoxes(getBlockAt(x, y, z), x, y, z);
+    return collisionBoxes.some(bounds =>
+        box.minX < bounds.maxX - HORIZONTAL_SKIN &&
+        box.maxX > bounds.minX + HORIZONTAL_SKIN &&
         box.minY < bounds.maxY - SKIN &&
         box.maxY > bounds.minY + SKIN &&
-        box.minZ < z + 0.5 - HORIZONTAL_SKIN &&
-        box.maxZ > z - 0.5 + HORIZONTAL_SKIN
+        box.minZ < bounds.maxZ - HORIZONTAL_SKIN &&
+        box.maxZ > bounds.minZ + HORIZONTAL_SKIN
     );
 }
 
@@ -102,18 +102,16 @@ function updateGround(camera) {
         for (let z = minZ; z <= maxZ; z++) {
             for (let y = blockY - 1; y <= blockY + 1; y++) {
                 if (!blockExists(x, y, z)) continue;
-
-                const horizontalOverlap =
-                    box.maxX > x - 0.5 + HORIZONTAL_SKIN &&
-                    box.minX < x + 0.5 - HORIZONTAL_SKIN &&
-                    box.maxZ > z - 0.5 + HORIZONTAL_SKIN &&
-                    box.minZ < z + 0.5 - HORIZONTAL_SKIN;
-
-                if (!horizontalOverlap) continue;
-
-                const top = getBlockCollisionBounds(getBlockAt(x, y, z), y).maxY;
-                if (top <= footY + 0.08 && top >= footY - 0.08) {
-                    bestTop = Math.max(bestTop, top);
+                for (const bounds of getBlockCollisionBoxes(getBlockAt(x, y, z), x, y, z)) {
+                    const horizontalOverlap =
+                        box.maxX > bounds.minX + HORIZONTAL_SKIN &&
+                        box.minX < bounds.maxX - HORIZONTAL_SKIN &&
+                        box.maxZ > bounds.minZ + HORIZONTAL_SKIN &&
+                        box.minZ < bounds.maxZ - HORIZONTAL_SKIN;
+                    if (!horizontalOverlap) continue;
+                    if (bounds.maxY <= footY + 0.08 && bounds.maxY >= footY - 0.08) {
+                        bestTop = Math.max(bestTop, bounds.maxY);
+                    }
                 }
             }
         }
@@ -127,7 +125,6 @@ function updateGround(camera) {
     }
     onGround = false;
 }
-
 function getNearbyBlockRange(box) {
     return {
         minX: Math.floor(box.minX - 0.5),
@@ -173,8 +170,9 @@ function moveX(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const blockMinX = x - 0.5;
-            const bounds = getBlockCollisionBounds(getBlockAt(x, y, z), y);
-            if (box.minX < blockMinX && box.maxY > bounds.minY + SKIN && box.minY < bounds.maxY - SKIN && box.maxZ > z - 0.5 + HORIZONTAL_SKIN && box.minZ < z + 0.5 - HORIZONTAL_SKIN) nearest = Math.min(nearest, blockMinX - HALF_WIDTH - HORIZONTAL_SKIN);
+            for (const bounds of getBlockCollisionBoxes(getBlockAt(x, y, z), x, y, z)) {
+                if (box.minX < bounds.minX && box.maxY > bounds.minY + SKIN && box.minY < bounds.maxY - SKIN && box.maxZ > bounds.minZ + HORIZONTAL_SKIN && box.minZ < bounds.maxZ - HORIZONTAL_SKIN) nearest = Math.min(nearest, bounds.minX - HALF_WIDTH - HORIZONTAL_SKIN);
+            }
         }
         if (nearest !== Infinity) { camera.position.x = nearest; resolved = true; }
     } else {
@@ -182,8 +180,9 @@ function moveX(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const blockMaxX = x + 0.5;
-            const bounds = getBlockCollisionBounds(getBlockAt(x, y, z), y);
-            if (box.maxX > blockMaxX && box.maxY > bounds.minY + SKIN && box.minY < bounds.maxY - SKIN && box.maxZ > z - 0.5 + HORIZONTAL_SKIN && box.minZ < z + 0.5 - HORIZONTAL_SKIN) nearest = Math.max(nearest, blockMaxX + HALF_WIDTH + HORIZONTAL_SKIN);
+            for (const bounds of getBlockCollisionBoxes(getBlockAt(x, y, z), x, y, z)) {
+                if (box.maxX > bounds.maxX && box.maxY > bounds.minY + SKIN && box.minY < bounds.maxY - SKIN && box.maxZ > bounds.minZ + HORIZONTAL_SKIN && box.minZ < bounds.maxZ - HORIZONTAL_SKIN) nearest = Math.max(nearest, bounds.maxX + HALF_WIDTH + HORIZONTAL_SKIN);
+            }
         }
         if (nearest !== -Infinity) { camera.position.x = nearest; resolved = true; }
     }
@@ -207,8 +206,9 @@ function moveZ(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const blockMinZ = z - 0.5;
-            const bounds = getBlockCollisionBounds(getBlockAt(x, y, z), y);
-            if (box.minZ < blockMinZ && box.maxX > x - 0.5 + HORIZONTAL_SKIN && box.minX < x + 0.5 - HORIZONTAL_SKIN && box.maxY > bounds.minY + SKIN && box.minY < bounds.maxY - SKIN) nearest = Math.min(nearest, blockMinZ - HALF_WIDTH - HORIZONTAL_SKIN);
+            for (const bounds of getBlockCollisionBoxes(getBlockAt(x, y, z), x, y, z)) {
+                if (box.minZ < bounds.minZ && box.maxX > bounds.minX + HORIZONTAL_SKIN && box.minX < bounds.maxX - HORIZONTAL_SKIN && box.maxY > bounds.minY + SKIN && box.minY < bounds.maxY - SKIN) nearest = Math.min(nearest, bounds.minZ - HALF_WIDTH - HORIZONTAL_SKIN);
+            }
         }
         if (nearest !== Infinity) { camera.position.z = nearest; resolved = true; }
     } else {
@@ -216,8 +216,9 @@ function moveZ(camera, amount) {
         for (let x = range.minX; x <= range.maxX; x++) for (let y = range.minY; y <= range.maxY; y++) for (let z = range.minZ; z <= range.maxZ; z++) {
             if (!blockExists(x, y, z)) continue;
             const blockMaxZ = z + 0.5;
-            const bounds = getBlockCollisionBounds(getBlockAt(x, y, z), y);
-            if (box.maxZ > blockMaxZ && box.maxX > x - 0.5 + HORIZONTAL_SKIN && box.minX < x + 0.5 - HORIZONTAL_SKIN && box.maxY > bounds.minY + SKIN && box.minY < bounds.maxY - SKIN) nearest = Math.max(nearest, blockMaxZ + HALF_WIDTH + HORIZONTAL_SKIN);
+            for (const bounds of getBlockCollisionBoxes(getBlockAt(x, y, z), x, y, z)) {
+                if (box.maxZ > bounds.maxZ && box.maxX > bounds.minX + HORIZONTAL_SKIN && box.minX < bounds.maxX - HORIZONTAL_SKIN && box.maxY > bounds.minY + SKIN && box.minY < bounds.maxY - SKIN) nearest = Math.max(nearest, bounds.maxZ + HALF_WIDTH + HORIZONTAL_SKIN);
+            }
         }
         if (nearest !== -Infinity) { camera.position.z = nearest; resolved = true; }
     }
