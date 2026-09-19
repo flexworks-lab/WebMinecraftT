@@ -230,9 +230,17 @@ function hasOpenMenuScreen() {
     return selectors.some(selector => {
         const element = document.querySelector(selector);
         if (!element) return false;
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        const visible = style.display !== "none"
+            && style.visibility !== "hidden"
+            && Number(style.opacity || 1) > 0
+            && rect.width > 0
+            && rect.height > 0;
+        if (!visible) return false;
         if (element.classList.contains("open")) return true;
         if (element.getAttribute("aria-hidden") === "false") return true;
-        return getComputedStyle(element).display !== "none";
+        return style.pointerEvents !== "none";
     });
 }
 window.__webminecraftHasOpenMenu = hasOpenMenuScreen;
