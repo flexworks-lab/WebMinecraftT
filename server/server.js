@@ -1,5 +1,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 const PORT = Number(process.env.PORT) || 2567;
@@ -11,8 +13,96 @@ const BROADCAST_INTERVAL = 1000 / TICK_RATE;
 const MAX_NAME_LENGTH = 16;
 const MAX_MESSAGE_SIZE = 16 * 1024;
 const MAX_CHAT_LENGTH = 120;
+const EMPTY_ROOM_RETENTION_MS = 24 * 60 * 60 * 1000;
+const ROOM_STATE_FILE = process.env.ROOM_STATE_FILE || "./data/rooms.json";
 
 const rooms = new Map();
+let roomSaveTimer = null;
+
+function roomStatePath() {
+    return path.resolve(ROOM_STATE_FILE);
+}
+
+function serializeRoom(room) {
+    return {
+        id: room.id,
+        name: room.name,
+        ownerName: room.ownerName,
+        isPrivate: Boolean(room.isPrivate),
+        mode: normalizeMode(room.mode),
+        privateCode: room.privateCode || "",
+        worldSeed: room.worldSeed,
+        createdAt: Number(room.createdAt) || Date.now(),
+        emptySince: Number(room.emptySince) || null,
+        blockChanges: [...room.blockChanges.values()],
+    };
+}
+
+function saveRoomsStateSync() {
+    try {
+        const file = roomStatePath();
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, JSON.stringify([...rooms.values()].map(serializeRoom)), "utf8");
+    } catch (error) {
+        console.warn("Could not persist multiplayer room state:", error);
+    }
+}
+
+function scheduleRoomStateSave() {
+    clearTimeout(roomSaveTimer);
+    roomSaveTimer = setTimeout(() => {
+        roomSaveTimer = null;
+        saveRoomsStateSync();
+    }, 250);
+}
+
+function loadRoomsState() {
+    try {
+        const file = roomStatePath();
+        if (!fs.existsSync(file)) return;
+        const saved = JSON.parse(fs.readFileSync(file, "utf8"));
+        if (!Array.isArray(saved)) return;
+
+        const now = Date.now();
+        for (const data of saved) {
+            const id = String(data?.id || "").trim();
+            if (!id || rooms.has(id)) continue;
+
+            const emptySince = Number(data?.emptySince) || Number(data?.createdAt) || now;
+            if (now - emptySince > EMPTY_ROOM_RETENTION_MS) continue;
+
+            const room = createRoom(
+                sanitizeRoom(id),
+                sanitizeName(data?.ownerName),
+                Boolean(data?.isPrivate),
+                String(data?.privateCode || "").slice(0, 16),
+                normalizeMode(data?.mode)
+            );
+            room.name = room.id;
+            room.worldSeed = Number(data?.worldSeed) >>> 0;
+            room.createdAt = Number(data?.createdAt) || now;
+            room.emptySince = emptySince;
+            room.blockChanges = new Map();
+
+            for (const change of Array.isArray(data?.blockChanges) ? data.blockChanges : []) {
+                const x = Math.floor(numberOr(change?.x, NaN));
+                const y = Math.floor(numberOr(change?.y, NaN));
+                const z = Math.floor(numberOr(change?.z, NaN));
+                const type = Math.floor(numberOr(change?.type ?? change?.blockType, NaN));
+                if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 74) continue;
+                room.blockChanges.set(`${x},${y},${z}`, { x, y, z, type });
+            }
+
+            while (room.blockChanges.size > 50000) {
+                const oldest = room.blockChanges.keys().next().value;
+                if (oldest) room.blockChanges.delete(oldest); else break;
+            }
+            rooms.set(room.id, room);
+        }
+    } catch (error) {
+        console.warn("Could not load persisted multiplayer rooms:", error);
+    }
+}
 
 function normalizeMode(value) {
     return String(value ?? "").toLowerCase() === "creative" ? "creative" : "survival";
@@ -31,6 +121,7 @@ function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "
         blockChanges: new Map(),
         drops: new Map(),
         createdAt: Date.now(),
+        emptySince: Date.now(),
     };
 }
 
@@ -46,7 +137,20 @@ function getOrCreateRoom(id, ownerName = "Player", isPrivate = false, mode = "su
 function cleanRoom(room) {
     if (!room || room.players.size !== 0) return;
     if (rooms.get(room.id) !== room) return;
-    rooms.delete(room.id);
+    if (!room.emptySince) room.emptySince = Date.now();
+    scheduleRoomStateSave();
+}
+
+function pruneExpiredEmptyRooms() {
+    const now = Date.now();
+    let changed = false;
+    for (const room of rooms.values()) {
+        if (room.players.size > 0 || !room.emptySince) continue;
+        if (now - room.emptySince <= EMPTY_ROOM_RETENTION_MS) continue;
+        rooms.delete(room.id);
+        changed = true;
+    }
+    if (changed) saveRoomsStateSync();
 }
 
 function sanitizeRoom(value) {
@@ -267,6 +371,8 @@ function handleMessage(ws, raw, state) {
             lastUpdate: 0,
         };
         room.players.set(player.id, player);
+        room.emptySince = null;
+        scheduleRoomStateSave();
         state.player = player;
         state.joined = true;
 
@@ -282,6 +388,8 @@ function handleMessage(ws, raw, state) {
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
             players: [...room.players.values()].map(publicPlayer),
+            worldChanges: [...room.blockChanges.values()],
+            worldDrops: [...room.drops.values()],
         });
         broadcast(room, { type: "player_joined", player: publicPlayer(player) }, player.id);
         broadcast(room, { type: "chat_system", text: `${player.name} has joined the server` });
@@ -317,7 +425,10 @@ function handleMessage(ws, raw, state) {
             const oldest = room.blockChanges.keys().next().value;
             if (oldest) room.blockChanges.delete(oldest); else break;
         }
-        if (changes.length) broadcast(room, { type: "block_changes", changes }, player.id);
+        if (changes.length) {
+            scheduleRoomStateSave();
+            broadcast(room, { type: "block_changes", changes }, player.id);
+        }
         return;
     }
     if (message.type === "slab_place") {
@@ -330,6 +441,7 @@ function handleMessage(ws, raw, state) {
         if (!room) return;
         const key = `${x},${y},${z}`;
         room.blockChanges.set(key, { x, y, z, type });
+        scheduleRoomStateSave();
         while (room.blockChanges.size > 50000) {
             const oldest = room.blockChanges.keys().next().value;
             if (oldest) room.blockChanges.delete(oldest); else break;
@@ -348,6 +460,7 @@ function handleMessage(ws, raw, state) {
         const key = `${x},${y},${z}`;
         const change = { x, y, z, type };
         room.blockChanges.set(key, change);
+        scheduleRoomStateSave();
         if (room.blockChanges.size > 50000) {
             const oldest = room.blockChanges.keys().next().value;
             if (oldest) room.blockChanges.delete(oldest);
@@ -446,6 +559,11 @@ function handleMessage(ws, raw, state) {
     }
     if (message.type === "ping") send(ws, { type: "pong", time: Date.now() });
 }
+
+loadRoomsState();
+setInterval(pruneExpiredEmptyRooms, 60 * 60 * 1000).unref?.();
+process.on("SIGTERM", () => { saveRoomsStateSync(); process.exit(0); });
+process.on("SIGINT", () => { saveRoomsStateSync(); process.exit(0); });
 
 const httpServer = http.createServer((request, response) => {
     if (request.url === "/health") {
