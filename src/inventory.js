@@ -91,12 +91,11 @@ const TAB_DEFS = [
     { id: "survival", label: "Survival Inventory", icon: "▣" }
 ];
 
-const BUILD_BLOCK_IDS = new Set([
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 18, 19, 20, 21, 22,
-    23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-    47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62,
-    63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74
-]);
+const BUILD_BLOCK_IDS = new Set(
+    ITEM_TYPES
+        .filter(item => ![15, 16, 17].includes(item.id))
+        .map(item => item.id)
+);
 
 const CATALOG_GROUPS = {
     wood_planks: {
@@ -448,7 +447,7 @@ function renderCatalog() {
         const primary = getItem(item.primaryId);
         if (!primary) return "";
         const expanded = EXPANDED_CATALOG_GROUPS.has(item.id);
-        const groupButton = `<div class="catalogSlot catalogGroup" data-catalog-group="${item.id}" title="Expand ${item.label}">${itemVisual(primary)}<span class="catalogGroupLabel">${item.label}</span><span class="catalogGroupBadge">${expanded ? "−" : "+"}</span></div>`;
+        const groupButton = `<button type="button" class="catalogSlot catalogGroup" data-catalog-group="${item.id}" title="${expanded ? "Collapse" : "Expand"} ${item.label}" aria-expanded="${expanded}">${itemVisual(primary)}<span class="catalogGroupLabel">${item.label}</span><span class="catalogGroupBadge" aria-hidden="true">${expanded ? "−" : "+"}</span></button>`;
         const variants = expanded
             ? `<div class="catalogGroupExpanded">${item.variants.map(variant => slotMarkup(variant)).join("")}</div>`
             : "";
