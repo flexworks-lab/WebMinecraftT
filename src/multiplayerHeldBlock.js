@@ -187,8 +187,14 @@ function updateHeldMesh(avatar, player) {
         }
     }
     const slab = itemId >= 51 && itemId <= 74;
-    mesh.scale.y = slab ? 0.5 : 1;
-    mesh.position.y = slab ? 0.81 : 0.87;
+    const stair = itemId >= 75 && itemId <= 84;
+    if (stair) {
+        mesh.scale.set(0.94, 0.5, 0.94);
+        mesh.position.y = 0.81;
+    } else {
+        mesh.scale.y = slab ? 0.5 : 1;
+        mesh.position.y = slab ? 0.81 : 0.87;
+    }
     mesh.visible = true;
 }
 
