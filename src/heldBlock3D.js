@@ -93,6 +93,7 @@ const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURICo
 let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
 let visible = false;
 function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
+function isStairItem(itemId) { return Number(itemId) >= 75 && Number(itemId) <= 84; }
 let selectedItemId = 0;
 let selectedSlot = 0;
 let action = null;
