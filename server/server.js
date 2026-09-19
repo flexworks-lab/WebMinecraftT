@@ -571,7 +571,7 @@ function handleMessage(ws, raw, state) {
             player.rotation.y = numberOr(message.rotation.y, player.rotation.y);
             player.rotation.z = numberOr(message.rotation.z, player.rotation.z);
             const heldItemId = Math.floor(numberOr(message.heldItemId, player.heldItemId));
-            player.heldItemId = heldItemId >= 0 && heldItemId <= 74 ? heldItemId : 0;
+            player.heldItemId = heldItemId >= 0 && heldItemId <= 114 ? heldItemId : 0;
             player.sneaking = Boolean(message.sneaking);
             player.action = ["idle", "walk", "mine", "place", "jump"].includes(message.action) ? message.action : "idle";
             player.lastUpdate = now;
