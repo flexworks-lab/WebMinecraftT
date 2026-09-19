@@ -394,6 +394,7 @@ function generateChunk(chunkX,chunkZ){const key=chunkKey(chunkX,chunkZ);if(chunk
 export function isSlabBlock(type){return Number(type)>=BLOCK.STONE_SLAB&&Number(type)<=BLOCK.REINFORCED_DEEPSLATE_SLAB;}
 export function isStairBlock(type){return Number(type)>=BLOCK.OAK_PLANKS_STAIRS&&Number(type)<=BLOCK.WARPED_PLANKS_STAIRS_W;}
 export function stairBaseType(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return n;return 75+((Math.floor(n)-75)%10);}
+function stairPlankType(type){const base=stairBaseType(type);return isStairBlock(base)?13+(base-75):base;}
 export function stairFacing(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return 0;return Math.floor((n-75)/10);}
 export function stairOrientedType(baseType,facing=0){const base=stairBaseType(baseType);if(!isStairBlock(base))return base;return 75+((base-75)%10)+((Math.floor(facing)%4+4)%4)*10;}
 function blockShape(type,y){const slab=isSlabBlock(type);return{minY:y-0.5,maxY:slab?y:y+0.5};}
@@ -410,7 +411,7 @@ export function slabParentType(type){switch(type){
     case BLOCK.DEEPSLATE_TILES_SLAB:return BLOCK.DEEPSLATE_TILES; case BLOCK.POLISHED_DEEPSLATE_SLAB:return BLOCK.POLISHED_DEEPSLATE; case BLOCK.REINFORCED_DEEPSLATE_SLAB:return BLOCK.REINFORCED_DEEPSLATE;
     default:return type;
 }}
-function materialIndexFor(type,faceIndex){type=isStairBlock(type)?stairBaseType(type):slabParentType(type);switch(type){
+function materialIndexFor(type,faceIndex){type=isStairBlock(type)?stairPlankType(type):slabParentType(type);switch(type){
     case BLOCK.GRASS:return faceIndex===2?1:faceIndex===3?2:0;
     case BLOCK.DIRT:return 2;
     case BLOCK.STONE:return 3;
@@ -485,7 +486,7 @@ function appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,m
     ];
     for(let faceIndex=0;faceIndex<6;faceIndex++){
         if(skipBottom&&faceIndex===3)continue;
-        const face=faces[faceIndex],base=vertexRef.count++;
+        const face=faces[faceIndex],base=vertexRef.count;
         for(const corner of face.corners){
             positions.push(x+corner[0],y+corner[1],z+corner[2]);
             normals.push(face.normal[0],face.normal[1],face.normal[2]);
@@ -494,6 +495,7 @@ function appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,m
         uvs.push(0,0,0,1,1,1,1,0);
         const matIndex=materialIndexFor(materialType,faceIndex);
         groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
+        vertexRef.count+=4;
     }
 }
 function stairUpperBounds(facing){
