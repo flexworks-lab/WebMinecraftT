@@ -75,7 +75,17 @@ const ITEM_DEFS = [
     { id: 71, name: "Deepslate Bricks Slab", texture: "deepslate_bricks.png" },
     { id: 72, name: "Deepslate Tiles Slab", texture: "deepslate_tiles.png" },
     { id: 73, name: "Polished Deepslate Slab", texture: "polished_deepslate.png" },
-    { id: 74, name: "Reinforced Deepslate Slab", texture: "reinforced_deepslate_top.png" }
+    { id: 74, name: "Reinforced Deepslate Slab", texture: "reinforced_deepslate_top.png" },
+    { id: 75, name: "Oak Planks Stairs", texture: "oak_planks.png" },
+    { id: 76, name: "Acacia Planks Stairs", texture: "acacia_planks.png" },
+    { id: 77, name: "Bamboo Planks Stairs", texture: "bamboo_planks.png" },
+    { id: 78, name: "Birch Planks Stairs", texture: "birch_planks.png" },
+    { id: 79, name: "Crimson Planks Stairs", texture: "crimson_planks.png" },
+    { id: 80, name: "Dark Oak Planks Stairs", texture: "dark_oak_planks.png" },
+    { id: 81, name: "Jungle Planks Stairs", texture: "jungle_planks.png" },
+    { id: 82, name: "Mangrove Planks Stairs", texture: "mangrove_planks.png" },
+    { id: 83, name: "Spruce Planks Stairs", texture: "spruce_planks.png" },
+    { id: 84, name: "Warped Planks Stairs", texture: "warped_planks.png" }
 ];
 
 let root = null;
