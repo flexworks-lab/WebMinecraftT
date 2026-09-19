@@ -394,7 +394,7 @@ function generateChunk(chunkX,chunkZ){const key=chunkKey(chunkX,chunkZ);if(chunk
 export function isSlabBlock(type){return Number(type)>=BLOCK.STONE_SLAB&&Number(type)<=BLOCK.REINFORCED_DEEPSLATE_SLAB;}
 export function isStairBlock(type){return Number(type)>=BLOCK.OAK_PLANKS_STAIRS&&Number(type)<=BLOCK.WARPED_PLANKS_STAIRS_W;}
 export function stairBaseType(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return n;return 75+((Math.floor(n)-75)%10);}
-function stairPlankType(type){const base=stairBaseType(type);return isStairBlock(base)?13+(base-75):base;}
+function stairPlankType(type){const base=stairBaseType(type);if(!isStairBlock(base))return base;return [BLOCK.OAK_PLANKS,BLOCK.ACACIA_PLANKS,BLOCK.BAMBOO_PLANKS,BLOCK.BIRCH_PLANKS,BLOCK.CRIMSON_PLANKS,BLOCK.DARK_OAK_PLANKS,BLOCK.JUNGLE_PLANKS,BLOCK.MANGROVE_PLANKS,BLOCK.SPRUCE_PLANKS,BLOCK.WARPED_PLANKS][base-75] ?? BLOCK.OAK_PLANKS;}
 export function stairFacing(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return 0;return Math.floor((n-75)/10);}
 export function stairOrientedType(baseType,facing=0){const base=stairBaseType(baseType);if(!isStairBlock(base))return base;return 75+((base-75)%10)+((Math.floor(facing)%4+4)%4)*10;}
 function blockShape(type,y){const slab=isSlabBlock(type);return{minY:y-0.5,maxY:slab?y:y+0.5};}
