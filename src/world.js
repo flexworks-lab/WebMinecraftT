@@ -398,7 +398,35 @@ function stairPlankType(type){const base=stairBaseType(type);if(!isStairBlock(ba
 export function stairFacing(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return 0;return Math.floor((n-75)/10);}
 export function stairOrientedType(baseType,facing=0){const base=stairBaseType(baseType);if(!isStairBlock(base))return base;return 75+((base-75)%10)+((Math.floor(facing)%4+4)%4)*10;}
 function blockShape(type,y){const slab=isSlabBlock(type);return{minY:y-0.5,maxY:slab?y:y+0.5};}
-export function getBlockCollisionBounds(type,y){return blockShape(type,y);}
+function stairCollisionBoxes(type,y){
+    const facing=stairFacing(type);
+    const [upperMinX,upperMaxX,upperMinZ,upperMaxZ]=stairUpperBounds(facing);
+    return [
+        { minX:-0.5, maxX:0.5, minY:y-0.5, maxY:y, minZ:-0.5, maxZ:0.5 },
+        { minX:upperMinX, maxX:upperMaxX, minY:y, maxY:y+0.5, minZ:upperMinZ, maxZ:upperMaxZ }
+    ];
+}
+export function getBlockCollisionBoxes(type,x,y,z){
+    const n=Number(type);
+    if(!Number.isFinite(n)||n===BLOCK.AIR)return [];
+    if(isStairBlock(n)){
+        return stairCollisionBoxes(n,y).map(box=>({
+            minX:x+box.minX,maxX:x+box.maxX,
+            minY:box.minY,maxY:box.maxY,
+            minZ:z+box.minZ,maxZ:z+box.maxZ
+        }));
+    }
+    const bounds=blockShape(n,y);
+    return [{minX:x-0.5,maxX:x+0.5,minY:bounds.minY,maxY:bounds.maxY,minZ:z-0.5,maxZ:z+0.5}];
+}
+export function getBlockCollisionBounds(type,y){
+    const boxes=getBlockCollisionBoxes(type,0,y);
+    if(!boxes.length)return{minY:y-0.5,maxY:y-0.5};
+    return{
+        minY:Math.min(...boxes.map(box=>box.minY)),
+        maxY:Math.max(...boxes.map(box=>box.maxY))
+    };
+}
 export function slabParentType(type){switch(type){
     case BLOCK.STONE_SLAB:return BLOCK.STONE; case BLOCK.COBBLESTONE_SLAB:return BLOCK.COBBLESTONE;
     case BLOCK.STONE_BRICKS_SLAB:return BLOCK.STONE_BRICKS; case BLOCK.CRACKED_STONE_BRICKS_SLAB:return BLOCK.CRACKED_STONE_BRICKS; case BLOCK.MOSSY_STONE_BRICKS_SLAB:return BLOCK.MOSSY_STONE_BRICKS;
