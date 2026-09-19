@@ -358,16 +358,20 @@ export function setupControls() {
             touchInput.sneak = false;
         }
     });
-    document.addEventListener("pointerdown", event => {
+    const relockGameplayMouse = event => {
         if (event.button !== 0 || document.body.classList.contains("mobile-mode")) return;
-        if (typeof window.__webminecraftHasOpenMenu === "function" && window.__webminecraftHasOpenMenu()) return;
         if (!document.body.classList.contains("webminecraft-in-world")) return;
+        if (typeof window.__webminecraftHasOpenMenu === "function" && window.__webminecraftHasOpenMenu()) return;
         const target = event.target instanceof Element ? event.target : null;
-        if (target?.closest("button,input,textarea,select,a,[role=\"button\"],#touchControls,#settingsButton,#mobilePauseButton")) return;
-        if (document.pointerLockElement !== document.body) {
-            try { document.body.requestPointerLock?.(); } catch {}
-        }
-    }, true);
+        if (target?.closest("button,input,textarea,select,option,a,[role=\"button\"],#touchControls,#settingsButton,#mobilePauseButton")) return;
+        if (document.pointerLockElement === document.body) return;
+        try {
+            document.body.focus?.({ preventScroll: true });
+            document.body.requestPointerLock?.();
+        } catch {}
+    };
+    window.addEventListener("mousedown", relockGameplayMouse, true);
+    window.addEventListener("pointerdown", relockGameplayMouse, true);
 
     window.addEventListener("mousemove", event => {
         if (document.pointerLockElement !== document.body || document.body.classList.contains("mobile-mode")) return;
