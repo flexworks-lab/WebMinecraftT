@@ -533,6 +533,56 @@ function stairUpperBounds(facing){
     if(facing===2)return[-0.5,0.5,0,0.5];
     return[-0.5,0,-0.5,0.5];
 }
+function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,materialType,underwaterShade,facing){
+    const quarter=((Math.floor(Number(facing))%4)+4)%4;
+    const cos=Math.cos(-quarter*Math.PI/2);
+    const sin=Math.sin(-quarter*Math.PI/2);
+    const rotatePoint=(p)=>{
+        const rx=p[0]*cos-p[2]*sin;
+        const rz=p[0]*sin+p[2]*cos;
+        return [rx,p[1],rz];
+    };
+    const rotateNormal=(n)=>{
+        const rx=n[0]*cos-n[2]*sin;
+        const rz=n[0]*sin+n[2]*cos;
+        return [rx,n[1],rz];
+    };
+    const faces=[
+        {normal:[1,0,0],points:[[.5,-.5,-.5],[.5,.5,-.5],[.5,.5,0],[.5,0,0],[.5,0,.5],[.5,-.5,.5]],index:0},
+        {normal:[-1,0,0],points:[[-.5,-.5,.5],[-.5,0,.5],[-.5,0,0],[-.5,.5,0],[-.5,.5,-.5],[-.5,-.5,-.5]],index:1},
+        {normal:[0,1,0],points:[[-.5,.5,-.5],[-.5,.5,0],[.5,.5,0],[.5,.5,-.5]],index:2},
+        {normal:[0,1,0],points:[[-.5,0,0],[-.5,0,.5],[.5,0,.5],[.5,0,0]],index:2},
+        {normal:[0,-1,0],points:[[-.5,-.5,.5],[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5]],index:3},
+        {normal:[0,0,1],points:[[-.5,-.5,.5],[.5,-.5,.5],[.5,0,.5],[-.5,0,.5]],index:4},
+        {normal:[0,0,1],points:[[-.5,0,0],[.5,0,0],[.5,.5,0],[-.5,.5,0]],index:4},
+        {normal:[0,0,-1],points:[[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5],[.5,-.5,-.5]],index:5}
+    ];
+    for(const face of faces){
+        const base=vertexRef.count;
+        const rotatedNormal=rotateNormal(face.normal);
+        const rotatedPoints=face.points.map(rotatePoint);
+        rotatedPoints.forEach((p,idx)=>{
+            positions.push(x+p[0],y+p[1],z+p[2]);
+            normals.push(rotatedNormal[0],rotatedNormal[1],rotatedNormal[2]);
+            colors.push(underwaterShade,underwaterShade,underwaterShade);
+        });
+        if(rotatedPoints.length===4){
+            uvs.push(0,0,0,1,1,1,1,0);
+            groups[materialIndexFor(materialType,face.index)].push(base,base+1,base+2,base,base+2,base+3);
+            vertexRef.count+=4;
+        }else{
+            const uStep=1/(rotatedPoints.length-1);
+            for(let i=0;i<rotatedPoints.length;i++){
+                const p=rotatedPoints[i];
+                uvs.push(i*uStep,(p[1]+.5));
+            }
+            for(let i=1;i<rotatedPoints.length-1;i++){
+                groups[materialIndexFor(materialType,face.index)].push(base,base+i,base+i+1);
+            }
+            vertexRef.count+=rotatedPoints.length;
+        }
+    }
+}
 function makeGeometryForChunk(chunk){
     const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);
     const vertexRef={count:0};
@@ -543,12 +593,7 @@ function makeGeometryForChunk(chunk){
             if(!isSolid(type))continue;
             const underwaterShade=getUnderwaterShade(surfaceY,y,x,z);
             if(isStairBlock(type)){
-                const facing=stairFacing(type);
-                // Lower half of the stair.
-                appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,-0.5,0.5,-0.5,0,-0.5,0.5,type,underwaterShade,false,0.5);
-                // Upper half sits on the high side.
-                const [minX,maxX,minZ,maxZ]=stairUpperBounds(facing);
-                appendBoxGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,minX,maxX,0,0.5,minZ,maxZ,type,underwaterShade,true,0.5);
+                appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,type,underwaterShade,stairFacing(type));
                 continue;
             }
             const shape=blockShape(type,y);
