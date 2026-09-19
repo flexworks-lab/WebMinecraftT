@@ -358,6 +358,14 @@ export function setupControls() {
             touchInput.sneak = false;
         }
     });
+    document.addEventListener("pointerdown", event => {
+        if (event.button !== 0 || document.body.classList.contains("mobile-mode")) return;
+        if (typeof window.__webminecraftHasOpenMenu === "function" && window.__webminecraftHasOpenMenu()) return;
+        if (!document.body.classList.contains("webminecraft-in-world")) return;
+        if (!(event.target instanceof HTMLCanvasElement)) return;
+        if (document.pointerLockElement !== document.body) document.body.requestPointerLock?.();
+    }, true);
+
     window.addEventListener("mousemove", event => {
         if (document.pointerLockElement !== document.body || document.body.classList.contains("mobile-mode")) return;
         const sensitivity = Number(localStorage.getItem("webminecraft-mouse-sensitivity") || 1);
