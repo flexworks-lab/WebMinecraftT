@@ -214,11 +214,10 @@ function itemsForCurrentTab() {
     if (selectedTab === "search") return ITEM_TYPES.filter(itemMatchesSearch);
     if (selectedTab === "survival") return [];
     if (selectedTab === "building") {
-        const items = ITEM_TYPES.filter(item => BUILD_BLOCK_IDS.has(item.id) && !CATALOG_GROUPS.wood_planks.variantIds.includes(item.id) && itemMatchesSearch(item));
         const group = CATALOG_GROUPS.wood_planks;
-        const groupItems = group.variantIds.map(getItem).filter(Boolean);
-        if (!searchQuery.trim()) return [{ group: true, ...group, variants: groupItems }, ...items];
-        return ITEM_TYPES.filter(item => BUILD_BLOCK_IDS.has(item.id) && itemMatchesSearch(item));
+        const groupItems = group.variantIds.map(getItem).filter(Boolean).filter(itemMatchesSearch);
+        if (!searchQuery.trim()) return [{ group: true, ...group, variants: groupItems }];
+        return groupItems;
     }
     return ITEM_TYPES.filter(item => item.category === selectedTab && !item.name.toLowerCase().includes("planks") && itemMatchesSearch(item));
 }
@@ -314,7 +313,7 @@ button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;f
 .catalogGroupLabel{position:absolute;left:2px;right:22px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
 .catalogGroup:hover .catalogGroupLabel{opacity:1}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
-.catalogIcon{position:absolute;inset:6px;display:block}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
+.catalogIcon{position:absolute;inset:6px;display:block}.catalogGroupExpanded .catalogIcon{background-color:#656565}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
 .catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#858585;color:#fff}
 .catalogColor{background:var(--item-color);box-shadow:inset 3px 3px 0 rgba(255,255,255,.14),inset -3px -3px 0 rgba(0,0,0,.2)}
 .catalogName{position:absolute;left:2px;right:2px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
