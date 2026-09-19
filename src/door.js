@@ -148,6 +148,16 @@ function createDoorMesh(x, y, z, facing = "z", openAngle = 0) {
     const panel = new THREE.Group();
     panel.rotation.y = preservedAngle;
 
+    // Door selection outline: a full two-block-tall outline that follows the door panel.
+    const outlineGeometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(0.92, 2.04, 0.14));
+    const outlineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.95, depthTest: true });
+    const outline = new THREE.LineSegments(outlineGeometry, outlineMaterial);
+    outline.name = "doorSelectionOutline";
+    outline.position.set(0.43, 1, 0);
+    outline.visible = false;
+    outline.renderOrder = 25;
+    panel.add(outline);
+
     const bottom = new THREE.Mesh(
         new THREE.BoxGeometry(0.86, 1, 0.10),
         new THREE.MeshPhongMaterial({ map: DOOR_TEXTURE, color: 0xffffff, side: THREE.DoubleSide })
@@ -259,9 +269,17 @@ function reconcileDoors(force = false) {
     }
 }
 
+function setDoorOutlinesVisible(activeDoor = null) {
+    for (const door of doors.values()) {
+        const outline = door.children[0]?.getObjectByName("doorSelectionOutline");
+        if (outline) outline.visible = door === activeDoor;
+    }
+}
+
 function getDoorTarget() {
     if (!scene || !camera) return null;
     reconcileDoors(true);
+    setDoorOutlinesVisible(null);
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     raycaster.near = 0.01;
@@ -273,6 +291,7 @@ function getDoorTarget() {
     if (!hit) return null;
     const door = getDoorFromObject(hit.object);
     if (!door) return null;
+    setDoorOutlinesVisible(door);
     const base = door.userData.doorBase;
     return { door, x: base.x, y: base.y, z: base.z, hit, normal: hit.face?.normal?.clone() || new THREE.Vector3(0, 0, 1), isDoor: true };
 }
