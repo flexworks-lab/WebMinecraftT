@@ -83,7 +83,9 @@ const ITEM_MATERIALS = {
     56: oakPlankMaterial, 57: acaciaPlanksMaterial, 58: bambooPlanksMaterial, 59: birchPlanksMaterial, 60: crimsonPlanksMaterial,
     61: darkOakPlanksMaterial, 62: junglePlanksMaterial, 63: mangrovePlanksMaterial, 64: sprucePlanksMaterial, 65: warpedPlanksMaterial,
     66: chiseledDeepslateMaterial, 67: cobbledDeepslateMaterial, 68: crackedDeepslateBricksMaterial, 69: crackedDeepslateTilesMaterial,
-    70: deepslateMaterial, 71: deepslateBricksMaterial, 72: deepslateTilesMaterial, 73: polishedDeepslateMaterial, 74: reinforcedDeepslateMaterial
+    70: deepslateMaterial, 71: deepslateBricksMaterial, 72: deepslateTilesMaterial, 73: polishedDeepslateMaterial, 74: reinforcedDeepslateMaterial,
+    75: oakPlankMaterial, 76: acaciaPlanksMaterial, 77: bambooPlanksMaterial, 78: birchPlanksMaterial, 79: crimsonPlanksMaterial,
+    80: darkOakPlanksMaterial, 81: junglePlanksMaterial, 82: mangrovePlanksMaterial, 83: sprucePlanksMaterial, 84: warpedPlanksMaterial
 };
 
 const avatars = new Set();
@@ -104,6 +106,17 @@ function makeMaterials(itemId) {
     const source = ITEM_MATERIALS[itemId];
     if (!source) return null;
     return Array.isArray(source) ? source.map(cloneMaterial) : cloneMaterial(source);
+}
+
+function createStairHeldMesh(material){
+    const group = new THREE.Group();
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.21,0.42), material);
+    lower.position.y = -0.105;
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.21,0.21), material.clone?.() || material);
+    upper.position.set(0,-0.0,-0.105);
+    group.add(lower,upper);
+    group.userData.isHeldStair = true;
+    return group;
 }
 
 function createHeldMesh() {
