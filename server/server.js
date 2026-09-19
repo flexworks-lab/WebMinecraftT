@@ -30,6 +30,7 @@ function serializeRoom(room) {
         ownerName: room.ownerName,
         isPrivate: Boolean(room.isPrivate),
         mode: normalizeMode(room.mode),
+        keepOpen24h: Boolean(room.keepOpen24h),
         privateCode: room.privateCode || "",
         worldSeed: room.worldSeed,
         createdAt: Number(room.createdAt) || Date.now(),
@@ -76,7 +77,8 @@ function loadRoomsState() {
                 sanitizeName(data?.ownerName),
                 Boolean(data?.isPrivate),
                 String(data?.privateCode || "").slice(0, 16),
-                normalizeMode(data?.mode)
+                normalizeMode(data?.mode),
+                data?.keepOpen24h !== false
             );
             room.name = room.id;
             room.worldSeed = Number(data?.worldSeed) >>> 0;
@@ -108,13 +110,14 @@ function normalizeMode(value) {
     return String(value ?? "").toLowerCase() === "creative" ? "creative" : "survival";
 }
 
-function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "", mode = "survival") {
+function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "", mode = "survival", keepOpen24h = false) {
     return {
         id,
         name: id,
         ownerName,
         isPrivate: Boolean(isPrivate),
         mode: normalizeMode(mode),
+        keepOpen24h: Boolean(keepOpen24h),
         privateCode: privateCode || (isPrivate ? String(Math.floor(100000 + Math.random() * 900000)) : ""),
         players: new Map(),
         worldSeed: Math.floor(Math.random() * 4294967296) >>> 0,
@@ -125,18 +128,26 @@ function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "
     };
 }
 
-function getOrCreateRoom(id, ownerName = "Player", isPrivate = false, mode = "survival") {
+function getOrCreateRoom(id, ownerName = "Player", isPrivate = false, mode = "survival", keepOpen24h = false) {
     let room = rooms.get(id);
     if (room) return room;
     if (rooms.size >= MAX_ROOMS) return null;
-    room = createRoom(id, ownerName, isPrivate, "", mode);
+    room = createRoom(id, ownerName, isPrivate, "", mode, keepOpen24h);
     rooms.set(id, room);
+    scheduleRoomStateSave();
     return room;
 }
 
 function cleanRoom(room) {
     if (!room || room.players.size !== 0) return;
     if (rooms.get(room.id) !== room) return;
+
+    if (!room.keepOpen24h) {
+        rooms.delete(room.id);
+        saveRoomsStateSync();
+        return;
+    }
+
     if (!room.emptySince) room.emptySince = Date.now();
     scheduleRoomStateSave();
 }
@@ -204,6 +215,7 @@ function publicRoom(room) {
         maxPlayers: MAX_PLAYERS_PER_SERVER,
         private: Boolean(room.isPrivate),
         mode: normalizeMode(room.mode),
+        keepOpen24h: Boolean(room.keepOpen24h),
         worldSeed: room.worldSeed,
         createdAt: room.createdAt,
     };
@@ -348,13 +360,21 @@ function handleMessage(ws, raw, state) {
         const wantsPrivate = Boolean(message.private);
         const requestedMode = normalizeMode(message.mode);
         const suppliedCode = String(message.privateCode ?? "").trim().slice(0, 16);
+        const keepOpen24h = Boolean(message.keepOpen24h);
+
+        if (roomId.toLowerCase() === "player") {
+            send(ws, { type: "error", code: "reserved_room_name", message: "The room name \"player\" is reserved. Choose another room name." });
+            ws.close();
+            return;
+        }
+
         let room = rooms.get(roomId);
         if (room && room.isPrivate && suppliedCode !== room.privateCode) {
             send(ws, { type: "error", code: "private_code_required", message: "This is a private server. Enter the correct private code." });
             ws.close();
             return;
         }
-        room = getOrCreateRoom(roomId, safeName, wantsPrivate, requestedMode);
+        room = getOrCreateRoom(roomId, safeName, wantsPrivate, requestedMode, keepOpen24h);
         if (!room) { send(ws, { type: "error", code: "server_limit", message: "The server has reached its room limit." }); ws.close(); return; }
         if (room.players.size >= MAX_PLAYERS_PER_SERVER) { send(ws, { type: "error", code: "server_full", message: "This server is full." }); ws.close(); return; }
 
@@ -384,6 +404,7 @@ function handleMessage(ws, raw, state) {
             ownerName: room.ownerName,
             private: Boolean(room.isPrivate),
             mode: normalizeMode(room.mode),
+            keepOpen24h: Boolean(room.keepOpen24h),
             privateCode: room.isPrivate && room.ownerName === safeName ? room.privateCode : "",
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
