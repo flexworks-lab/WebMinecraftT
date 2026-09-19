@@ -195,21 +195,18 @@ async function joinInvite() {
         return;
     }
     try {
-        if (window.__webminecraftMultiplayerActive) return;
         const mp = await import("./multiplayerClient.js");
-        mp.openMultiplayerMenu();
-        const start = Date.now();
-        while (Date.now() - start < 5000) {
-            const menu = document.getElementById("multiplayerMenu");
-            if (menu) {
-                const server = menu.querySelector("#multiplayerServer"), room = menu.querySelector("#multiplayerRoom"), pub = menu.querySelector("#multiplayerPublic"), join = menu.querySelector("#multiplayerJoin");
-                if (server && room && join) {
-                    server.value = invite.websocket; room.value = String(invite.room).slice(0,32); pub?.click(); join.disabled=false; join.click(); return;
-                }
-            }
-            await new Promise(r => setTimeout(r,60));
-        }
-    } catch (e) { console.warn("Game invite join failed:", e); }
+        const joined = mp.joinMultiplayerRoomFromInvite?.({
+            websocket: invite.websocket,
+            room: invite.room,
+            mode: invite.mode,
+            private: false
+        });
+        if (!joined) window.alert?.("Could not open the invited world.");
+    } catch (e) {
+        console.warn("Game invite join failed:", e);
+        window.alert?.("Could not join that world right now.");
+    }
 }
 
 function startInviteListener() {
