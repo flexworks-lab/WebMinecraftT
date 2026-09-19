@@ -251,7 +251,11 @@ function isStairItem(itemId) { return Number(itemId) >= 75 && Number(itemId) <= 
 function itemVisual(item) {
     if (item.texture) {
         const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
-        return `<span class="catalogIcon catalogTexture${slabClass}" style="background-image:url('${textureUrl(item.texture)}')"></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
+        const stairClass = isStairItem(item.id) ? " stairIcon" : "";
+        const iconStyle = isStairItem(item.id)
+            ? `--stair-texture:url('${textureUrl(item.texture)}')`
+            : `background-image:url('${textureUrl(item.texture)}')`;
+        return `<span class="catalogIcon catalogTexture${slabClass}${stairClass}" style="${iconStyle}"></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
     }
     return `<span class="catalogIcon catalogColor" style="--item-color:#777"></span>`;
 }
@@ -302,7 +306,7 @@ function createInventoryUI() {
     const style = document.createElement("style");
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
-#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
+.hotbarTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;overflow:visible}.hotbarTexture.stairIcon::before,.hotbarTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}.hotbarTexture.stairIcon::before{left:0;right:0;bottom:0;height:58%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.22)}.hotbarTexture.stairIcon::after{right:0;top:0;width:56%;height:46%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset -2px 0 0 rgba(0,0,0,.16)}#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
 #inventoryScreen.open{display:flex}
 body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #inventoryPanel{position:relative;z-index:1000000;width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#555;border:3px solid #252525;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.32),inset 2px 2px 0 #747474;image-rendering:pixelated;overflow:hidden}
@@ -330,6 +334,10 @@ button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;f
 .catalogGroup:hover .catalogGroupLabel{opacity:1}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
 .catalogIcon{position:absolute;inset:6px;display:block}.catalogGroupExpanded .catalogIcon{background-color:#656565}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
+.catalogTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;border-top:0!important;box-shadow:none!important;overflow:visible}
+.catalogTexture.stairIcon::before,.catalogTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
+.catalogTexture.stairIcon::before{left:0;right:0;bottom:0;height:58%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.22)}
+.catalogTexture.stairIcon::after{right:0;top:0;width:56%;height:46%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset -2px 0 0 rgba(0,0,0,.16)}
 .catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#858585;color:#fff}
 .catalogColor{background:var(--item-color);box-shadow:inset 3px 3px 0 rgba(255,255,255,.14),inset -3px -3px 0 rgba(0,0,0,.2)}
 .catalogName{position:absolute;left:2px;right:2px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
@@ -339,7 +347,8 @@ button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;f
 #hotbarInventory{display:grid;grid-template-columns:repeat(9,minmax(42px,58px));justify-content:center;gap:5px}
 .inventorySlot,.destroySlot,.offhandSlot{position:relative;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;box-shadow:inset -1px -1px 0 #666;min-width:0}
 .inventorySlot{cursor:grab;touch-action:none}.inventorySlot:hover{filter:brightness(1.12);border-color:#fff}.inventorySlot.dragging{opacity:.42}
-.slotTexture{position:absolute;inset:6px;background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.slotFallback{position:absolute;inset:6px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;text-shadow:2px 2px 0 #222}
+.slotTexture{position:absolute;inset:6px;background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.slotTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;overflow:visible}.slotTexture.stairIcon::before,.slotTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}.slotTexture.stairIcon::before{left:0;right:0;bottom:0;height:58%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.22)}.slotTexture.stairIcon::after{right:0;top:0;width:56%;height:46%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset -2px 0 0 rgba(0,0,0,.16)}
+.slotFallback{position:absolute;inset:6px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;text-shadow:2px 2px 0 #222}
 .slotCount{position:absolute;right:3px;bottom:1px;font:bold 14px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none}
 body.webminecraft-creative .slotCount,body.webminecraft-creative .hotbarCount{display:none!important}.slotNumber{position:absolute;left:3px;top:1px;font:bold 11px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none}
 .destroySlot,.offhandSlot{width:64px;height:64px;justify-self:center;display:flex;align-items:center;justify-content:center;font-size:38px;color:#d33;background:#7b4a4a;cursor:pointer}
@@ -519,7 +528,13 @@ function renderSlot(slot, index, options = {}) {
         if (item) {
             const texture = slot.texture || item.texture;
             const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
-            const visual = texture ? `<span class="slotTexture${slabClass}" style="background-image:url('${textureUrl(texture)}')"></span><span class="slotFallback">${item.name.charAt(0)}</span>` : `<span class="slotTexture${slabClass}" style="background:#777"></span>`;
+            const stairClass = isStairItem(item.id) ? " stairIcon" : "";
+            const visualStyle = isStairItem(item.id)
+                ? `--stair-texture:url('${textureUrl(texture)}')`
+                : `background-image:url('${textureUrl(texture)}')`;
+            const visual = texture
+                ? `<span class="slotTexture${slabClass}${stairClass}" style="${visualStyle}"></span><span class="slotFallback">${item.name.charAt(0)}</span>`
+                : `<span class="slotTexture${slabClass}${stairClass}" style="background:#777"></span>`;
             cell.innerHTML = visual + `<span class="slotCount">${slot.count > 1 ? slot.count : ""}</span>` + (options.hotbar ? `<span class="slotNumber">${index + 1}</span>` : "");
             cell.title = `${item.name} (${slot.count})`;
             cell.addEventListener("dragstart", event => {
@@ -594,12 +609,18 @@ function syncHotbar() {
                 textureEl.style.imageRendering = "pixelated";
                 textureEl.style.position = "absolute";
                 const slab = isSlabItem(slot.itemId);
-                textureEl.style.inset = slab ? "44% 3px 3px" : "3px";
-                textureEl.style.backgroundSize = slab ? "100% 200%" : "100% 100%";
-                textureEl.style.backgroundPosition = slab ? "center top" : "center";
-                textureEl.style.borderTop = slab ? "2px solid rgba(255,255,255,.22)" : "";
-                textureEl.style.boxShadow = slab ? "0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)" : "";
+                const stair = isStairItem(slot.itemId);
+                textureEl.className = `hotbarTexture${stair ? " stairIcon" : ""}`;
+                textureEl.style.inset = "3px";
+                textureEl.style.backgroundImage = stair ? "none" : `url('${textureUrl(texture)}')`;
+                textureEl.style.backgroundSize = stair ? "auto" : (slab ? "100% 200%" : "100% 100%");
+                textureEl.style.backgroundPosition = slab && !stair ? "center top" : "center";
+                textureEl.style.backgroundRepeat = "no-repeat";
+                textureEl.style.borderTop = "";
+                textureEl.style.boxShadow = "";
                 textureEl.style.zIndex = "1";
+                if (stair) textureEl.style.setProperty("--stair-texture", `url('${textureUrl(texture)}')`);
+                else textureEl.style.removeProperty("--stair-texture");
             } else if (textureEl) {
                 textureEl.remove();
             }
