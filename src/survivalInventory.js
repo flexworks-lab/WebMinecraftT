@@ -150,7 +150,7 @@ function selectSlot(index) {
     document.dispatchEvent(event);
     renderSlots();
 }
-function close() { open = false; root?.classList.remove("open"); document.body.classList.remove("survival-inventory-open"); cancelAnimationFrame(previewFrame); if (!document.body.classList.contains("mobile-mode") && isInWorld()) { try { document.body.requestPointerLock?.(); } catch {} } }
+function close() { open = false; root?.classList.remove("open"); document.body.classList.remove("survival-inventory-open"); cancelAnimationFrame(previewFrame); if (!document.body.classList.contains("mobile-mode") && isInWorld() && !window.__webminecraftHasOpenMenu?.()) { try { document.body.requestPointerLock?.(); } catch {} } }
 function openInventory() {
     if (!isInWorld() || !isSurvivalWorld()) return false;
     loadData();
