@@ -102,7 +102,7 @@ const CATALOG_GROUPS = {
         id: "wood_planks",
         label: "Planks",
         primaryId: 13,
-        variantIds: [13, 30, 25, 28, 23, 27, 61, 29, 26, 24, 31],
+        variantIds: [13, 23, 24, 25, 26, 27, 28, 29, 30, 31],
     }
 };
 
@@ -220,7 +220,7 @@ function itemsForCurrentTab() {
         if (!searchQuery.trim()) return [{ group: true, ...group, variants: groupItems }, ...items];
         return ITEM_TYPES.filter(item => BUILD_BLOCK_IDS.has(item.id) && itemMatchesSearch(item));
     }
-    return ITEM_TYPES.filter(item => item.category === selectedTab && itemMatchesSearch(item));
+    return ITEM_TYPES.filter(item => item.category === selectedTab && !item.name.toLowerCase().includes("planks") && itemMatchesSearch(item));
 }
 
 function iconSvg(name) {
@@ -309,6 +309,10 @@ body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #catalogViewport{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;padding:2px 2px 2px 1px;scrollbar-color:#48a84a #262626;scrollbar-width:auto}
 #catalogGrid{display:grid;grid-template-columns:repeat(9,minmax(44px,1fr));gap:5px;align-content:start}\n#catalogViewport::-webkit-scrollbar{width:12px}\n#catalogViewport::-webkit-scrollbar-track{background:#262626;border-left:2px solid #171717}\n#catalogViewport::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#69c95e,#2d8e38);border:2px solid #171717;box-shadow:inset 1px 1px 0 rgba(255,255,255,.22),inset -1px -1px 0 rgba(0,0,0,.25)}\n#catalogViewport::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#7bdd70,#3da648)}
 .catalogSlot{position:relative;min-width:0;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;cursor:grab;box-shadow:inset -1px -1px 0 #666;touch-action:none}
+button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;font:inherit;color:inherit;text-align:left;outline:0}
+.catalogGroupBadge{position:absolute;right:3px;bottom:3px;z-index:4;min-width:16px;height:16px;padding:0 2px;display:flex;align-items:center;justify-content:center;background:#202020;border:1px solid #111;color:#fff;font:bold 14px/14px Arial,sans-serif;text-shadow:1px 1px 0 #000;box-shadow:inset 1px 1px 0 rgba(255,255,255,.18),inset -1px -1px 0 rgba(0,0,0,.35);pointer-events:none}
+.catalogGroupLabel{position:absolute;left:2px;right:22px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
+.catalogGroup:hover .catalogGroupLabel{opacity:1}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
 .catalogIcon{position:absolute;inset:6px;display:block}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
 .catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#858585;color:#fff}
@@ -449,7 +453,7 @@ function renderCatalog() {
         const expanded = EXPANDED_CATALOG_GROUPS.has(item.id);
         const groupButton = `<button type="button" class="catalogSlot catalogGroup" data-catalog-group="${item.id}" title="${expanded ? "Collapse" : "Expand"} ${item.label}" aria-expanded="${expanded}">${itemVisual(primary)}<span class="catalogGroupLabel">${item.label}</span><span class="catalogGroupBadge" aria-hidden="true">${expanded ? "−" : "+"}</span></button>`;
         const variants = expanded
-            ? `<div class="catalogGroupExpanded">${item.variants.map(variant => slotMarkup(variant)).join("")}</div>`
+            ? item.variants.map(variant => slotMarkup(variant)).join("")
             : "";
         return groupButton + variants;
     }).join("");
