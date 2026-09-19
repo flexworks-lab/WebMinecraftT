@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
+import { getBlockAt, setBlockAt, getBlockTypes, isStairBlock, stairBaseType } from "./world.js";
 import { touchInput } from "./controls.js";
 import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop, sendItemDrop, sendItemClaim, isMultiplayerActive } from "./multiplayerClient.js";
 import { handleDoorTarget } from "./door.js";
@@ -34,7 +34,11 @@ const HARDNESS = {
     47: 1200, 48: 1100, 49: Infinity, 50: 1200,
     51: 1050, 52: 1050, 53: 1100, 54: 1100, 55: 1100,
     56: 750, 57: 750, 58: 750, 59: 750, 60: 750, 61: 750, 62: 750, 63: 750, 64: 750, 65: 750,
-    66: 1500, 67: 900, 68: 1200, 69: 1200, 70: 1400, 71: 1200, 72: 1200, 73: 1100, 74: Infinity
+    66: 1500, 67: 900, 68: 1200, 69: 1200, 70: 1400, 71: 1200, 72: 1200, 73: 1100, 74: Infinity,
+    75: 750, 76: 750, 77: 750, 78: 750, 79: 750, 80: 750, 81: 750, 82: 750, 83: 750, 84: 750,
+    85: 750, 86: 750, 87: 750, 88: 750, 89: 750, 90: 750, 91: 750, 92: 750, 93: 750, 94: 750,
+    95: 750, 96: 750, 97: 750, 98: 750, 99: 750, 100: 750, 101: 750, 102: 750, 103: 750, 104: 750,
+    105: 750, 106: 750, 107: 750, 108: 750, 109: 750, 110: 750, 111: 750, 112: 750, 113: 750, 114: 750
 };
 
 const TEXTURES = {
@@ -54,7 +58,15 @@ const TEXTURES = {
     56: "oak_planks.png", 57: "acacia_planks.png", 58: "bamboo_planks.png", 59: "birch_planks.png", 60: "crimson_planks.png",
     61: "dark_oak_planks.png", 62: "jungle_planks.png", 63: "mangrove_planks.png", 64: "spruce_planks.png", 65: "warped_planks.png",
     66: "chiseled_deepslate.png", 67: "cobbled_deepslate.png", 68: "cracked_deepslate_bricks.png", 69: "cracked_deepslate_tiles.png",
-    70: "deepslate.png", 71: "deepslate_bricks.png", 72: "deepslate_tiles.png", 73: "polished_deepslate.png", 74: "reinforced_deepslate_top.png"
+    70: "deepslate.png", 71: "deepslate_bricks.png", 72: "deepslate_tiles.png", 73: "polished_deepslate.png", 74: "reinforced_deepslate_top.png",
+    75: "oak_planks.png", 76: "acacia_planks.png", 77: "bamboo_planks.png", 78: "birch_planks.png", 79: "crimson_planks.png",
+    80: "dark_oak_planks.png", 81: "jungle_planks.png", 82: "mangrove_planks.png", 83: "spruce_planks.png", 84: "warped_planks.png",
+    85: "oak_planks.png", 86: "acacia_planks.png", 87: "bamboo_planks.png", 88: "birch_planks.png", 89: "crimson_planks.png",
+    90: "dark_oak_planks.png", 91: "jungle_planks.png", 92: "mangrove_planks.png", 93: "spruce_planks.png", 94: "warped_planks.png",
+    95: "oak_planks.png", 96: "acacia_planks.png", 97: "bamboo_planks.png", 98: "birch_planks.png", 99: "crimson_planks.png",
+    100: "dark_oak_planks.png", 101: "jungle_planks.png", 102: "mangrove_planks.png", 103: "spruce_planks.png", 104: "warped_planks.png",
+    105: "oak_planks.png", 106: "acacia_planks.png", 107: "bamboo_planks.png", 108: "birch_planks.png", 109: "crimson_planks.png",
+    110: "dark_oak_planks.png", 111: "jungle_planks.png", 112: "mangrove_planks.png", 113: "spruce_planks.png", 114: "warped_planks.png"
 };
 
 const COLORS = {
@@ -596,7 +608,8 @@ function finishMining() {
     window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x: mining.x, y: mining.y, z: mining.z, type: getBlockTypes().AIR, brokenType: mining.type } }));
     burst(new THREE.Vector3(mining.x, mining.y, mining.z), mining.type);
     const dropId = "drop:" + Date.now() + ":" + Math.random().toString(36).slice(2, 10);
-    const drop = createDrop(mining.type, new THREE.Vector3(mining.x, mining.y, mining.z), { dropId, networked: isMultiplayerActive() });
+    const dropType = isStairBlock(mining.type) ? stairBaseType(mining.type) : mining.type;
+    const drop = createDrop(dropType, new THREE.Vector3(mining.x, mining.y, mining.z), { dropId, networked: isMultiplayerActive() });
     if (drop?.userData.networked) {
         sendItemDrop({
             id: drop.userData.dropId,
