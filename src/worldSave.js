@@ -283,7 +283,7 @@ async function reconcileCloudWorld(seed, switchId, localWorld, localBlocks) {
         const cloudBlocks = cloudWorld.blocks && typeof cloudWorld.blocks === "object" ? cloudWorld.blocks : {};
         const liveEdits = {};
         for (const change of pendingChanges.values()) {
-            liveEdits[\`${change.x},${change.y},${change.z}\`] = change.type;
+            liveEdits[`${change.x},${change.y},${change.z}`] = change.type;
         }
 
         // Preserve the existing precedence: cloud -> local world -> local snapshot
@@ -342,7 +342,7 @@ async function loadSavedBlocks(seed, switchId) {
 
         const liveEdits = {};
         for (const change of pendingChanges.values()) {
-            liveEdits[\`${change.x},${change.y},${change.z}\`] = change.type;
+            liveEdits[`${change.x},${change.y},${change.z}`] = change.type;
         }
 
         const mergedBlocks = { ...localBlocks, ...storedBlocks, ...liveEdits };
