@@ -362,8 +362,11 @@ export function setupControls() {
         if (event.button !== 0 || document.body.classList.contains("mobile-mode")) return;
         if (typeof window.__webminecraftHasOpenMenu === "function" && window.__webminecraftHasOpenMenu()) return;
         if (!document.body.classList.contains("webminecraft-in-world")) return;
-        if (!(event.target instanceof HTMLCanvasElement)) return;
-        if (document.pointerLockElement !== document.body) document.body.requestPointerLock?.();
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest("button,input,textarea,select,a,[role=\"button\"],#touchControls,#settingsButton,#mobilePauseButton")) return;
+        if (document.pointerLockElement !== document.body) {
+            try { document.body.requestPointerLock?.(); } catch {}
+        }
     }, true);
 
     window.addEventListener("mousemove", event => {
