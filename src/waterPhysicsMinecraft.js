@@ -557,9 +557,11 @@ function wrap01(value) {
     return value < 0 ? value + 1 : value;
 }
 
+const WATER_TEXTURE_SPAN = 10;
+
 function topUv(x, z) {
-    const u = (x + z * 0.34) / 7;
-    const v = wrap01((z - x * 0.16) / 64);
+    const u = (x + z * 0.34) / WATER_TEXTURE_SPAN;
+    const v = (z - x * 0.16) / WATER_TEXTURE_SPAN;
     return [u, v];
 }
 
