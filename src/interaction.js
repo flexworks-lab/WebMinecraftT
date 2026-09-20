@@ -210,7 +210,11 @@ export function setupInteraction(scene, camera) {
             // direction the player is looking when determining the stair facing.
             const quarter = Math.round(Number(yaw) / (Math.PI / 2)) + 2;
             const facing = ((quarter % 4) + 4) % 4;
-            const placedType = stairOrientedType(itemId, facing);
+            // Click the upper half of a block to place a bottom stair;
+            // click the lower half to place an upside-down (TOP) stair.
+            const hitYInBlock = target.hit?.point ? target.hit.point.y - target.y : 0;
+            const half = normal.y > 0.5 ? 0 : normal.y < -0.5 ? 1 : (hitYInBlock < 0 ? 1 : 0);
+            const placedType = stairOrientedType(itemId, facing, half);
             if (!isStairBlock(placedType) || !setBlockAt(x, y, z, placedType)) return;
             if (!creative && !consumeSelected(selectedSlot)) {
                 setBlockAt(x, y, z, BLOCK.AIR);
@@ -351,7 +355,7 @@ function makeBoxSelectionGeometry(){
     return geometry;
 }
 
-function makeStairSelectionGeometry(shapeMask){
+function makeStairSelectionGeometry(shapeMask,half=0){
     const occupied=new Set();
     const key=(layer,xi,zi)=>`${layer}:${xi}:${zi}`;
     for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++)occupied.add(key(0,xi,zi));
@@ -362,14 +366,22 @@ function makeStairSelectionGeometry(shapeMask){
     const positions=[];
     const edge=(a,b)=>positions.push(...a,...b);
     for(const cell of occupied){
-        const[layer,xi,zi]=cell.split(":").map(Number);
+        const[layer0,xi,zi]=cell.split(":").map(Number);
+        const layer=half?1-layer0:layer0;
         const minX=-.502+xi*.5,maxX=minX+.5;
         const minZ=-.502+zi*.5,maxZ=minZ+.5;
         const minY=layer===0?-.502:0,maxY=layer===0?0:.502;
         const neighbors=[
-            [layer,xi+1,zi],[layer,xi-1,zi],
-            [layer,xi,zi+1],[layer,xi,zi-1],
-            [layer+1,xi,zi],[layer-1,xi,zi]
+            [layer0,xi+1,zi],[layer0,xi-1,zi],
+            [layer0,xi,zi+1],[layer0,xi,zi-1],
+            [layer0+1,xi,zi],[layer0-1,xi,zi]
+        ];
+        const occupiedLayerKeys=new Set();
+        for(const item of occupied)occupiedLayerKeys.add(item);
+        const faceNeighbors=[
+            key(layer0,xi+1,zi),key(layer0,xi-1,zi),
+            key(layer0,xi,zi+1),key(layer0,xi,zi-1),
+            key(layer0+1,xi,zi),key(layer0-1,xi,zi)
         ];
         const corners=[
             [[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],
@@ -380,21 +392,17 @@ function makeStairSelectionGeometry(shapeMask){
             [[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]]
         ];
         for(let fi=0;fi<6;fi++){
-            if(occupied.has(neighbors[fi].join(":")))continue;
-            if(layer===1&&fi===3)continue;
+            if(occupiedLayerKeys.has(faceNeighbors[fi]))continue;
+            if(layer0===1&&fi===3)continue;
             const face=corners[fi];
-            edge(face[0],face[1]);
-            edge(face[1],face[2]);
-            edge(face[2],face[3]);
-            edge(face[3],face[0]);
+            edge(face[0],face[1]); edge(face[1],face[2]);
+            edge(face[2],face[3]); edge(face[3],face[0]);
         }
     }
     const geometry=new THREE.BufferGeometry();
     geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
     return geometry;
 }
-
-
 function createSelectionOutline() {
     const group = new THREE.Group();
     group.name = "blockSelectionOutline";
@@ -415,10 +423,11 @@ function updateSelectionOutline(outline, target, camera) {
 
     if (isStairBlock(type)) {
         const shapeMask = stairShapeMask(type,target.x,target.y,target.z);
-        const shapeKey = `stair:${shapeMask}`;
+        const half = Number(type) >= 115 ? 1 : 0;
+        const shapeKey = `stair:${shapeMask}:${half}`;
         if (outline.userData.selectionShape !== shapeKey) {
             edges.geometry.dispose();
-            edges.geometry = makeStairSelectionGeometry(shapeMask);
+            edges.geometry = makeStairSelectionGeometry(shapeMask,half);
             outline.userData.selectionShape = shapeKey;
         }
         outline.scale.set(1,1,1);
