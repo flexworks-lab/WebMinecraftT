@@ -551,19 +551,16 @@ function wrap01(value) {
     return value < 0 ? value + 1 : value;
 }
 
-function blockMinCoord(center) {
-    return Math.floor(center + 0.5) - 0.5;
-}
-
-function topUv(x, z) {
-    const u = x - blockMinCoord(x);
-    const v = z - blockMinCoord(z);
+function topUv(x, z, blockX, blockZ) {
+    const u = x - (blockX - 0.5);
+    const v = z - (blockZ - 0.5);
     return [u, v];
 }
 
-function sideUv(x, z, vertical, normal) {
+function sideUv(x, z, vertical, normal, blockX, blockZ) {
     const varyingCoord = normal[0] !== 0 ? z : x;
-    const u = varyingCoord - blockMinCoord(varyingCoord);
+    const blockMin = normal[0] !== 0 ? blockZ - 0.5 : blockX - 0.5;
+    const u = varyingCoord - blockMin;
     const v = THREE.MathUtils.clamp(vertical, 0, 1);
     return [u, v];
 }
@@ -643,10 +640,10 @@ function buildChunk(ck) {
             const p2 = [x + 0.5, baseY + hSE, z + 0.5];
             const p3 = [x - 0.5, baseY + hSW, z + 0.5];
 
-            const uv0 = topUv(p0[0], p0[2]);
-            const uv1 = topUv(p1[0], p1[2]);
-            const uv2 = topUv(p2[0], p2[2]);
-            const uv3 = topUv(p3[0], p3[2]);
+            const uv0 = topUv(p0[0], p0[2], x, z);
+            const uv1 = topUv(p1[0], p1[2], x, z);
+            const uv2 = topUv(p2[0], p2[2], x, z);
+            const uv3 = topUv(p3[0], p3[2], x, z);
 
             const v0 = addVertex(positions, normals, uvs, vertexMap, ...p0, 0, 1, 0, ...uv0);
             const v1 = addVertex(positions, normals, uvs, vertexMap, ...p1, 0, 1, 0, ...uv1);
@@ -695,25 +692,25 @@ function buildChunk(ck) {
                 positions, normals, uvs, vertexMap,
                 edgeA[0], topA, edgeA[2],
                 normal[0], normal[1], normal[2],
-                ...sideUv(edgeA[0], edgeA[2], (topA - bottom) / Math.max(0.001, h), normal)
+                ...sideUv(edgeA[0], edgeA[2], (topA - bottom) / Math.max(0.001, h), normal, x, z)
             );
             const bTop = addVertex(
                 positions, normals, uvs, vertexMap,
                 edgeB[0], topB, edgeB[2],
                 normal[0], normal[1], normal[2],
-                ...sideUv(edgeB[0], edgeB[2], (topB - bottom) / Math.max(0.001, h), normal)
+                ...sideUv(edgeB[0], edgeB[2], (topB - bottom) / Math.max(0.001, h), normal, x, z)
             );
             const bBottom = addVertex(
                 positions, normals, uvs, vertexMap,
                 edgeB[0], lower, edgeB[2],
                 normal[0], normal[1], normal[2],
-                ...sideUv(edgeB[0], edgeB[2], 0, normal)
+                ...sideUv(edgeB[0], edgeB[2], 0, normal, x, z)
             );
             const aBottom = addVertex(
                 positions, normals, uvs, vertexMap,
                 edgeA[0], lower, edgeA[2],
                 normal[0], normal[1], normal[2],
-                ...sideUv(edgeA[0], edgeA[2], 0, normal)
+                ...sideUv(edgeA[0], edgeA[2], 0, normal, x, z)
             );
             addQuad(indices, aTop, bTop, bBottom, aBottom);
         }
