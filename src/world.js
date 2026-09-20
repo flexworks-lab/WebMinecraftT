@@ -461,31 +461,22 @@ function stairShapeMaskFor(type,x,y,z){
     const leftFacing=(facing+1)%4;
     const rightFacing=(facing+3)%4;
 
-    // The neighbor must have the same top/bottom half before it can
-    // participate in corner joining.
-    const compatible=(neighbor,expectedFacing)=>isStairBlock(neighbor)&&
-        stairHalf(neighbor)===half&&stairFacing(neighbor)===expectedFacing;
-
+    // Match Minecraft-style stair joining:
+    // outer corners are decided from the stair in front;
+    // inner corners are decided from the stair behind.
+    // The neighbor must have the same half and be perpendicular.
     const forward=getBlockType(x+fx,y,z+fz);
-    const backward=getBlockType(x-fx,y,z-fz);
-    const leftSide=getBlockType(x+dirs[leftFacing][0],y,z+dirs[leftFacing][1]);
-    const rightSide=getBlockType(x+dirs[rightFacing][0],y,z+dirs[rightFacing][1]);
-
-    // Outer corners: the forward stair turns away from this stair and the
-    // adjacent side is also touching with the same half, preventing a
-    // one-sided corner from appearing.
     if(isStairBlock(forward)&&stairHalf(forward)===half){
         const nf=stairFacing(forward);
-        if(nf===leftFacing&&compatible(leftSide,facing))return rotateStairMask(0x1,facing);
-        if(nf===rightFacing&&compatible(rightSide,facing))return rotateStairMask(0x2,facing);
+        if(nf===leftFacing)return rotateStairMask(0x1,facing);
+        if(nf===rightFacing)return rotateStairMask(0x2,facing);
     }
 
-    // Inner corners: the rear stair turns into this stair and the matching
-    // side is present with the same half.
+    const backward=getBlockType(x-fx,y,z-fz);
     if(isStairBlock(backward)&&stairHalf(backward)===half){
         const nb=stairFacing(backward);
-        if(nb===leftFacing&&compatible(leftSide,facing))return rotateStairMask(0x7,facing);
-        if(nb===rightFacing&&compatible(rightSide,facing))return rotateStairMask(0xb,facing);
+        if(nb===leftFacing)return rotateStairMask(0x7,facing);
+        if(nb===rightFacing)return rotateStairMask(0xb,facing);
     }
 
     return rotateStairMask(0x3,facing);
