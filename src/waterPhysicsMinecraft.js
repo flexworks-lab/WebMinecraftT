@@ -45,7 +45,7 @@ waterTexture.needsUpdate = true;
 
 const fluidMaterial = new THREE.MeshBasicMaterial({
     map: waterTexture,
-    color: 0x0b4f8a,
+    color: 0x164f7c,
     transparent: true,
     opacity: 0.82,
     depthWrite: false,
@@ -645,11 +645,23 @@ function buildChunk(ck) {
             const uv2 = topUv(p2[0], p2[2], x, z);
             const uv3 = topUv(p3[0], p3[2], x, z);
 
-            const v0 = addVertex(positions, normals, uvs, vertexMap, ...p0, 0, 1, 0, ...uv0);
-            const v1 = addVertex(positions, normals, uvs, vertexMap, ...p1, 0, 1, 0, ...uv1);
-            const v2 = addVertex(positions, normals, uvs, vertexMap, ...p2, 0, 1, 0, ...uv2);
-            const v3 = addVertex(positions, normals, uvs, vertexMap, ...p3, 0, 1, 0, ...uv3);
-            addQuad(indices, v0, v1, v2, v3);
+            const topStart = positions.length / 3;
+            positions.push(
+                ...p0, ...p1, ...p2, ...p3
+            );
+            normals.push(
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0
+            );
+            uvs.push(
+                0, 0,
+                1, 0,
+                1, 1,
+                0, 1
+            );
+            addQuad(indices, topStart, topStart + 1, topStart + 2, topStart + 3);
         }
 
         const neighborDirections = [
