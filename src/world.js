@@ -46,7 +46,15 @@ const BLOCK = {
     OAK_PLANKS_STAIRS_S: 95, ACACIA_PLANKS_STAIRS_S: 96, BAMBOO_PLANKS_STAIRS_S: 97, BIRCH_PLANKS_STAIRS_S: 98, CRIMSON_PLANKS_STAIRS_S: 99,
     DARK_OAK_PLANKS_STAIRS_S: 100, JUNGLE_PLANKS_STAIRS_S: 101, MANGROVE_PLANKS_STAIRS_S: 102, SPRUCE_PLANKS_STAIRS_S: 103, WARPED_PLANKS_STAIRS_S: 104,
     OAK_PLANKS_STAIRS_W: 105, ACACIA_PLANKS_STAIRS_W: 106, BAMBOO_PLANKS_STAIRS_W: 107, BIRCH_PLANKS_STAIRS_W: 108, CRIMSON_PLANKS_STAIRS_W: 109,
-    DARK_OAK_PLANKS_STAIRS_W: 110, JUNGLE_PLANKS_STAIRS_W: 111, MANGROVE_PLANKS_STAIRS_W: 112, SPRUCE_PLANKS_STAIRS_W: 113, WARPED_PLANKS_STAIRS_W: 114
+    DARK_OAK_PLANKS_STAIRS_W: 110, JUNGLE_PLANKS_STAIRS_W: 111, MANGROVE_PLANKS_STAIRS_W: 112, SPRUCE_PLANKS_STAIRS_W: 113, WARPED_PLANKS_STAIRS_W: 114,
+    OAK_PLANKS_STAIRS_TOP: 115, ACACIA_PLANKS_STAIRS_TOP: 116, BAMBOO_PLANKS_STAIRS_TOP: 117, BIRCH_PLANKS_STAIRS_TOP: 118, CRIMSON_PLANKS_STAIRS_TOP: 119,
+    DARK_OAK_PLANKS_STAIRS_TOP: 120, JUNGLE_PLANKS_STAIRS_TOP: 121, MANGROVE_PLANKS_STAIRS_TOP: 122, SPRUCE_PLANKS_STAIRS_TOP: 123, WARPED_PLANKS_STAIRS_TOP: 124,
+    OAK_PLANKS_STAIRS_TOP_E: 125, ACACIA_PLANKS_STAIRS_TOP_E: 126, BAMBOO_PLANKS_STAIRS_TOP_E: 127, BIRCH_PLANKS_STAIRS_TOP_E: 128, CRIMSON_PLANKS_STAIRS_TOP_E: 129,
+    DARK_OAK_PLANKS_STAIRS_TOP_E: 130, JUNGLE_PLANKS_STAIRS_TOP_E: 131, MANGROVE_PLANKS_STAIRS_TOP_E: 132, SPRUCE_PLANKS_STAIRS_TOP_E: 133, WARPED_PLANKS_STAIRS_TOP_E: 134,
+    OAK_PLANKS_STAIRS_TOP_S: 135, ACACIA_PLANKS_STAIRS_TOP_S: 136, BAMBOO_PLANKS_STAIRS_TOP_S: 137, BIRCH_PLANKS_STAIRS_TOP_S: 138, CRIMSON_PLANKS_STAIRS_TOP_S: 139,
+    DARK_OAK_PLANKS_STAIRS_TOP_S: 140, JUNGLE_PLANKS_STAIRS_TOP_S: 141, MANGROVE_PLANKS_STAIRS_TOP_S: 142, SPRUCE_PLANKS_STAIRS_TOP_S: 143, WARPED_PLANKS_STAIRS_TOP_S: 144,
+    OAK_PLANKS_STAIRS_TOP_W: 145, ACACIA_PLANKS_STAIRS_TOP_W: 146, BAMBOO_PLANKS_STAIRS_TOP_W: 147, BIRCH_PLANKS_STAIRS_TOP_W: 148, CRIMSON_PLANKS_STAIRS_TOP_W: 149,
+    DARK_OAK_PLANKS_STAIRS_TOP_W: 150, JUNGLE_PLANKS_STAIRS_TOP_W: 151, MANGROVE_PLANKS_STAIRS_TOP_W: 152, SPRUCE_PLANKS_STAIRS_TOP_W: 153, WARPED_PLANKS_STAIRS_TOP_W: 154
 };
 
 const WORLD_TYPE_PREFIX = "webminecraft-world-type-";
@@ -392,12 +400,41 @@ function generateTrees(chunk){if(isFlatWorld())return;const startX=chunk.x*CHUNK
 function applyWorldOverridesToChunk(chunk){for(const[key,type]of worldOverrides){const[x,y,z]=key.split(',').map(Number);if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;if(Math.floor(x/CHUNK_SIZE)!==chunk.x||Math.floor(z/CHUNK_SIZE)!==chunk.z||y<MIN_Y||y>WORLD_TOP)continue;const localX=((x%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,localZ=((z%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;chunk.blocks[blockIndex(localX,y,localZ)]=type;}}
 function generateChunk(chunkX,chunkZ){const key=chunkKey(chunkX,chunkZ);if(chunks.has(key))return chunks.get(key);const chunk={x:chunkX,z:chunkZ,blocks:new Uint8Array(CHUNK_SIZE*CHUNK_SIZE*CHUNK_HEIGHT),generated:false,waterMesh:null};chunks.set(key,chunk);generateTerrain(chunk);generateTrees(chunk);applyWorldOverridesToChunk(chunk);chunk.generated=true;return chunk;}
 export function isSlabBlock(type){return Number(type)>=BLOCK.STONE_SLAB&&Number(type)<=BLOCK.REINFORCED_DEEPSLATE_SLAB;}
-export function isStairBlock(type){return Number(type)>=BLOCK.OAK_PLANKS_STAIRS&&Number(type)<=BLOCK.WARPED_PLANKS_STAIRS_W;}
-export function stairBaseType(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return n;return 75+((Math.floor(n)-75)%10);}
-function stairPlankType(type){const base=stairBaseType(type);if(!isStairBlock(base))return base;return [BLOCK.OAK_PLANKS,BLOCK.ACACIA_PLANKS,BLOCK.BAMBOO_PLANKS,BLOCK.BIRCH_PLANKS,BLOCK.CRIMSON_PLANKS,BLOCK.DARK_OAK_PLANKS,BLOCK.JUNGLE_PLANKS,BLOCK.MANGROVE_PLANKS,BLOCK.SPRUCE_PLANKS,BLOCK.WARPED_PLANKS][base-75] ?? BLOCK.OAK_PLANKS;}
-export function stairFacing(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return 0;return Math.floor((n-75)/10);}
-export function stairOrientedType(baseType,facing=0){const base=stairBaseType(baseType);if(!isStairBlock(base))return base;return 75+((base-75)%10)+((Math.floor(facing)%4+4)%4)*10;}
-function blockShape(type,y){const slab=isSlabBlock(type);return{minY:y-0.5,maxY:slab?y:y+0.5};}
+export function isStairBlock(type){
+    const n=Number(type);
+    return Number.isFinite(n)&&n>=BLOCK.OAK_PLANKS_STAIRS&&n<=BLOCK.WARPED_PLANKS_STAIRS_TOP_W;
+}
+export function stairHalf(type){
+    const n=Number(type);
+    return isStairBlock(n)&&n>=115 ? 1 : 0;
+}
+export function stairBaseType(type){
+    const n=Number(type);
+    if(!Number.isFinite(n)||!isStairBlock(n))return n;
+    const lower=n>=115?n-40:n;
+    return 75+((Math.floor(lower)-75)%10);
+}
+function stairPlankType(type){
+    const base=stairBaseType(type);
+    if(!isStairBlock(base))return base;
+    return [BLOCK.OAK_PLANKS,BLOCK.ACACIA_PLANKS,BLOCK.BAMBOO_PLANKS,BLOCK.BIRCH_PLANKS,BLOCK.CRIMSON_PLANKS,BLOCK.DARK_OAK_PLANKS,BLOCK.JUNGLE_PLANKS,BLOCK.MANGROVE_PLANKS,BLOCK.SPRUCE_PLANKS,BLOCK.WARPED_PLANKS][base-75] ?? BLOCK.OAK_PLANKS;
+}
+export function stairFacing(type){
+    const n=Number(type);
+    if(!Number.isFinite(n)||!isStairBlock(n))return 0;
+    const lower=n>=115?n-40:n;
+    return Math.floor((lower-75)/10)%4;
+}
+export function stairOrientedType(baseType,facing=0,half=0){
+    const base=stairBaseType(baseType);
+    if(!isStairBlock(base))return base;
+    const normalizedFacing=((Math.floor(facing)%4)+4)%4;
+    return 75+((base-75)%10)+normalizedFacing*10+(half?40:0);
+}
+function blockShape(type,y){
+    const slab=isSlabBlock(type);
+    return{minY:y-0.5,maxY:slab?y:y+0.5};
+}
 function rotateStairMask(mask,quarter){
     let out=0;
     for(let zi=0;zi<2;zi++){
@@ -415,44 +452,40 @@ function rotateStairMask(mask,quarter){
     }
     return out;
 }
-
 function stairShapeMaskFor(type,x,y,z){
     if(!isStairBlock(type))return 0;
     const facing=stairFacing(type);
+    const half=stairHalf(type);
     const dirs=[[0,-1],[-1,0],[0,1],[1,0]];
     const [fx,fz]=dirs[facing]||dirs[0];
     const leftFacing=(facing+1)%4;
     const rightFacing=(facing+3)%4;
 
-    // Corners only form when this stair is actually connected on BOTH
-    // the forward/back side and the corresponding side. A single touching
-    // stair never changes the shape by itself.
+    // The neighbor must have the same top/bottom half before it can
+    // participate in corner joining.
+    const compatible=(neighbor,expectedFacing)=>isStairBlock(neighbor)&&
+        stairHalf(neighbor)===half&&stairFacing(neighbor)===expectedFacing;
+
     const forward=getBlockType(x+fx,y,z+fz);
     const backward=getBlockType(x-fx,y,z-fz);
+    const leftSide=getBlockType(x+dirs[leftFacing][0],y,z+dirs[leftFacing][1]);
+    const rightSide=getBlockType(x+dirs[rightFacing][0],y,z+dirs[rightFacing][1]);
 
-    const leftX=dirs[leftFacing][0], leftZ=dirs[leftFacing][1];
-    const rightX=dirs[rightFacing][0], rightZ=dirs[rightFacing][1];
-    const leftSide=getBlockType(x+leftX,y,z+leftZ);
-    const rightSide=getBlockType(x+rightX,y,z+rightZ);
-
-    if(isStairBlock(forward)){
+    // Outer corners: the forward stair turns away from this stair and the
+    // adjacent side is also touching with the same half, preventing a
+    // one-sided corner from appearing.
+    if(isStairBlock(forward)&&stairHalf(forward)===half){
         const nf=stairFacing(forward);
-        if(nf===leftFacing && isStairBlock(leftSide) && stairFacing(leftSide)===facing){
-            return rotateStairMask(0x1,facing);
-        }
-        if(nf===rightFacing && isStairBlock(rightSide) && stairFacing(rightSide)===facing){
-            return rotateStairMask(0x2,facing);
-        }
+        if(nf===leftFacing&&compatible(leftSide,facing))return rotateStairMask(0x1,facing);
+        if(nf===rightFacing&&compatible(rightSide,facing))return rotateStairMask(0x2,facing);
     }
 
-    if(isStairBlock(backward)){
+    // Inner corners: the rear stair turns into this stair and the matching
+    // side is present with the same half.
+    if(isStairBlock(backward)&&stairHalf(backward)===half){
         const nb=stairFacing(backward);
-        if(nb===leftFacing && isStairBlock(leftSide) && stairFacing(leftSide)===facing){
-            return rotateStairMask(0x7,facing);
-        }
-        if(nb===rightFacing && isStairBlock(rightSide) && stairFacing(rightSide)===facing){
-            return rotateStairMask(0xb,facing);
-        }
+        if(nb===leftFacing&&compatible(leftSide,facing))return rotateStairMask(0x7,facing);
+        if(nb===rightFacing&&compatible(rightSide,facing))return rotateStairMask(0xb,facing);
     }
 
     return rotateStairMask(0x3,facing);
@@ -460,40 +493,49 @@ function stairShapeMaskFor(type,x,y,z){
 export function stairShapeMask(type,x,y,z){
     return stairShapeMaskFor(Number(type),Math.floor(x),Math.floor(y),Math.floor(z));
 }
-
 function stairCollisionBoxes(type,x,y,z){
     const mask=stairShapeMaskFor(type,x,y,z);
-    const boxes=[{minX:x-.5,maxX:x+.5,minY:y-.5,maxY:y,minZ:z-.5,maxZ:z+.5}];
-    for(let zi=0;zi<2;zi++){
-        for(let xi=0;xi<2;xi++){
-            if(!(mask&(1<<(zi*2+xi))) )continue;
+    const half=stairHalf(type);
+    const boxes=[];
+    if(half===0){
+        boxes.push({minX:x-.5,maxX:x+.5,minY:y-.5,maxY:y,minZ:z-.5,maxZ:z+.5});
+        for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
+            if(!(mask&(1<<(zi*2+xi))))continue;
             boxes.push({
                 minX:x-.5+xi*.5,maxX:x-.5+(xi+1)*.5,
                 minY:y,maxY:y+.5,
                 minZ:z-.5+zi*.5,maxZ:z-.5+(zi+1)*.5
             });
         }
+    }else{
+        boxes.push({minX:x-.5,maxX:x+.5,minY:y,maxY:y+.5,minZ:z-.5,maxZ:z+.5});
+        for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
+            if(!(mask&(1<<(zi*2+xi))))continue;
+            boxes.push({
+                minX:x-.5+xi*.5,maxX:x-.5+(xi+1)*.5,
+                minY:y-.5,maxY:y,
+                minZ:z-.5+zi*.5,maxZ:z-.5+(zi+1)*.5
+            });
+        }
     }
     return boxes;
 }
-
 export function getBlockCollisionBoxes(type,x,y,z){
     const n=Number(type);
     if(!Number.isFinite(n)||n===BLOCK.AIR)return [];
-    if(isStairBlock(n)){
-        return stairCollisionBoxes(n,x,y,z);
-    }
+    if(isStairBlock(n))return stairCollisionBoxes(n,x,y,z);
     const bounds=blockShape(n,y);
-    return [{minX:x-0.5,maxX:x+0.5,minY:bounds.minY,maxY:bounds.maxY,minZ:z-0.5,maxZ:z+0.5}];
+    return [{minX:x-.5,maxX:x+.5,minY:bounds.minY,maxY:bounds.maxY,minZ:z-.5,maxZ:z+.5}];
 }
 export function getBlockCollisionBounds(type,y){
-    const boxes=getBlockCollisionBoxes(type,0,y);
-    if(!boxes.length)return{minY:y-0.5,maxY:y-0.5};
+    const boxes=getBlockCollisionBoxes(type,0,y,0);
+    if(!boxes.length)return{minY:y-.5,maxY:y-.5};
     return{
         minY:Math.min(...boxes.map(box=>box.minY)),
         maxY:Math.max(...boxes.map(box=>box.maxY))
     };
 }
+
 export function slabParentType(type){switch(type){
     case BLOCK.STONE_SLAB:return BLOCK.STONE; case BLOCK.COBBLESTONE_SLAB:return BLOCK.COBBLESTONE;
     case BLOCK.STONE_BRICKS_SLAB:return BLOCK.STONE_BRICKS; case BLOCK.CRACKED_STONE_BRICKS_SLAB:return BLOCK.CRACKED_STONE_BRICKS; case BLOCK.MOSSY_STONE_BRICKS_SLAB:return BLOCK.MOSSY_STONE_BRICKS;
@@ -600,26 +642,27 @@ function stairUpperBounds(facing){
     if(facing===2)return[-0.5,0.5,0,0.5];
     return[-0.5,0,-0.5,0.5];
 }
-function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,materialType,underwaterShade,facing,shapeMask){
+function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,materialType,underwaterShade,facing,shapeMask,half){
     const quarter=((Math.floor(Number(facing))%4)+4)%4;
     const cos=Math.cos(-quarter*Math.PI/2);
     const sin=Math.sin(-quarter*Math.PI/2);
-    const rotatePoint=(p)=>{
+    const transformPoint=(p)=>{
+        const sourceY=half? -p[1] : p[1];
         const rx=p[0]*cos-p[2]*sin;
         const rz=p[0]*sin+p[2]*cos;
-        return [rx,p[1],rz];
+        return [rx,sourceY,rz];
     };
     const rotateNormal=(n)=>{
+        const sourceY=half? -n[1] : n[1];
         const rx=n[0]*cos-n[2]*sin;
         const rz=n[0]*sin+n[2]*cos;
-        return [rx,n[1],rz];
+        return [rx,sourceY,rz];
     };
-
     const emitQuad=(points,normal,faceIndex,uvsLocal)=>{
         const base=vertexRef.count;
         const rn=rotateNormal(normal);
         for(let i=0;i<4;i++){
-            const p=rotatePoint(points[i]);
+            const p=transformPoint(points[i]);
             positions.push(x+p[0],y+p[1],z+p[2]);
             normals.push(rn[0],rn[1],rn[2]);
             colors.push(underwaterShade,underwaterShade,underwaterShade);
@@ -629,63 +672,29 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         groups[mat].push(base,base+1,base+2,base,base+2,base+3);
         vertexRef.count+=4;
     };
-
     const emitCell=(minX,maxX,minY,maxY,minZ,maxZ)=>{
-        const eps=0.0001;
-        if(maxX-minX<=eps||maxY-minY<=eps||maxZ-minZ<=eps)return;
-
-        // UV coordinates are proportional to the actual visible dimensions.
-        // A half-width/half-height stair section therefore consumes only the
-        // corresponding half of the source texture instead of stretching it.
-        const ux0=minX+.5, ux1=maxX+.5;
-        const uz0=minZ+.5, uz1=maxZ+.5;
-        const vy0=minY+.5, vy1=maxY+.5;
-
-        emitQuad(
-            [[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],
-            [1,0,0],0,
-            [[uz0,vy0],[uz0,vy1],[uz1,vy1],[uz1,vy0]]
-        );
-        emitQuad(
-            [[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],
-            [-1,0,0],1,
-            [[uz1,vy0],[uz1,vy1],[uz0,vy1],[uz0,vy0]]
-        );
-        emitQuad(
-            [[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
-            [0,1,0],2,
-            [[ux0,uz1],[ux1,uz1],[ux1,uz0],[ux0,uz0]]
-        );
-        emitQuad(
-            [[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],
-            [0,-1,0],3,
-            [[ux0,uz0],[ux1,uz0],[ux1,uz1],[ux0,uz1]]
-        );
-        emitQuad(
-            [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
-            [0,0,1],4,
-            [[ux1,vy0],[ux1,vy1],[ux0,vy1],[ux0,vy0]]
-        );
-        emitQuad(
-            [[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],
-            [0,0,-1],5,
-            [[ux0,vy0],[ux0,vy1],[ux1,vy1],[ux1,vy0]]
-        );
+        const ux0=minX+.5,ux1=maxX+.5,uz0=minZ+.5,uz1=maxZ+.5,vy0=minY+.5,vy1=maxY+.5;
+        const tY0=half?1-vy1:vy0;
+        const tY1=half?1-vy0:vy1;
+        emitQuad([[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],[1,0,0],0,[[uz0,tY0],[uz0,tY1],[uz1,tY1],[uz1,tY0]]);
+        emitQuad([[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],[-1,0,0],1,[[uz1,tY0],[uz1,tY1],[uz0,tY1],[uz0,tY0]]);
+        emitQuad([[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],[0,1,0],2,[[ux0,uz1],[ux1,uz1],[ux1,uz0],[ux0,uz0]]);
+        emitQuad([[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],[0,-1,0],3,[[ux0,uz0],[ux1,uz0],[ux1,uz1],[ux0,uz1]]);
+        emitQuad([[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],[0,0,1],4,[[ux1,tY0],[ux1,tY1],[ux0,tY1],[ux0,tY0]]);
+        emitQuad([[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],[0,0,-1],5,[[ux0,tY0],[ux0,tY1],[ux1,tY1],[ux1,tY0]]);
     };
 
-    // Lower half of every stair uses the full block footprint.
-    emitCell(-.5,.5,-.5,0,-.5,.5);
-
-    // Upper step/corner footprint uses only the selected quarter cells.
-    for(let zi=0;zi<2;zi++){
-        for(let xi=0;xi<2;xi++){
-            const bit=1<<(zi*2+xi);
-            if(!(shapeMask&bit))continue;
-            emitCell(
-                -.5+xi*.5, -.5+(xi+1)*.5,
-                0,.5,
-                -.5+zi*.5, -.5+(zi+1)*.5
-            );
+    if(half===0){
+        emitCell(-.5,.5,-.5,0,-.5,.5);
+        for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
+            if(!(shapeMask&(1<<(zi*2+xi))))continue;
+            emitCell(-.5+xi*.5,-.5+(xi+1)*.5,0,.5,-.5+zi*.5,-.5+(zi+1)*.5);
+        }
+    }else{
+        emitCell(-.5,.5,0,.5,-.5,.5);
+        for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
+            if(!(shapeMask&(1<<(zi*2+xi))))continue;
+            emitCell(-.5+xi*.5,-.5+(xi+1)*.5,-.5,0,-.5+zi*.5,-.5+(zi+1)*.5);
         }
     }
 }
@@ -699,7 +708,7 @@ function makeGeometryForChunk(chunk){
             if(!isSolid(type))continue;
             const underwaterShade=getUnderwaterShade(surfaceY,y,x,z);
             if(isStairBlock(type)){
-                appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,type,underwaterShade,stairFacing(type),stairShapeMaskFor(type,x,y,z));
+                appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,type,underwaterShade,stairFacing(type),stairShapeMaskFor(type,x,y,z),stairHalf(type));
                 continue;
             }
             const shape=blockShape(type,y);
