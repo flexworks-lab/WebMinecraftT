@@ -589,7 +589,7 @@ function cornerHeight(x, y, z, sx, sz, fallback) {
 }
 
 function addVertex(positions, normals, uvs, map, x, y, z, nx, ny, nz, uvX, uvY) {
-    const mapKey = x + "|" + y + "|" + z;
+    const mapKey = x + "|" + y + "|" + z + "|" + nx + "|" + ny + "|" + nz;
     const existing = map.get(mapKey);
     if (existing !== undefined) return existing;
 
