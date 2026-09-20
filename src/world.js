@@ -557,25 +557,40 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         {normal:[0,0,1],points:[[-.5,0,0],[.5,0,0],[.5,.5,0],[-.5,.5,0]],index:4},
         {normal:[0,0,-1],points:[[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5],[.5,-.5,-.5]],index:5}
     ];
+
+    // Map UVs from the actual visible portion of the stair geometry.
+    // This prevents a half-depth/half-height stair face from stretching
+    // the entire plank texture across only the part that is visible.
+    const uvForPoint=(point,normal)=>{
+        const px=point[0]+0.5;
+        const py=point[1]+0.5;
+        const pz=point[2]+0.5;
+        if(Math.abs(normal[1])>0.5){
+            return [px,pz];
+        }
+        if(Math.abs(normal[0])>0.5){
+            return [pz,py];
+        }
+        return [px,py];
+    };
+
     for(const face of faces){
         const base=vertexRef.count;
         const rotatedNormal=rotateNormal(face.normal);
         const rotatedPoints=face.points.map(rotatePoint);
-        rotatedPoints.forEach((p,idx)=>{
+
+        rotatedPoints.forEach((p)=>{
             positions.push(x+p[0],y+p[1],z+p[2]);
             normals.push(rotatedNormal[0],rotatedNormal[1],rotatedNormal[2]);
             colors.push(underwaterShade,underwaterShade,underwaterShade);
+            const [u,v]=uvForPoint(p,rotatedNormal);
+            uvs.push(u,v);
         });
+
         if(rotatedPoints.length===4){
-            uvs.push(0,0,0,1,1,1,1,0);
             groups[materialIndexFor(materialType,face.index)].push(base,base+1,base+2,base,base+2,base+3);
             vertexRef.count+=4;
         }else{
-            const uStep=1/(rotatedPoints.length-1);
-            for(let i=0;i<rotatedPoints.length;i++){
-                const p=rotatedPoints[i];
-                uvs.push(i*uStep,(p[1]+.5));
-            }
             for(let i=1;i<rotatedPoints.length-1;i++){
                 groups[materialIndexFor(materialType,face.index)].push(base,base+i,base+i+1);
             }
