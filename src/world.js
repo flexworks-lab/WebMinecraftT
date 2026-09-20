@@ -661,7 +661,8 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
     const emitQuad=(points,normal,faceIndex,uvsLocal)=>{
         const base=vertexRef.count;
         const rn=rotateNormal(normal);
-        for(let i=0;i<4;i++){
+        const order=half?[0,3,2,1]:[0,1,2,3];
+        for(const i of order){
             const p=transformPoint(points[i]);
             positions.push(x+p[0],y+p[1],z+p[2]);
             normals.push(rn[0],rn[1],rn[2]);
