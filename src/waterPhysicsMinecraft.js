@@ -45,7 +45,7 @@ const fluidMaterial = new THREE.MeshPhongMaterial({
     map: waterTexture,
     color: 0xffffff,
     transparent: true,
-    opacity: 0.82,
+    opacity: 0.84,
     depthWrite: false,
     depthTest: true,
     side: THREE.DoubleSide,
@@ -472,12 +472,22 @@ function runFluidTick() {
     compactQueue();
 }
 
-function rotatedUvPoints(angle) {
-    const radius = 0.34, cos = Math.cos(angle), sin = Math.sin(angle);
-    return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [
-        0.5 + (u * cos - v * sin) * radius,
-        0.5 + (u * sin + v * cos) * radius
-    ]);
+const WATER_TEXTURE_SCALE = 4;
+
+function waterTopUvPoints(x, z) {
+    const scale = WATER_TEXTURE_SCALE;
+    const wrapU = value => value - Math.floor(value);
+    const u0 = wrapU((x - 0.5) / scale);
+    const u1 = wrapU((x + 0.5) / scale);
+    const v0 = wrapU((z - 0.5) / scale);
+    const v1 = wrapU((z + 0.5) / scale);
+
+    return [
+        [u0, v0],
+        [u1, v0],
+        [u1, v1],
+        [u0, v1]
+    ];
 }
 
 function pushQuad(positions, normals, uvs, colors, indices, points, normal, uvPoints, shade, vertex) {
@@ -514,7 +524,7 @@ function buildChunk(ck) {
                     [x - 0.5, baseY + cornerHeight(x, y, z, -1, 1, h), z + 0.5]
                 ],
                 [0, 1, 0],
-                rotatedUvPoints(Math.atan2(flow.z, flow.x)),
+                waterTopUvPoints(x, z),
                 0.96,
                 vertex
             );
