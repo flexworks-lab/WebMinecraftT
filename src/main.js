@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed } from "./world.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, SEA_LEVEL } from "./world.js";
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
