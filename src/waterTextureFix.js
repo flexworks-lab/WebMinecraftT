@@ -8,9 +8,13 @@ let prepared = false;
 let animating = false;
 let frame = 0;
 let lastAnimationTime = 0;
+let frameCanvas = null;
+let frameContext = null;
+let frameSize = 0;
+let sourceLayout = null;
 
 waterTexture.wrapS = THREE.RepeatWrapping;
-waterTexture.wrapT = THREE.ClampToEdgeWrapping;
+waterTexture.wrapT = THREE.RepeatWrapping;
 waterTexture.magFilter = THREE.NearestFilter;
 waterTexture.minFilter = THREE.NearestFilter;
 waterTexture.colorSpace = THREE.SRGBColorSpace;
@@ -59,70 +63,72 @@ function sanitizeCanvas(ctx, width, height) {
         }
         ctx.putImageData(imageData, 0, 0);
     } catch {
-        // Pixel access may be unavailable; keep the original texture colors.
+        // Some browsers can block canvas pixel reads; keep the source frame.
     }
 }
 
-function drawFrame(ctx, image, layout, sourceIndex, targetSize, targetY) {
-    const sourceWidth = layout.frameWidth;
-    const sourceHeight = layout.frameHeight;
+function drawSourceFrame(targetContext, image, layout, sourceIndex) {
+    targetContext.clearRect(0, 0, frameSize, frameSize);
 
     if (layout.axis === "x") {
-        const sourceX = sourceIndex * sourceWidth;
-        ctx.drawImage(image, sourceX, 0, sourceWidth, sourceHeight, 0, targetY, targetSize, targetSize);
+        targetContext.drawImage(
+            image,
+            sourceIndex * layout.frameWidth, 0,
+            layout.frameWidth, layout.frameHeight,
+            0, 0,
+            frameSize, frameSize
+        );
         return;
     }
 
     if (layout.axis === "y") {
-        const sourceY = sourceIndex * sourceHeight;
-        ctx.drawImage(image, 0, sourceY, sourceWidth, sourceHeight, 0, targetY, targetSize, targetSize);
+        targetContext.drawImage(
+            image,
+            0, sourceIndex * layout.frameHeight,
+            layout.frameWidth, layout.frameHeight,
+            0, 0,
+            frameSize, frameSize
+        );
         return;
     }
 
-    const strip = document.createElement("canvas");
-    strip.width = targetSize * 2;
-    strip.height = targetSize;
-    const stripCtx = strip.getContext("2d");
-    if (!stripCtx) return;
-
-    stripCtx.imageSmoothingEnabled = false;
-    stripCtx.drawImage(image, 0, 0, targetSize, targetSize);
-    stripCtx.drawImage(image, targetSize, 0, targetSize, targetSize);
-
-    const offset = (sourceIndex / FRAME_COUNT) * targetSize;
-    ctx.drawImage(strip, offset, 0, targetSize, targetSize, 0, targetY, targetSize, targetSize);
+    targetContext.drawImage(
+        image,
+        0, 0,
+        layout.frameWidth, layout.frameHeight,
+        0, 0,
+        frameSize, frameSize
+    );
 }
 
-function prepareWaterSpritesheet() {
+function prepareWaterFrameTexture() {
     if (prepared) return true;
 
     const { image, width, height } = imageSize();
     if (!image || !width || !height) return false;
 
-    const layout = getSourceLayout(width, height);
-    if (!layout) return false;
+    sourceLayout = getSourceLayout(width, height);
+    if (!sourceLayout) return false;
 
-    const targetSize = layout.frameWidth;
-    const canvas = document.createElement("canvas");
-    canvas.width = targetSize;
-    canvas.height = targetSize * FRAME_COUNT;
-
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return false;
-    ctx.imageSmoothingEnabled = false;
-
-    for (let i = 0; i < FRAME_COUNT; i++) {
-        const sourceIndex = layout.sourceFrameCount === 1 ? i : i % layout.sourceFrameCount;
-        drawFrame(ctx, image, layout, sourceIndex, targetSize, i * targetSize);
+    frameSize = sourceLayout.frameWidth;
+    frameCanvas = document.createElement("canvas");
+    frameCanvas.width = frameSize;
+    frameCanvas.height = frameSize;
+    frameContext = frameCanvas.getContext("2d", { willReadFrequently: true });
+    if (!frameContext) {
+        frameCanvas = null;
+        return false;
     }
 
-    sanitizeCanvas(ctx, canvas.width, canvas.height);
+    frameContext.imageSmoothingEnabled = false;
+    drawSourceFrame(frameContext, image, sourceLayout, 0);
+    sanitizeCanvas(frameContext, frameSize, frameSize);
 
-    waterTexture.image = canvas;
-    waterTexture.repeat.set(1, 1 / FRAME_COUNT);
+    waterTexture.image = frameCanvas;
+    waterTexture.repeat.set(1, 1);
     waterTexture.offset.set(0, 0);
     waterTexture.wrapS = THREE.RepeatWrapping;
-    waterTexture.wrapT = THREE.ClampToEdgeWrapping;
+    waterTexture.wrapT = THREE.RepeatWrapping;
     waterTexture.magFilter = THREE.NearestFilter;
     waterTexture.minFilter = THREE.NearestFilter;
     waterTexture.needsUpdate = true;
@@ -131,15 +137,24 @@ function prepareWaterSpritesheet() {
     return true;
 }
 
+function drawAnimationFrame(nextFrame) {
+    if (!prepared || !frameContext || !sourceLayout) return;
+    const sourceIndex = sourceLayout.sourceFrameCount === 1
+        ? 0
+        : nextFrame % sourceLayout.sourceFrameCount;
+
+    drawSourceFrame(frameContext, waterTexture.image, sourceLayout, sourceIndex);
+    sanitizeCanvas(frameContext, frameSize, frameSize);
+    waterTexture.needsUpdate = true;
+}
+
 function animate(time) {
-    if (!prepared) prepareWaterSpritesheet();
+    if (!prepared) prepareWaterFrameTexture();
 
     if (prepared && time - lastAnimationTime >= 1000 / FRAME_FPS) {
         lastAnimationTime = time;
         frame = (frame + 1) % FRAME_COUNT;
-        waterTexture.offset.x = 0;
-        waterTexture.offset.y = frame / FRAME_COUNT;
-        waterTexture.needsUpdate = true;
+        drawAnimationFrame(frame);
     }
 
     window.requestAnimationFrame(animate);
@@ -154,9 +169,9 @@ function start() {
 if (typeof window !== "undefined") {
     start();
 
-    if (!prepareWaterSpritesheet()) {
+    if (!prepareWaterFrameTexture()) {
         const retry = () => {
-            if (!prepareWaterSpritesheet()) window.setTimeout(retry, 100);
+            if (!prepareWaterFrameTexture()) window.setTimeout(retry, 100);
         };
         window.setTimeout(retry, 100);
     }
