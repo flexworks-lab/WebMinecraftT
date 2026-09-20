@@ -12,6 +12,7 @@ let frameCanvas = null;
 let frameContext = null;
 let frameSize = 0;
 let sourceLayout = null;
+let sourceImage = null;
 
 waterTexture.wrapS = THREE.RepeatWrapping;
 waterTexture.wrapT = THREE.RepeatWrapping;
@@ -107,6 +108,7 @@ function prepareWaterFrameTexture() {
     const { image, width, height } = imageSize();
     if (!image || !width || !height) return false;
 
+    sourceImage = image;
     sourceLayout = getSourceLayout(width, height);
     if (!sourceLayout) return false;
 
@@ -143,7 +145,7 @@ function drawAnimationFrame(nextFrame) {
         ? 0
         : nextFrame % sourceLayout.sourceFrameCount;
 
-    drawSourceFrame(frameContext, waterTexture.image, sourceLayout, sourceIndex);
+    drawSourceFrame(frameContext, sourceImage, sourceLayout, sourceIndex);
     sanitizeCanvas(frameContext, frameSize, frameSize);
     waterTexture.needsUpdate = true;
 }
