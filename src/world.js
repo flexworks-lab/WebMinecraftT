@@ -547,56 +547,89 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         const rz=n[0]*sin+n[2]*cos;
         return [rx,n[1],rz];
     };
-    const faces=[
-        {normal:[1,0,0],points:[[.5,-.5,-.5],[.5,.5,-.5],[.5,.5,0],[.5,0,0],[.5,0,.5],[.5,-.5,.5]],index:0},
-        {normal:[-1,0,0],points:[[-.5,-.5,.5],[-.5,0,.5],[-.5,0,0],[-.5,.5,0],[-.5,.5,-.5],[-.5,-.5,-.5]],index:1},
-        {normal:[0,1,0],points:[[-.5,.5,-.5],[-.5,.5,0],[.5,.5,0],[.5,.5,-.5]],index:2},
-        {normal:[0,1,0],points:[[-.5,0,0],[-.5,0,.5],[.5,0,.5],[.5,0,0]],index:2},
-        {normal:[0,-1,0],points:[[-.5,-.5,.5],[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5]],index:3},
-        {normal:[0,0,1],points:[[-.5,-.5,.5],[.5,-.5,.5],[.5,0,.5],[-.5,0,.5]],index:4},
-        {normal:[0,0,1],points:[[-.5,0,0],[.5,0,0],[.5,.5,0],[-.5,.5,0]],index:4},
-        {normal:[0,0,-1],points:[[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5],[.5,-.5,-.5]],index:5}
-    ];
 
-    // Map UVs from the actual visible portion of the stair geometry.
-    // This prevents a half-depth/half-height stair face from stretching
-    // the entire plank texture across only the part that is visible.
-    const uvForPoint=(point,normal)=>{
-        const px=point[0]+0.5;
-        const py=point[1]+0.5;
-        const pz=point[2]+0.5;
-        if(Math.abs(normal[1])>0.5){
-            return [px,pz];
-        }
-        if(Math.abs(normal[0])>0.5){
-            return [pz,py];
-        }
-        return [px,py];
-    };
-
-    for(const face of faces){
+    const emitFace=(points,normal,faceIndex,uvPoints)=>{
         const base=vertexRef.count;
-        const rotatedNormal=rotateNormal(face.normal);
-        const rotatedPoints=face.points.map(rotatePoint);
-
+        const rotatedNormal=rotateNormal(normal);
+        const rotatedPoints=points.map(rotatePoint);
         rotatedPoints.forEach((p)=>{
             positions.push(x+p[0],y+p[1],z+p[2]);
             normals.push(rotatedNormal[0],rotatedNormal[1],rotatedNormal[2]);
             colors.push(underwaterShade,underwaterShade,underwaterShade);
-            const [u,v]=uvForPoint(p,rotatedNormal);
-            uvs.push(u,v);
         });
-
+        for(const [u,v] of uvPoints) uvs.push(u,v);
         if(rotatedPoints.length===4){
-            groups[materialIndexFor(materialType,face.index)].push(base,base+1,base+2,base,base+2,base+3);
-            vertexRef.count+=4;
+            groups[materialIndexFor(materialType,faceIndex)].push(base,base+1,base+2,base,base+2,base+3);
         }else{
             for(let i=1;i<rotatedPoints.length-1;i++){
-                groups[materialIndexFor(materialType,face.index)].push(base,base+i,base+i+1);
+                groups[materialIndexFor(materialType,faceIndex)].push(base,base+i,base+i+1);
             }
-            vertexRef.count+=rotatedPoints.length;
         }
-    }
+        vertexRef.count+=rotatedPoints.length;
+    };
+
+    // The two vertical side faces are concave. Keep each visible rectangle
+    // separate so UV interpolation cannot run diagonally across the notch.
+    // UVs stay tied to the original block texture coordinates: the half-width
+    // and half-height portions use only the corresponding texture area.
+    const sideQuads=[
+        {
+            faceIndex:0,
+            normal:[1,0,0],
+            points:[[.5,-.5,-.5],[.5,.5,-.5],[.5,.5,0],[.5,-.5,0]],
+            uv:[[0,0],[0,1],[.5,1],[.5,0]]
+        },
+        {
+            faceIndex:0,
+            normal:[1,0,0],
+            points:[[.5,-.5,0],[.5,0,0],[.5,0,.5],[.5,-.5,.5]],
+            uv:[[.5,0],[.5,.5],[1,.5],[1,0]]
+        },
+        {
+            faceIndex:1,
+            normal:[-1,0,0],
+            points:[[-.5,-.5,0],[-.5,0,0],[-.5,0,.5],[-.5,-.5,.5]],
+            uv:[[.5,0],[.5,.5],[1,.5],[1,0]]
+        },
+        {
+            faceIndex:1,
+            normal:[-1,0,0],
+            points:[[-.5,-.5,-.5],[-.5,.5,-.5],[-.5,.5,0],[-.5,-.5,0]],
+            uv:[[0,0],[0,1],[.5,1],[.5,0]]
+        }
+    ];
+    for(const face of sideQuads) emitFace(face.points,face.normal,face.faceIndex,face.uv);
+
+    emitFace(
+        [[-.5,.5,-.5],[-.5,.5,0],[.5,.5,0],[.5,.5,-.5]],
+        [0,1,0],2,
+        [[0,0],[0,.5],[.5,.5],[.5,0]]
+    );
+    emitFace(
+        [[-.5,0,0],[-.5,0,.5],[.5,0,.5],[.5,0,0]],
+        [0,1,0],2,
+        [[.5,.5],[.5,1],[1,1],[1,.5]]
+    );
+    emitFace(
+        [[-.5,-.5,.5],[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5]],
+        [0,-1,0],3,
+        [[0,1],[0,0],[1,0],[1,1]]
+    );
+    emitFace(
+        [[-.5,-.5,.5],[.5,-.5,.5],[.5,0,.5],[-.5,0,.5]],
+        [0,0,1],4,
+        [[1,0],[0,0],[0,.5],[1,.5]]
+    );
+    emitFace(
+        [[-.5,0,0],[.5,0,0],[.5,.5,0],[-.5,.5,0]],
+        [0,0,1],4,
+        [[.5,0],[1,0],[1,1],[.5,1]]
+    );
+    emitFace(
+        [[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5],[.5,-.5,-.5]],
+        [0,0,-1],5,
+        [[0,0],[0,1],[1,1],[1,0]]
+    );
 }
 function makeGeometryForChunk(chunk){
     const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);
