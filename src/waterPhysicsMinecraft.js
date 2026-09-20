@@ -45,7 +45,7 @@ waterTexture.needsUpdate = true;
 
 const fluidMaterial = new THREE.MeshBasicMaterial({
     map: waterTexture,
-    color: 0xffffff,
+    color: 0x0b4f8a,
     transparent: true,
     opacity: 0.82,
     depthWrite: false,
