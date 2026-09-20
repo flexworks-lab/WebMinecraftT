@@ -96,7 +96,7 @@ function createDynamicBlock(scene, x, y, z, materials, kind) {
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
+    mesh.frustumCulled = true;
     mesh.userData.dynamicBlockType = kind;
     mesh.userData.originalColors = cloned.map(material => material.color.clone());
     scene.add(mesh);
@@ -418,27 +418,22 @@ function makeExplosionEffect(scene, x, y, z) {
 function processExplosion(explosion) {
     const { scene, BLOCK, offsets } = explosion;
     const changedBlocks = [];
-    beginWorldEditBatch();
-    try {
-        for (const offset of offsets) {
-            const x = explosion.cx + offset.dx;
-            const y = explosion.cy + offset.dy;
-            const z = explosion.cz + offset.dz;
-            const type = getBlockAt(x, y, z);
-            if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
-            if (type === BLOCK.TNT && !(x === explosion.cx && y === explosion.cy && z === explosion.cz)) {
-                const key = makeKey(x, y, z);
-                if (!explosion.chainTNT.has(key)) {
-                    explosion.chainTNT.add(key);
-                    const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
-                    scheduleFuse(scene, x, y, z, delay);
-                }
-                continue;
+    for (const offset of offsets) {
+        const x = explosion.cx + offset.dx;
+        const y = explosion.cy + offset.dy;
+        const z = explosion.cz + offset.dz;
+        const type = getBlockAt(x, y, z);
+        if (!type || type === BLOCK.AIR || type === BLOCK.BEDROCK) continue;
+        if (type === BLOCK.TNT && !(x === explosion.cx && y === explosion.cy && z === explosion.cz)) {
+            const key = makeKey(x, y, z);
+            if (!explosion.chainTNT.has(key)) {
+                explosion.chainTNT.add(key);
+                const delay = 80 + Math.random() * MAX_TNT_CHAIN_DELAY;
+                scheduleFuse(scene, x, y, z, delay);
             }
-            if (setBlockAt(x, y, z, BLOCK.AIR)) changedBlocks.push({ x, y, z, type: BLOCK.AIR });
+            continue;
         }
-    } finally {
-        endWorldEditBatch();
+        if (setBlockAt(x, y, z, BLOCK.AIR)) changedBlocks.push({ x, y, z, type: BLOCK.AIR });
     }
     if (changedBlocks.length) {
         for (const change of changedBlocks) queueNetworkBlockChange(change.x, change.y, change.z, change.type);
@@ -448,12 +443,18 @@ function processExplosion(explosion) {
 }
 
 function processPendingExplosions() {
+    if (!pendingExplosions.length) return;
     let processed = 0;
-    while (processed < MAX_EXPLOSIONS_PER_FRAME && pendingExplosions.length) {
-        const explosion = pendingExplosions.shift();
-        pendingExplosionKeys.delete(makeKey(explosion.cx, explosion.cy, explosion.cz));
-        processExplosion(explosion);
-        processed++;
+    beginWorldEditBatch();
+    try {
+        while (processed < MAX_EXPLOSIONS_PER_FRAME && pendingExplosions.length) {
+            const explosion = pendingExplosions.shift();
+            pendingExplosionKeys.delete(makeKey(explosion.cx, explosion.cy, explosion.cz));
+            processExplosion(explosion);
+            processed++;
+        }
+    } finally {
+        endWorldEditBatch();
     }
 }
 
