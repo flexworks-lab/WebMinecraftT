@@ -683,10 +683,22 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         [[.5,mainMinY,.5],[.5,mainMinY,-.5],[-.5,mainMinY,-.5],[-.5,mainMinY,.5]],
         [0,-1,0],3,[[1,0],[1,1],[0,1],[0,0]]
     );
-    emitQuad(
-        [[-.5,mainMaxY,.5],[.5,mainMaxY,.5],[.5,mainMaxY,-.5],[-.5,mainMaxY,-.5]],
-        [0,1,0],2,[[0,0],[1,0],[1,1],[0,1]]
-    );
+    // The inner surface is exposed only in quadrants not occupied by
+    // the raised/lowered section, avoiding z-fighting under stair corners.
+    const centerCut=(xi,zi)=>shapeMask&(1<<(zi*2+xi));
+    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
+        if(centerCut(xi,zi))continue;
+        const minX=-.5+xi*.5,maxX=minX+.5;
+        const minZ=-.5+zi*.5,maxZ=minZ+.5;
+        if(!half)emitQuad(
+            [[minX,mainMaxY,maxZ],[maxX,mainMaxY,maxZ],[maxX,mainMaxY,minZ],[minX,mainMaxY,minZ]],
+            [0,1,0],2,[[0,0],[1,0],[1,1],[0,1]]
+        );
+        else emitQuad(
+            [[minX,mainMinY,minZ],[maxX,mainMinY,minZ],[maxX,mainMinY,maxZ],[minX,mainMinY,maxZ]],
+            [0,-1,0],3,[[0,0],[1,0],[1,1],[0,1]]
+        );
+    }
 
     const occupied=[];
     for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
