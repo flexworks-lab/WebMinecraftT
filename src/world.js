@@ -398,23 +398,74 @@ function stairPlankType(type){const base=stairBaseType(type);if(!isStairBlock(ba
 export function stairFacing(type){const n=Number(type);if(!Number.isFinite(n)||!isStairBlock(n))return 0;return Math.floor((n-75)/10);}
 export function stairOrientedType(baseType,facing=0){const base=stairBaseType(baseType);if(!isStairBlock(base))return base;return 75+((base-75)%10)+((Math.floor(facing)%4+4)%4)*10;}
 function blockShape(type,y){const slab=isSlabBlock(type);return{minY:y-0.5,maxY:slab?y:y+0.5};}
-function stairCollisionBoxes(type,y){
-    const facing=stairFacing(type);
-    const [upperMinX,upperMaxX,upperMinZ,upperMaxZ]=stairUpperBounds(facing);
-    return [
-        { minX:-0.5, maxX:0.5, minY:y-0.5, maxY:y, minZ:-0.5, maxZ:0.5 },
-        { minX:upperMinX, maxX:upperMaxX, minY:y, maxY:y+0.5, minZ:upperMinZ, maxZ:upperMaxZ }
-    ];
+function rotateStairMask(mask,quarter){
+    let out=0;
+    for(let zi=0;zi<2;zi++){
+        for(let xi=0;xi<2;xi++){
+            const bit=1<<(zi*2+xi);
+            if(!(mask&bit))continue;
+            let rx=xi,rz=zi;
+            for(let i=0;i<quarter;i++){
+                const nx=1-rz;
+                const nz=rx;
+                rx=nx;rz=nz;
+            }
+            out|=1<<(rz*2+rx);
+        }
+    }
+    return out;
 }
+
+function stairShapeMaskFor(type,x,y,z){
+    if(!isStairBlock(type))return 0;
+    const facing=stairFacing(type);
+    const dirs=[[0,-1],[-1,0],[0,1],[1,0]];
+    const [fx,fz]=dirs[facing]||dirs[0];
+    const leftFacing=(facing+1)%4;
+    const rightFacing=(facing+3)%4;
+
+    const forward=getBlockType(x+fx,y,z+fz);
+    if(isStairBlock(forward)){
+        const nf=stairFacing(forward);
+        if(nf===leftFacing)return rotateStairMask(0x1,facing);
+        if(nf===rightFacing)return rotateStairMask(0x2,facing);
+    }
+
+    const backward=getBlockType(x-fx,y,z-fz);
+    if(isStairBlock(backward)){
+        const nf=stairFacing(backward);
+        if(nf===leftFacing)return rotateStairMask(0x7,facing);
+        if(nf===rightFacing)return rotateStairMask(0xb,facing);
+    }
+
+    return rotateStairMask(0x3,facing);
+}
+
+export function stairShapeMask(type,x,y,z){
+    return stairShapeMaskFor(Number(type),Math.floor(x),Math.floor(y),Math.floor(z));
+}
+
+function stairCollisionBoxes(type,x,y,z){
+    const mask=stairShapeMaskFor(type,x,y,z);
+    const boxes=[{minX:x-.5,maxX:x+.5,minY:y-.5,maxY:y,minZ:z-.5,maxZ:z+.5}];
+    for(let zi=0;zi<2;zi++){
+        for(let xi=0;xi<2;xi++){
+            if(!(mask&(1<<(zi*2+xi))) )continue;
+            boxes.push({
+                minX:x-.5+xi*.5,maxX:x-.5+(xi+1)*.5,
+                minY:y,maxY:y+.5,
+                minZ:z-.5+zi*.5,maxZ:z-.5+(zi+1)*.5
+            });
+        }
+    }
+    return boxes;
+}
+
 export function getBlockCollisionBoxes(type,x,y,z){
     const n=Number(type);
     if(!Number.isFinite(n)||n===BLOCK.AIR)return [];
     if(isStairBlock(n)){
-        return stairCollisionBoxes(n,y).map(box=>({
-            minX:x+box.minX,maxX:x+box.maxX,
-            minY:box.minY,maxY:box.maxY,
-            minZ:z+box.minZ,maxZ:z+box.maxZ
-        }));
+        return stairCollisionBoxes(n,x,y,z);
     }
     const bounds=blockShape(n,y);
     return [{minX:x-0.5,maxX:x+0.5,minY:bounds.minY,maxY:bounds.maxY,minZ:z-0.5,maxZ:z+0.5}];
@@ -533,7 +584,7 @@ function stairUpperBounds(facing){
     if(facing===2)return[-0.5,0.5,0,0.5];
     return[-0.5,0,-0.5,0.5];
 }
-function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,materialType,underwaterShade,facing){
+function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,materialType,underwaterShade,facing,shapeMask){
     const quarter=((Math.floor(Number(facing))%4)+4)%4;
     const cos=Math.cos(-quarter*Math.PI/2);
     const sin=Math.sin(-quarter*Math.PI/2);
@@ -548,89 +599,65 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         return [rx,n[1],rz];
     };
 
-    const emitFace=(points,normal,faceIndex,uvPoints)=>{
+    const emitFace=(points,normal,faceIndex)=>{
         const base=vertexRef.count;
         const rotatedNormal=rotateNormal(normal);
-        const rotatedPoints=points.map(rotatePoint);
-        rotatedPoints.forEach((p)=>{
+        points.forEach(point=>{
+            const p=rotatePoint(point);
             positions.push(x+p[0],y+p[1],z+p[2]);
             normals.push(rotatedNormal[0],rotatedNormal[1],rotatedNormal[2]);
             colors.push(underwaterShade,underwaterShade,underwaterShade);
+
+            const px=p[0]+.5,py=p[1]+.5,pz=p[2]+.5;
+            let u,v;
+            if(Math.abs(rotatedNormal[1])>.5){u=px;v=pz;}
+            else if(Math.abs(rotatedNormal[0])>.5){u=pz;v=py;}
+            else{u=px;v=py;}
+            uvs.push(u,v);
         });
-        for(const [u,v] of uvPoints) uvs.push(u,v);
-        if(rotatedPoints.length===4){
-            groups[materialIndexFor(materialType,faceIndex)].push(base,base+1,base+2,base,base+2,base+3);
-        }else{
-            for(let i=1;i<rotatedPoints.length-1;i++){
-                groups[materialIndexFor(materialType,faceIndex)].push(base,base+i,base+i+1);
-            }
-        }
-        vertexRef.count+=rotatedPoints.length;
+        const materialIndex=materialIndexFor(materialType,faceIndex);
+        groups[materialIndex].push(base,base+1,base+2,base,base+2,base+3);
+        vertexRef.count+=4;
     };
 
-    // The two vertical side faces are concave. Keep each visible rectangle
-    // separate so UV interpolation cannot run diagonally across the notch.
-    // UVs stay tied to the original block texture coordinates: the half-width
-    // and half-height portions use only the corresponding texture area.
-    const sideQuads=[
-        {
-            faceIndex:0,
-            normal:[1,0,0],
-            points:[[.5,-.5,-.5],[.5,.5,-.5],[.5,.5,0],[.5,-.5,0]],
-            uv:[[0,0],[0,1],[.5,1],[.5,0]]
-        },
-        {
-            faceIndex:0,
-            normal:[1,0,0],
-            points:[[.5,-.5,0],[.5,0,0],[.5,0,.5],[.5,-.5,.5]],
-            uv:[[.5,0],[.5,.5],[1,.5],[1,0]]
-        },
-        {
-            faceIndex:1,
-            normal:[-1,0,0],
-            points:[[-.5,-.5,.5],[-.5,0,.5],[-.5,0,0],[-.5,-.5,0]],
-            uv:[[1,0],[1,.5],[.5,.5],[.5,0]]
-        },
-        {
-            faceIndex:1,
-            normal:[-1,0,0],
-            points:[[-.5,-.5,-.5],[-.5,-.5,0],[-.5,.5,0],[-.5,.5,-.5]],
-            uv:[[0,0],[.5,0],[.5,1],[0,1]]
-        }
-    ];
-    for(const face of sideQuads) emitFace(face.points,face.normal,face.faceIndex,face.uv);
+    const occupied=new Set();
+    const cellKey=(layer,xi,zi)=>`${layer}:${xi}:${zi}`;
+    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++)occupied.add(cellKey(0,xi,zi));
+    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
+        if(shapeMask&(1<<(zi*2+xi)))occupied.add(cellKey(1,xi,zi));
+    }
 
-    emitFace(
-        [[-.5,.5,-.5],[-.5,.5,0],[.5,.5,0],[.5,.5,-.5]],
-        [0,1,0],2,
-        [[0,0],[0,.5],[.5,.5],[.5,0]]
-    );
-    emitFace(
-        [[-.5,0,0],[-.5,0,.5],[.5,0,.5],[.5,0,0]],
-        [0,1,0],2,
-        [[.5,.5],[.5,1],[1,1],[1,.5]]
-    );
-    emitFace(
-        [[-.5,-.5,.5],[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5]],
-        [0,-1,0],3,
-        [[0,1],[0,0],[1,0],[1,1]]
-    );
-    emitFace(
-        [[-.5,-.5,.5],[.5,-.5,.5],[.5,0,.5],[-.5,0,.5]],
-        [0,0,1],4,
-        [[1,0],[0,0],[0,.5],[1,.5]]
-    );
-    emitFace(
-        [[-.5,0,0],[.5,0,0],[.5,.5,0],[-.5,.5,0]],
-        [0,0,1],4,
-        [[.5,0],[1,0],[1,1],[.5,1]]
-    );
-    emitFace(
-        [[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5],[.5,-.5,-.5]],
-        [0,0,-1],5,
-        [[0,0],[0,1],[1,1],[1,0]]
-    );
+    for(const key of occupied){
+        const [layer,xi,zi]=key.split(":").map(Number);
+        const minX=-.5+xi*.5,maxX=minX+.5;
+        const minZ=-.5+zi*.5,maxZ=minZ+.5;
+        const minY=layer===0?-.5:0,maxY=layer===0?0:.5;
+
+        const adjacent=[
+            [layer,xi+1,zi],
+            [layer,xi-1,zi],
+            [layer,xi,zi+1],
+            [layer,xi,zi-1],
+            [layer+1,xi,zi],
+            [layer-1,xi,zi]
+        ];
+        const faces=[
+            {normal:[1,0,0],points:[[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],index:0},
+            {normal:[-1,0,0],points:[[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],index:1},
+            {normal:[0,1,0],points:[[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],index:2},
+            {normal:[0,-1,0],points:[[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],index:3},
+            {normal:[0,0,1],points:[[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],index:4},
+            {normal:[0,0,-1],points:[[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],index:5}
+        ];
+
+        for(let fi=0;fi<6;fi++){
+            if(occupied.has(adjacent[fi].join(":")))continue;
+            if(layer===1&&fi===3)continue;
+            emitFace(faces[fi].points,faces[fi].normal,faces[fi].index);
+        }
+    }
 }
+
 function makeGeometryForChunk(chunk){
     const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);
     const vertexRef={count:0};
@@ -641,7 +668,7 @@ function makeGeometryForChunk(chunk){
             if(!isSolid(type))continue;
             const underwaterShade=getUnderwaterShade(surfaceY,y,x,z);
             if(isStairBlock(type)){
-                appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,type,underwaterShade,stairFacing(type));
+                appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z,type,underwaterShade,stairFacing(type),stairShapeMaskFor(type,x,y,z));
                 continue;
             }
             const shape=blockShape(type,y);
