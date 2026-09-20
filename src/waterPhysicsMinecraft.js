@@ -551,16 +551,19 @@ function wrap01(value) {
     return value < 0 ? value + 1 : value;
 }
 
-const WATER_TEXTURE_SPAN = 10;
+function blockMinCoord(center) {
+    return Math.floor(center + 0.5) - 0.5;
+}
 
 function topUv(x, z) {
-    const u = (x + z * 0.34) / WATER_TEXTURE_SPAN;
-    const v = (z - x * 0.16) / WATER_TEXTURE_SPAN;
+    const u = x - blockMinCoord(x);
+    const v = z - blockMinCoord(z);
     return [u, v];
 }
 
-function sideUv(x, z, y, vertical) {
-    const u = (x + z * 0.22) / 6;
+function sideUv(x, z, vertical, normal) {
+    const varyingCoord = normal[0] !== 0 ? z : x;
+    const u = varyingCoord - blockMinCoord(varyingCoord);
     const v = THREE.MathUtils.clamp(vertical, 0, 1);
     return [u, v];
 }
@@ -692,25 +695,25 @@ function buildChunk(ck) {
                 positions, normals, uvs, vertexMap,
                 edgeA[0], topA, edgeA[2],
                 normal[0], normal[1], normal[2],
-                ...sideUv(edgeA[0], edgeA[2], y, (topA - bottom) / Math.max(0.001, h))
+                ...sideUv(edgeA[0], edgeA[2], (topA - bottom) / Math.max(0.001, h), normal)
             );
             const bTop = addVertex(
                 positions, normals, uvs, vertexMap,
                 edgeB[0], topB, edgeB[2],
                 normal[0], normal[1], normal[2],
-                ...sideUv(edgeB[0], edgeB[2], y, (topB - bottom) / Math.max(0.001, h))
+                ...sideUv(edgeB[0], edgeB[2], (topB - bottom) / Math.max(0.001, h), normal)
             );
             const bBottom = addVertex(
                 positions, normals, uvs, vertexMap,
                 edgeB[0], lower, edgeB[2],
                 normal[0], normal[1], normal[2],
-                ...sideUv(edgeB[0], edgeB[2], y, 0)
+                ...sideUv(edgeB[0], edgeB[2], 0, normal)
             );
             const aBottom = addVertex(
                 positions, normals, uvs, vertexMap,
                 edgeA[0], lower, edgeA[2],
                 normal[0], normal[1], normal[2],
-                ...sideUv(edgeA[0], edgeA[2], y, 0)
+                ...sideUv(edgeA[0], edgeA[2], 0, normal)
             );
             addQuad(indices, aTop, bTop, bBottom, aBottom);
         }
