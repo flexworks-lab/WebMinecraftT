@@ -206,7 +206,9 @@ export function setupInteraction(scene, camera) {
             const z = target.z + normal.z;
             if (getBlockAt(x, y, z) !== BLOCK.AIR) return;
             if (playerOverlapsBlock({ x, y, z }, camera)) return;
-            const quarter = Math.round(Number(yaw) / (Math.PI / 2));
+            // Stairs face toward the player: use the opposite of the
+            // direction the player is looking when determining the stair facing.
+            const quarter = Math.round(Number(yaw) / (Math.PI / 2)) + 2;
             const facing = ((quarter % 4) + 4) % 4;
             const placedType = stairOrientedType(itemId, facing);
             if (!isStairBlock(placedType) || !setBlockAt(x, y, z, placedType)) return;
