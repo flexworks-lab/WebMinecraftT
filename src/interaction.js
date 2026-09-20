@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType, isStairBlock, stairOrientedType } from "./world.js";
+import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType, isStairBlock, stairFacing, stairOrientedType } from "./world.js";
 import { touchInput, yaw } from "./controls.js";
 import { sendBlockChange, sendSlabPlacement, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
@@ -335,12 +335,9 @@ function getTargetBlock(scene, camera, BLOCK, ndcX = 0, ndcY = 0) {
     return { hit, normal, x: voxel.x, y: voxel.y, z: voxel.z };
 }
 
-function createSelectionOutline() {
-    const group = new THREE.Group();
-    group.name = "blockSelectionOutline";
-    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.9 });
-    const geometry = new THREE.BufferGeometry();
-    const vertices = new Float32Array([
+function makeBoxSelectionGeometry(){
+    const geometry=new THREE.BufferGeometry();
+    const vertices=new Float32Array([
         -0.501,-0.501,-0.501, 0.501,-0.501,-0.501, 0.501,-0.501,-0.501, 0.501,0.501,-0.501,
         0.501,0.501,-0.501, -0.501,0.501,-0.501, -0.501,0.501,-0.501, -0.501,-0.501,-0.501,
         -0.501,-0.501,0.501, 0.501,-0.501,0.501, 0.501,-0.501,0.501, 0.501,0.501,0.501,
@@ -348,21 +345,87 @@ function createSelectionOutline() {
         -0.501,-0.501,-0.501, -0.501,-0.501,0.501, 0.501,-0.501,-0.501, 0.501,-0.501,0.501,
         0.501,0.501,-0.501, 0.501,0.501,0.501, -0.501,0.501,-0.501, -0.501,0.501,0.501
     ]);
-    geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
-    const lines = new THREE.LineSegments(geometry, edgeMaterial);
+    geometry.setAttribute("position",new THREE.BufferAttribute(vertices,3));
+    return geometry;
+}
+
+function makeStairSelectionGeometry(facing){
+    const quarter=((Math.floor(Number(facing))%4)+4)%4;
+    const cos=Math.cos(-quarter*Math.PI/2);
+    const sin=Math.sin(-quarter*Math.PI/2);
+    const rotate=(p)=>{
+        const rx=p[0]*cos-p[2]*sin;
+        const rz=p[0]*sin+p[2]*cos;
+        return [rx,p[1],rz];
+    };
+    const e=0.502;
+    const profile=[
+        [-e,-e,-e],
+        [-e, e,-e],
+        [-e, e, 0],
+        [-e, 0, 0],
+        [-e, 0, e],
+        [-e,-e, e]
+    ];
+    const points=[];
+    const left=profile;
+    const right=profile.map(p=>[e,p[1],p[2]]);
+    for(const p of left) points.push(rotate(p));
+    for(const p of right) points.push(rotate(p));
+    const indices=[];
+    const loopCount=left.length;
+    for(let i=0;i<loopCount;i++){
+        const next=(i+1)%loopCount;
+        indices.push(i,next);
+        indices.push(i+loopCount,next+loopCount);
+        indices.push(i,i+loopCount);
+    }
+    const vertices=new Float32Array(indices.flatMap(i=>points[i]));
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute("position",new THREE.BufferAttribute(vertices,3));
+    return geometry;
+}
+
+function createSelectionOutline() {
+    const group = new THREE.Group();
+    group.name = "blockSelectionOutline";
+    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.9 });
+    const lines = new THREE.LineSegments(makeBoxSelectionGeometry(), edgeMaterial);
     lines.name = "selectionEdges";
     group.add(lines);
+    group.userData.selectionEdges = lines;
+    group.userData.selectionShape = "box";
     return group;
 }
 
 function updateSelectionOutline(outline, target, camera) {
     outline.position.set(target.x, target.y, target.z);
     const type = getBlockAt(target.x, target.y, target.z);
+    const edges = outline.userData.selectionEdges;
+    if (!edges) return;
+
+    if (isStairBlock(type)) {
+        const facing = stairFacing(type);
+        const shapeKey = `stair:${facing}`;
+        if (outline.userData.selectionShape !== shapeKey) {
+            edges.geometry.dispose();
+            edges.geometry = makeStairSelectionGeometry(facing);
+            outline.userData.selectionShape = shapeKey;
+        }
+        outline.scale.set(1,1,1);
+        return;
+    }
+
+    if (outline.userData.selectionShape !== "box") {
+        edges.geometry.dispose();
+        edges.geometry = makeBoxSelectionGeometry();
+        outline.userData.selectionShape = "box";
+    }
+
     const slab = isSlabBlock(type);
     outline.scale.set(1, slab ? 0.5 : 1, 1);
     outline.position.y += slab ? -0.25 : 0;
 }
-
 function playerOverlapsBlock(pos, camera) {
     const p = camera.position;
     const slab = isSlabBlock(getBlockAt(pos.x, pos.y, pos.z));
