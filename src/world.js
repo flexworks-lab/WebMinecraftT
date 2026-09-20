@@ -630,42 +630,53 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         vertexRef.count+=4;
     };
 
-    // Base lower side/top pieces. UVs are mapped in world-local 0..1
-    // coordinates, so the texture remains square and never shears.
     const emitCell=(minX,maxX,minY,maxY,minZ,maxZ)=>{
         const eps=0.0001;
         if(maxX-minX<=eps||maxY-minY<=eps||maxZ-minZ<=eps)return;
+
+        // UV coordinates are proportional to the actual visible dimensions.
+        // A half-width/half-height stair section therefore consumes only the
+        // corresponding half of the source texture instead of stretching it.
+        const ux0=minX+.5, ux1=maxX+.5;
+        const uz0=minZ+.5, uz1=maxZ+.5;
+        const vy0=minY+.5, vy1=maxY+.5;
+
         emitQuad(
             [[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],
-            [1,0,0],0,[[0,0],[0,1],[1,1],[1,0]]
+            [1,0,0],0,
+            [[uz0,vy0],[uz0,vy1],[uz1,vy1],[uz1,vy0]]
         );
         emitQuad(
             [[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],
-            [-1,0,0],1,[[0,0],[0,1],[1,1],[1,0]]
+            [-1,0,0],1,
+            [[uz1,vy0],[uz1,vy1],[uz0,vy1],[uz0,vy0]]
         );
         emitQuad(
             [[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
-            [0,1,0],2,[[0,0],[1,0],[1,1],[0,1]]
+            [0,1,0],2,
+            [[ux0,uz1],[ux1,uz1],[ux1,uz0],[ux0,uz0]]
         );
         emitQuad(
             [[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],
-            [0,-1,0],3,[[0,0],[1,0],[1,1],[0,1]]
+            [0,-1,0],3,
+            [[ux0,uz0],[ux1,uz0],[ux1,uz1],[ux0,uz1]]
         );
         emitQuad(
             [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
-            [0,0,1],4,[[0,0],[1,0],[1,1],[0,1]]
+            [0,0,1],4,
+            [[ux1,vy0],[ux1,vy1],[ux0,vy1],[ux0,vy0]]
         );
         emitQuad(
             [[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],
-            [0,0,-1],5,[[0,0],[1,0],[1,1],[0,1]]
+            [0,0,-1],5,
+            [[ux0,vy0],[ux0,vy1],[ux1,vy1],[ux1,vy0]]
         );
     };
 
-    // Lower block is always present.
+    // Lower half of every stair uses the full block footprint.
     emitCell(-.5,.5,-.5,0,-.5,.5);
 
-    // Upper part. For corner masks, use exactly the selected half/quarter
-    // so the visible shape matches the joining stair without diagonal UVs.
+    // Upper step/corner footprint uses only the selected quarter cells.
     for(let zi=0;zi<2;zi++){
         for(let xi=0;xi<2;xi++){
             const bit=1<<(zi*2+xi);
