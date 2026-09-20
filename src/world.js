@@ -813,7 +813,21 @@ function makeGeometryForChunk(chunk){
 }
 function makeWaterGeometry(chunk){const positions=[],normals=[],uvs=[],colors=[],indices=[];let vertices=0;const startX=chunk.x*CHUNK_SIZE,startZ=chunk.z*CHUNK_SIZE;for(let lx=0;lx<CHUNK_SIZE;lx++){for(let lz=0;lz<CHUNK_SIZE;lz++){const x=startX+lx,z=startZ+lz,surfaceY=chunk.surfaceHeights?.[lz*CHUNK_SIZE+lx] ?? getTerrainProfile(x,z).height;if(surfaceY>=SEA_LEVEL)continue;const y=SEA_LEVEL+.42,waveA=Math.sin((x+z)*.19)*.042,waveB=Math.sin((x*.31-z*.17)+1.7)*.025,waveC=Math.cos((x*.13+z*.27)-.6)*.02,base=vertices;positions.push(x-.5,y+waveA+waveC,z-.5,x-.5,y+waveB,z+.5,x+.5,y-waveA+waveC*.5,z+.5,x+.5,y-waveB,z-.5);normals.push(0,1,0,0,1,0,0,1,0,0,1,0);const shimmer=.94+hash2D(x,z,1931)*.12;colors.push(.16*shimmer,.52*shimmer,.80*shimmer,.20*shimmer,.59*shimmer,.86*shimmer,.13*shimmer,.47*shimmer,.75*shimmer,.19*shimmer,.56*shimmer,.84*shimmer);uvs.push(0,0,0,1,1,1,1,0);indices.push(base,base+1,base+2,base,base+2,base+3);vertices+=4;}}if(vertices===0)return null;const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute("normal",new THREE.Float32BufferAttribute(normals,3));geometry.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));geometry.setIndex(indices);geometry.computeBoundingSphere();return geometry;}
 function disposeChunkMesh(chunk){if(!chunk||!worldScene)return;const key=chunkKey(chunk.x,chunk.z),mesh=chunkMeshes.get(key);if(mesh){worldScene.remove(mesh);mesh.geometry.dispose();chunkMeshes.delete(key);}if(chunk.waterMesh){worldScene.remove(chunk.waterMesh);chunk.waterMesh.geometry.dispose();chunk.waterMesh=null;}}
-function rebuildChunkMesh(chunk){if(!chunk||!worldScene)return;disposeChunkMesh(chunk);const geometry=makeGeometryForChunk(chunk);if(geometry){const mesh=new THREE.Mesh(geometry,chunkMaterials);mesh.userData.isChunk=true;mesh.castShadow=false;mesh.receiveShadow=true;worldScene.add(mesh);chunkMeshes.set(chunkKey(chunk.x,chunk.z),mesh);}const waterGeometry=makeWaterGeometry(chunk);if(waterGeometry){const waterMesh=new THREE.Mesh(waterGeometry,waterMaterial);waterMesh.userData.isChunk=true;waterMesh.userData.isWater=true;waterMesh.castShadow=false;waterMesh.receiveShadow=false;worldScene.add(waterMesh);chunk.waterMesh=waterMesh;}}
+function rebuildChunkMesh(chunk){
+    if(!chunk||!worldScene)return;
+    disposeChunkMesh(chunk);
+    const geometry=makeGeometryForChunk(chunk);
+    if(geometry){
+        const mesh=new THREE.Mesh(geometry,chunkMaterials);
+        mesh.userData.isChunk=true;
+        mesh.userData.chunkX=chunk.x;
+        mesh.userData.chunkZ=chunk.z;
+        mesh.castShadow=false;
+        mesh.receiveShadow=true;
+        worldScene.add(mesh);
+        chunkMeshes.set(chunkKey(chunk.x,chunk.z),mesh);
+    }
+}
 function queueNeededChunks(playerChunkX,playerChunkZ){const wanted=[];for(let dx=-RENDER_DISTANCE;dx<=RENDER_DISTANCE;dx++){for(let dz=-RENDER_DISTANCE;dz<=RENDER_DISTANCE;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))>RENDER_DISTANCE)continue;const x=playerChunkX+dx,z=playerChunkZ+dz,key=chunkKey(x,z);if(chunks.has(key)||queuedKeys.has(key))continue;wanted.push({x,z,distance:Math.sqrt(dx*dx+dz*dz)});}}wanted.sort((a,b)=>a.distance-b.distance);for(const item of wanted){const key=chunkKey(item.x,item.z);queuedKeys.add(key);generationQueue.push(item);}}
 function processChunkQueue(){const first=generationQueue.shift();if(!first)return;const key=chunkKey(first.x,first.z);queuedKeys.delete(key);if(chunks.has(key))return;const chunk=generateChunk(first.x,first.z);rebuildChunkMesh(chunk);}
 function unloadFarChunks(playerChunkX,playerChunkZ){for(const[key,chunk]of chunks){const distance=Math.max(Math.abs(chunk.x-playerChunkX),Math.abs(chunk.z-playerChunkZ));if(distance>UNLOAD_DISTANCE){disposeChunkMesh(chunk);chunks.delete(key);}}for(let i=generationQueue.length-1;i>=0;i--){const item=generationQueue[i];if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){queuedKeys.delete(chunkKey(item.x,item.z));generationQueue.splice(i,1);}}}
@@ -835,7 +849,18 @@ export function endWorldEditBatch() {
 function queueChunkRebuild(chunkX, chunkZ) { pendingChunkRebuilds.add(chunkKey(chunkX, chunkZ)); }
 
 export function setBlockAt(x,y,z,type){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);type=Math.floor(Number(type));if(![x,y,z,type].every(Number.isFinite)||y<MIN_Y||y>WORLD_TOP)return false;worldOverrides.set(`${x},${y},${z}`,type);const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk)return true;chunk.blocks[blockIndex(localX,y,localZ)]=type;if(worldEditBatchDepth>0){queueChunkRebuild(chunkX,chunkZ);if(localX===0)queueChunkRebuild(chunkX-1,chunkZ);if(localX===CHUNK_SIZE-1)queueChunkRebuild(chunkX+1,chunkZ);if(localZ===0)queueChunkRebuild(chunkX,chunkZ-1);if(localZ===CHUNK_SIZE-1)queueChunkRebuild(chunkX,chunkZ+1);return true;}rebuildChunkMesh(chunk);if(localX===0){const neighbor=getChunk(chunkX-1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localX===CHUNK_SIZE-1){const neighbor=getChunk(chunkX+1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===0){const neighbor=getChunk(chunkX,chunkZ-1);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===CHUNK_SIZE-1){const neighbor=getChunk(chunkX,chunkZ+1);if(neighbor)rebuildChunkMesh(neighbor);}return true;}
-export function clearWorld(){for(const chunk of chunks.values())disposeChunkMesh(chunk);chunks.clear();chunkMeshes.clear();generationQueue.length=0;queuedKeys.clear();worldOverrides.clear();lastPlayerChunkX=Infinity;lastPlayerChunkZ=Infinity;lastFacingVisibilityUpdate=0;}
+export function clearWorld(){
+    for(const chunk of chunks.values())disposeChunkMesh(chunk);
+    chunks.clear();
+    chunkMeshes.clear();
+    generationQueue.length=0;
+    queuedKeys.clear();
+    worldOverrides.clear();
+    lastPlayerChunkX=Infinity;
+    lastPlayerChunkZ=Infinity;
+    lastFacingVisibilityUpdate=0;
+    if(typeof window!=="undefined")window.dispatchEvent(new CustomEvent("webminecraft:worldreset"));
+}
 export function createWorld(scene){worldScene=scene;clearWorld();for(let dx=-1;dx<=1;dx++){for(let dz=-1;dz<=1;dz++){const chunk=generateChunk(dx,dz);rebuildChunkMesh(chunk);}}queueNeededChunks(0,0);}
 export function updateChunkVisibility(position,camera){if(!worldScene||!position)return;const{chunkX,chunkZ}=getChunkCoords(position.x,position.z);if(chunkX!==lastPlayerChunkX||chunkZ!==lastPlayerChunkZ){lastPlayerChunkX=chunkX;lastPlayerChunkZ=chunkZ;queueNeededChunks(chunkX,chunkZ);unloadFarChunks(chunkX,chunkZ);}processChunkQueue();updateFacingVisibility(position,camera);}
 export function getPerformanceStats(){return{loadedChunks:chunks.size,queuedChunks:generationQueue.length,renderDistance:RENDER_DISTANCE,seed:WORLD_SEED};}
