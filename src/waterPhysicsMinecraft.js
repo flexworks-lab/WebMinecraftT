@@ -493,8 +493,7 @@ function evaluateCell(x, y, z, proposals) {
 
     const best = bestHorizontalLevel(x, y, z);
     if (best === null) {
-        if (current.level > 1) propose(proposals, k, null);
-        else propose(proposals, k, current);
+        propose(proposals, k, null);
         return;
     }
 
