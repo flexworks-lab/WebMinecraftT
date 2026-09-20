@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType, isStairBlock, stairFacing, stairOrientedType } from "./world.js";
+import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType, isStairBlock, stairShapeMask, stairOrientedType } from "./world.js";
 import { touchInput, yaw } from "./controls.js";
 import { sendBlockChange, sendSlabPlacement, sendPlayerAction } from "./multiplayerClient.js";
 import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
@@ -349,42 +349,49 @@ function makeBoxSelectionGeometry(){
     return geometry;
 }
 
-function makeStairSelectionGeometry(facing){
-    const quarter=((Math.floor(Number(facing))%4)+4)%4;
-    const cos=Math.cos(-quarter*Math.PI/2);
-    const sin=Math.sin(-quarter*Math.PI/2);
-    const rotate=(p)=>{
-        const rx=p[0]*cos-p[2]*sin;
-        const rz=p[0]*sin+p[2]*cos;
-        return [rx,p[1],rz];
-    };
-    const e=0.502;
-    const profile=[
-        [-e,-e,-e],
-        [-e, e,-e],
-        [-e, e, 0],
-        [-e, 0, 0],
-        [-e, 0, e],
-        [-e,-e, e]
-    ];
-    const points=[];
-    const left=profile;
-    const right=profile.map(p=>[e,p[1],p[2]]);
-    for(const p of left) points.push(rotate(p));
-    for(const p of right) points.push(rotate(p));
-    const indices=[];
-    const loopCount=left.length;
-    for(let i=0;i<loopCount;i++){
-        const next=(i+1)%loopCount;
-        indices.push(i,next);
-        indices.push(i+loopCount,next+loopCount);
-        indices.push(i,i+loopCount);
+function makeStairSelectionGeometry(shapeMask){
+    const occupied=new Set();
+    const key=(layer,xi,zi)=>`${layer}:${xi}:${zi}`;
+    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++)occupied.add(key(0,xi,zi));
+    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
+        if(shapeMask&(1<<(zi*2+xi)))occupied.add(key(1,xi,zi));
     }
-    const vertices=new Float32Array(indices.flatMap(i=>points[i]));
+
+    const positions=[];
+    const edge=(a,b)=>positions.push(...a,...b);
+    for(const cell of occupied){
+        const[layer,xi,zi]=cell.split(":").map(Number);
+        const minX=-.502+xi*.5,maxX=minX+.5;
+        const minZ=-.502+zi*.5,maxZ=minZ+.5;
+        const minY=layer===0?-.502:0,maxY=layer===0?0:.502;
+        const neighbors=[
+            [layer,xi+1,zi],[layer,xi-1,zi],
+            [layer,xi,zi+1],[layer,xi,zi-1],
+            [layer+1,xi,zi],[layer-1,xi,zi]
+        ];
+        const corners=[
+            [[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],
+            [[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],
+            [[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
+            [[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],
+            [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
+            [[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]]
+        ];
+        for(let fi=0;fi<6;fi++){
+            if(occupied.has(neighbors[fi].join(":")))continue;
+            if(layer===1&&fi===3)continue;
+            const face=corners[fi];
+            edge(face[0],face[1]);
+            edge(face[1],face[2]);
+            edge(face[2],face[3]);
+            edge(face[3],face[0]);
+        }
+    }
     const geometry=new THREE.BufferGeometry();
-    geometry.setAttribute("position",new THREE.BufferAttribute(vertices,3));
+    geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
     return geometry;
 }
+
 
 function createSelectionOutline() {
     const group = new THREE.Group();
@@ -405,11 +412,11 @@ function updateSelectionOutline(outline, target, camera) {
     if (!edges) return;
 
     if (isStairBlock(type)) {
-        const facing = stairFacing(type);
-        const shapeKey = `stair:${facing}`;
+        const shapeMask = stairShapeMask(type,target.x,target.y,target.z);
+        const shapeKey = `stair:${shapeMask}`;
         if (outline.userData.selectionShape !== shapeKey) {
             edges.geometry.dispose();
-            edges.geometry = makeStairSelectionGeometry(facing);
+            edges.geometry = makeStairSelectionGeometry(shapeMask);
             outline.userData.selectionShape = shapeKey;
         }
         outline.scale.set(1,1,1);
