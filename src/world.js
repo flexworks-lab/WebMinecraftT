@@ -645,7 +645,8 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
     const rotateNormal=(n)=>{
         const rx=n[0]*cos-n[2]*sin;
         const rz=n[0]*sin+n[2]*cos;
-        return [rx,half?-n[1]:n[1],rz];
+        if(half)return [-rx,-n[1],-rz];
+        return [rx,n[1],rz];
     };
 
     const emitQuad=(points,normal,faceIndex,uv)=>{
