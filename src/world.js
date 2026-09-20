@@ -424,23 +424,39 @@ function stairShapeMaskFor(type,x,y,z){
     const leftFacing=(facing+1)%4;
     const rightFacing=(facing+3)%4;
 
+    // Corners only form when this stair is actually connected on BOTH
+    // the forward/back side and the corresponding side. A single touching
+    // stair never changes the shape by itself.
     const forward=getBlockType(x+fx,y,z+fz);
+    const backward=getBlockType(x-fx,y,z-fz);
+
+    const leftX=dirs[leftFacing][0], leftZ=dirs[leftFacing][1];
+    const rightX=dirs[rightFacing][0], rightZ=dirs[rightFacing][1];
+    const leftSide=getBlockType(x+leftX,y,z+leftZ);
+    const rightSide=getBlockType(x+rightX,y,z+rightZ);
+
     if(isStairBlock(forward)){
         const nf=stairFacing(forward);
-        if(nf===leftFacing)return rotateStairMask(0x1,facing);
-        if(nf===rightFacing)return rotateStairMask(0x2,facing);
+        if(nf===leftFacing && isStairBlock(leftSide) && stairFacing(leftSide)===facing){
+            return rotateStairMask(0x1,facing);
+        }
+        if(nf===rightFacing && isStairBlock(rightSide) && stairFacing(rightSide)===facing){
+            return rotateStairMask(0x2,facing);
+        }
     }
 
-    const backward=getBlockType(x-fx,y,z-fz);
     if(isStairBlock(backward)){
-        const nf=stairFacing(backward);
-        if(nf===leftFacing)return rotateStairMask(0x7,facing);
-        if(nf===rightFacing)return rotateStairMask(0xb,facing);
+        const nb=stairFacing(backward);
+        if(nb===leftFacing && isStairBlock(leftSide) && stairFacing(leftSide)===facing){
+            return rotateStairMask(0x7,facing);
+        }
+        if(nb===rightFacing && isStairBlock(rightSide) && stairFacing(rightSide)===facing){
+            return rotateStairMask(0xb,facing);
+        }
     }
 
     return rotateStairMask(0x3,facing);
 }
-
 export function stairShapeMask(type,x,y,z){
     return stairShapeMaskFor(Number(type),Math.floor(x),Math.floor(y),Math.floor(z));
 }
@@ -599,65 +615,69 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         return [rx,n[1],rz];
     };
 
-    const emitFace=(points,normal,faceIndex)=>{
+    const emitQuad=(points,normal,faceIndex,uvsLocal)=>{
         const base=vertexRef.count;
-        const rotatedNormal=rotateNormal(normal);
-        points.forEach(point=>{
-            const p=rotatePoint(point);
+        const rn=rotateNormal(normal);
+        for(let i=0;i<4;i++){
+            const p=rotatePoint(points[i]);
             positions.push(x+p[0],y+p[1],z+p[2]);
-            normals.push(rotatedNormal[0],rotatedNormal[1],rotatedNormal[2]);
+            normals.push(rn[0],rn[1],rn[2]);
             colors.push(underwaterShade,underwaterShade,underwaterShade);
-
-            const px=p[0]+.5,py=p[1]+.5,pz=p[2]+.5;
-            let u,v;
-            if(Math.abs(rotatedNormal[1])>.5){u=px;v=pz;}
-            else if(Math.abs(rotatedNormal[0])>.5){u=pz;v=py;}
-            else{u=px;v=py;}
-            uvs.push(u,v);
-        });
-        const materialIndex=materialIndexFor(materialType,faceIndex);
-        groups[materialIndex].push(base,base+1,base+2,base,base+2,base+3);
+            uvs.push(uvsLocal[i][0],uvsLocal[i][1]);
+        }
+        const mat=materialIndexFor(materialType,faceIndex);
+        groups[mat].push(base,base+1,base+2,base,base+2,base+3);
         vertexRef.count+=4;
     };
 
-    const occupied=new Set();
-    const cellKey=(layer,xi,zi)=>`${layer}:${xi}:${zi}`;
-    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++)occupied.add(cellKey(0,xi,zi));
-    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
-        if(shapeMask&(1<<(zi*2+xi)))occupied.add(cellKey(1,xi,zi));
-    }
+    // Base lower side/top pieces. UVs are mapped in world-local 0..1
+    // coordinates, so the texture remains square and never shears.
+    const emitCell=(minX,maxX,minY,maxY,minZ,maxZ)=>{
+        const eps=0.0001;
+        if(maxX-minX<=eps||maxY-minY<=eps||maxZ-minZ<=eps)return;
+        emitQuad(
+            [[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],
+            [1,0,0],0,[[0,0],[0,1],[1,1],[1,0]]
+        );
+        emitQuad(
+            [[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],
+            [-1,0,0],1,[[0,0],[0,1],[1,1],[1,0]]
+        );
+        emitQuad(
+            [[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
+            [0,1,0],2,[[0,0],[1,0],[1,1],[0,1]]
+        );
+        emitQuad(
+            [[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],
+            [0,-1,0],3,[[0,0],[1,0],[1,1],[0,1]]
+        );
+        emitQuad(
+            [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
+            [0,0,1],4,[[0,0],[1,0],[1,1],[0,1]]
+        );
+        emitQuad(
+            [[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],
+            [0,0,-1],5,[[0,0],[1,0],[1,1],[0,1]]
+        );
+    };
 
-    for(const key of occupied){
-        const [layer,xi,zi]=key.split(":").map(Number);
-        const minX=-.5+xi*.5,maxX=minX+.5;
-        const minZ=-.5+zi*.5,maxZ=minZ+.5;
-        const minY=layer===0?-.5:0,maxY=layer===0?0:.5;
+    // Lower block is always present.
+    emitCell(-.5,.5,-.5,0,-.5,.5);
 
-        const adjacent=[
-            [layer,xi+1,zi],
-            [layer,xi-1,zi],
-            [layer,xi,zi+1],
-            [layer,xi,zi-1],
-            [layer+1,xi,zi],
-            [layer-1,xi,zi]
-        ];
-        const faces=[
-            {normal:[1,0,0],points:[[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],index:0},
-            {normal:[-1,0,0],points:[[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],index:1},
-            {normal:[0,1,0],points:[[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],index:2},
-            {normal:[0,-1,0],points:[[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],index:3},
-            {normal:[0,0,1],points:[[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],index:4},
-            {normal:[0,0,-1],points:[[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],index:5}
-        ];
-
-        for(let fi=0;fi<6;fi++){
-            if(occupied.has(adjacent[fi].join(":")))continue;
-            if(layer===1&&fi===3)continue;
-            emitFace(faces[fi].points,faces[fi].normal,faces[fi].index);
+    // Upper part. For corner masks, use exactly the selected half/quarter
+    // so the visible shape matches the joining stair without diagonal UVs.
+    for(let zi=0;zi<2;zi++){
+        for(let xi=0;xi<2;xi++){
+            const bit=1<<(zi*2+xi);
+            if(!(shapeMask&bit))continue;
+            emitCell(
+                -.5+xi*.5, -.5+(xi+1)*.5,
+                0,.5,
+                -.5+zi*.5, -.5+(zi+1)*.5
+            );
         }
     }
 }
-
 function makeGeometryForChunk(chunk){
     const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);
     const vertexRef={count:0};
