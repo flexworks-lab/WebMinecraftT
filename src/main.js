@@ -103,26 +103,57 @@ function applySettings() {
     renderer.toneMappingExposure = 0.9 + settings.brightness * 0.35;
     for (const object of scene.children) {
         if (!object.isMesh) continue;
+        if (object.userData?.isChunk) {
+            object.castShadow = false;
+            object.receiveShadow = settings.shadows;
+            continue;
+        }
         object.castShadow = settings.shadows;
         object.receiveShadow = settings.shadows;
     }
     updateDepthLighting();
 }
 function smoothStep(edge0, edge1, value) { const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1); return t * t * (3 - 2 * t); }
+let cachedWaterX = NaN;
+let cachedWaterZ = NaN;
+let cachedWaterFloor = 0;
+let cachedWaterSurface = 0;
+let cachedUnderwater = false;
+let cachedLightingKey = "";
+
 function updateDepthLighting() {
-    const underwater = isPointInWater(camera.position.x, camera.position.y, camera.position.z);
+    const x = Math.floor(camera.position.x);
+    const y = camera.position.y;
+    const z = Math.floor(camera.position.z);
+    if (x !== cachedWaterX || z !== cachedWaterZ) {
+        cachedWaterX = x;
+        cachedWaterZ = z;
+        if (document.body.classList.contains("webminecraft-flat")) {
+            cachedWaterFloor = Infinity;
+            cachedWaterSurface = -Infinity;
+        } else {
+            const profile = getTerrainProfile(x, z);
+            cachedWaterFloor = profile.height + 0.5;
+            cachedWaterSurface = SEA_LEVEL + 0.42;
+        }
+    }
+    cachedUnderwater = y < cachedWaterSurface - 0.02 && y > cachedWaterFloor + 0.05;
+
     const profile = getLightingProfile();
-    const underwaterExposure = underwater ? 0.68 : 1;
+    const underwaterExposure = cachedUnderwater ? 0.68 : 1;
     const finalExposure = (0.9 + settings.brightness * 0.35) * underwaterExposure;
+    const lightingKey = profile.sun + "|" + profile.sky + "|" + finalExposure + "|" + cachedUnderwater;
+    if (lightingKey === cachedLightingKey) return;
+    cachedLightingKey = lightingKey;
 
     // Keep world lighting consistent at every depth. Going underground no
     // longer progressively removes sunlight, ambient light, or visibility.
-    sun.intensity = profile.sun * (underwater ? 0.55 : 1);
-    skyLight.intensity = profile.sky * (underwater ? 0.62 : 1);
+    sun.intensity = profile.sun * (cachedUnderwater ? 0.55 : 1);
+    skyLight.intensity = profile.sky * (cachedUnderwater ? 0.62 : 1);
     depthLight.intensity = 0;
     renderer.toneMappingExposure = finalExposure;
 
-    if (underwater) {
+    if (cachedUnderwater) {
         scene.background.lerpColors(skyColor, underwaterColor, 0.98);
         scene.fog.color.lerpColors(skyColor, underwaterColor, 0.98);
         scene.fog.near = 2.5;
