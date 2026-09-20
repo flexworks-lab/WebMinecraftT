@@ -638,56 +638,102 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
     const cos=Math.cos(-quarter*Math.PI/2);
     const sin=Math.sin(-quarter*Math.PI/2);
     const transformPoint=(p)=>{
-        const sourceY=half? -p[1] : p[1];
         const rx=p[0]*cos-p[2]*sin;
         const rz=p[0]*sin+p[2]*cos;
-        return [rx,sourceY,rz];
+        return [rx,half?-p[1]:p[1],rz];
     };
     const rotateNormal=(n)=>{
-        const sourceY=half? -n[1] : n[1];
         const rx=n[0]*cos-n[2]*sin;
         const rz=n[0]*sin+n[2]*cos;
-        return [rx,sourceY,rz];
+        return [rx,half?-n[1]:n[1],rz];
     };
-    const emitQuad=(points,normal,faceIndex,uvsLocal)=>{
+
+    const emitQuad=(points,normal,faceIndex,uv)=>{
         const base=vertexRef.count;
         const rn=rotateNormal(normal);
-        const order=half?[0,3,2,1]:[0,1,2,3];
-        for(const i of order){
+        for(let i=0;i<4;i++){
             const p=transformPoint(points[i]);
             positions.push(x+p[0],y+p[1],z+p[2]);
             normals.push(rn[0],rn[1],rn[2]);
             colors.push(underwaterShade,underwaterShade,underwaterShade);
-            uvs.push(uvsLocal[i][0],uvsLocal[i][1]);
+            uvs.push(uv[i][0],uv[i][1]);
         }
         const mat=materialIndexFor(materialType,faceIndex);
         groups[mat].push(base,base+1,base+2,base,base+2,base+3);
         vertexRef.count+=4;
     };
-    const emitCell=(minX,maxX,minY,maxY,minZ,maxZ)=>{
-        const ux0=minX+.5,ux1=maxX+.5,uz0=minZ+.5,uz1=maxZ+.5,vy0=minY+.5,vy1=maxY+.5;
-        const tY0=half?1-vy1:vy0;
-        const tY1=half?1-vy0:vy1;
-        emitQuad([[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],[1,0,0],0,[[uz0,tY0],[uz0,tY1],[uz1,tY1],[uz1,tY0]]);
-        emitQuad([[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],[-1,0,0],1,[[uz1,tY0],[uz1,tY1],[uz0,tY1],[uz0,tY0]]);
-        emitQuad([[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],[0,1,0],2,[[ux0,uz1],[ux1,uz1],[ux1,uz0],[ux0,uz0]]);
-        emitQuad([[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],[0,-1,0],3,[[ux0,uz0],[ux1,uz0],[ux1,uz1],[ux0,uz1]]);
-        emitQuad([[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],[0,0,1],4,[[ux1,tY0],[ux1,tY1],[ux0,tY1],[ux0,tY0]]);
-        emitQuad([[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],[0,0,-1],5,[[ux0,tY0],[ux0,tY1],[ux1,tY1],[ux1,tY0]]);
-    };
 
-    if(half===0){
-        emitCell(-.5,.5,-.5,0,-.5,.5);
-        for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
-            if(!(shapeMask&(1<<(zi*2+xi))))continue;
-            emitCell(-.5+xi*.5,-.5+(xi+1)*.5,0,.5,-.5+zi*.5,-.5+(zi+1)*.5);
-        }
-    }else{
-        emitCell(-.5,.5,0,.5,-.5,.5);
-        for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
-            if(!(shapeMask&(1<<(zi*2+xi))))continue;
-            emitCell(-.5+xi*.5,-.5+(xi+1)*.5,-.5,0,-.5+zi*.5,-.5+(zi+1)*.5);
-        }
+    const vMain0=half?.5:0;
+    const vMain1=half?1:.5;
+
+    // Full main half: this is the uncut half of the stair. Its vertical
+    // faces remain a single texture region instead of being split diagonally.
+    const mainMinY=half?0:-.5;
+    const mainMaxY=half?.5:0;
+
+    emitQuad(
+        [[.5,mainMinY,-.5],[.5,mainMaxY,-.5],[.5,mainMaxY,.5],[.5,mainMinY,.5]],
+        [1,0,0],0,[[0,vMain0],[0,vMain1],[1,vMain1],[1,vMain0]]
+    );
+    emitQuad(
+        [[-.5,mainMinY,.5],[-.5,mainMaxY,.5],[-.5,mainMaxY,-.5],[-.5,mainMinY,-.5]],
+        [-1,0,0],1,[[0,vMain0],[0,vMain1],[1,vMain1],[1,vMain0]]
+    );
+    emitQuad(
+        [[.5,mainMinY,.5],[.5,mainMinY,-.5],[-.5,mainMinY,-.5],[-.5,mainMinY,.5]],
+        [0,-1,0],3,[[1,0],[1,1],[0,1],[0,0]]
+    );
+    emitQuad(
+        [[-.5,mainMaxY,.5],[.5,mainMaxY,.5],[.5,mainMaxY,-.5],[-.5,mainMaxY,-.5]],
+        [0,1,0],2,[[0,0],[1,0],[1,1],[0,1]]
+    );
+
+    const occupied=[];
+    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
+        if(shapeMask&(1<<(zi*2+xi)))occupied.push({xi,zi});
+    }
+
+    // Only the quadrants not covered by the upper section show the main-half
+    // interior surface.
+    const occupiedSet=new Set(occupied.map(q=>`${q.xi}:${q.zi}`));
+    for(const q of occupied){
+        const minX=-.5+q.xi*.5,maxX=minX+.5;
+        const minZ=-.5+q.zi*.5,maxZ=minZ+.5;
+        const upMinY=half?-.5:0;
+        const upMaxY=half?0:.5;
+        const upV0=half?0:.5,upV1=half?.5:1;
+
+        const neighbors=[
+            !occupiedSet.has(`${q.xi+1}:${q.zi}`),
+            !occupiedSet.has(`${q.xi-1}:${q.zi}`),
+            !occupiedSet.has(`${q.xi}:${q.zi-1}`),
+            !occupiedSet.has(`${q.xi}:${q.zi+1}`)
+        ];
+
+        if(neighbors[0])emitQuad(
+            [[maxX,upMinY,minZ],[maxX,upMaxY,minZ],[maxX,upMaxY,maxZ],[maxX,upMinY,maxZ]],
+            [1,0,0],0,[[minZ+.5,upV0],[minZ+.5,upV1],[maxZ+.5,upV1],[maxZ+.5,upV0]]
+        );
+        if(neighbors[1])emitQuad(
+            [[minX,upMinY,maxZ],[minX,upMaxY,maxZ],[minX,upMaxY,minZ],[minX,upMinY,minZ]],
+            [-1,0,0],1,[[maxZ+.5,upV0],[maxZ+.5,upV1],[minZ+.5,upV1],[minZ+.5,upV0]]
+        );
+        if(neighbors[2])emitQuad(
+            [[minX,upMinY,minZ],[minX,upMaxY,minZ],[maxX,upMaxY,minZ],[maxX,upMinY,minZ]],
+            [0,0,-1],5,[[minX+.5,upV0],[minX+.5,upV1],[maxX+.5,upV1],[maxX+.5,upV0]]
+        );
+        if(neighbors[3])emitQuad(
+            [[maxX,upMinY,maxZ],[maxX,upMaxY,maxZ],[minX,upMaxY,maxZ],[minX,upMinY,maxZ]],
+            [0,0,1],4,[[maxX+.5,upV0],[maxX+.5,upV1],[minX+.5,upV1],[minX+.5,upV0]]
+        );
+        if(!half)emitQuad(
+            [[minX,upMaxY,maxZ],[maxX,upMaxY,maxZ],[maxX,upMaxY,minZ],[minX,upMaxY,minZ]],
+            [0,1,0],2,[[minX+.5,maxZ+.5],[maxX+.5,maxZ+.5],[maxX+.5,minZ+.5],[minX+.5,minZ+.5]]
+        );
+        if(half)emitQuad(
+            [[minX,upMinY,minZ],[maxX,upMinY,minZ],[maxX,upMinY,maxZ],[minX,upMinY,maxZ]],
+            [0,-1,0],3,[[minX+.5,minZ+.5],[maxX+.5,minZ+.5],[maxX+.5,maxZ+.5],[minX+.5,maxZ+.5]]
+        );
     }
 }
 function makeGeometryForChunk(chunk){
