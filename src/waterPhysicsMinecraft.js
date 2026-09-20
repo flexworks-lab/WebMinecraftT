@@ -483,10 +483,10 @@ function waterTopUvPoints(x, z) {
     const v1 = wrapU((z + 0.5) / scale);
 
     return [
-        [u0, v0],
-        [u1, v0],
-        [u1, v1],
-        [u0, v1]
+        [u0, 1 - v1],
+        [u1, 1 - v1],
+        [u1, 1 - v0],
+        [u0, 1 - v0]
     ];
 }
 
