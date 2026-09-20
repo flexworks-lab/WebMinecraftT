@@ -43,21 +43,15 @@ waterTexture.minFilter = THREE.NearestFilter;
 waterTexture.colorSpace = THREE.SRGBColorSpace;
 waterTexture.needsUpdate = true;
 
-const fluidMaterial = new THREE.MeshPhongMaterial({
+const fluidMaterial = new THREE.MeshBasicMaterial({
     map: waterTexture,
     color: 0xffffff,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.82,
     depthWrite: false,
     depthTest: true,
-    side: THREE.DoubleSide,
-    shininess: 95,
-    specular: 0x8fd5ec,
-    emissive: 0x071b24,
-    emissiveIntensity: 0.08,
-    flatShading: false
+    side: THREE.DoubleSide
 });
-fluidMaterial.forceSinglePass = true;
 
 const key = (x, y, z) => Math.floor(x) + "," + Math.floor(y) + "," + Math.floor(z);
 const parseKey = value => value.split(",").map(Number);
