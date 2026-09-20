@@ -206,11 +206,11 @@ export function setupInteraction(scene, camera) {
             const z = target.z + normal.z;
             if (getBlockAt(x, y, z) !== BLOCK.AIR) return;
             if (playerOverlapsBlock({ x, y, z }, camera)) return;
-            // The stair's visible low/open side is two quarter-turns
-            // opposite its stored facing value, so use the player's look
-            // direction directly to make the low/open side face the player.
+            // yaw=0 looks north (-Z). The stair facing index points
+            // toward its low/open side, which is toward the player, so
+            // convert the camera yaw into the opposite cardinal direction.
             const quarter = Math.round(Number(yaw) / (Math.PI / 2));
-            const facing = ((quarter % 4) + 4) % 4;
+            const facing = ((-quarter % 4) + 4) % 4;
             // Click the upper half of a block to place a bottom stair;
             // click the lower half to place an upside-down (TOP) stair.
             const hitYInBlock = target.hit?.point ? target.hit.point.y - target.y : 0;
