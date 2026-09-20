@@ -588,14 +588,14 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         {
             faceIndex:1,
             normal:[-1,0,0],
-            points:[[-.5,-.5,0],[-.5,0,0],[-.5,0,.5],[-.5,-.5,.5]],
-            uv:[[.5,0],[.5,.5],[1,.5],[1,0]]
+            points:[[-.5,-.5,.5],[-.5,-.5,0],[-.5,0,0],[-.5,0,.5]],
+            uv:[[1,0],[.5,0],[.5,.5],[1,.5]]
         },
         {
             faceIndex:1,
             normal:[-1,0,0],
-            points:[[-.5,-.5,-.5],[-.5,.5,-.5],[-.5,.5,0],[-.5,-.5,0]],
-            uv:[[0,0],[0,1],[.5,1],[.5,0]]
+            points:[[-.5,-.5,-.5],[-.5,-.5,0],[-.5,.5,0],[-.5,.5,-.5]],
+            uv:[[0,0],[.5,0],[.5,1],[0,1]]
         }
     ];
     for(const face of sideQuads) emitFace(face.points,face.normal,face.faceIndex,face.uv);
