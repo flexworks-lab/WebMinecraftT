@@ -144,8 +144,7 @@ function smoothStep(edge0, edge1, value) { const t = THREE.MathUtils.clamp((valu
 function isLightingSolid(x, y, z) {
     const type = getBlockAt(Math.floor(x), Math.floor(y), Math.floor(z));
     const blocks = getBlockTypes();
-    if (type === blocks.AIR || type === blocks.OAK_DOOR) return false;
-    if (type === blocks.LEAVES) return 0.35;
+    if (type === blocks.AIR || type === blocks.OAK_DOOR || type === blocks.LEAVES) return false;
     return 1;
 }
 
