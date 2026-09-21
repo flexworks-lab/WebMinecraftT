@@ -91,8 +91,6 @@ const ITEM_MATERIALS = {
 
 const avatars = new Set();
 const heldMeshes = new WeakMap();
-const originalAdd = THREE.Object3D.prototype.add;
-let installed = false;
 
 function cloneMaterial(material) {
     if (!material?.clone) return material;
@@ -120,7 +118,7 @@ function createStairHeldMesh(material){
     return group;
 }
 
-function createHeldMesh(hand) {
+function createHeldMesh() {
     const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(0.42, 0.42, 0.42),
         cloneMaterial(stoneMaterial)
@@ -128,35 +126,26 @@ function createHeldMesh(hand) {
     mesh.name = "multiplayerHeldBlock";
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    // Parent the block to the remote player's right hand so it follows
-    // arm swings and always appears physically held instead of floating
-    // beside the body.
-    mesh.position.set(0, -0.01, -0.27);
-    mesh.rotation.set(0.08, 0.28, -0.06);
+    mesh.position.set(0, -0.17, -0.24);
+    mesh.rotation.set(0.1, 0.28, -0.06);
     mesh.visible = false;
     mesh.userData.itemId = 0;
-    mesh.userData.heldHand = hand || null;
     return mesh;
 }
 
-function installAvatarHook() {
-    if (installed) return;
-    installed = true;
-    THREE.Object3D.prototype.add = function(...objects) {
-        const result = originalAdd.apply(this, objects);
-        for (const object of objects) {
-            if (!object?.userData?.multiplayerAvatar) continue;
-            let mesh = heldMeshes.get(object);
-            if (!mesh) {
-                const hand = object.getObjectByName("rightHand") || object;
-                mesh = createHeldMesh(hand);
-                hand.add(mesh);
-                heldMeshes.set(object, mesh);
-                avatars.add(object);
-            }
-        }
-        return result;
-    };
+export function attachHeldBlockToAvatar(avatar) {
+    if (!avatar || !avatar.userData?.multiplayerAvatar) return null;
+    let mesh = heldMeshes.get(avatar);
+    if (mesh) return mesh;
+
+    const hand = avatar.getObjectByName("rightHand");
+    if (!hand) return null;
+
+    mesh = createHeldMesh();
+    hand.add(mesh);
+    heldMeshes.set(avatar, mesh);
+    avatars.add(avatar);
+    return mesh;
 }
 
 function getRemotePlayers() {
@@ -216,7 +205,6 @@ function render() {
     requestAnimationFrame(render);
 }
 
-installAvatarHook();
 window.addEventListener("webminecraft:selectedslot", event => {
     window.__webminecraftSelectedSlot = Number(event.detail?.slot ?? 0);
 });
