@@ -300,9 +300,13 @@ function itemVisual(item) {
     if (item.texture) {
         const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
         const stairClass = isStairItem(item.id) ? " stairIcon" : "";
-        const iconStyle = isStairItem(item.id)
-            ? `--stair-texture:url('${textureUrl(item.texture)}')`
-            : `background-image:url('${textureUrl(item.texture)}')`;
+        const texture = textureUrl(item.texture);
+        if (!slabClass && !stairClass) {
+            return `<span class="catalogIcon catalogBlock3d" style="--block-texture:url('${texture}')"><i class="blockFace blockFront"></i><i class="blockFace blockBack"></i><i class="blockFace blockRight"></i><i class="blockFace blockLeft"></i><i class="blockFace blockTop"></i><i class="blockFace blockBottom"></i></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
+        }
+        const iconStyle = stairClass
+            ? `--stair-texture:url('${texture}')`
+            : `background-image:url('${texture}')`;
         return `<span class="catalogIcon catalogTexture${slabClass}${stairClass}" style="${iconStyle}"></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
     }
     return `<span class="catalogIcon catalogColor" style="--item-color:#777"></span>`;
@@ -381,7 +385,7 @@ button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;f
 .catalogGroupLabel{position:absolute;left:2px;right:22px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
 .catalogGroup:hover .catalogGroupLabel{opacity:1}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
-.catalogIcon{position:absolute;inset:6px;display:block}.catalogGroupExpanded .catalogIcon{background-color:#656565}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
+.catalogIcon{position:absolute;inset:6px;display:block}.catalogGroupExpanded .catalogIcon{background-color:#656565}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogBlock3d{left:50%;top:50%;right:auto;bottom:auto;width:58%;height:58%;transform:translate(-50%,-50%) rotateX(30deg) rotateY(225deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent}.catalogBlock3d .blockFace{position:absolute;inset:0;display:block;margin:0;background-image:var(--block-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;border:0}.catalogBlock3d .blockFront{transform:translateZ(14px);filter:brightness(.95)}.catalogBlock3d .blockBack{transform:rotateY(180deg) translateZ(14px)}.catalogBlock3d .blockRight{transform:rotateY(90deg) translateZ(14px);filter:brightness(.78)}.catalogBlock3d .blockLeft{transform:rotateY(-90deg) translateZ(14px);filter:brightness(.88)}.catalogBlock3d .blockTop{transform:rotateX(90deg) translateZ(14px);filter:brightness(1.12)}.catalogBlock3d .blockBottom{transform:rotateX(-90deg) translateZ(14px);filter:brightness(.62)}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
 .catalogTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;border-top:0!important;box-shadow:none!important;overflow:visible}
 .catalogTexture.stairIcon::before,.catalogTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
 .catalogTexture.stairIcon::before{left:0;right:0;bottom:0;height:58%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.22)}
@@ -507,7 +511,7 @@ function renderCatalog() {
     document.getElementById("catalogPanel").style.display = "flex";
     document.getElementById("survivalPanel").hidden = true;
     section.textContent = selectedTab === "search"
-        ? "Search Results"
+        ? "All"
         : (selectedTab === "tools" ? "Tools & Utilities" : (selectedTab === "building" ? "Build Blocks" : "Natural Blocks"));
     if (searchWrap) searchWrap.style.display = selectedTab === "search" || searchQuery ? "flex" : "none";
 
