@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
+import { getKeybind } from "./keybinds.js";
 import { getBlockAt, getBlockCollisionBounds, getBlockCollisionBoxes } from "./world.js";
 import { isDoorBlocking } from "./door.js";
 import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";
@@ -265,7 +266,7 @@ function approach(current, target, amount) {
 }
 
 function isSneaking() {
-    return !isFlying && (touchInput.sneak || !!keys["KeyC"]);
+    return !isFlying && (touchInput.sneak || !!keys[getKeybind("sneak")]);
 }
 
 function updateSneakCamera(camera, dt) {
@@ -293,27 +294,27 @@ function physicsStep(camera, dt) {
         const rightZ = -Math.sin(yaw);
         let inputX = touchInput.moveX * rightX + touchInput.moveZ * forwardX;
         let inputZ = touchInput.moveX * rightZ + touchInput.moveZ * forwardZ;
-        if (keys["KeyW"]) { inputX += forwardX; inputZ += forwardZ; }
-        if (keys["KeyS"]) { inputX -= forwardX; inputZ -= forwardZ; }
-        if (keys["KeyA"]) { inputX -= rightX; inputZ -= rightZ; }
-        if (keys["KeyD"]) { inputX += rightX; inputZ += rightZ; }
+        if (keys[getKeybind("forward")]) { inputX += forwardX; inputZ += forwardZ; }
+        if (keys[getKeybind("back")]) { inputX -= forwardX; inputZ -= forwardZ; }
+        if (keys[getKeybind("left")]) { inputX -= rightX; inputZ -= rightZ; }
+        if (keys[getKeybind("right")]) { inputX += rightX; inputZ += rightZ; }
         const inputLength = Math.hypot(inputX, inputZ);
         if (inputLength > 1) { inputX /= inputLength; inputZ /= inputLength; }
-        const fast = keys["ShiftLeft"] || keys["ShiftRight"] || touchInput.sprint;
+        const fast = keys[getKeybind("sprint")] || touchInput.sprint;
         const speed = fast ? FLY_SPRINT_SPEED : FLY_SPEED;
         const targetX = inputX * speed;
         const targetZ = inputZ * speed;
         velocityX = approach(velocityX, targetX, 45 * dt);
         velocityZ = approach(velocityZ, targetZ, 45 * dt);
         let verticalInput = 0;
-        if (keys["Space"] || touchInput.jump) verticalInput += 1;
-        if (keys["ControlLeft"] || keys["ControlRight"] || keys["KeyC"] || touchInput.flyDown) verticalInput -= 1;
+        if (keys[getKeybind("jump")] || touchInput.jump) verticalInput += 1;
+        if (keys[getKeybind("flyDown")] || keys[getKeybind("sneak")] || touchInput.flyDown) verticalInput -= 1;
         velocityY = approach(velocityY, verticalInput * speed, 45 * dt);
         camera.position.x += velocityX * dt;
         camera.position.y += velocityY * dt;
         camera.position.z += velocityZ * dt;
         onGround = false;
-        jumpWasDown = !!keys["Space"] || touchInput.jump;
+        jumpWasDown = !!keys[getKeybind("jump")] || touchInput.jump;
         return;
     }
 
@@ -324,13 +325,13 @@ function physicsStep(camera, dt) {
     const rightZ = -Math.sin(yaw);
     let inputX = touchInput.moveX * rightX + touchInput.moveZ * forwardX;
     let inputZ = touchInput.moveX * rightZ + touchInput.moveZ * forwardZ;
-    if (keys["KeyW"]) { inputX += forwardX; inputZ += forwardZ; }
-    if (keys["KeyS"]) { inputX -= forwardX; inputZ -= forwardZ; }
-    if (keys["KeyA"]) { inputX -= rightX; inputZ -= rightZ; }
-    if (keys["KeyD"]) { inputX += rightX; inputZ += rightZ; }
+    if (keys[getKeybind("forward")]) { inputX += forwardX; inputZ += forwardZ; }
+    if (keys[getKeybind("back")]) { inputX -= forwardX; inputZ -= forwardZ; }
+    if (keys[getKeybind("left")]) { inputX -= rightX; inputZ -= rightZ; }
+    if (keys[getKeybind("right")]) { inputX += rightX; inputZ += rightZ; }
     const inputLength = Math.hypot(inputX, inputZ);
     if (inputLength > 1) { inputX /= inputLength; inputZ /= inputLength; }
-    const sprinting = ((keys["ShiftLeft"] || keys["ShiftRight"]) || touchInput.sprint) && (keys["KeyW"] || Math.hypot(touchInput.moveX, touchInput.moveZ) > 0.65) && !touchInput.sneak;
+    const sprinting = ((keys[getKeybind("sprint")]) || touchInput.sprint) && (keys[getKeybind("forward")] || Math.hypot(touchInput.moveX, touchInput.moveZ) > 0.65) && !touchInput.sneak;
     const targetSpeed = touchInput.sneak ? WALK_SPEED * 0.38 : (sprinting ? SPRINT_SPEED : WALK_SPEED);
     const targetX = inputX * targetSpeed;
     const targetZ = inputZ * targetSpeed;
@@ -343,7 +344,7 @@ function physicsStep(camera, dt) {
         velocityX = approach(velocityX, 0, friction * dt);
         velocityZ = approach(velocityZ, 0, friction * dt);
     }
-    const jumpDown = !!keys["Space"] || touchInput.jump;
+    const jumpDown = !!keys[getKeybind("jump")] || touchInput.jump;
     if (jumpDown && !jumpWasDown && onGround) {
         velocityY = JUMP_SPEED;
         onGround = false;
