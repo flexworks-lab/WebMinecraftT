@@ -420,6 +420,89 @@ function handleMessage(ws, raw, state) {
 
     const player = state.player;
     if (!state.joined || !player) return;
+    if (message.type === "server_control") {
+        const room = rooms.get(player.room);
+        if (!room) return;
+        if (getPlayerRole(room, player) !== ROLE_OPERATOR) {
+            send(ws, { type: "error", code: "operator_required", message: "Operator permission is required for server controls." });
+            return;
+        }
+
+        const action = String(message.action || "").toLowerCase();
+        const targetName = sanitizeName(message.targetName || "");
+        const target = [...room.players.values()].find(candidate => roleKey(candidate.name) === roleKey(targetName));
+
+        if (action === "set_role") {
+            if (!target) {
+                send(ws, { type: "error", code: "player_not_found", message: "Player is not online." });
+                return;
+            }
+            if (roleKey(target.name) === roleKey(room.ownerName)) {
+                send(ws, { type: "error", code: "owner_role_locked", message: "The server owner is always Operator." });
+                return;
+            }
+            const role = normalizeRole(message.role);
+            setPlayerRole(room, target.name, role);
+            scheduleRoomStateSave();
+            send(target.ws, { type: "role_changed", role: getPlayerRole(room, target), reason: "Your server permission was changed by an Operator." });
+            broadcast(room, { type: "player_role_changed", playerId: target.id, name: target.name, role: getPlayerRole(room, target) });
+            return;
+        }
+
+        if (!target) {
+            send(ws, { type: "error", code: "player_not_found", message: "Player is not online." });
+            return;
+        }
+        if (roleKey(target.name) === roleKey(room.ownerName) && ["kick", "ban"].includes(action)) {
+            send(ws, { type: "error", code: "owner_protected", message: "The server owner cannot be kicked or banned." });
+            return;
+        }
+
+        if (action === "kick" || action === "ban") {
+            if (action === "ban") {
+                room.bannedNames ||= new Set();
+                room.bannedNames.add(roleKey(target.name));
+                scheduleRoomStateSave();
+            }
+            send(target.ws, { type: "server_kick", reason: action === "ban" ? "You were banned by an Operator." : "You were kicked by an Operator." });
+            target.ws.close();
+            return;
+        }
+
+        if (action === "gamemode") {
+            const mode = normalizeMode(message.mode);
+            send(target.ws, { type: "set_gamemode", mode });
+            target.action = "idle";
+            return;
+        }
+
+        if (action === "teleport") {
+            const x = numberOr(message.x, NaN);
+            const y = numberOr(message.y, NaN);
+            const z = numberOr(message.z, NaN);
+            if (![x, y, z].every(Number.isFinite) || y < -32 || y > 96) {
+                send(ws, { type: "error", code: "invalid_coordinates", message: "Enter valid teleport coordinates." });
+                return;
+            }
+            send(target.ws, { type: "teleport_player", x, y, z });
+            return;
+        }
+
+        if (action === "give") {
+            const itemId = Math.floor(numberOr(message.itemId, NaN));
+            const count = Math.max(1, Math.min(64, Math.floor(numberOr(message.count, 1))));
+            if (!Number.isFinite(itemId) || itemId < 1 || itemId > MAX_BLOCK_TYPE) {
+                send(ws, { type: "error", code: "invalid_item", message: "Enter a valid item ID." });
+                return;
+            }
+            send(target.ws, { type: "admin_give", itemId, count });
+            return;
+        }
+
+        send(ws, { type: "error", code: "unknown_server_control", message: "Unknown server control action." });
+        return;
+    }
+
     if (message.type === "chat_message") {
         const room = rooms.get(player.room);
         if (!room) return;
