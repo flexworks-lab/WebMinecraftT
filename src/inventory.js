@@ -308,6 +308,13 @@ function blockFaceTextures(item) {
     let bottom = side;
 
     const setFaces = (faces = {}) => {
+        if (faces.side) {
+            const sideTexture = textureUrl(faces.side);
+            front = sideTexture;
+            back = sideTexture;
+            right = sideTexture;
+            left = sideTexture;
+        }
         if (faces.front) front = textureUrl(faces.front);
         if (faces.back) back = textureUrl(faces.back);
         if (faces.right) right = textureUrl(faces.right);
