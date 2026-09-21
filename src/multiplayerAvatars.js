@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { getRemotePlayers, isMultiplayerActive } from "./multiplayerClient.js";
+import { attachHeldBlockToAvatar } from "./multiplayerHeldBlock.js";
 
 const avatars = new Map();
 let animationStarted = false;
@@ -288,6 +289,7 @@ export function updateMultiplayerAvatars(scene) {
         if (!entry) {
             const avatar = createAvatar(id, player.name);
             scene.add(avatar.group);
+            requestAnimationFrame(() => attachHeldBlockToAvatar(avatar.group));
             entry = {
                 ...avatar,
                 target: new THREE.Vector3(),
