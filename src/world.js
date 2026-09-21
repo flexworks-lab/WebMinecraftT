@@ -750,7 +750,7 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
                 [[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
                 [0,1,0],2],
             [layer0,xi,zi-1,
-                [[minX,minY,minZ],[maxX,minY,minZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
+                [[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],
                 [0,0,-1],5],
             [half?layer0-1:layer0+1,xi,zi,
                 [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
