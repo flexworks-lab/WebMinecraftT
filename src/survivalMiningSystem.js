@@ -5,6 +5,7 @@ import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop, 
 import { handleDoorTarget } from "./door.js";
 import { isSurvivalWorld } from "./survivalMode.js";
 import { spawnBlockBreakParticles } from "./blockParticles.js";
+import { extraBlockMaterials } from "./blocks.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
@@ -115,6 +116,11 @@ function dropMaterial(name, fallbackColor) {
 }
 
 function getDropMaterials(type) {
+    const extraMaterials = extraBlockMaterials[Number(type)];
+    if (extraMaterials) {
+        return extraMaterials.map(material => material?.clone?.() || material);
+    }
+
     const same = name => {
         const material = new THREE.MeshLambertMaterial({
             map: loadDropTexture(name),
