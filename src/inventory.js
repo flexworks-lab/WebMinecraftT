@@ -739,7 +739,7 @@ function syncHotbar() {
                 textureEl.style.boxShadow = "";
                 textureEl.style.zIndex = "1";
 
-                if (!slab && !stair && item) {
+                if (!slab && !stair && item && Number(slot.itemId) !== 16) {
                     const faces = blockFaceTextures(item);
                     const faceStyle = `--block-front:url('${faces.front}');--block-back:url('${faces.back}');--block-right:url('${faces.right}');--block-left:url('${faces.left}');--block-top:url('${faces.top}');--block-bottom:url('${faces.bottom}')`;
                     textureEl.className = "hotbarTexture hotbarBlock3d";
