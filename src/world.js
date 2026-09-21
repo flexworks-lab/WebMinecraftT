@@ -677,17 +677,40 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
             uvs.push(uv[i][0],uv[i][1]);
         }
         const matIndex=materialIndexFor(materialType,faceIndex);
-        groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
+        // Vertical mirroring for a TOP stair reverses triangle winding.
+        // Reverse the indices so the front/back faces remain visible.
+        if(half){
+            groups[matIndex].push(base,base+2,base+1,base,base+3,base+2);
+        }else{
+            groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
+        }
         vertexRef.count+=4;
     };
 
-    // Cut the stair texture horizontally in half. Use the left half
-    // of the source texture and stretch it across each exposed face.
-    // Keep the full vertical range so the cut is horizontal (left/right),
-    // not vertical (top/bottom).
-    const horizontalUv=[[0,0],[0,1],[0.5,1],[0.5,0]];
-    const topUv=horizontalUv;
-    const bottomUv=[[0.5,0],[0.5,1],[0,1],[0,0]];
+    // Keep the same pixel density as a normal one-block texture.
+    // A stair face that is half the width/height of a normal block gets
+    // exactly half the corresponding UV range instead of stretching the
+    // complete texture over the smaller face.
+    const stairFaceUv=(faceIndex,minX,maxX,minY,maxY,minZ,maxZ)=>{
+        const widthX=Math.abs(maxX-minX);
+        const widthZ=Math.abs(maxZ-minZ);
+        const height=Math.abs(maxY-minY);
+        if(faceIndex===0||faceIndex===1){
+            const u=Math.min(1,widthZ);
+            const v=Math.min(1,height);
+            return [[0,0],[0,v],[u,v],[u,0]];
+        }
+        if(faceIndex===4||faceIndex===5){
+            const u=Math.min(1,widthX);
+            const v=Math.min(1,height);
+            return faceIndex===4
+                ? [[0,0],[0,v],[u,v],[u,0]]
+                : [[0,0],[u,0],[u,v],[0,v]];
+        }
+        const u=Math.min(1,widthX);
+        const v=Math.min(1,widthZ);
+        return [[0,0],[u,0],[u,v],[0,v]];
+    };
 
 
     // Build the stair from exposed half-block cells. Keeping the shape in
@@ -736,13 +759,22 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
 
         for(const [nl,nx,nz,points,normal,faceIndex] of faces){
             if(occupied.has(key(nl,nx,nz)))continue;
-            if(faceIndex===2){
-                emitQuad(points,normal,faceIndex,topUv);
-            }else if(faceIndex===3){
-                emitQuad(points,normal,faceIndex,bottomUv);
-            }else{
-                emitQuad(points,normal,faceIndex,horizontalUv);
-            }
+
+            // Size the texture to the actual stair face. Faces that are
+            // half-sized in either dimension use half the texture range.
+            const minX=Math.min(...points.map(p=>p[0]));
+            const maxX=Math.max(...points.map(p=>p[0]));
+            const minY=Math.min(...points.map(p=>p[1]));
+            const maxY=Math.max(...points.map(p=>p[1]));
+            const minZ=Math.min(...points.map(p=>p[2]));
+            const maxZ=Math.max(...points.map(p=>p[2]));
+
+            emitQuad(
+                points,
+                normal,
+                faceIndex,
+                stairFaceUv(faceIndex,minX,maxX,minY,maxY,minZ,maxZ)
+            );
         }
     }
 }
