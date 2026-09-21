@@ -809,7 +809,7 @@ function rebuildChunkMesh(chunk){
         mesh.userData.isChunk=true;
         mesh.userData.chunkX=chunk.x;
         mesh.userData.chunkZ=chunk.z;
-        mesh.castShadow=false;
+        mesh.castShadow=true;
         mesh.receiveShadow=true;
         worldScene.add(mesh);
         chunkMeshes.set(chunkKey(chunk.x,chunk.z),mesh);
