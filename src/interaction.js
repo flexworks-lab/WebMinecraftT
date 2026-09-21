@@ -8,6 +8,7 @@ import { setupDoorSystem, isDoorSelected, placeDoor, handleDoorTarget, getDoorSe
 import { startSurvivalMining, setMiningContext } from "./survivalMiningSystem.js";
 import "./worldSave.js";
 import "./heldBlock3D.js";
+import { spawnBlockBreakParticles } from "./blockParticles.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
@@ -453,14 +454,5 @@ function playerOverlapsBlock(pos, camera) {
 }
 
 function createBreakParticles(scene, center, type, BLOCK) {
-    const geometry = new THREE.BoxGeometry(0.07, 0.07, 0.07);
-    const particles = [];
-    for (let i = 0; i < 8; i++) {
-        const material = new THREE.MeshBasicMaterial({ color: 0x8f8f8f, transparent: true });
-        const particle = new THREE.Mesh(geometry, material);
-        particle.position.copy(center).add(new THREE.Vector3((Math.random()-.5)*.7, (Math.random()-.5)*.7, (Math.random()-.5)*.7));
-        scene.add(particle);
-        particles.push(particle);
-    }
-    setTimeout(() => particles.forEach(p => { scene.remove(p); p.material.dispose(); }), 450);
-}
+    spawnBlockBreakParticles(scene, center, type);
+}}
