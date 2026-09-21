@@ -16,6 +16,10 @@ const MAX_CHAT_LENGTH = 120;
 const EMPTY_ROOM_RETENTION_MS = 24 * 60 * 60 * 1000;
 const ROOM_STATE_FILE = process.env.ROOM_STATE_FILE || "./data/rooms.json";
 const MAX_BLOCK_TYPE = 184;
+const ROLE_VISITOR = "visitor";
+const ROLE_MEMBER = "member";
+const ROLE_OPERATOR = "operator";
+const VALID_ROLES = new Set([ROLE_VISITOR, ROLE_MEMBER, ROLE_OPERATOR]);
 
 const rooms = new Map();
 let roomSaveTimer = null;
@@ -36,6 +40,8 @@ function serializeRoom(room) {
         worldSeed: room.worldSeed,
         createdAt: Number(room.createdAt) || Date.now(),
         emptySince: Number(room.emptySince) || null,
+        playerRoles: Object.fromEntries(room.playerRoles || new Map()),
+        bannedNames: [...(room.bannedNames || new Set())],
         blockChanges: [...room.blockChanges.values()],
     };
 }
@@ -85,6 +91,8 @@ function loadRoomsState() {
             room.worldSeed = Number(data?.worldSeed) >>> 0;
             room.createdAt = Number(data?.createdAt) || now;
             room.emptySince = emptySince;
+            room.playerRoles = new Map(Object.entries(data?.playerRoles || {}).map(([name, role]) => [String(name).toLowerCase(), normalizeRole(role)]));
+            room.bannedNames = new Set((Array.isArray(data?.bannedNames) ? data.bannedNames : []).map(name => String(name).trim().toLowerCase()).filter(Boolean));
             room.blockChanges = new Map();
 
             for (const change of Array.isArray(data?.blockChanges) ? data.blockChanges : []) {
@@ -110,6 +118,27 @@ function loadRoomsState() {
 function normalizeMode(value) {
     return String(value ?? "").toLowerCase() === "creative" ? "creative" : "survival";
 }
+function normalizeRole(value) {
+    const role = String(value ?? "").toLowerCase();
+    return VALID_ROLES.has(role) ? role : ROLE_MEMBER;
+}
+function roleKey(value) {
+    return String(value ?? "").trim().toLowerCase();
+}
+function getPlayerRole(room, player) {
+    if (!room || !player) return ROLE_MEMBER;
+    if (roleKey(room.ownerName) === roleKey(player.name)) return ROLE_OPERATOR;
+    return normalizeRole(room.playerRoles?.get(roleKey(player.name)) || ROLE_MEMBER);
+}
+function setPlayerRole(room, playerName, role) {
+    room.playerRoles ||= new Map();
+    const key = roleKey(playerName);
+    const next = normalizeRole(role);
+    if (!key || key === roleKey(room.ownerName)) return ROLE_OPERATOR;
+    if (next === ROLE_MEMBER) room.playerRoles.delete(key);
+    else room.playerRoles.set(key, next);
+    return next;
+}
 
 function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "", mode = "survival", keepOpen24h = false) {
     return {
@@ -124,6 +153,8 @@ function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "
         worldSeed: Math.floor(Math.random() * 4294967296) >>> 0,
         blockChanges: new Map(),
         drops: new Map(),
+        playerRoles: new Map(),
+        bannedNames: new Set(),
         createdAt: Date.now(),
         emptySince: Date.now(),
     };
@@ -203,6 +234,7 @@ function publicPlayer(player) {
         heldItemId: Number.isFinite(player.heldItemId) ? player.heldItemId : 0,
         sneaking: Boolean(player.sneaking),
         action: String(player.action || "idle"),
+        role: getPlayerRole(rooms.get(player?.room), player),
     };
 }
 
@@ -213,6 +245,7 @@ function publicRoom(room) {
         owner: room.ownerName,
         players: room.players.size,
         playerNames: [...room.players.values()].map(player => player.name),
+        playerDetails: [...room.players.values()].map(player => ({ id: player.id, name: player.name, role: getPlayerRole(room, player) })),
         maxPlayers: MAX_PLAYERS_PER_SERVER,
         private: Boolean(room.isPrivate),
         mode: normalizeMode(room.mode),
@@ -370,6 +403,11 @@ function handleMessage(ws, raw, state) {
         }
 
         let room = rooms.get(roomId);
+        if (room?.bannedNames?.has(roleKey(safeName))) {
+            send(ws, { type: "error", code: "banned", message: "You are banned from this server." });
+            ws.close();
+            return;
+        }
         if (room && room.isPrivate && suppliedCode !== room.privateCode) {
             send(ws, { type: "error", code: "private_code_required", message: "This is a private server. Enter the correct private code." });
             ws.close();
@@ -407,6 +445,8 @@ function handleMessage(ws, raw, state) {
             mode: normalizeMode(room.mode),
             keepOpen24h: Boolean(room.keepOpen24h),
             privateCode: room.isPrivate && room.ownerName === safeName ? room.privateCode : "",
+            role: getPlayerRole(room, player),
+            isHost: roleKey(room.ownerName) === roleKey(player.name),
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
             players: [...room.players.values()].map(publicPlayer),
@@ -512,6 +552,7 @@ function handleMessage(ws, raw, state) {
         return;
     }
     if (message.type === "block_changes") {
+        if (getPlayerRole(rooms.get(player.room), player) === ROLE_VISITOR) { send(ws,{type:"error",code:"visitor_readonly",message:"Visitors cannot build or break blocks."}); return; }
         if (!Array.isArray(message.changes) || message.changes.length > 1024) return;
         const room = rooms.get(player.room);
         if (!room) return;
@@ -537,6 +578,7 @@ function handleMessage(ws, raw, state) {
         return;
     }
     if (message.type === "slab_place") {
+        if (getPlayerRole(rooms.get(player.room), player) === ROLE_VISITOR) { send(ws,{type:"error",code:"visitor_readonly",message:"Visitors cannot build or break blocks."}); return; }
         const x = Math.floor(numberOr(message.x, NaN));
         const y = Math.floor(numberOr(message.y, NaN));
         const z = Math.floor(numberOr(message.z, NaN));
@@ -555,6 +597,7 @@ function handleMessage(ws, raw, state) {
         return;
     }
     if (message.type === "block_change") {
+        if (getPlayerRole(rooms.get(player.room), player) === ROLE_VISITOR) { send(ws,{type:"error",code:"visitor_readonly",message:"Visitors cannot build or break blocks."}); return; }
         const x = Math.floor(numberOr(message.x, NaN));
         const y = Math.floor(numberOr(message.y, NaN));
         const z = Math.floor(numberOr(message.z, NaN));
@@ -575,6 +618,7 @@ function handleMessage(ws, raw, state) {
         return;
     }
     if (message.type === "block_mining") {
+        if (getPlayerRole(rooms.get(player.room), player) === ROLE_VISITOR) return;
         const x = Math.floor(numberOr(message.x, NaN));
         const y = Math.floor(numberOr(message.y, NaN));
         const z = Math.floor(numberOr(message.z, NaN));
