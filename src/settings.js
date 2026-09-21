@@ -1,3 +1,5 @@
+import { getKeybinds, setKeybind, resetKeybinds, formatKeyCode, keybindLabels } from "./keybinds.js";
+
 const STORAGE_KEY = "webminecraft-settings-v2";
 
 const defaults = {
@@ -114,6 +116,10 @@ const panels = {
         ${control("sMouseSensitivity", "Mouse Sensitivity", "Camera turn speed on desktop.", "range", [0.35,2,0.05])}
         ${control("sTouchSensitivity", "Touch Sensitivity", "Camera turn speed on phones and tablets.", "range", [0.5,2,0.05])}
         ${control("sInvertY", "Invert Y Axis", "Reverse vertical camera movement.", "checkbox")}
+        </div>
+        <div class="settingsGroup"><h3>Keybinds</h3>
+            <div id="settingsKeybinds"></div>
+            <div class="setting settingInfo"><div><label>Reset Keybinds</label><small>Restore movement and gameplay keys to their defaults.</small></div><div class="settingControl"><button id="resetKeybinds" type="button">Reset</button></div></div>
         </div>`,
     Audio: `
         <div class="settingsGroup"><h3>Sound</h3>
@@ -212,9 +218,16 @@ function build() {
     bind("sHotbar", "hotbar", "checkbox");
     bind("sPerformanceHud", "performanceHud", "checkbox");
     bind("sFullscreen", "fullscreen", "checkbox", applyFullscreen);
+    setupKeybindControls();
+    document.getElementById("resetKeybinds")?.addEventListener("click", () => {
+        resetKeybinds();
+        refreshKeybindControls();
+        toast("Keybinds reset");
+    });
 
     document.getElementById("resetSettings")?.addEventListener("click", () => {
         settings = { ...defaults };
+        resetKeybinds();
         save();
         menu.dataset.redone = "";
         menu.innerHTML = "";
@@ -230,9 +243,127 @@ function build() {
         window.dispatchEvent(new Event("webminecraft-close-settings"));
     });
 
+
     applyUi();
     show("Graphics");
     save();
+}
+
+let keybindRefresh = null;
+
+function setupKeybindControls() {
+    const root = document.getElementById("settingsKeybinds");
+    if (!root || root.dataset.ready === "1") return;
+    root.dataset.ready = "1";
+
+    if (!document.getElementById("settingsKeybindStyles")) {
+        const style = document.createElement("style");
+        style.id = "settingsKeybindStyles";
+        style.textContent = '#settingsKeybinds{display:flex;flex-direction:column;gap:6px}#settingsKeybinds .settingsKeybindRow{display:grid;grid-template-columns:minmax(0,1fr) 150px;align-items:center;gap:12px;min-height:48px;padding:8px 10px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08)}#settingsKeybinds .settingsKeybindName{display:block;font-weight:700}#settingsKeybinds .settingsKeybindHint{display:block;margin-top:2px;color:#aaa;font-size:10px}#settingsKeybinds .settingsKeybindButton{width:150px;min-height:34px;padding:6px 8px;border:2px solid #222;border-top-color:#aaa;border-left-color:#aaa;background:#777;color:#fff;font:700 11px "MinecraftFont",monospace;cursor:pointer;text-shadow:1px 1px #222}#settingsKeybinds .settingsKeybindButton:hover{filter:brightness(1.08)}#settingsKeybinds .settingsKeybindButton.waiting{background:#555;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25)}#settingsKeybinds .settingsKeybindStatus{margin-top:7px;color:#d7d7d7;font-size:10px;min-height:14px}@media(max-width:700px){#settingsKeybinds .settingsKeybindRow{grid-template-columns:1fr}#settingsKeybinds .settingsKeybindButton{width:100%}}';
+        document.head.appendChild(style);
+    }
+
+    const current = getKeybinds();
+    root.innerHTML = "";
+
+    for (const action of Object.keys(keybindLabels)) {
+        const row = document.createElement("div");
+        row.className = "settingsKeybindRow";
+        row.dataset.keybindAction = action;
+
+        const info = document.createElement("div");
+        const name = document.createElement("span");
+        name.className = "settingsKeybindName";
+        name.textContent = keybindLabels[action];
+
+        const hint = document.createElement("small");
+        hint.className = "settingsKeybindHint";
+        hint.textContent = "Click Change, then press the key.";
+        info.append(name, hint);
+
+        const button = document.createElement("button");
+        button.className = "settingsKeybindButton";
+        button.type = "button";
+        button.dataset.keybindButton = "1";
+        button.textContent = formatKeyCode(current[action]);
+
+        row.append(info, button);
+        root.appendChild(row);
+    }
+
+    const status = document.createElement("div");
+    status.className = "settingsKeybindStatus";
+    status.id = "settingsKeybindStatus";
+    status.setAttribute("aria-live", "polite");
+    root.appendChild(status);
+
+    let waitingAction = null;
+
+    const refresh = () => {
+        const values = getKeybinds();
+        root.querySelectorAll("[data-keybind-action]").forEach(row => {
+            const action = row.dataset.keybindAction;
+            const button = row.querySelector("[data-keybind-button]");
+            if (button && button.dataset.waiting !== "1") button.textContent = formatKeyCode(values[action]);
+        });
+    };
+    keybindRefresh = refresh;
+
+    root.querySelectorAll("[data-keybind-button]").forEach(button => {
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            root.querySelectorAll("[data-keybind-button]").forEach(other => {
+                delete other.dataset.waiting;
+                other.classList.remove("waiting");
+            });
+            waitingAction = button.closest("[data-keybind-action]")?.dataset.keybindAction || null;
+            button.dataset.waiting = "1";
+            button.classList.add("waiting");
+            button.textContent = "Press a key...";
+            status.textContent = "Press the new key. Esc cancels.";
+        });
+    });
+
+    window.addEventListener("keydown", event => {
+        if (!waitingAction) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if (event.code === "Escape") {
+            waitingAction = null;
+            root.querySelectorAll("[data-keybind-button]").forEach(button => {
+                delete button.dataset.waiting;
+                button.classList.remove("waiting");
+            });
+            refresh();
+            status.textContent = "Change cancelled.";
+            return;
+        }
+
+        const values = getKeybinds();
+        const conflict = Object.entries(values).find(([action, code]) => action !== waitingAction && code === event.code);
+        if (conflict) {
+            status.textContent = "That key is already assigned to " + keybindLabels[conflict[0]] + ".";
+            return;
+        }
+
+        setKeybind(waitingAction, event.code);
+        waitingAction = null;
+        root.querySelectorAll("[data-keybind-button]").forEach(button => {
+            delete button.dataset.waiting;
+            button.classList.remove("waiting");
+        });
+        refresh();
+        status.textContent = "Keybind saved.";
+        toast("Keybind saved");
+    }, true);
+
+    window.addEventListener("webminecraft-keybinds-changed", refresh);
+}
+
+function refreshKeybindControls() {
+    keybindRefresh?.();
 }
 
 function show(name) {
