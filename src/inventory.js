@@ -132,7 +132,7 @@ const TAB_DEFS = [
     { id: "survival", label: "Survival Inventory", icon: "▣" }
 ];
 
-const BUILD_BLOCK_IDS = new Set(
+export const BUILD_BLOCK_IDS = new Set(
     ITEM_TYPES
         .filter(item => ![15, 16, 17].includes(item.id))
         .map(item => item.id)
