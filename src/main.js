@@ -141,20 +141,72 @@ function applySettings() {
     updateDepthLighting();
 }
 function smoothStep(edge0, edge1, value) { const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1); return t * t * (3 - 2 * t); }
+function isLightingSolid(x, y, z) {
+    const type = getBlockAt(Math.floor(x), Math.floor(y), Math.floor(z));
+    const blocks = getBlockTypes();
+    if (type === blocks.AIR || type === blocks.OAK_DOOR) return false;
+    if (type === blocks.LEAVES) return 0.35;
+    return 1;
+}
+
+function measureSkyVisibility(x, y, z) {
+    if (document.body.classList.contains("webminecraft-flat")) return 1;
+
+    const sunDirection = new THREE.Vector3(
+        sun.position.x - x,
+        sun.position.y - y,
+        sun.position.z - z
+    ).normalize();
+
+    let totalVisibility = 0;
+    for (const [ox, oy, oz] of SKY_CHECK_RAYS) {
+        let rayVisibility = 1;
+        for (let distance = 1.0; distance <= SKY_CHECK_DISTANCE; distance += SKY_CHECK_STEP) {
+            const px = x + sunDirection.x * distance + ox;
+            const py = y + sunDirection.y * distance + oy;
+            const pz = z + sunDirection.z * distance + oz;
+            const hit = isLightingSolid(px, py, pz);
+            if (hit === 1) {
+                rayVisibility = 0;
+                break;
+            }
+            if (hit > 0) {
+                rayVisibility *= (1 - hit * 0.12);
+            }
+        }
+        totalVisibility += rayVisibility;
+    }
+
+    return THREE.MathUtils.clamp(totalVisibility / SKY_CHECK_RAYS.length, 0, 1);
+}
+
 let cachedWaterX = NaN;
+let cachedWaterY = NaN;
 let cachedWaterZ = NaN;
 let cachedWaterFloor = 0;
 let cachedWaterSurface = 0;
 let cachedUnderwater = false;
+let cachedSkyVisibility = 1;
 let cachedLightingKey = "";
+
+const SKY_CHECK_DISTANCE = 28;
+const SKY_CHECK_STEP = 0.7;
+const SKY_CHECK_RAYS = [
+    [0, 0, 0],
+    [0.22, 0, 0],
+    [-0.22, 0, 0],
+    [0, 0, 0.22],
+    [0, 0, -0.22]
+];
 
 function updateDepthLighting() {
     const x = Math.floor(camera.position.x);
     const y = camera.position.y;
     const z = Math.floor(camera.position.z);
 
-    if (x !== cachedWaterX || z !== cachedWaterZ) {
+    if (x !== cachedWaterX || Math.floor(y) !== Math.floor(cachedWaterY) || z !== cachedWaterZ) {
         cachedWaterX = x;
+        cachedWaterY = Math.floor(y);
         cachedWaterZ = z;
 
         if (document.body.classList.contains("webminecraft-flat")) {
@@ -169,6 +221,12 @@ function updateDepthLighting() {
 
     cachedUnderwater = y < cachedWaterSurface - 0.02 && y > cachedWaterFloor + 0.05;
 
+    cachedSkyVisibility = measureSkyVisibility(
+        camera.position.x,
+        camera.position.y,
+        camera.position.z
+    );
+
     const profile = getLightingProfile();
 
     const undergroundDepth = Math.max(0, cachedWaterFloor - y);
@@ -181,15 +239,23 @@ function updateDepthLighting() {
     const ambientDepthFactor = THREE.MathUtils.lerp(1, 0.56, undergroundT);
     const fillDepthFactor = THREE.MathUtils.lerp(1, 0.30, undergroundT);
 
+    // Solid blocks between the player and the sun remove the fake ambient
+    // light that would otherwise make enclosed spaces look like daylight.
+    const occlusion = THREE.MathUtils.clamp(cachedSkyVisibility, 0, 1);
+    const occludedSunFactor = THREE.MathUtils.lerp(0.08, 1, occlusion);
+    const occludedSkyFactor = THREE.MathUtils.lerp(0.18, 1, occlusion);
+    const occludedAmbientFactor = THREE.MathUtils.lerp(0.18, 1, occlusion);
+    const occludedFillFactor = THREE.MathUtils.lerp(0.08, 1, occlusion);
+
     const waterSunFactor = cachedUnderwater ? 0.22 : 1;
     const waterSkyFactor = cachedUnderwater ? 0.34 : 1;
     const waterAmbientFactor = cachedUnderwater ? 0.50 : 1;
     const waterFillFactor = cachedUnderwater ? 0.18 : 1;
 
-    const targetSun = profile.sun * sunDepthFactor * waterSunFactor;
-    const targetSky = profile.sky * skyDepthFactor * waterSkyFactor;
-    const targetAmbient = profile.ambient * ambientDepthFactor * waterAmbientFactor;
-    const targetFill = profile.fill * fillDepthFactor * waterFillFactor;
+    const targetSun = profile.sun * sunDepthFactor * waterSunFactor * occludedSunFactor;
+    const targetSky = profile.sky * skyDepthFactor * waterSkyFactor * occludedSkyFactor;
+    const targetAmbient = profile.ambient * ambientDepthFactor * waterAmbientFactor * occludedAmbientFactor;
+    const targetFill = profile.fill * fillDepthFactor * waterFillFactor * occludedFillFactor;
 
     const exposureBase = 0.98 + settings.brightness * 0.30;
     const caveExposure = THREE.MathUtils.lerp(1, 0.76, undergroundT);
@@ -203,6 +269,7 @@ function updateDepthLighting() {
         Math.round(targetFill * 100),
         Math.round(targetExposure * 100),
         Math.round(undergroundT * 100),
+        Math.round(cachedSkyVisibility * 100),
         cachedUnderwater
     ].join("|");
 
