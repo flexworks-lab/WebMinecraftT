@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { getRemotePlayers, isMultiplayerActive } from "./multiplayerClient.js";
+import * as blockMaterials from "./blocks.js";
 
 const avatars = new Map();
 let animationStarted = false;
@@ -10,6 +11,106 @@ const HAIR_COLORS = [0x17110d, 0x2a1a12, 0x4a2d1c, 0x6b4125, 0x7a4a2b, 0xa36b3d]
 const SHIRT_COLORS = [0x3f6fa2, 0x5e8d47, 0xa34e43, 0x815c9f, 0xc0783a, 0x3f817b, 0x666b70, 0x40577c];
 const PANTS_COLORS = [0x273b53, 0x344444, 0x4a382f, 0x39475d, 0x4a4a4a, 0x3c2e32];
 const SHOE_COLORS = [0x1c1815, 0x302a25, 0x50555a, 0x232a35];
+
+const HELD_BASE_MATERIAL_KEYS = {
+    1:"grassMaterial",2:"dirtMaterial",3:"stoneMaterial",4:"sandMaterial",5:"oakLogMaterial",
+    6:"leavesMaterial",7:"cobblestoneMaterial",8:"gravelMaterial",9:"sandstoneMaterial",10:"bedrockMaterial",
+    11:"coalMaterial",12:"ironMaterial",13:"oakPlankMaterial",14:"snowMaterial",15:"tntMaterial",
+    18:"bricksMaterial",19:"stoneBricksMaterial",20:"crackedStoneBricksMaterial",21:"mossyStoneBricksMaterial",
+    22:"dirtPathMaterial",23:"acaciaPlanksMaterial",24:"bambooPlanksMaterial",25:"birchPlanksMaterial",
+    26:"crimsonPlanksMaterial",27:"darkOakPlanksMaterial",28:"junglePlanksMaterial",29:"mangrovePlanksMaterial",
+    30:"sprucePlanksMaterial",31:"warpedPlanksMaterial",32:"blastFurnaceMaterial",33:"chiseledDeepslateMaterial",
+    34:"cobbledDeepslateMaterial",35:"crackedDeepslateBricksMaterial",36:"crackedDeepslateTilesMaterial",
+    37:"deepslateMaterial",38:"deepslateBricksMaterial",39:"deepslateCoalOreMaterial",40:"deepslateCopperOreMaterial",
+    41:"deepslateDiamondOreMaterial",42:"deepslateEmeraldOreMaterial",43:"deepslateGoldOreMaterial",
+    44:"deepslateIronOreMaterial",45:"deepslateLapisOreMaterial",46:"deepslateRedstoneOreMaterial",
+    47:"deepslateTilesMaterial",48:"polishedDeepslateMaterial",49:"reinforcedDeepslateMaterial",50:"furnaceMaterial"
+};
+
+const HELD_VARIANT_BASE = {
+    51:3,52:7,53:19,54:20,55:21,56:13,57:23,58:24,59:25,60:26,
+    61:27,62:28,63:29,64:30,65:31,66:33,67:34,68:35,69:36,70:37,
+    71:38,72:47,73:48,74:49,75:13,76:23,77:24,78:25,79:26,80:27,
+    81:28,82:29,83:30,84:31
+};
+
+function heldSourceMaterial(itemId) {
+    const id = Math.floor(Number(itemId) || 0);
+    if (id >= 155 && id <= 184) return blockMaterials.extraBlockMaterials?.[id] || null;
+    const baseId = HELD_VARIANT_BASE[id] || id;
+    const key = HELD_BASE_MATERIAL_KEYS[baseId];
+    return key ? blockMaterials[key] || null : null;
+}
+
+function cloneHeldMaterial(material) {
+    if (!material?.clone) return material;
+    const copy = material.clone();
+    copy.vertexColors = false;
+    copy.needsUpdate = true;
+    if (copy.color) copy.color.setRGB(1,1,1);
+    return copy;
+}
+
+function makeHeldMaterials(itemId) {
+    const source = heldSourceMaterial(itemId);
+    if (!source) return null;
+    return Array.isArray(source) ? source.map(cloneHeldMaterial) : cloneHeldMaterial(source);
+}
+
+function createHeldBlock() {
+    const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.38,0.38,0.38),
+        cloneHeldMaterial(blockMaterials.stoneMaterial)
+    );
+    mesh.name = "multiplayerHandBlock";
+    mesh.position.set(0,-0.09,-0.30);
+    mesh.rotation.set(0.12,0.35,-0.08);
+    mesh.visible = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.itemId = 0;
+    return mesh;
+}
+
+function syncHeldBlock(entry, player) {
+    const hand = entry.parts?.rightHand;
+    if (!hand) return;
+
+    if (!entry.heldBlock) {
+        entry.heldBlock = createHeldBlock();
+        hand.add(entry.heldBlock);
+    }
+
+    const itemId = Math.floor(Number(player?.heldItemId) || 0);
+    const source = heldSourceMaterial(itemId);
+    if (!source) {
+        entry.heldBlock.visible = false;
+        entry.heldBlock.userData.itemId = 0;
+        return;
+    }
+
+    if (entry.heldBlock.userData.itemId !== itemId) {
+        const next = makeHeldMaterials(itemId);
+        if (next) {
+            const previous = entry.heldBlock.material;
+            entry.heldBlock.material = next;
+            for (const material of (Array.isArray(previous) ? previous : [previous])) material?.dispose?.();
+            entry.heldBlock.userData.itemId = itemId;
+        }
+    }
+
+    const isSlab = itemId >= 51 && itemId <= 74;
+    const isStair = itemId >= 75 && itemId <= 84;
+    entry.heldBlock.scale.set(
+        isStair || isSlab ? 0.76 : 0.92,
+        isStair || isSlab ? 0.42 : 0.92,
+        isStair ? 0.76 : 0.92
+    );
+    entry.heldBlock.position.set(0, isStair || isSlab ? -0.04 : -0.09, -0.30);
+    entry.heldBlock.rotation.set(0.12,0.35,-0.08);
+    entry.heldBlock.visible = true;
+}
+
 
 function hashString(value) {
     let h = 2166136261 >>> 0;
@@ -298,7 +399,8 @@ export function updateMultiplayerAvatars(scene) {
                 walkPhase: hashString(id) % 1000,
                 actionStarted: now,
                 lastAction: "idle",
-                bodyYaw: 0
+                bodyYaw: 0,
+                heldBlock: null
             };
             entry.group.position.copy(entry.lastPosition);
             avatars.set(id, entry);
@@ -310,6 +412,7 @@ export function updateMultiplayerAvatars(scene) {
         const action = String(player.action || "idle");
         if (action !== entry.lastAction) { entry.lastAction = action; entry.actionStarted = now; }
         animateAvatar(entry, player, now);
+        syncHeldBlock(entry, player);
 
         // Let the head look left/right, but once it reaches the limit the body catches up.
         const rawPitch = Number(player.rotation?.x) || 0;
