@@ -4,6 +4,7 @@ import { touchInput } from "./controls.js";
 import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop, sendItemDrop, sendItemClaim, isMultiplayerActive } from "./multiplayerClient.js";
 import { handleDoorTarget } from "./door.js";
 import { isSurvivalWorld } from "./survivalMode.js";
+import { spawnBlockBreakParticles } from "./blockParticles.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
@@ -284,35 +285,8 @@ function clearRemoteMiningForPlayer(playerId) {
 }
 
 function burst(center, type) {
-    const geometry = new THREE.BoxGeometry(.07, .07, .07);
-    const particles = [];
-    const start = performance.now();
-    for (let i = 0; i < 8; i++) {
-        const particle = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: COLORS[type] ?? 0xaaaaaa, transparent: true }));
-        particle.position.copy(center).add(new THREE.Vector3((Math.random() - .5) * .65, (Math.random() - .5) * .65, (Math.random() - .5) * .65));
-        particle.userData.velocity = new THREE.Vector3((Math.random() - .5) * 2.1, .9 + Math.random() * 1.8, (Math.random() - .5) * 2.1);
-        particle.userData.start = start;
-        sceneRef.add(particle);
-        particles.push(particle);
-    }
-    function tick(time) {
-        let alive = false;
-        for (const particle of particles) {
-            if (!particle.parent) continue;
-            const age = time - particle.userData.start;
-            if (age >= 450) { particle.parent.remove(particle); particle.material.dispose(); continue; }
-            alive = true;
-            particle.userData.velocity.y -= .085;
-            particle.position.addScaledVector(particle.userData.velocity, .016);
-            particle.rotation.x += .1;
-            particle.rotation.y += .08;
-            particle.material.opacity = 1 - age / 450;
-        }
-        if (alive) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+    spawnBlockBreakParticles(sceneRef, center, type);
 }
-
 function createDrop(type, position, options = {}) {
     const group = new THREE.Group();
     group.name = "survivalDroppedItem";
