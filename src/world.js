@@ -11,7 +11,7 @@ import {
     crackedDeepslateBricksMaterial, crackedDeepslateTilesMaterial, deepslateMaterial, deepslateBricksMaterial,
     deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
     deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
-    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial
+    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial, extraBlockMaterials
 } from "./blocks.js";
 
 export const CHUNK_SIZE = 19;
@@ -34,6 +34,14 @@ const BLOCK = {
     DEEPSLATE_DIAMOND_ORE: 41, DEEPSLATE_EMERALD_ORE: 42, DEEPSLATE_GOLD_ORE: 43, DEEPSLATE_IRON_ORE: 44,
     DEEPSLATE_LAPIS_ORE: 45, DEEPSLATE_REDSTONE_ORE: 46, DEEPSLATE_TILES: 47, POLISHED_DEEPSLATE: 48,
     REINFORCED_DEEPSLATE: 49, FURNACE: 50,
+    ACACIA_LOG: 155, BIRCH_LOG: 156, DARK_OAK_LOG: 157, JUNGLE_LOG: 158, MANGROVE_LOG: 159, SPRUCE_LOG: 160,
+    STRIPPED_OAK_LOG: 161, STRIPPED_ACACIA_LOG: 162, STRIPPED_BIRCH_LOG: 163, STRIPPED_DARK_OAK_LOG: 164,
+    STRIPPED_JUNGLE_LOG: 165, STRIPPED_MANGROVE_LOG: 166, STRIPPED_SPRUCE_LOG: 167,
+    CRAFTING_TABLE: 168,
+    BLACK_CONCRETE: 169, BLUE_CONCRETE: 170, BROWN_CONCRETE: 171, CYAN_CONCRETE: 172,
+    GRAY_CONCRETE: 173, GREEN_CONCRETE: 174, LIGHT_BLUE_CONCRETE: 175, LIGHT_GRAY_CONCRETE: 176,
+    LIME_CONCRETE: 177, MAGENTA_CONCRETE: 178, ORANGE_CONCRETE: 179, PINK_CONCRETE: 180,
+    PURPLE_CONCRETE: 181, RED_CONCRETE: 182, WHITE_CONCRETE: 183, YELLOW_CONCRETE: 184,
     STONE_SLAB: 51, COBBLESTONE_SLAB: 52, STONE_BRICKS_SLAB: 53, CRACKED_STONE_BRICKS_SLAB: 54, MOSSY_STONE_BRICKS_SLAB: 55,
     OAK_PLANKS_SLAB: 56, ACACIA_PLANKS_SLAB: 57, BAMBOO_PLANKS_SLAB: 58, BIRCH_PLANKS_SLAB: 59, CRIMSON_PLANKS_SLAB: 60,
     DARK_OAK_PLANKS_SLAB: 61, JUNGLE_PLANKS_SLAB: 62, MANGROVE_PLANKS_SLAB: 63, SPRUCE_PLANKS_SLAB: 64, WARPED_PLANKS_SLAB: 65,
@@ -123,6 +131,17 @@ const chunkMaterials = [
     reinforcedDeepslateMaterial[2], reinforcedDeepslateMaterial[0], reinforcedDeepslateMaterial[1],
     furnaceMaterial[4], furnaceMaterial[0], furnaceMaterial[2]
 ];
+
+const extraMaterialIndex = new Map();
+for (const [idText, materials] of Object.entries(extraBlockMaterials)) {
+    const id = Number(idText);
+    const indices = [];
+    for (const material of materials) {
+        indices.push(chunkMaterials.length);
+        chunkMaterials.push(material);
+    }
+    extraMaterialIndex.set(id, indices);
+}
 
 const FACES = [
     { normal: [1, 0, 0], corners: [[0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [0.5, -0.5, 0.5]] },
@@ -528,7 +547,11 @@ export function slabParentType(type){switch(type){
     case BLOCK.DEEPSLATE_TILES_SLAB:return BLOCK.DEEPSLATE_TILES; case BLOCK.POLISHED_DEEPSLATE_SLAB:return BLOCK.POLISHED_DEEPSLATE; case BLOCK.REINFORCED_DEEPSLATE_SLAB:return BLOCK.REINFORCED_DEEPSLATE;
     default:return type;
 }}
-function materialIndexFor(type,faceIndex){type=isStairBlock(type)?stairPlankType(type):slabParentType(type);switch(type){
+function materialIndexFor(type,faceIndex){
+    type=isStairBlock(type)?stairPlankType(type):slabParentType(type);
+    const extraIndices = extraMaterialIndex.get(Number(type));
+    if (extraIndices) return extraIndices[faceIndex] ?? extraIndices[0];
+    switch(type){
     case BLOCK.GRASS:return faceIndex===2?1:faceIndex===3?2:0;
     case BLOCK.DIRT:return 2;
     case BLOCK.STONE:return 3;
