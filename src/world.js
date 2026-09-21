@@ -661,8 +661,10 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
     const rotateNormal=(n)=>{
         const rx=n[0]*cos-n[2]*sin;
         const rz=n[0]*sin+n[2]*cos;
-        // Flipping a stair vertically only flips the Y component of the
-        // normal. X/Z must stay aligned or the front/back faces cull away.
+        // A TOP stair mirrors the geometry across Y. Because that reflection
+        // reverses winding, emit triangles in reverse order below so every
+        // outside face remains a FrontSide face. The resulting vertex normal
+        // is the reflected source normal with the corrected winding.
         return half?[rx,-n[1],rz]:[rx,n[1],rz];
     };
 
@@ -677,9 +679,14 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
             uvs.push(uv[i][0],uv[i][1]);
         }
         const matIndex=materialIndexFor(materialType,faceIndex);
-        // The point transform already mirrors Y for a TOP stair, which
-        // naturally flips the triangle winding. Do not reverse it again.
-        groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
+        // Mirroring a TOP stair across Y flips the winding. Reverse the
+        // triangle order so the outward side still renders with FrontSide
+        // backface culling enabled.
+        if(half){
+            groups[matIndex].push(base,base+3,base+2,base,base+2,base+1);
+        }else{
+            groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
+        }
         vertexRef.count+=4;
     };
 
@@ -745,10 +752,10 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
             [layer0,xi,zi-1,
                 [[minX,minY,minZ],[maxX,minY,minZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
                 [0,0,-1],5],
-            [layer0+1,xi,zi,
+            [half?layer0-1:layer0+1,xi,zi,
                 [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
                 [0,0,1],4],
-            [layer0-1,xi,zi,
+            [half?layer0+1:layer0-1,xi,zi,
                 [[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],
                 [0,-1,0],3]
         ];
