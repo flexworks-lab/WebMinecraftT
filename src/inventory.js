@@ -447,7 +447,7 @@ body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #inventoryPanel{position:relative;z-index:1000000;width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#555;border:3px solid #252525;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.32),inset 2px 2px 0 #747474;image-rendering:pixelated;overflow:hidden}
 #inventoryTopBar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 4px 6px;flex:0 0 auto}
 #inventoryTitle{font-size:22px;font-weight:700;text-shadow:2px 2px 0 #171717}
-#inventoryClose{width:32px;height:30px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#8a8a8a;color:#fff;font-size:22px;line-height:19px;cursor:pointer;box-shadow:inset -2px -2px 0 #444}
+#inventoryClose{width:32px;height:30px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#8a8a8a;color:#fff;font-size:22px;line-height:19px;cursor:pointer;box-shadow:inset -2px -2px 0 #444}#inventoryScreen button:not(.inventoryTab){box-sizing:border-box;transform:scale(.86);transform-origin:center center}
 #creativeTabs{display:flex;gap:6px;flex:0 0 auto;padding:0 3px 8px;border-bottom:2px solid #171717}
 .inventoryTab{width:46px;height:40px;border:2px solid #161616;border-top-color:#8b8b8b;border-left-color:#8b8b8b;background:#777;color:#ddd;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:inset -2px -2px 0 #444;position:relative}
 .inventoryTab:hover{filter:brightness(1.14)}.inventoryTab.active{background:#9b9b9b;border-color:#f0f0f0;color:#fff;transform:translateY(1px)}
