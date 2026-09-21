@@ -16,9 +16,14 @@ import "./survivalRules.js";
 
 const scene = new THREE.Scene();
 const skyColor = new THREE.Color(0x87ceeb);
+const caveFogColor = new THREE.Color(0x252a2e);
 const underwaterColor = new THREE.Color(0x071b2b);
+const skyLightColor = new THREE.Color(0xcfeeff);
+const groundLightColor = new THREE.Color(0x3f3b43);
+const sunColor = new THREE.Color(0xfff0cf);
+const fillColor = new THREE.Color(0x9fc8ef);
 scene.background = skyColor.clone();
-scene.fog = new THREE.Fog(skyColor.clone(), 40, 120);
+scene.fog = new THREE.Fog(skyColor.clone(), 55, 175);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 180);
 camera.position.set(0, 7, 5);
@@ -37,24 +42,36 @@ document.body.appendChild(renderer.domElement);
 window.__webminecraftRenderer = renderer;
 window.__webminecraftCamera = camera;
 
-const skyLight = new THREE.HemisphereLight(0xbfe8ff, 0x342c26, 1.35);
+const skyLight = new THREE.HemisphereLight(skyLightColor, groundLightColor, 1.15);
 scene.add(skyLight);
-const sun = new THREE.DirectionalLight(0xfff1cf, 3.2);
+
+const ambientLight = new THREE.AmbientLight(0x98a4ad, 0.10);
+scene.add(ambientLight);
+
+const sun = new THREE.DirectionalLight(sunColor, 3.0);
 sun.position.set(45, 85, 30);
 sun.castShadow = true;
 sun.shadow.mapSize.width = 1024;
 sun.shadow.mapSize.height = 1024;
-sun.shadow.camera.left = -80;
-sun.shadow.camera.right = 80;
-sun.shadow.camera.top = 80;
-sun.shadow.camera.bottom = -80;
+sun.shadow.camera.left = -76;
+sun.shadow.camera.right = 76;
+sun.shadow.camera.top = 76;
+sun.shadow.camera.bottom = -76;
 sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 220;
-sun.shadow.bias = -0.0005;
-sun.shadow.normalBias = 0.02;
+sun.shadow.camera.far = 210;
+sun.shadow.bias = -0.00045;
+sun.shadow.normalBias = 0.025;
+sun.shadow.radius = 2.5;
 scene.add(sun);
 scene.add(sun.target);
-const depthLight = new THREE.PointLight(0x9db6d2, 0, 1, 2);
+
+const fillLight = new THREE.DirectionalLight(fillColor, 0.20);
+fillLight.position.set(-38, 58, -26);
+fillLight.castShadow = false;
+scene.add(fillLight);
+scene.add(fillLight.target);
+
+const depthLight = new THREE.PointLight(0x6f879b, 0, 12, 2);
 scene.add(depthLight);
 
 const params = new URLSearchParams(window.location.search);
@@ -88,9 +105,13 @@ try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || 
 catch { settings = { ...defaults }; }
 function saveSettings() { try { localStorage.setItem("webminecraft-settings", JSON.stringify(settings)); } catch {} }
 function getLightingProfile() {
-    if (settings.lightingQuality === "performance") return { sun: 2.7, sky: 1.1, ambientFloor: 0.12, undergroundSun: 0.05 };
-    if (settings.lightingQuality === "balanced") return { sun: 3.0, sky: 1.25, ambientFloor: 0.09, undergroundSun: 0.035 };
-    return { sun: 3.35, sky: 1.35, ambientFloor: 0.06, undergroundSun: 0.02 };
+    if (settings.lightingQuality === "performance") {
+        return { sun: 2.45, sky: 0.92, ambient: 0.13, fill: 0.13 };
+    }
+    if (settings.lightingQuality === "balanced") {
+        return { sun: 2.75, sky: 1.04, ambient: 0.11, fill: 0.17 };
+    }
+    return { sun: 3.05, sky: 1.16, ambient: 0.10, fill: 0.21 };
 }
 function applySettings() {
     renderer.shadowMap.enabled = settings.shadows;
@@ -99,8 +120,14 @@ function applySettings() {
     sun.shadow.mapSize.height = settings.shadowQuality;
     renderer.setPixelRatio(Math.min(settings.pixelRatio, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.toneMappingExposure = 0.9 + settings.brightness * 0.35;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMappingExposure = 0.98 + settings.brightness * 0.30;
+
+    const profile = getLightingProfile();
+    ambientLight.intensity = profile.ambient;
+    fillLight.intensity = profile.fill;
+    skyLight.intensity = profile.sky;
+
     for (const object of scene.children) {
         if (!object.isMesh) continue;
         if (object.userData?.isChunk) {
@@ -125,9 +152,11 @@ function updateDepthLighting() {
     const x = Math.floor(camera.position.x);
     const y = camera.position.y;
     const z = Math.floor(camera.position.z);
+
     if (x !== cachedWaterX || z !== cachedWaterZ) {
         cachedWaterX = x;
         cachedWaterZ = z;
+
         if (document.body.classList.contains("webminecraft-flat")) {
             cachedWaterFloor = Infinity;
             cachedWaterSurface = -Infinity;
@@ -137,33 +166,78 @@ function updateDepthLighting() {
             cachedWaterSurface = SEA_LEVEL + 0.42;
         }
     }
+
     cachedUnderwater = y < cachedWaterSurface - 0.02 && y > cachedWaterFloor + 0.05;
 
     const profile = getLightingProfile();
-    const underwaterExposure = cachedUnderwater ? 0.68 : 1;
-    const finalExposure = (0.9 + settings.brightness * 0.35) * underwaterExposure;
-    const lightingKey = profile.sun + "|" + profile.sky + "|" + finalExposure + "|" + cachedUnderwater;
+
+    const undergroundDepth = Math.max(0, cachedWaterFloor - y);
+    const undergroundT = smoothStep(0, 18, undergroundDepth);
+
+    // A shallow falloff keeps the surface bright while caves progressively
+    // lose the direct daylight that should not reach them.
+    const sunDepthFactor = THREE.MathUtils.lerp(1, 0.12, undergroundT);
+    const skyDepthFactor = THREE.MathUtils.lerp(1, 0.34, undergroundT);
+    const ambientDepthFactor = THREE.MathUtils.lerp(1, 0.56, undergroundT);
+    const fillDepthFactor = THREE.MathUtils.lerp(1, 0.30, undergroundT);
+
+    const waterSunFactor = cachedUnderwater ? 0.22 : 1;
+    const waterSkyFactor = cachedUnderwater ? 0.34 : 1;
+    const waterAmbientFactor = cachedUnderwater ? 0.50 : 1;
+    const waterFillFactor = cachedUnderwater ? 0.18 : 1;
+
+    const targetSun = profile.sun * sunDepthFactor * waterSunFactor;
+    const targetSky = profile.sky * skyDepthFactor * waterSkyFactor;
+    const targetAmbient = profile.ambient * ambientDepthFactor * waterAmbientFactor;
+    const targetFill = profile.fill * fillDepthFactor * waterFillFactor;
+
+    const exposureBase = 0.98 + settings.brightness * 0.30;
+    const caveExposure = THREE.MathUtils.lerp(1, 0.76, undergroundT);
+    const underwaterExposure = cachedUnderwater ? 0.66 : 1;
+    const targetExposure = exposureBase * caveExposure * underwaterExposure;
+
+    const lightingKey = [
+        Math.round(targetSun * 100),
+        Math.round(targetSky * 100),
+        Math.round(targetAmbient * 100),
+        Math.round(targetFill * 100),
+        Math.round(targetExposure * 100),
+        Math.round(undergroundT * 100),
+        cachedUnderwater
+    ].join("|");
+
     if (lightingKey === cachedLightingKey) return;
     cachedLightingKey = lightingKey;
 
-    // Keep world lighting consistent at every depth. Going underground no
-    // longer progressively removes sunlight, ambient light, or visibility.
-    sun.intensity = profile.sun * (cachedUnderwater ? 0.55 : 1);
-    skyLight.intensity = profile.sky * (cachedUnderwater ? 0.62 : 1);
-    depthLight.intensity = 0;
-    renderer.toneMappingExposure = finalExposure;
+    sun.intensity = targetSun;
+    skyLight.intensity = targetSky;
+    ambientLight.intensity = targetAmbient;
+    fillLight.intensity = targetFill;
+    depthLight.intensity = cachedUnderwater ? 0.16 : 0;
+    depthLight.position.set(camera.position.x, camera.position.y - 1.2, camera.position.z);
+    renderer.toneMappingExposure = targetExposure;
 
     if (cachedUnderwater) {
         scene.background.lerpColors(skyColor, underwaterColor, 0.98);
         scene.fog.color.lerpColors(skyColor, underwaterColor, 0.98);
-        scene.fog.near = 2.5;
-        scene.fog.far = 30;
+        scene.fog.near = 1.8;
+        scene.fog.far = 26;
+    } else if (undergroundT > 0.08) {
+        scene.background.copy(skyColor);
+        scene.fog.color.copy(caveFogColor);
+        scene.fog.near = THREE.MathUtils.lerp(55, 7, undergroundT);
+        scene.fog.far = THREE.MathUtils.lerp(175, 48, undergroundT);
     } else {
         scene.background.copy(skyColor);
         scene.fog.color.copy(skyColor);
-        scene.fog.near = 40;
-        scene.fog.far = 120;
+        scene.fog.near = 55;
+        scene.fog.far = 175;
     }
+
+    skyLight.color.copy(skyLightColor);
+    skyLight.groundColor.copy(groundLightColor);
+    sun.color.copy(sunColor);
+    fillLight.color.copy(fillColor);
 }
 applySettings();
 
