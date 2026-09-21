@@ -229,7 +229,7 @@ function loadInventory() {
     } catch {}
 }
 
-function addItem(itemId, amount = 1) {
+export function addItem(itemId, amount = 1)  {
     const item = getItem(itemId);
     if (!item) return false;
     let left = amount;
