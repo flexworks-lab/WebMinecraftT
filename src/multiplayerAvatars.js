@@ -180,8 +180,8 @@ function createAvatar(id, name) {
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt); torso.position.y = 1.1;
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt); leftArm.position.set(-0.53, 1.23, 0);
     const rightArm = leftArm.clone(); rightArm.position.x = 0.53;
-    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), skin); leftHand.position.set(-0.53, 0.86, 0);
-    const rightHand = leftHand.clone(); rightHand.position.x = 0.53;
+    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), skin); leftHand.name = "leftHand"; leftHand.position.set(-0.53, 0.86, 0);
+    const rightHand = leftHand.clone(); rightHand.name = "rightHand"; rightHand.position.x = 0.53;
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants); leftLeg.position.set(-0.2, 0.35, 0);
     const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.2;
     const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.46), shoes); leftShoe.position.set(-0.2, 0.09, -0.025);
