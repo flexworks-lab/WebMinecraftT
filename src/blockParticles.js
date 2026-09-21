@@ -185,7 +185,7 @@ export function spawnBlockBreakParticles(scene, center, type) {
 
     const particles = [];
     const start = performance.now();
-    const count = 14;
+    const count = 36;
     const baseGeometry = new THREE.BoxGeometry(1, 1, 1);
     const block = getBlockTypes();
 
