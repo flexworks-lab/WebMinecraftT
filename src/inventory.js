@@ -296,13 +296,81 @@ function iconSvg(name) {
 function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
 function isStairItem(itemId) { return Number(itemId) >= 75 && Number(itemId) <= 84; }
 
+function blockFaceTextures(item) {
+    const id = Number(item?.id);
+    const base = item?.texture ? textureUrl(item.texture) : "";
+    const side = base;
+    let front = side;
+    let back = side;
+    let right = side;
+    let left = side;
+    let top = side;
+    let bottom = side;
+
+    const setFaces = (faces = {}) => {
+        if (faces.front) front = textureUrl(faces.front);
+        if (faces.back) back = textureUrl(faces.back);
+        if (faces.right) right = textureUrl(faces.right);
+        if (faces.left) left = textureUrl(faces.left);
+        if (faces.top) top = textureUrl(faces.top);
+        if (faces.bottom) bottom = textureUrl(faces.bottom);
+    };
+
+    if (id === 1) {
+        setFaces({
+            side: "grass_block_side.png",
+            top: "Grass_Block_(top_texture)_JE2.png",
+            bottom: "dirt.png"
+        });
+    }
+    if (id === 5) setFaces({ side: "oak_log.png", top: "oak_log_top.png", bottom: "oak_log_top.png" });
+    if (id === 9) setFaces({ side: "sandstone.png", top: "sandstone_top.png", bottom: "sandstone_bottom.png" });
+    if (id === 15) setFaces({ side: "tnt_side.png", top: "tnt_top.png", bottom: "tnt_bottom.png" });
+    if (id === 32) setFaces({ front: "blast_furnace_front.png", side: "blast_furnace_side.png", top: "blast_furnace_top.png" });
+    if (id === 37) setFaces({ side: "deepslate.png", top: "deepslate_top.png" });
+    if (id === 49) setFaces({ side: "reinforced_deepslate_side.png", top: "reinforced_deepslate_top.png", bottom: "reinforced_deepslate_bottom.png" });
+    if (id === 50) setFaces({ front: "furnace_front.png", side: "furnace_side.png", top: "furnace_top.png" });
+
+    const extraLogFaces = {
+        155: ["acacia_log.png", "acacia_log_top.png"],
+        156: ["birch_log.png", "birch_log_top.png"],
+        157: ["dark_oak_log.png", "dark_oak_log_top.png"],
+        158: ["jungle_log.png", "jungle_log_top.png"],
+        159: ["mangrove_log.png", "mangrove_log_top.png"],
+        160: ["spruce_log.png", "spruce_log_top.png"],
+        161: ["stripped_oak_log.png", "stripped_oak_log_top.png"],
+        162: ["stripped_acacia_log.png", "stripped_acacia_log_top.png"],
+        163: ["stripped_birch_log.png", "stripped_birch_log_top.png"],
+        164: ["stripped_dark_oak_log.png", "stripped_dark_oak_log_top.png"],
+        165: ["stripped_jungle_log.png", "stripped_jungle_log_top.png"],
+        166: ["stripped_mangrove_log.png", "stripped_mangrove_log_top.png"],
+        167: ["stripped_spruce_log.png", "stripped_spruce_log_top.png"]
+    };
+    if (extraLogFaces[id]) {
+        const [logSide, logTop] = extraLogFaces[id];
+        setFaces({ side: logSide, top: logTop, bottom: logTop });
+    }
+    if (id === 168) setFaces({
+        front: "crafting_table_front.png",
+        back: "crafting_table_side.png",
+        right: "crafting_table_side.png",
+        left: "crafting_table_side.png",
+        top: "crafting_table_top.png",
+        bottom: "crafting_table_side.png"
+    });
+
+    return { front, back, right, left, top, bottom };
+}
+
 function itemVisual(item) {
     if (item.texture) {
         const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
         const stairClass = isStairItem(item.id) ? " stairIcon" : "";
         const texture = textureUrl(item.texture);
         if (!slabClass && !stairClass) {
-            return `<span class="catalogIcon catalogBlock3d" style="--block-texture:url('${texture}')"><i class="blockFace blockFront"></i><i class="blockFace blockBack"></i><i class="blockFace blockRight"></i><i class="blockFace blockLeft"></i><i class="blockFace blockTop"></i><i class="blockFace blockBottom"></i></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
+            const faces = blockFaceTextures(item);
+            const style = `--block-front:url('${faces.front}');--block-back:url('${faces.back}');--block-right:url('${faces.right}');--block-left:url('${faces.left}');--block-top:url('${faces.top}');--block-bottom:url('${faces.bottom}')`;
+            return `<span class="catalogIcon catalogBlock3d" style="${style}"><i class="blockFace blockFront"></i><i class="blockFace blockBack"></i><i class="blockFace blockRight"></i><i class="blockFace blockLeft"></i><i class="blockFace blockTop"></i><i class="blockFace blockBottom"></i></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
         }
         const iconStyle = stairClass
             ? `--stair-texture:url('${texture}')`
@@ -385,7 +453,7 @@ button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;f
 .catalogGroupLabel{position:absolute;left:2px;right:22px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
 .catalogGroup:hover .catalogGroupLabel{opacity:1}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
-.catalogIcon{position:absolute;inset:6px;display:block}.catalogGroupExpanded .catalogIcon{background-color:#656565}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogBlock3d{left:50%;top:50%;right:auto;bottom:auto;width:32px;height:32px;transform:translate(-50%,-50%) rotateX(30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent}.catalogBlock3d .blockFace{position:absolute;left:0;top:0;width:32px;height:32px;display:block;margin:0;background-image:var(--block-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}.catalogBlock3d .blockFront{transform:translateZ(16px);filter:brightness(.95)}.catalogBlock3d .blockBack{transform:rotateY(180deg) translateZ(16px)}.catalogBlock3d .blockRight{transform:rotateY(90deg) translateZ(16px);filter:brightness(.78)}.catalogBlock3d .blockLeft{transform:rotateY(-90deg) translateZ(16px);filter:brightness(.88)}.catalogBlock3d .blockTop{transform:rotateX(90deg) translateZ(16px);filter:brightness(1.12)}.catalogBlock3d .blockBottom{transform:rotateX(-90deg) translateZ(16px);filter:brightness(.62)}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
+.catalogIcon{position:absolute;inset:6px;display:block}.catalogGroupExpanded .catalogIcon{background-color:#656565}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogBlock3d{left:50%;top:50%;right:auto;bottom:auto;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent}.catalogBlock3d .blockFace{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;background-image:var(--block-front);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}.catalogBlock3d .blockFront{transform:translateZ(20px);background-image:var(--block-front);filter:brightness(.95)}.catalogBlock3d .blockBack{transform:rotateY(180deg) translateZ(20px);background-image:var(--block-back)}.catalogBlock3d .blockRight{transform:rotateY(90deg) translateZ(20px);background-image:var(--block-right);filter:brightness(.78)}.catalogBlock3d .blockLeft{transform:rotateY(-90deg) translateZ(20px);background-image:var(--block-left);filter:brightness(.88)}.catalogBlock3d .blockTop{transform:rotateX(90deg) translateZ(20px);background-image:var(--block-top);filter:brightness(1.12)}.catalogBlock3d .blockBottom{transform:rotateX(-90deg) translateZ(20px);background-image:var(--block-bottom);filter:brightness(.62)}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
 .catalogTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;border-top:0!important;box-shadow:none!important;overflow:visible}
 .catalogTexture.stairIcon::before,.catalogTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
 .catalogTexture.stairIcon::before{left:0;right:0;bottom:0;height:58%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.22)}
