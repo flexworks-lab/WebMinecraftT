@@ -374,7 +374,7 @@ function itemVisual(item) {
         const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
         const stairClass = isStairItem(item.id) ? " stairIcon" : "";
         const texture = textureUrl(item.texture);
-        if (!slabClass && !stairClass) {
+        if (!slabClass && !stairClass && Number(item.id) !== 16) {
             const faces = blockFaceTextures(item);
             const style = `--block-front:url('${faces.front}');--block-back:url('${faces.back}');--block-right:url('${faces.right}');--block-left:url('${faces.left}');--block-top:url('${faces.top}');--block-bottom:url('${faces.bottom}')`;
             return `<span class="catalogIcon catalogBlock3d" style="${style}"><i class="blockFace blockFront"></i><i class="blockFace blockBack"></i><i class="blockFace blockRight"></i><i class="blockFace blockLeft"></i><i class="blockFace blockTop"></i><i class="blockFace blockBottom"></i></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
