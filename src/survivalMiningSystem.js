@@ -83,6 +83,74 @@ const COLORS = {
 function textureUrl(name) {
     return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}`;
 }
+const DROP_TEXTURE_CACHE = new Map();
+
+function loadDropTexture(name) {
+    if (!name) return null;
+    const cached = DROP_TEXTURE_CACHE.get(name);
+    if (cached) return cached;
+
+    const texture = new THREE.TextureLoader().load(textureUrl(name));
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    DROP_TEXTURE_CACHE.set(name, texture);
+    return texture;
+}
+
+function dropMaterial(name, fallbackColor) {
+    return new THREE.MeshLambertMaterial({
+        map: loadDropTexture(name),
+        color: 0xffffff,
+        fallbackColor
+    });
+}
+
+function getDropMaterials(type) {
+    const same = name => {
+        const material = new THREE.MeshLambertMaterial({
+            map: loadDropTexture(name),
+            color: 0xffffff
+        });
+        return [material, material, material, material, material, material];
+    };
+
+    const sideSet = (side, top = side, bottom = side, front = side) => [
+        new THREE.MeshLambertMaterial({ map: loadDropTexture(side), color: 0xffffff }),
+        new THREE.MeshLambertMaterial({ map: loadDropTexture(side), color: 0xffffff }),
+        new THREE.MeshLambertMaterial({ map: loadDropTexture(top), color: 0xffffff }),
+        new THREE.MeshLambertMaterial({ map: loadDropTexture(bottom), color: 0xffffff }),
+        new THREE.MeshLambertMaterial({ map: loadDropTexture(front), color: 0xffffff }),
+        new THREE.MeshLambertMaterial({ map: loadDropTexture(side), color: 0xffffff })
+    ];
+
+    switch (Number(type)) {
+        case 1: return sideSet("grass_block_side.png", "Grass_Block_(top_texture)_JE2.png", "dirt.png");
+        case 5: return sideSet("oak_log.png", "oak_log_top.png", "oak_log_top.png");
+        case 9: return sideSet("sandstone.png", "sandstone_top.png", "sandstone_bottom.png");
+        case 15: return sideSet("tnt_side.png", "tnt_top.png", "tnt_bottom.png");
+        case 22: return sideSet("dirt_path_side.png", "dirt_path_top.png", "dirt_path_side.png");
+        case 32: return sideSet("blast_furnace_side.png", "blast_furnace_top.png", "blast_furnace_side.png", "blast_furnace_front.png");
+        case 37: return sideSet("deepslate.png", "deepslate_top.png", "deepslate.png");
+        case 49: return sideSet("reinforced_deepslate_side.png", "reinforced_deepslate_top.png", "reinforced_deepslate_bottom.png");
+        case 50: return sideSet("furnace_side.png", "furnace_top.png", "furnace_side.png", "furnace_front.png");
+        default: {
+            const texture = TEXTURES[type];
+            if (texture) return sideSet(texture);
+            return [
+                new THREE.MeshLambertMaterial({ color: COLORS[type] ?? 0xaaaaaa }),
+                new THREE.MeshLambertMaterial({ color: COLORS[type] ?? 0xaaaaaa }),
+                new THREE.MeshLambertMaterial({ color: COLORS[type] ?? 0xaaaaaa }),
+                new THREE.MeshLambertMaterial({ color: COLORS[type] ?? 0xaaaaaa }),
+                new THREE.MeshLambertMaterial({ color: COLORS[type] ?? 0xaaaaaa }),
+                new THREE.MeshLambertMaterial({ color: COLORS[type] ?? 0xaaaaaa })
+            ];
+        }
+    }
+}
+
 
 function getTarget(ndcX = 0, ndcY = 0) {
     if (!sceneRef || !cameraRef) return null;
@@ -302,17 +370,8 @@ function createDrop(type, position, options = {}) {
     group.userData.velocityZ = Number.isFinite(Number(options.velocityZ)) ? Number(options.velocityZ) : (Math.random() - 0.5) * 1.2;
     group.userData.grounded = false;
 
-    const textureName = TEXTURES[type];
-    let material;
-    if (textureName) {
-        const texture = new THREE.TextureLoader().load(textureUrl(textureName));
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.magFilter = THREE.NearestFilter;
-        texture.minFilter = THREE.NearestFilter;
-        material = new THREE.MeshLambertMaterial({ map: texture });
-    } else material = new THREE.MeshLambertMaterial({ color: COLORS[type] ?? 0xaaaaaa });
-
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(.25, .25, .25), material);
+    const materials = getDropMaterials(type);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(.25, .25, .25), materials);
     mesh.userData.isDroppedItem = true;
     group.add(mesh);
     group.position.copy(position).add(new THREE.Vector3(0, .28, 0));
