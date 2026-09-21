@@ -677,13 +677,9 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
             uvs.push(uv[i][0],uv[i][1]);
         }
         const matIndex=materialIndexFor(materialType,faceIndex);
-        // Vertical mirroring for a TOP stair reverses triangle winding.
-        // Reverse the indices so the front/back faces remain visible.
-        if(half){
-            groups[matIndex].push(base,base+2,base+1,base,base+3,base+2);
-        }else{
-            groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
-        }
+        // The point transform already mirrors Y for a TOP stair, which
+        // naturally flips the triangle winding. Do not reverse it again.
+        groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
         vertexRef.count+=4;
     };
 
@@ -753,7 +749,7 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
                 [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
                 [0,0,1],4],
             [layer0-1,xi,zi,
-                [[minX,minY,maxZ],[maxX,minY,maxZ],[maxX,minY,minZ],[minX,minY,minZ]],
+                [[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],
                 [0,-1,0],3]
         ];
 
