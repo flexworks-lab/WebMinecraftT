@@ -180,7 +180,7 @@ function setupPauseMenu(){
     overlay.querySelector("#pauseResume").addEventListener("click",close);
     overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();event.stopPropagation();overlay.classList.remove("pauseOpen");overlay.setAttribute("aria-hidden","true");paused=false;if(settingsMenu){settingsMenu.style.display="flex";document.exitPointerLock?.();}});
     overlay.querySelector("#pauseInviteAll").addEventListener("click",makeInvite);
-    overlay.querySelector("#pauseQuit").addEventListener("click",()=>{const saveAndReturn=async()=>{try{await window.webminecraftSaveCurrentWorld?.({ skipCloud:true, skipPreview:true });}catch{}window.location.reload();};void saveAndReturn();});
+    overlay.querySelector("#pauseQuit").addEventListener("click",()=>{const saveAndReturn=async()=>{try{await window.webminecraftSaveCurrentWorld?.({ skipCloud:true, skipPreview:true });}catch{}window.__webminecraftFastQuit=true;window.location.reload();};void saveAndReturn();});
     const refreshMembers=()=>{if(paused)renderSide();};
     window.addEventListener("webminecraft:multiplayer-player-joined",refreshMembers);window.addEventListener("webminecraft:multiplayer-player-left",refreshMembers);window.addEventListener("webminecraft:multiplayer-state-changed",refreshMembers);
     document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(paused)close(event);else if(isGameRunning())open(event);},true);
