@@ -120,7 +120,7 @@ function createStairHeldMesh(material){
     return group;
 }
 
-function createHeldMesh() {
+function createHeldMesh(hand) {
     const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(0.42, 0.42, 0.42),
         cloneMaterial(stoneMaterial)
@@ -128,10 +128,14 @@ function createHeldMesh() {
     mesh.name = "multiplayerHeldBlock";
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.position.set(0.53, 0.87, -0.24);
+    // Parent the block to the remote player's right hand so it follows
+    // arm swings and always appears physically held instead of floating
+    // beside the body.
+    mesh.position.set(0, -0.01, -0.27);
     mesh.rotation.set(0.08, 0.28, -0.06);
     mesh.visible = false;
     mesh.userData.itemId = 0;
+    mesh.userData.heldHand = hand || null;
     return mesh;
 }
 
@@ -144,8 +148,9 @@ function installAvatarHook() {
             if (!object?.userData?.multiplayerAvatar) continue;
             let mesh = heldMeshes.get(object);
             if (!mesh) {
-                mesh = createHeldMesh();
-                object.add(mesh);
+                const hand = object.getObjectByName("rightHand") || object;
+                mesh = createHeldMesh(hand);
+                hand.add(mesh);
                 heldMeshes.set(object, mesh);
                 avatars.add(object);
             }
