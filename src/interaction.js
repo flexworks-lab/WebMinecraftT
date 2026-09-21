@@ -455,4 +455,4 @@ function playerOverlapsBlock(pos, camera) {
 
 function createBreakParticles(scene, center, type, BLOCK) {
     spawnBlockBreakParticles(scene, center, type);
-}}
+}
