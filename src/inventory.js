@@ -155,7 +155,13 @@ const CATALOG_GROUPS = {
         id: "stone_deepslate",
         label: "Stone & Deepslate",
         primaryId: 3,
-        variantIds: [3, 7, 18, 19, 20, 21, 51, 52, 53, 54, 55, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 66, 67, 68, 69, 70, 71, 72, 73, 74],
+        variantIds: [3, 7, 18, 19, 20, 21, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49],
+    },
+    slabs: {
+        id: "slabs",
+        label: "Slabs",
+        primaryId: 51,
+        variantIds: [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74],
     },
     concrete: {
         id: "concrete",
@@ -279,7 +285,7 @@ function itemsForCurrentTab() {
     if (selectedTab === "search") return ITEM_TYPES.filter(itemMatchesSearch);
     if (selectedTab === "survival") return [];
     if (selectedTab === "building") {
-        const groups = Object.values(CATALOG_GROUPS).filter(group => ["wood_planks", "wood_stairs", "concrete"].includes(group.id));
+        const groups = Object.values(CATALOG_GROUPS).filter(group => ["wood_planks", "wood_stairs", "slabs", "concrete"].includes(group.id));
         if (!searchQuery.trim()) return groups.map(group => ({ group: true, ...group, variants: group.variantIds.map(getItem).filter(Boolean) }));
         return groups.flatMap(group => group.variantIds.map(getItem).filter(Boolean).filter(itemMatchesSearch));
     }
@@ -289,6 +295,7 @@ function itemsForCurrentTab() {
         const groupedIds = new Set([
             ...stoneGroup.variantIds,
             ...logGroup.variantIds,
+            ...CATALOG_GROUPS.slabs.variantIds,
         ]);
         const concreteIds = new Set(CATALOG_GROUPS.concrete.variantIds);
         const naturalItems = ITEM_TYPES.filter(item =>
