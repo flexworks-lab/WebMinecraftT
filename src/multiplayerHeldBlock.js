@@ -27,7 +27,7 @@ import {
     crackedDeepslateBricksMaterial, crackedDeepslateTilesMaterial, deepslateMaterial, deepslateBricksMaterial,
     deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
     deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
-    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial
+    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial, extraBlockMaterials
 } from "./blocks.js";
 
 const ITEM_MATERIALS = {
@@ -85,7 +85,8 @@ const ITEM_MATERIALS = {
     66: chiseledDeepslateMaterial, 67: cobbledDeepslateMaterial, 68: crackedDeepslateBricksMaterial, 69: crackedDeepslateTilesMaterial,
     70: deepslateMaterial, 71: deepslateBricksMaterial, 72: deepslateTilesMaterial, 73: polishedDeepslateMaterial, 74: reinforcedDeepslateMaterial,
     75: oakPlankMaterial, 76: acaciaPlanksMaterial, 77: bambooPlanksMaterial, 78: birchPlanksMaterial, 79: crimsonPlanksMaterial,
-    80: darkOakPlanksMaterial, 81: junglePlanksMaterial, 82: mangrovePlanksMaterial, 83: sprucePlanksMaterial, 84: warpedPlanksMaterial
+    80: darkOakPlanksMaterial, 81: junglePlanksMaterial, 82: mangrovePlanksMaterial, 83: sprucePlanksMaterial, 84: warpedPlanksMaterial,
+    ...extraBlockMaterials
 };
 
 const avatars = new Set();
