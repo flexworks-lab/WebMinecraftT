@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType, isStairBlock, stairShapeMask, stairOrientedType } from "./world.js";
 import { touchInput, yaw } from "./controls.js";
 import { sendBlockChange, sendSlabPlacement, sendPlayerAction } from "./multiplayerClient.js";
-import { setupInventory, getSelectedItemId, consumeSelected, BUILD_BLOCK_IDS } from "./inventory.js";
+import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
 import { tryIgniteTNT, registerTNTPhysicsScene } from "./tnt.js";
 import { setupDoorSystem, isDoorSelected, placeDoor, handleDoorTarget, getDoorSelectionTarget } from "./door.js";
 import { startSurvivalMining, setMiningContext } from "./survivalMiningSystem.js";
@@ -234,7 +234,7 @@ export function setupInteraction(scene, camera) {
             }
             return;
         }
-        if (!BUILD_BLOCK_IDS.has(itemId)) return;
+        if (itemId < 1 || itemId > 184 || itemId === 16 || itemId === 17) return;
         const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
         if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId, ndcX, ndcY)) {
