@@ -681,13 +681,14 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         vertexRef.count+=4;
     };
 
-    // Stair side faces are half a block tall, so use half of the source
-    // texture vertically. Bottom and top stairs use opposite halves.
-    const verticalUv = half
-        ? [[0,0.5],[0,1],[1,1],[1,0.5]]
-        : [[0,0],[0,0.5],[1,0.5],[1,0]];
-    const topUv=[[0,0],[0,1],[1,1],[1,0]];
-    const bottomUv=[[1,0],[1,1],[0,1],[0,0]];
+    // Cut the stair texture horizontally in half. Use the left half
+    // of the source texture and stretch it across each exposed face.
+    // Keep the full vertical range so the cut is horizontal (left/right),
+    // not vertical (top/bottom).
+    const horizontalUv=[[0,0],[0,1],[0.5,1],[0.5,0]];
+    const topUv=horizontalUv;
+    const bottomUv=[[0.5,0],[0.5,1],[0,1],[0,0]];
+
 
     // Build the stair from exposed half-block cells. Keeping the shape in
     // canonical orientation and rotating the actual geometry once prevents
@@ -740,7 +741,7 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
             }else if(faceIndex===3){
                 emitQuad(points,normal,faceIndex,bottomUv);
             }else{
-                emitQuad(points,normal,faceIndex,verticalUv);
+                emitQuad(points,normal,faceIndex,horizontalUv);
             }
         }
     }
