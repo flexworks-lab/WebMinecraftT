@@ -3,6 +3,13 @@ name: Deploy WebMinecraft
 on:
   push:
     branches: ["main"]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.js"
+      - "package.json"
+      - "package-lock.json"
   workflow_dispatch:
 
 permissions:
