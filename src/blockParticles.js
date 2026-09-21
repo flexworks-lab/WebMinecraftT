@@ -52,7 +52,13 @@ const BASE_TEXTURES = {
     47: "deepslate_tiles.png",
     48: "polished_deepslate.png",
     49: "reinforced_deepslate_side.png",
-    50: "furnace_side.png"
+    50: "furnace_side.png",
+    155: "acacia_log.png", 156: "birch_log.png", 157: "dark_oak_log.png", 158: "jungle_log.png", 159: "mangrove_log.png", 160: "spruce_log.png",
+    161: "stripped_oak_log.png", 162: "stripped_acacia_log.png", 163: "stripped_birch_log.png", 164: "stripped_dark_oak_log.png",
+    165: "stripped_jungle_log.png", 166: "stripped_mangrove_log.png", 167: "stripped_spruce_log.png", 168: "crafting_table_front.png",
+    169: "black_concrete.png", 170: "blue_concrete.png", 171: "brown_concrete.png", 172: "cyan_concrete.png", 173: "gray_concrete.png", 174: "green_concrete.png",
+    175: "light_blue_concrete.png", 176: "light_gray_concrete.png", 177: "lime_concrete.png", 178: "magenta_concrete.png", 179: "orange_concrete.png",
+    180: "pink_concrete.png", 181: "purple_concrete.png", 182: "red_concrete.png", 183: "white_concrete.png", 184: "yellow_concrete.png"
 };
 
 const SLAB_BASES = [
