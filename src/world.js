@@ -469,31 +469,35 @@ function stairShapeMaskFor(type,x,y,z){
     const leftFacing=(facing+1)%4;
     const rightFacing=(facing+3)%4;
 
-    // Match Minecraft-style stair joining:
-    // outer corners are decided from the stair in front;
-    // inner corners are decided from the stair behind.
-    // The neighbor must have the same half and be perpendicular.
+    // Keep the shape in one canonical orientation. appendStairGeometry()
+    // rotates that shape by the stair's facing, so rotating it here would
+    // apply the direction twice.
     const forward=getBlockType(x+fx,y,z+fz);
     if(isStairBlock(forward)&&stairHalf(forward)===half){
         const nf=stairFacing(forward);
-        if(nf===leftFacing)return rotateStairMask(0x1,facing);
-        if(nf===rightFacing)return rotateStairMask(0x2,facing);
+        if(nf===leftFacing)return 0x1;
+        if(nf===rightFacing)return 0x2;
     }
 
     const backward=getBlockType(x-fx,y,z-fz);
     if(isStairBlock(backward)&&stairHalf(backward)===half){
         const nb=stairFacing(backward);
-        if(nb===leftFacing)return rotateStairMask(0x7,facing);
-        if(nb===rightFacing)return rotateStairMask(0xb,facing);
+        if(nb===leftFacing)return 0x7;
+        if(nb===rightFacing)return 0xb;
     }
 
-    return rotateStairMask(0x3,facing);
+    return 0x3;
 }
 export function stairShapeMask(type,x,y,z){
-    return stairShapeMaskFor(Number(type),Math.floor(x),Math.floor(y),Math.floor(z));
+    const n=Number(type);
+    if(!isStairBlock(n))return 0;
+    return rotateStairMask(
+        stairShapeMaskFor(n,Math.floor(x),Math.floor(y),Math.floor(z)),
+        stairFacing(n)
+    );
 }
 function stairCollisionBoxes(type,x,y,z){
-    const mask=stairShapeMaskFor(type,x,y,z);
+    const mask=rotateStairMask(stairShapeMaskFor(type,x,y,z),stairFacing(type));
     const half=stairHalf(type);
     const boxes=[];
     if(half===0){
