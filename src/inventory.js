@@ -476,7 +476,7 @@ body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #catalogSearch::placeholder{color:#858585}
 #catalogViewport{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;padding:2px 2px 2px 1px;scrollbar-color:#48a84a #262626;scrollbar-width:auto}
 #catalogGrid{display:grid;grid-template-columns:repeat(9,minmax(44px,1fr));gap:5px;align-content:start}\n#catalogViewport::-webkit-scrollbar{width:12px}\n#catalogViewport::-webkit-scrollbar-track{background:#262626;border-left:2px solid #171717}\n#catalogViewport::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#69c95e,#2d8e38);border:2px solid #171717;box-shadow:inset 1px 1px 0 rgba(255,255,255,.22),inset -1px -1px 0 rgba(0,0,0,.25)}\n#catalogViewport::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#7bdd70,#3da648)}
-.catalogSlot{position:relative;min-width:0;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;cursor:grab;box-shadow:inset -1px -1px 0 #666;touch-action:none;transform:scale(.88);transform-origin:center}
+.catalogSlot{position:relative;min-width:0;aspect-ratio:1;border:2px solid #5d5d5d;border-top-color:#202020;border-left-color:#202020;background:#9a9a9a;cursor:grab;box-shadow:inset -1px -1px 0 #666;touch-action:none;transform:scale(.88);transform-origin:center}.catalogGroupVariant{background:#686868;box-shadow:inset -1px -1px 0 #4a4a4a}.catalogGroupVariant .catalogIcon{background-color:#535353}
 button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;font:inherit;color:inherit;text-align:left;outline:0;transform:scale(.88);transform-origin:center}
 .catalogGroupBadge{position:absolute;right:3px;bottom:3px;z-index:4;min-width:16px;height:16px;padding:0 2px;display:flex;align-items:center;justify-content:center;background:#202020;border:1px solid #111;color:#fff;font:bold 14px/14px Arial,sans-serif;text-shadow:1px 1px 0 #000;box-shadow:inset 1px 1px 0 rgba(255,255,255,.18),inset -1px -1px 0 rgba(0,0,0,.35);pointer-events:none}
 .catalogGroupLabel{position:absolute;left:2px;right:22px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
@@ -619,7 +619,7 @@ function renderCatalog() {
         return;
     }
 
-    const slotMarkup = item => `<div class="catalogSlot" draggable="true" data-item-id="${item.id}" title="${item.name}">${itemVisual(item)}<span class="catalogName">${item.name}</span></div>`;
+    const slotMarkup = (item, groupVariant = false) => `<div class="catalogSlot${groupVariant ? " catalogGroupVariant" : ""}" draggable="true" data-item-id="${item.id}" title="${item.name}">${itemVisual(item)}<span class="catalogName">${item.name}</span></div>`;
     grid.innerHTML = items.map(item => {
         if (!item.group) return slotMarkup(item);
         const primary = getItem(item.primaryId);
@@ -627,7 +627,7 @@ function renderCatalog() {
         const expanded = EXPANDED_CATALOG_GROUPS.has(item.id);
         const groupButton = `<button type="button" class="catalogSlot catalogGroup" data-catalog-group="${item.id}" title="${expanded ? "Collapse" : "Expand"} ${item.label}" aria-expanded="${expanded}">${itemVisual(primary)}<span class="catalogGroupLabel">${item.label}</span><span class="catalogGroupBadge" aria-hidden="true">${expanded ? "−" : "+"}</span></button>`;
         const variants = expanded
-            ? item.variants.map(variant => slotMarkup(variant)).join("")
+            ? item.variants.map(variant => slotMarkup(variant, true)).join("")
             : "";
         return groupButton + variants;
     }).join("");
