@@ -680,21 +680,22 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         vertexRef.count+=4;
     };
 
-    const vMain0=half?.5:0;
-    const vMain1=half?1:.5;
+    // Stairs use the complete plank texture on every exposed face.
+    // The geometry itself is half-height, so cropping the source texture
+    // to half its V range makes the plank pattern look cut off or missing.
+    const fullUvVertical=[[0,0],[0,1],[1,1],[1,0]];
 
-    // Full main half: this is the uncut half of the stair. Its vertical
-    // faces remain a single texture region instead of being split diagonally.
+    // Full main half: this is the uncut half of the stair.
     const mainMinY=half?0:-.5;
     const mainMaxY=half?.5:0;
 
     emitQuad(
         [[.5,mainMinY,-.5],[.5,mainMaxY,-.5],[.5,mainMaxY,.5],[.5,mainMinY,.5]],
-        [1,0,0],0,[[0,vMain0],[0,vMain1],[1,vMain1],[1,vMain0]]
+        [1,0,0],0,fullUvVertical
     );
     emitQuad(
         [[-.5,mainMinY,.5],[-.5,mainMaxY,.5],[-.5,mainMaxY,-.5],[-.5,mainMinY,-.5]],
-        [-1,0,0],1,[[0,vMain0],[0,vMain1],[1,vMain1],[1,vMain0]]
+        [-1,0,0],1,fullUvVertical
     );
     emitQuad(
         [[.5,mainMinY,.5],[.5,mainMinY,-.5],[-.5,mainMinY,-.5],[-.5,mainMinY,.5]],
@@ -730,7 +731,6 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         const minZ=-.5+q.zi*.5,maxZ=minZ+.5;
         const upMinY=half?-.5:0;
         const upMaxY=half?0:.5;
-        const upV0=half?0:.5,upV1=half?.5:1;
 
         const neighbors=[
             !occupiedSet.has(`${q.xi+1}:${q.zi}`),
@@ -741,19 +741,19 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
 
         if(neighbors[0])emitQuad(
             [[maxX,upMinY,minZ],[maxX,upMaxY,minZ],[maxX,upMaxY,maxZ],[maxX,upMinY,maxZ]],
-            [1,0,0],0,[[minZ+.5,upV0],[minZ+.5,upV1],[maxZ+.5,upV1],[maxZ+.5,upV0]]
+            [1,0,0],0,fullUvVertical
         );
         if(neighbors[1])emitQuad(
             [[minX,upMinY,maxZ],[minX,upMaxY,maxZ],[minX,upMaxY,minZ],[minX,upMinY,minZ]],
-            [-1,0,0],1,[[maxZ+.5,upV0],[maxZ+.5,upV1],[minZ+.5,upV1],[minZ+.5,upV0]]
+            [-1,0,0],1,fullUvVertical
         );
         if(neighbors[2])emitQuad(
             [[minX,upMinY,minZ],[minX,upMaxY,minZ],[maxX,upMaxY,minZ],[maxX,upMinY,minZ]],
-            [0,0,-1],5,[[minX+.5,upV0],[minX+.5,upV1],[maxX+.5,upV1],[maxX+.5,upV0]]
+            [0,0,-1],5,fullUvVertical
         );
         if(neighbors[3])emitQuad(
             [[maxX,upMinY,maxZ],[maxX,upMaxY,maxZ],[minX,upMaxY,maxZ],[minX,upMinY,maxZ]],
-            [0,0,1],4,[[maxX+.5,upV0],[maxX+.5,upV1],[minX+.5,upV1],[minX+.5,upV0]]
+            [0,0,1],4,fullUvVertical
         );
         if(!half)emitQuad(
             [[minX,upMaxY,maxZ],[maxX,upMaxY,maxZ],[maxX,upMaxY,minZ],[minX,upMaxY,minZ]],
