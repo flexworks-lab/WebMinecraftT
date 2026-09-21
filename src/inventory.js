@@ -150,6 +150,18 @@ const CATALOG_GROUPS = {
         label: "Stairs",
         primaryId: 75,
         variantIds: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+    },
+    stone_blocks: {
+        id: "stone_blocks",
+        label: "Stone",
+        primaryId: 3,
+        variantIds: [3, 7, 18, 19, 20, 21, 51, 52, 53, 54, 55],
+    },
+    deepslate_blocks: {
+        id: "deepslate_blocks",
+        label: "Deepslate",
+        primaryId: 37,
+        variantIds: [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 66, 67, 68, 69, 70, 71, 72, 73, 74],
     }
 };
 
