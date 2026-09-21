@@ -131,7 +131,7 @@ function applySettings() {
     for (const object of scene.children) {
         if (!object.isMesh) continue;
         if (object.userData?.isChunk) {
-            object.castShadow = false;
+            object.castShadow = settings.shadows;
             object.receiveShadow = settings.shadows;
             continue;
         }
@@ -604,12 +604,22 @@ function updateMenuCamera(deltaTime) {
     updateDepthLighting();
 }
 function updateSunPosition() {
-    const dx = camera.position.x - lastSunX, dz = camera.position.z - lastSunZ;
+    const dx = camera.position.x - lastSunX;
+    const dz = camera.position.z - lastSunZ;
     if (dx * dx + dz * dz < sunFollowDistance * sunFollowDistance) return;
-    lastSunX = camera.position.x; lastSunZ = camera.position.z;
+
+    lastSunX = camera.position.x;
+    lastSunZ = camera.position.z;
+
+    // Keep the shadow volume centered on the player so nearby terrain and
+    // trees receive stable, detailed shadows instead of losing them at range.
     sun.target.position.set(camera.position.x, camera.position.y, camera.position.z);
-    sun.position.set(camera.position.x + 45, camera.position.y + 85, camera.position.z + 30);
-    sun.target.updateMatrixWorld();
+    sun.position.set(camera.position.x + 48, camera.position.y + 92, camera.position.z + 34);
+    sun.target.updateMatrixWorld(true);
+    sun.shadow.camera.updateProjectionMatrix();
+
+    // Moving the shadow volume requires a fresh shadow-map render.
+    renderer.shadowMap.needsUpdate = true;
 }
 function animate() {
     requestAnimationFrame(animate);
