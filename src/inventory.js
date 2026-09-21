@@ -280,10 +280,12 @@ function itemsForCurrentTab() {
     if (selectedTab === "natural" && !searchQuery.trim()) {
         const group = CATALOG_GROUPS.stone_deepslate;
         const groupedIds = new Set(group.variantIds);
+        const concreteIds = new Set(CATALOG_GROUPS.concrete.variantIds);
         const naturalItems = ITEM_TYPES.filter(item =>
             item.category === selectedTab &&
             !item.name.toLowerCase().includes("planks") &&
             !groupedIds.has(item.id) &&
+            !concreteIds.has(item.id) &&
             itemMatchesSearch(item)
         );
         return [{ group: true, ...group, variants: group.variantIds.map(getItem).filter(Boolean) }, ...naturalItems];
