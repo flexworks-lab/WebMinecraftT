@@ -162,6 +162,12 @@ const CATALOG_GROUPS = {
         label: "Concrete",
         primaryId: 169,
         variantIds: [169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184],
+    },
+    logs: {
+        id: "logs",
+        label: "Logs",
+        primaryId: 5,
+        variantIds: [5, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167],
     }
 };
 
@@ -278,8 +284,12 @@ function itemsForCurrentTab() {
         return groups.flatMap(group => group.variantIds.map(getItem).filter(Boolean).filter(itemMatchesSearch));
     }
     if (selectedTab === "natural" && !searchQuery.trim()) {
-        const group = CATALOG_GROUPS.stone_deepslate;
-        const groupedIds = new Set(group.variantIds);
+        const stoneGroup = CATALOG_GROUPS.stone_deepslate;
+        const logGroup = CATALOG_GROUPS.logs;
+        const groupedIds = new Set([
+            ...stoneGroup.variantIds,
+            ...logGroup.variantIds,
+        ]);
         const concreteIds = new Set(CATALOG_GROUPS.concrete.variantIds);
         const naturalItems = ITEM_TYPES.filter(item =>
             item.category === selectedTab &&
@@ -288,7 +298,11 @@ function itemsForCurrentTab() {
             !concreteIds.has(item.id) &&
             itemMatchesSearch(item)
         );
-        return [{ group: true, ...group, variants: group.variantIds.map(getItem).filter(Boolean) }, ...naturalItems];
+        return [
+            { group: true, ...stoneGroup, variants: stoneGroup.variantIds.map(getItem).filter(Boolean) },
+            { group: true, ...logGroup, variants: logGroup.variantIds.map(getItem).filter(Boolean) },
+            ...naturalItems
+        ];
     }
     return ITEM_TYPES.filter(item => item.category === selectedTab && !item.name.toLowerCase().includes("planks") && itemMatchesSearch(item));
 }
