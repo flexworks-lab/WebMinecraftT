@@ -195,6 +195,54 @@ const reinforcedDeepslateMaterial = [
     new THREE.MeshPhongMaterial({ map: reinforcedDeepslateBottomTexture, color: textureShade, ...materialOptions })
 ];
 
+
+const extraBlockMaterials = {};
+
+function makeExtraBlockMaterial(textureName) {
+    return new THREE.MeshPhongMaterial({
+        map: loadTexture(texturePath(textureName), textureName),
+        color: textureShade,
+        ...materialOptions
+    });
+}
+
+function addExtraBlock(id, sideTexture, topTexture = sideTexture, bottomTexture = sideTexture, frontTexture = sideTexture) {
+    extraBlockMaterials[id] = [
+        makeExtraBlockMaterial(sideTexture),
+        makeExtraBlockMaterial(sideTexture),
+        makeExtraBlockMaterial(topTexture),
+        makeExtraBlockMaterial(bottomTexture),
+        makeExtraBlockMaterial(frontTexture),
+        makeExtraBlockMaterial(sideTexture)
+    ];
+}
+
+addExtraBlock(155, "acacia_log.png", "acacia_log_top.png");
+addExtraBlock(156, "birch_log.png", "birch_log_top.png");
+addExtraBlock(157, "dark_oak_log.png", "dark_oak_log_top.png");
+addExtraBlock(158, "jungle_log.png", "jungle_log_top.png");
+addExtraBlock(159, "mangrove_log.png", "mangrove_log_top.png");
+addExtraBlock(160, "spruce_log.png", "spruce_log_top.png");
+
+addExtraBlock(161, "stripped_oak_log.png", "stripped_oak_log_top.png");
+addExtraBlock(162, "stripped_acacia_log.png", "stripped_acacia_log_top.png");
+addExtraBlock(163, "stripped_birch_log.png", "stripped_birch_log_top.png");
+addExtraBlock(164, "stripped_dark_oak_log.png", "stripped_dark_oak_log_top.png");
+addExtraBlock(165, "stripped_jungle_log.png", "stripped_jungle_log_top.png");
+addExtraBlock(166, "stripped_mangrove_log.png", "stripped_mangrove_log_top.png");
+addExtraBlock(167, "stripped_spruce_log.png", "stripped_spruce_log_top.png");
+
+addExtraBlock(168, "crafting_table_side.png", "crafting_table_top.png", "crafting_table_side.png", "crafting_table_front.png");
+
+const concreteTextures = {
+    169: "black_concrete.png", 170: "blue_concrete.png", 171: "brown_concrete.png", 172: "cyan_concrete.png",
+    173: "gray_concrete.png", 174: "green_concrete.png", 175: "light_blue_concrete.png", 176: "light_gray_concrete.png",
+    177: "lime_concrete.png", 178: "magenta_concrete.png", 179: "orange_concrete.png", 180: "pink_concrete.png",
+    181: "purple_concrete.png", 182: "red_concrete.png", 183: "white_concrete.png", 184: "yellow_concrete.png"
+};
+for (const [id, texture] of Object.entries(concreteTextures)) addExtraBlock(Number(id), texture);
+
+
 const leavesMaterial = new THREE.MeshPhongMaterial({
     map: leavesTexture, transparent: false, opacity: 1, alphaTest: 0.1,
     depthWrite: true, depthTest: true, side: THREE.DoubleSide,
@@ -241,7 +289,7 @@ export {
     crackedDeepslateBricksMaterial, crackedDeepslateTilesMaterial, deepslateMaterial, deepslateBricksMaterial,
     deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
     deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
-    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial,
+    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial, extraBlockMaterials,
     stoneBricksTexture, crackedStoneBricksTexture, mossyStoneBricksTexture, dirtPathSideTexture, dirtPathTopTexture,
     waterMaterial, waterTexture, createBlock
 };
