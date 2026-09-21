@@ -26,19 +26,35 @@ function createTexture(baseColor, colors, density = 45, seed = 1) {
     return texture;
 }
 
+const textureCache = new Map();
+
 function loadTexture(path, label = path) {
+    if (textureCache.has(path)) return textureCache.get(path);
+
     const texture = new THREE.TextureLoader().load(
         path,
-        loaded => { loaded.needsUpdate = true; },
+        loaded => {
+            loaded.magFilter = THREE.NearestFilter;
+            loaded.minFilter = THREE.NearestFilter;
+            loaded.wrapS = THREE.ClampToEdgeWrapping;
+            loaded.wrapT = THREE.ClampToEdgeWrapping;
+            loaded.colorSpace = THREE.SRGBColorSpace;
+            loaded.needsUpdate = true;
+        },
         undefined,
-        error => { console.error(`[WebMinecraftT] Failed to load texture: ${label}`, error); }
+        error => {
+            console.error(`[WebMinecraftT] Failed to load texture: ${label}`, error);
+            textureCache.delete(path);
+        }
     );
+
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.needsUpdate = true;
+    textureCache.set(path, texture);
     return texture;
 }
 
