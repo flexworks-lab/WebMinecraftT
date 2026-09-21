@@ -143,6 +143,31 @@ for (const [idText, materials] of Object.entries(extraBlockMaterials)) {
     extraMaterialIndex.set(id, indices);
 }
 
+
+// Stairs use their own double-sided plank materials. This keeps FrontSide
+// culling for normal blocks while guaranteeing every corner/inner stair face
+// remains textured from either viewing direction.
+const stairMaterialIndex = new Map();
+const stairPlankMaterialPairs = [
+    [BLOCK.OAK_PLANKS, oakPlankMaterial],
+    [BLOCK.ACACIA_PLANKS, acaciaPlanksMaterial],
+    [BLOCK.BAMBOO_PLANKS, bambooPlanksMaterial],
+    [BLOCK.BIRCH_PLANKS, birchPlanksMaterial],
+    [BLOCK.CRIMSON_PLANKS, crimsonPlanksMaterial],
+    [BLOCK.DARK_OAK_PLANKS, darkOakPlanksMaterial],
+    [BLOCK.JUNGLE_PLANKS, junglePlanksMaterial],
+    [BLOCK.MANGROVE_PLANKS, mangrovePlanksMaterial],
+    [BLOCK.SPRUCE_PLANKS, sprucePlanksMaterial],
+    [BLOCK.WARPED_PLANKS, warpedPlanksMaterial]
+];
+for (const [plankType, material] of stairPlankMaterialPairs) {
+    const stairMaterial = material.clone();
+    stairMaterial.side = THREE.DoubleSide;
+    stairMaterial.needsUpdate = true;
+    stairMaterialIndex.set(plankType, chunkMaterials.length);
+    chunkMaterials.push(stairMaterial);
+}
+
 const FACES = [
     { normal: [1, 0, 0], corners: [[0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [0.5, -0.5, 0.5]] },
     { normal: [-1, 0, 0], corners: [[-0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, 0.5, -0.5], [-0.5, -0.5, -0.5]] },
@@ -552,7 +577,12 @@ export function slabParentType(type){switch(type){
     default:return type;
 }}
 function materialIndexFor(type,faceIndex){
-    type=isStairBlock(type)?stairPlankType(type):slabParentType(type);
+    const stair = isStairBlock(type);
+    if(stair){
+        const stairIndex = stairMaterialIndex.get(stairPlankType(type));
+        if(stairIndex !== undefined) return stairIndex;
+    }
+    type=stair?stairPlankType(type):slabParentType(type);
     const extraIndices = extraMaterialIndex.get(Number(type));
     if (extraIndices) return extraIndices[faceIndex] ?? extraIndices[0];
     switch(type){
@@ -690,29 +720,32 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
         vertexRef.count+=4;
     };
 
-    // Keep the same pixel density as a normal one-block texture.
-    // A stair face that is half the width/height of a normal block gets
-    // exactly half the corresponding UV range instead of stretching the
-    // complete texture over the smaller face.
-    const stairFaceUv=(faceIndex,minX,maxX,minY,maxY,minZ,maxZ)=>{
-        const widthX=Math.abs(maxX-minX);
-        const widthZ=Math.abs(maxZ-minZ);
-        const height=Math.abs(maxY-minY);
-        if(faceIndex===0||faceIndex===1){
-            const u=Math.min(1,widthZ);
-            const v=Math.min(1,height);
-            return [[0,0],[0,v],[u,v],[u,0]];
+    // Map UVs from the canonical block-space coordinates instead of
+    // restarting at (0,0) for every half-cell. Corner stairs are made from
+    // several coplanar half-cells, so this keeps the texture continuous across
+    // the whole one-block face while still using half the texture on a half-
+    // sized section.
+    const stairVertexUv=(faceIndex,p)=>{
+        const px=p[0], py=p[1], pz=p[2];
+        const clamp01=value=>Math.max(0,Math.min(1,value));
+        let u,v;
+        switch(faceIndex){
+            case 0: // +X: U increases toward +Z
+                u=pz+0.5; v=py+0.5; break;
+            case 1: // -X: U increases toward -Z
+                u=0.5-pz; v=py+0.5; break;
+            case 2: // +Y
+                u=px+0.5; v=0.5-pz; break;
+            case 3: // -Y
+                u=px+0.5; v=pz+0.5; break;
+            case 4: // +Z: U increases toward -X
+                u=0.5-px; v=py+0.5; break;
+            case 5: // -Z: U increases toward +X
+                u=px+0.5; v=py+0.5; break;
+            default:
+                u=px+0.5; v=py+0.5;
         }
-        if(faceIndex===4||faceIndex===5){
-            const u=Math.min(1,widthX);
-            const v=Math.min(1,height);
-            return faceIndex===4
-                ? [[0,0],[0,v],[u,v],[u,0]]
-                : [[0,0],[u,0],[u,v],[0,v]];
-        }
-        const u=Math.min(1,widthX);
-        const v=Math.min(1,widthZ);
-        return [[0,0],[u,0],[u,v],[0,v]];
+        return [clamp01(u),clamp01(v)];
     };
 
 
@@ -776,7 +809,7 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
                 points,
                 normal,
                 faceIndex,
-                stairFaceUv(faceIndex,minX,maxX,minY,maxY,minZ,maxZ)
+                points.map(point=>stairVertexUv(faceIndex,point))
             );
         }
     }
