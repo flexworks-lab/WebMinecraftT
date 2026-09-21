@@ -163,6 +163,10 @@ export function setupInteraction(scene, camera) {
         window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type } }));
     }
     function breakBlock(ndcX = 0, ndcY = 0) {
+        if (window.__webminecraftMultiplayerRole === "visitor") {
+            window.__webMinecraftChatAdd?.("Visitors cannot break blocks.", true);
+            return;
+        }
         if (handleDoorTarget("break")) {
             sendPlayerAction("mine");
             return;
@@ -178,6 +182,10 @@ export function setupInteraction(scene, camera) {
         createBreakParticles(scene, new THREE.Vector3(target.x, target.y, target.z), type, BLOCK);
     }
     function placeBlock(ndcX = 0, ndcY = 0) {
+        if (window.__webminecraftMultiplayerRole === "visitor") {
+            window.__webMinecraftChatAdd?.("Visitors cannot build or interact with blocks.", true);
+            return;
+        }
         const creative = document.body.classList.contains("webminecraft-creative");
         if (getDoorSelectionTarget()) {
             if (handleDoorTarget("use")) sendPlayerAction("place");
