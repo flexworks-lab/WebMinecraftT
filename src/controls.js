@@ -1,4 +1,5 @@
 import "./auth.js";
+import { getKeybind } from "./keybinds.js";
 
 export const keys = {};
 
@@ -341,8 +342,8 @@ export function setupControls() {
             for (const code of Object.keys(keys)) keys[code] = false;
             return;
         }
-        if (event.code === "KeyF" && !event.repeat) toggleFlying();
-        if (event.code === "KeyC") {
+        if (event.code === getKeybind("fly") && !event.repeat) toggleFlying();
+        if (event.code === getKeybind("sneak")) {
             touchInput.sneak = true;
         }
         keys[event.code] = true;
@@ -354,7 +355,7 @@ export function setupControls() {
             return;
         }
         keys[event.code] = false;
-        if (event.code === "KeyC") {
+        if (event.code === getKeybind("sneak")) {
             touchInput.sneak = false;
         }
     });
