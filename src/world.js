@@ -779,18 +779,18 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
             [layer0,xi-1,zi,
                 [[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],
                 [-1,0,0],1],
-            [layer0,xi,zi+1,
+            [half?layer0-1:layer0+1,xi,zi,
                 [[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
                 [0,1,0],2],
-            [layer0,xi,zi-1,
-                [[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],
-                [0,0,-1],5],
-            [half?layer0-1:layer0+1,xi,zi,
-                [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
-                [0,0,1],4],
             [half?layer0+1:layer0-1,xi,zi,
                 [[minX,minY,minZ],[maxX,minY,minZ],[maxX,minY,maxZ],[minX,minY,maxZ]],
-                [0,-1,0],3]
+                [0,-1,0],3],
+            [layer0,xi,zi+1,
+                [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
+                [0,0,1],4],
+            [layer0,xi,zi-1,
+                [[minX,minY,minZ],[minX,maxY,minZ],[maxX,maxY,minZ],[maxX,minY,minZ]],
+                [0,0,-1],5]
         ];
 
         for(const [nl,nx,nz,points,normal,faceIndex] of faces){
