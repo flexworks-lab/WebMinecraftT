@@ -15,6 +15,7 @@ const MAX_MESSAGE_SIZE = 16 * 1024;
 const MAX_CHAT_LENGTH = 120;
 const EMPTY_ROOM_RETENTION_MS = 24 * 60 * 60 * 1000;
 const ROOM_STATE_FILE = process.env.ROOM_STATE_FILE || "./data/rooms.json";
+const MAX_BLOCK_TYPE = 184;
 
 const rooms = new Map();
 let roomSaveTimer = null;
@@ -91,7 +92,7 @@ function loadRoomsState() {
                 const y = Math.floor(numberOr(change?.y, NaN));
                 const z = Math.floor(numberOr(change?.z, NaN));
                 const type = Math.floor(numberOr(change?.type ?? change?.blockType, NaN));
-                if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 184) continue;
+                if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > MAX_BLOCK_TYPE) continue;
                 room.blockChanges.set(`${x},${y},${z}`, { x, y, z, type });
             }
 
@@ -437,7 +438,7 @@ function handleMessage(ws, raw, state) {
             const y = Math.floor(numberOr(rawChange?.y, NaN));
             const z = Math.floor(numberOr(rawChange?.z, NaN));
             const type = Math.floor(numberOr(rawChange?.blockType ?? rawChange?.type, NaN));
-            if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 184) continue;
+            if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > MAX_BLOCK_TYPE) continue;
             const key = `${x},${y},${z}`;
             room.blockChanges.set(key, { x, y, z, type });
             changes.push({ x, y, z, blockType: type });
@@ -457,7 +458,7 @@ function handleMessage(ws, raw, state) {
         const y = Math.floor(numberOr(message.y, NaN));
         const z = Math.floor(numberOr(message.z, NaN));
         const type = Math.floor(numberOr(message.blockType, NaN));
-        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 51 || type > 184) return;
+        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 51 || type > MAX_BLOCK_TYPE) return;
         const room = rooms.get(player.room);
         if (!room) return;
         const key = `${x},${y},${z}`;
@@ -475,7 +476,7 @@ function handleMessage(ws, raw, state) {
         const y = Math.floor(numberOr(message.y, NaN));
         const z = Math.floor(numberOr(message.z, NaN));
         const type = Math.floor(numberOr(message.blockType, NaN));
-        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 184) return;
+        if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > MAX_BLOCK_TYPE) return;
         const room = rooms.get(player.room);
         if (!room) return;
         const key = `${x},${y},${z}`;
