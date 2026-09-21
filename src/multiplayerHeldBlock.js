@@ -126,8 +126,8 @@ function createHeldMesh() {
     mesh.name = "multiplayerHeldBlock";
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.position.set(0, -0.17, -0.24);
-    mesh.rotation.set(0.1, 0.28, -0.06);
+    mesh.position.set(0, -0.08, -0.30);
+    mesh.rotation.set(0.08, 0.35, -0.06);
     mesh.visible = false;
     mesh.userData.itemId = 0;
     return mesh;
@@ -147,6 +147,10 @@ export function attachHeldBlockToAvatar(avatar) {
     avatars.add(avatar);
     return mesh;
 }
+
+window.addEventListener("webminecraft:multiplayer-avatar-created", event => {
+    attachHeldBlockToAvatar(event.detail?.avatar);
+});
 
 function getRemotePlayers() {
     try {
