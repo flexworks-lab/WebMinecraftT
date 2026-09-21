@@ -574,15 +574,18 @@ async function initialize() {
 
 window.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
+        if (window.__webminecraftFastQuit === true) return;
         saveWorldPreview(getSeedFromUrl());
         void saveCurrentWorld();
     }
 });
 window.addEventListener("pagehide", () => {
+    if (window.__webminecraftFastQuit === true) return;
     saveWorldPreview(getSeedFromUrl());
     void saveCurrentWorld();
 });
 window.addEventListener("beforeunload", () => {
+    if (window.__webminecraftFastQuit === true) return;
     saveWorldPreview(getSeedFromUrl());
     void saveCurrentWorld();
 });
