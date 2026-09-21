@@ -661,8 +661,9 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
     const rotateNormal=(n)=>{
         const rx=n[0]*cos-n[2]*sin;
         const rz=n[0]*sin+n[2]*cos;
-        if(half)return [-rx,-n[1],-rz];
-        return [rx,n[1],rz];
+        // Flipping a stair vertically only flips the Y component of the
+        // normal. X/Z must stay aligned or the front/back faces cull away.
+        return half?[rx,-n[1],rz]:[rx,n[1],rz];
     };
 
     const emitQuad=(points,normal,faceIndex,uv)=>{
@@ -675,94 +676,73 @@ function appendStairGeometry(positions,normals,uvs,colors,groups,vertexRef,x,y,z
             colors.push(underwaterShade,underwaterShade,underwaterShade);
             uvs.push(uv[i][0],uv[i][1]);
         }
-        const mat=materialIndexFor(materialType,faceIndex);
-        groups[mat].push(base,base+1,base+2,base,base+2,base+3);
+        const matIndex=materialIndexFor(materialType,faceIndex);
+        groups[matIndex].push(base,base+1,base+2,base,base+2,base+3);
         vertexRef.count+=4;
     };
 
-    // Stairs use the complete plank texture on every exposed face.
-    // The geometry itself is half-height, so cropping the source texture
-    // to half its V range makes the plank pattern look cut off or missing.
-    const fullUvVertical=[[0,0],[0,1],[1,1],[1,0]];
+    // Stair side faces are half a block tall, so use half of the source
+    // texture vertically. Bottom and top stairs use opposite halves.
+    const verticalUv = half
+        ? [[0,0.5],[0,1],[1,1],[1,0.5]]
+        : [[0,0],[0,0.5],[1,0.5],[1,0]];
+    const topUv=[[0,0],[0,1],[1,1],[1,0]];
+    const bottomUv=[[1,0],[1,1],[0,1],[0,0]];
 
-    // Full main half: this is the uncut half of the stair.
-    const mainMinY=half?0:-.5;
-    const mainMaxY=half?.5:0;
-
-    emitQuad(
-        [[.5,mainMinY,-.5],[.5,mainMaxY,-.5],[.5,mainMaxY,.5],[.5,mainMinY,.5]],
-        [1,0,0],0,fullUvVertical
-    );
-    emitQuad(
-        [[-.5,mainMinY,.5],[-.5,mainMaxY,.5],[-.5,mainMaxY,-.5],[-.5,mainMinY,-.5]],
-        [-1,0,0],1,fullUvVertical
-    );
-    emitQuad(
-        [[.5,mainMinY,.5],[.5,mainMinY,-.5],[-.5,mainMinY,-.5],[-.5,mainMinY,.5]],
-        [0,-1,0],3,[[1,0],[1,1],[0,1],[0,0]]
-    );
-    // The inner surface is exposed only in quadrants not occupied by
-    // the raised/lowered section, avoiding z-fighting under stair corners.
-    const centerCut=(xi,zi)=>shapeMask&(1<<(zi*2+xi));
+    // Build the stair from exposed half-block cells. Keeping the shape in
+    // canonical orientation and rotating the actual geometry once prevents
+    // the facing direction from being applied twice.
+    const occupied=new Set();
+    const key=(layer,xi,zi)=>`${layer}:${xi}:${zi}`;
+    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++)occupied.add(key(0,xi,zi));
     for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
-        if(centerCut(xi,zi))continue;
-        const minX=-.5+xi*.5,maxX=minX+.5;
-        const minZ=-.5+zi*.5,maxZ=minZ+.5;
-        if(!half)emitQuad(
-            [[minX,mainMaxY,maxZ],[maxX,mainMaxY,maxZ],[maxX,mainMaxY,minZ],[minX,mainMaxY,minZ]],
-            [0,1,0],2,[[0,0],[1,0],[1,1],[0,1]]
-        );
-        else emitQuad(
-            [[minX,mainMinY,minZ],[maxX,mainMinY,minZ],[maxX,mainMinY,maxZ],[minX,mainMinY,maxZ]],
-            [0,-1,0],3,[[0,0],[1,0],[1,1],[0,1]]
-        );
+        if(shapeMask&(1<<(zi*2+xi)))occupied.add(key(1,xi,zi));
     }
 
-    const occupied=[];
-    for(let zi=0;zi<2;zi++)for(let xi=0;xi<2;xi++){
-        if(shapeMask&(1<<(zi*2+xi)))occupied.push({xi,zi});
+    const cells=[];
+    for(const item of occupied){
+        const [layer0,xi,zi]=item.split(":").map(Number);
+        const layer=half?1-layer0:layer0;
+        const minX=-0.5+xi*0.5,maxX=minX+0.5;
+        const minZ=-0.5+zi*0.5,maxZ=minZ+0.5;
+        const minY=layer===0?-0.5:0;
+        const maxY=layer===0?0:0.5;
+        cells.push({layer0,xi,zi,minX,maxX,minY,maxY,minZ,maxZ});
     }
 
-    // Only the quadrants not covered by the upper section show the main-half
-    // interior surface.
-    const occupiedSet=new Set(occupied.map(q=>`${q.xi}:${q.zi}`));
-    for(const q of occupied){
-        const minX=-.5+q.xi*.5,maxX=minX+.5;
-        const minZ=-.5+q.zi*.5,maxZ=minZ+.5;
-        const upMinY=half?-.5:0;
-        const upMaxY=half?0:.5;
-
-        const neighbors=[
-            !occupiedSet.has(`${q.xi+1}:${q.zi}`),
-            !occupiedSet.has(`${q.xi-1}:${q.zi}`),
-            !occupiedSet.has(`${q.xi}:${q.zi-1}`),
-            !occupiedSet.has(`${q.xi}:${q.zi+1}`)
+    for(const cell of cells){
+        const {layer0,xi,zi,minX,maxX,minY,maxY,minZ,maxZ}=cell;
+        const faces=[
+            [layer0,xi+1,zi,
+                [[maxX,minY,minZ],[maxX,maxY,minZ],[maxX,maxY,maxZ],[maxX,minY,maxZ]],
+                [1,0,0],0],
+            [layer0,xi-1,zi,
+                [[minX,minY,maxZ],[minX,maxY,maxZ],[minX,maxY,minZ],[minX,minY,minZ]],
+                [-1,0,0],1],
+            [layer0,xi,zi+1,
+                [[minX,maxY,maxZ],[maxX,maxY,maxZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
+                [0,1,0],2],
+            [layer0,xi,zi-1,
+                [[minX,minY,minZ],[maxX,minY,minZ],[maxX,maxY,minZ],[minX,maxY,minZ]],
+                [0,0,-1],5],
+            [layer0+1,xi,zi,
+                [[maxX,minY,maxZ],[maxX,maxY,maxZ],[minX,maxY,maxZ],[minX,minY,maxZ]],
+                [0,0,1],4],
+            [layer0-1,xi,zi,
+                [[minX,minY,maxZ],[maxX,minY,maxZ],[maxX,minY,minZ],[minX,minY,minZ]],
+                [0,-1,0],3]
         ];
 
-        if(neighbors[0])emitQuad(
-            [[maxX,upMinY,minZ],[maxX,upMaxY,minZ],[maxX,upMaxY,maxZ],[maxX,upMinY,maxZ]],
-            [1,0,0],0,fullUvVertical
-        );
-        if(neighbors[1])emitQuad(
-            [[minX,upMinY,maxZ],[minX,upMaxY,maxZ],[minX,upMaxY,minZ],[minX,upMinY,minZ]],
-            [-1,0,0],1,fullUvVertical
-        );
-        if(neighbors[2])emitQuad(
-            [[minX,upMinY,minZ],[minX,upMaxY,minZ],[maxX,upMaxY,minZ],[maxX,upMinY,minZ]],
-            [0,0,-1],5,fullUvVertical
-        );
-        if(neighbors[3])emitQuad(
-            [[maxX,upMinY,maxZ],[maxX,upMaxY,maxZ],[minX,upMaxY,maxZ],[minX,upMinY,maxZ]],
-            [0,0,1],4,fullUvVertical
-        );
-        if(!half)emitQuad(
-            [[minX,upMaxY,maxZ],[maxX,upMaxY,maxZ],[maxX,upMaxY,minZ],[minX,upMaxY,minZ]],
-            [0,1,0],2,[[minX+.5,maxZ+.5],[maxX+.5,maxZ+.5],[maxX+.5,minZ+.5],[minX+.5,minZ+.5]]
-        );
-        if(half)emitQuad(
-            [[minX,upMinY,minZ],[maxX,upMinY,minZ],[maxX,upMinY,maxZ],[minX,upMinY,maxZ]],
-            [0,-1,0],3,[[minX+.5,minZ+.5],[maxX+.5,minZ+.5],[maxX+.5,maxZ+.5],[minX+.5,maxZ+.5]]
-        );
+        for(const [nl,nx,nz,points,normal,faceIndex] of faces){
+            if(occupied.has(key(nl,nx,nz)))continue;
+            if(faceIndex===2){
+                emitQuad(points,normal,faceIndex,topUv);
+            }else if(faceIndex===3){
+                emitQuad(points,normal,faceIndex,bottomUv);
+            }else{
+                emitQuad(points,normal,faceIndex,verticalUv);
+            }
+        }
     }
 }
 function getChunkNeighborType(chunk,lx,y,lz,dx,dz){
