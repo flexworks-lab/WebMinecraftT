@@ -496,8 +496,10 @@ export async function setWorldSeedForPersistence(seed) {
     return switchWorld(seed);
 }
 
-export async function saveCurrentWorld() {
+export async function saveCurrentWorld(options = {}) {
     if (!activeWorld || isWorldDeleted(activeWorld.seed)) return null;
+    const skipCloud = options?.skipCloud === true;
+    const skipPreview = options?.skipPreview === true;
     clearTimeout(saveTimer);
     saveTimer = null;
     if (pendingChanges.size > 0) await flushBlockSaves();
@@ -508,7 +510,7 @@ export async function saveCurrentWorld() {
         activeWorld.blocks = savedBlocks;
         const savedAt = new Date().toISOString();
         activeWorld.updatedAt = savedAt;
-        const previewSaved = worldDirty ? saveWorldPreview(activeWorld.seed) : false;
+        const previewSaved = !skipPreview && worldDirty ? saveWorldPreview(activeWorld.seed) : false;
         writeLocalBlockSnapshot(activeWorld.seed, savedBlocks);
         writePlayerState(activeWorld.seed, true);
 
@@ -520,7 +522,7 @@ export async function saveCurrentWorld() {
                 if (previewSaved && activeWorld === saved) worldDirty = false;
             } catch {}
         }
-        await saveCloudNow(activeWorld, worldSwitchId);
+        if (!skipCloud) await saveCloudNow(activeWorld, worldSwitchId);
     }
     return activeWorld;
 }
