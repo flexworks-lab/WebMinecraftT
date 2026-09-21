@@ -158,7 +158,7 @@ function updateDepthLighting() {
         cachedWaterZ = z;
 
         if (document.body.classList.contains("webminecraft-flat")) {
-            cachedWaterFloor = Infinity;
+            cachedWaterFloor = -Infinity;
             cachedWaterSurface = -Infinity;
         } else {
             const profile = getTerrainProfile(x, z);
