@@ -39,8 +39,8 @@ function injectStyle() {
 #createWorldSettingsContent{min-width:0;flex:1;display:flex;flex-direction:column;background:rgba(66,66,66,.58)}
 #createWorldSettingsHeader{height:56px;flex:0 0 56px;display:flex;align-items:center;padding:0 18px;background:#d0d0d0;border-bottom:2px solid #9a9a9a;box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #createWorldSettingsSectionTitle{margin:0;color:#fff;position:relative;font-family:"MinecraftFont",monospace;font-size:17px;text-shadow:2px 2px #000;letter-spacing:.3px}
-#createWorldSettingsClose{margin-left:auto;width:34px;height:34px;border:1px solid #555;background:#777;color:#fff;font-size:18px;cursor:pointer;border-radius:0;line-height:1}
-#createWorldSettingsClose:hover{background:#aaa;filter:none}
+#createWorldSettingsClose{margin-left:auto;width:34px;height:34px;padding:0;border:0!important;background:transparent!important;color:#fff;font-size:28px;cursor:pointer;border-radius:0;line-height:34px;box-shadow:none!important;text-shadow:2px 2px #222}
+#createWorldSettingsClose:hover{background:transparent!important;color:#fff;filter:none!important;transform:none!important;box-shadow:none!important}
 #createWorldSettingsScroll{flex:1;overflow:auto;padding:16px 20px 22px}
 .createWorldSettingsPage{display:none;max-width:980px;margin:0 auto}
 .createWorldSettingsPage.active{display:block}
