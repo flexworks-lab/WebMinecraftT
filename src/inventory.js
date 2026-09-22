@@ -489,7 +489,7 @@ function createInventoryUI() {
 .stair3dIcon{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent;overflow:visible}
 .stair3dIcon .stairStep{position:absolute;left:0;top:0;width:40px;height:20px;display:block;margin:0;transform-style:preserve-3d;transform-origin:center center}
 .stair3dIcon .stairStepLower{transform:translate3d(0,10px,0);width:40px;height:20px}
-.stair3dIcon .stairStepUpper{transform:translate3d(0,-10px,10px);width:40px;height:20px}
+.stair3dIcon .stairStepUpper{transform:translate3d(0,-10px,-10px);width:40px;height:20px}
 .stair3dIcon .stairFace{position:absolute;left:0;top:0;display:block;margin:0;background-image:var(--stair-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}
 .stair3dIcon .stairStepLower .stairFront,
 .stair3dIcon .stairStepLower .stairBack{width:40px;height:20px}
