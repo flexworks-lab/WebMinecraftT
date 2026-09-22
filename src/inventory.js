@@ -401,7 +401,18 @@ function blockFaceTextures(item) {
 function stair3dMarkup(texture, className = "") {
     const url = textureUrl(texture);
     const style = `--stair-texture:url('${url}')`;
-    return `<span class="${className} stair3dIcon" style="${style}"><i class="stairFace stairFront"></i><i class="stairFace stairRight"></i><i class="stairFace stairTop"></i></span>`;
+    const faces = () => `
+        <i class="stairFace stairFront"></i>
+        <i class="stairFace stairBack"></i>
+        <i class="stairFace stairRight"></i>
+        <i class="stairFace stairLeft"></i>
+        <i class="stairFace stairTop"></i>
+        <i class="stairFace stairBottom"></i>
+    `;
+    return `<span class="${className} stair3dIcon" style="${style}">
+        <i class="stairStep stairStepLower">${faces()}</i>
+        <i class="stairStep stairStepUpper">${faces()}</i>
+    </span>`;
 }
 
 function itemVisual(item) {
@@ -476,17 +487,20 @@ function createInventoryUI() {
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
 .stair3dIcon{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent;overflow:visible}
+.stair3dIcon .stairStep{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;transform-style:preserve-3d;transform-origin:center center}
+.stair3dIcon .stairStepLower{transform:translate3d(0,8px,7px) scale3d(1,.72,.52)}
+.stair3dIcon .stairStepUpper{transform:translate3d(0,-9px,-7px) scale3d(1,.72,.52)}
 .stair3dIcon .stairFace{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;background-image:var(--stair-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}
-.stair3dIcon .stairFront{transform:translateZ(20px);clip-path:polygon(0 50%,50% 50%,50% 0,100% 0,100% 100%,0 100%);filter:brightness(.95)}
-.stair3dIcon .stairRight{transform:rotateY(90deg) translateZ(20px);clip-path:polygon(0 0,100% 0,100% 50%,50% 50%,50% 100%,0 100%);filter:brightness(.78)}
-.stair3dIcon .stairTop{transform:rotateX(90deg) translateZ(20px);clip-path:polygon(0 50%,50% 50%,50% 0,100% 0,100% 100%,0 100%);filter:brightness(1.12)}
-.catalogStair3d{width:40px;height:40px}
-.slotStair3d{width:40px;height:40px}
-.hotbarStair3d{width:22px;height:22px}
-.hotbarStair3d .stairFace{width:22px;height:22px}
-.hotbarStair3d .stairFront{transform:translateZ(11px)}
-.hotbarStair3d .stairRight{transform:rotateY(90deg) translateZ(11px)}
-.hotbarStair3d .stairTop{transform:rotateX(90deg) translateZ(11px)}#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
+.stair3dIcon .stairFront{transform:translateZ(20px);filter:brightness(.95)}
+.stair3dIcon .stairBack{transform:rotateY(180deg) translateZ(20px)}
+.stair3dIcon .stairRight{transform:rotateY(90deg) translateZ(20px);filter:brightness(.78)}
+.stair3dIcon .stairLeft{transform:rotateY(-90deg) translateZ(20px);filter:brightness(.88)}
+.stair3dIcon .stairTop{transform:rotateX(90deg) translateZ(20px);filter:brightness(1.12)}
+.stair3dIcon .stairBottom{transform:rotateX(-90deg) translateZ(20px);filter:brightness(.62)}
+.catalogStair3d,.slotStair3d{width:40px;height:40px}
+.hotbarStair3d{width:22px;height:22px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg) scale(.55)}
+.hotbarStair3d .stairFace{width:40px;height:40px}
+#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
 #inventoryScreen.open{display:flex}
 body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #inventoryPanel{position:relative;z-index:1000000;width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#555;border:3px solid #252525;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.32),inset 2px 2px 0 #747474;image-rendering:pixelated;overflow:hidden}
