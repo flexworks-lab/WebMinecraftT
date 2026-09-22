@@ -398,6 +398,12 @@ function blockFaceTextures(item) {
     return { front, back, right, left, top, bottom };
 }
 
+function stair3dMarkup(texture, className = "") {
+    const url = textureUrl(texture);
+    const style = `--stair-texture:url('${url}')`;
+    return `<span class="${className} stair3dIcon" style="${style}"><i class="stairFace stairFront"></i><i class="stairFace stairRight"></i><i class="stairFace stairTop"></i></span>`;
+}
+
 function itemVisual(item) {
     if (item.texture) {
         const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
@@ -414,10 +420,11 @@ function itemVisual(item) {
             const style = `--block-front:url('${faces.front}');--block-back:url('${faces.back}');--block-right:url('${faces.right}');--block-left:url('${faces.left}');--block-top:url('${faces.top}');--block-bottom:url('${faces.bottom}')`;
             return `<span class="catalogIcon catalogBlock3d catalogSlab3d" style="${style}"><i class="blockFace blockFront"></i><i class="blockFace blockBack"></i><i class="blockFace blockRight"></i><i class="blockFace blockLeft"></i><i class="blockFace blockTop"></i><i class="blockFace blockBottom"></i></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
         }
-        const iconStyle = stairClass
-            ? `--stair-texture:url('${texture}')`
-            : `background-image:url('${texture}')`;
-        return `<span class="catalogIcon catalogTexture${slabClass}${stairClass}" style="${iconStyle}"></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
+        if (stairClass) {
+            return `${stair3dMarkup(item.texture, "catalogStair3d")}` +
+                `<span class="catalogFallback">${item.name.charAt(0)}</span>`;
+        }
+        return `<span class="catalogIcon catalogTexture${slabClass}" style="background-image:url('${texture}')"></span><span class="catalogFallback">${item.name.charAt(0)}</span>`;
     }
     return `<span class="catalogIcon catalogColor" style="--item-color:#777"></span>`;
 }
@@ -468,11 +475,18 @@ function createInventoryUI() {
     const style = document.createElement("style");
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
-.hotbarTexture.stairIcon,.slotTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;border:0!important;overflow:visible!important}
-.hotbarTexture.stairIcon::before,.hotbarTexture.stairIcon::after,.slotTexture.stairIcon::before,.slotTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
-.hotbarTexture.stairIcon::before,.slotTexture.stairIcon::before{left:0;right:0;bottom:0;height:56%;box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset 0 -2px 0 rgba(0,0,0,.24)}
-.hotbarTexture.stairIcon::after,.slotTexture.stairIcon::after{right:0;top:0;width:58%;height:48%;box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset -2px 0 0 rgba(0,0,0,.18)}
-.hotbarTexture.stairIcon,.slotTexture.stairIcon{inset:6px!important}#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
+.stair3dIcon{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent;overflow:visible}
+.stair3dIcon .stairFace{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;background-image:var(--stair-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}
+.stair3dIcon .stairFront{transform:translateZ(20px);clip-path:polygon(0 50%,50% 50%,50% 0,100% 0,100% 100%,0 100%);filter:brightness(.95)}
+.stair3dIcon .stairRight{transform:rotateY(90deg) translateZ(20px);clip-path:polygon(0 0,100% 0,100% 50%,50% 50%,50% 100%,0 100%);filter:brightness(.78)}
+.stair3dIcon .stairTop{transform:rotateX(90deg) translateZ(20px);clip-path:polygon(0 50%,50% 50%,50% 0,100% 0,100% 100%,0 100%);filter:brightness(1.12)}
+.catalogStair3d{width:40px;height:40px}
+.slotStair3d{width:40px;height:40px}
+.hotbarStair3d{width:22px;height:22px}
+.hotbarStair3d .stairFace{width:22px;height:22px}
+.hotbarStair3d .stairFront{transform:translateZ(11px)}
+.hotbarStair3d .stairRight{transform:rotateY(90deg) translateZ(11px)}
+.hotbarStair3d .stairTop{transform:rotateX(90deg) translateZ(11px)}#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
 #inventoryScreen.open{display:flex}
 body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #inventoryPanel{position:relative;z-index:1000000;width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#555;border:3px solid #252525;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.32),inset 2px 2px 0 #747474;image-rendering:pixelated;overflow:hidden}
@@ -500,10 +514,7 @@ button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;f
 .catalogGroup:hover .catalogGroupLabel{opacity:1}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
 .catalogIcon{position:absolute;inset:6px;display:block}.catalogGroupExpanded .catalogIcon{background-color:#656565}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogBlock3d{left:50%;top:50%;right:auto;bottom:auto;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent}.catalogSlab3d{transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg) scaleY(.5);}.catalogSlab3d{transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg) scaleY(.5)}.catalogBlock3d .blockFace{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;background-image:var(--block-front);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}.catalogBlock3d .blockFront{transform:translateZ(20px);background-image:var(--block-front);filter:brightness(.95)}.catalogBlock3d .blockBack{transform:rotateY(180deg) translateZ(20px);background-image:var(--block-back)}.catalogBlock3d .blockRight{transform:rotateY(90deg) translateZ(20px);background-image:var(--block-right);filter:brightness(.78)}.catalogBlock3d .blockLeft{transform:rotateY(-90deg) translateZ(20px);background-image:var(--block-left);filter:brightness(.88)}.catalogBlock3d .blockTop{transform:rotateX(90deg) translateZ(20px);background-image:var(--block-top);filter:brightness(1.12)}.catalogBlock3d .blockBottom{transform:rotateX(-90deg) translateZ(20px);background-image:var(--block-bottom);filter:brightness(.62)}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
-.catalogTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;border:0!important;box-shadow:none!important;overflow:visible!important;inset:6px!important}
-.catalogTexture.stairIcon::before,.catalogTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
-.catalogTexture.stairIcon::before{left:0;right:0;bottom:0;height:56%;box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset 0 -2px 0 rgba(0,0,0,.24)}
-.catalogTexture.stairIcon::after{right:0;top:0;width:58%;height:48%;box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset -2px 0 0 rgba(0,0,0,.18)}
+
 .catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#858585;color:#fff}
 .catalogColor{background:var(--item-color);box-shadow:inset 3px 3px 0 rgba(255,255,255,.14),inset -3px -3px 0 rgba(0,0,0,.2)}
 .catalogName{position:absolute;left:2px;right:2px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
@@ -695,13 +706,12 @@ function renderSlot(slot, index, options = {}) {
         if (item) {
             const texture = slot.texture || item.texture;
             const slabClass = isSlabItem(item.id) ? " slabIcon" : "";
-            const stairClass = isStairItem(item.id) ? " stairIcon" : "";
-            const visualStyle = isStairItem(item.id)
-                ? `--stair-texture:url('${textureUrl(texture)}')`
-                : `background-image:url('${textureUrl(texture)}')`;
+            const stairClass = isStairItem(item.id);
             const visual = texture
-                ? `<span class="slotTexture${slabClass}${stairClass}" style="${visualStyle}"></span><span class="slotFallback">${item.name.charAt(0)}</span>`
-                : `<span class="slotTexture${slabClass}${stairClass}" style="background:#777"></span>`;
+                ? (stairClass
+                    ? `${stair3dMarkup(texture, "slotStair3d")}<span class="slotFallback">${item.name.charAt(0)}</span>`
+                    : `<span class="slotTexture${slabClass}" style="background-image:url('${textureUrl(texture)}')"></span><span class="slotFallback">${item.name.charAt(0)}</span>`)
+                : `<span class="slotTexture${slabClass}" style="background:#777"></span>`;
             cell.innerHTML = visual + `<span class="slotCount">${slot.count > 1 ? slot.count : ""}</span>` + (options.hotbar ? `<span class="slotNumber">${index + 1}</span>` : "");
             cell.title = `${item.name} (${slot.count})`;
             cell.addEventListener("dragstart", event => {
@@ -784,15 +794,22 @@ function syncHotbar() {
                     textureEl.className = "hotbarTexture hotbarBlock3d";
                     textureEl.style.cssText += `;${faceStyle}`;
                     textureEl.innerHTML = `<span class="hotbarCube3d" style="${faceStyle}"><i class="blockFace blockFront"></i><i class="blockFace blockBack"></i><i class="blockFace blockRight"></i><i class="blockFace blockLeft"></i><i class="blockFace blockTop"></i><i class="blockFace blockBottom"></i></span>`;
-                } else {
-                    textureEl.className = `hotbarTexture${stair ? " stairIcon" : ""}`;
-                    textureEl.innerHTML = "";
-                    textureEl.style.backgroundImage = stair ? "none" : `url('${textureUrl(texture)}')`;
-                    textureEl.style.backgroundSize = stair ? "auto" : (slab ? "100% 200%" : "100% 100%");
-                    textureEl.style.backgroundPosition = slab && !stair ? "center top" : "center";
+                } else if (stair) {
+                    textureEl.className = "hotbarTexture";
+                    textureEl.style.backgroundImage = "none";
+                    textureEl.style.backgroundSize = "auto";
+                    textureEl.style.backgroundPosition = "center";
                     textureEl.style.backgroundRepeat = "no-repeat";
-                    if (stair) textureEl.style.setProperty("--stair-texture", `url('${textureUrl(texture)}')`);
-                    else textureEl.style.removeProperty("--stair-texture");
+                    textureEl.innerHTML = stair3dMarkup(texture, "hotbarStair3d");
+                    textureEl.style.removeProperty("--stair-texture");
+                } else {
+                    textureEl.className = "hotbarTexture";
+                    textureEl.innerHTML = "";
+                    textureEl.style.backgroundImage = `url('${textureUrl(texture)}')`;
+                    textureEl.style.backgroundSize = slab ? "100% 200%" : "100% 100%";
+                    textureEl.style.backgroundPosition = slab ? "center top" : "center";
+                    textureEl.style.backgroundRepeat = "no-repeat";
+                    textureEl.style.removeProperty("--stair-texture");
                 }
             } else if (textureEl) {
                 textureEl.remove();
