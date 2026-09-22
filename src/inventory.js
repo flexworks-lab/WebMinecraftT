@@ -486,11 +486,11 @@ function createInventoryUI() {
     const style = document.createElement("style");
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
-.stair3dIcon{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(calc(-50% + 3px),calc(-50% + 1px)) rotateX(-30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent;overflow:visible}
+.stair3dIcon{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg) scale(.82);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent;overflow:visible;z-index:2}
 .stair3dIcon .stairStep{position:absolute;left:0;top:0;width:40px;height:20px;display:block;margin:0;transform-style:preserve-3d;transform-origin:center center}
 .stair3dIcon .stairStepLower{transform:translate3d(0,10px,0);width:40px;height:20px}
 .stair3dIcon .stairStepUpper{transform:translate3d(0,-10px,-10px);width:40px;height:20px}
-.stair3dIcon .stairFace{position:absolute;left:0;top:0;display:block;margin:0;background-image:var(--stair-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}
+.stair3dIcon .stairFace{position:absolute;left:0;top:0;display:block;margin:0;background-image:var(--stair-texture);background-position:center center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0;box-sizing:border-box;opacity:1}
 .stair3dIcon .stairStepLower .stairFront,
 .stair3dIcon .stairStepLower .stairBack{width:40px;height:20px}
 .stair3dIcon .stairStepLower .stairRight,
@@ -511,8 +511,8 @@ function createInventoryUI() {
 .stair3dIcon .stairStepUpper .stairBottom{width:40px;height:20px}
 .stair3dIcon .stairStepUpper .stairFront{transform:translateZ(10px);filter:brightness(.95)}
 .stair3dIcon .stairStepUpper .stairBack{transform:rotateY(180deg) translateZ(10px)}
-.stair3dIcon .stairStepUpper .stairRight{left:10px;transform:rotateY(90deg) translateZ(20px);filter:brightness(.78)}
-.stair3dIcon .stairStepUpper .stairLeft{left:10px;transform:rotateY(-90deg) translateZ(20px);filter:brightness(.88)}
+.stair3dIcon .stairStepUpper .stairRight{left:10px;width:20px;height:20px;transform:rotateY(90deg) translateZ(20px);filter:brightness(.78)}
+.stair3dIcon .stairStepUpper .stairLeft{left:10px;width:20px;height:20px;transform:rotateY(-90deg) translateZ(20px);filter:brightness(.88)}
 .stair3dIcon .stairStepUpper .stairTop{transform:rotateX(90deg) translateZ(10px);filter:brightness(1.12)}
 .stair3dIcon .stairStepUpper .stairBottom{transform:rotateX(-90deg) translateZ(10px);filter:brightness(.62)}
 .catalogStair3d,.slotStair3d{width:40px;height:40px}
