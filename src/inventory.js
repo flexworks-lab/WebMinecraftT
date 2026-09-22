@@ -487,16 +487,34 @@ function createInventoryUI() {
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
 .stair3dIcon{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent;overflow:visible}
-.stair3dIcon .stairStep{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;transform-style:preserve-3d;transform-origin:center center}
-.stair3dIcon .stairStepLower{transform:translate3d(0,8px,7px) scale3d(1,.72,.52)}
-.stair3dIcon .stairStepUpper{transform:translate3d(0,-9px,-7px) scale3d(1,.72,.52)}
-.stair3dIcon .stairFace{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;background-image:var(--stair-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}
-.stair3dIcon .stairFront{transform:translateZ(20px);filter:brightness(.95)}
-.stair3dIcon .stairBack{transform:rotateY(180deg) translateZ(20px)}
-.stair3dIcon .stairRight{transform:rotateY(90deg) translateZ(20px);filter:brightness(.78)}
-.stair3dIcon .stairLeft{transform:rotateY(-90deg) translateZ(20px);filter:brightness(.88)}
-.stair3dIcon .stairTop{transform:rotateX(90deg) translateZ(20px);filter:brightness(1.12)}
-.stair3dIcon .stairBottom{transform:rotateX(-90deg) translateZ(20px);filter:brightness(.62)}
+.stair3dIcon .stairStep{position:absolute;left:0;top:0;width:40px;height:20px;display:block;margin:0;transform-style:preserve-3d;transform-origin:center center}
+.stair3dIcon .stairStepLower{transform:translate3d(0,10px,0);width:40px;height:20px}
+.stair3dIcon .stairStepUpper{transform:translate3d(0,-10px,10px);width:40px;height:20px}
+.stair3dIcon .stairFace{position:absolute;left:0;top:0;display:block;margin:0;background-image:var(--stair-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}
+.stair3dIcon .stairStepLower .stairFront,
+.stair3dIcon .stairStepLower .stairBack{width:40px;height:20px}
+.stair3dIcon .stairStepLower .stairRight,
+.stair3dIcon .stairStepLower .stairLeft{width:40px;height:20px}
+.stair3dIcon .stairStepLower .stairTop,
+.stair3dIcon .stairStepLower .stairBottom{width:40px;height:40px}
+.stair3dIcon .stairStepLower .stairFront{transform:translateZ(20px);filter:brightness(.95)}
+.stair3dIcon .stairStepLower .stairBack{transform:rotateY(180deg) translateZ(20px)}
+.stair3dIcon .stairStepLower .stairRight{transform:rotateY(90deg) translateZ(20px);filter:brightness(.78)}
+.stair3dIcon .stairStepLower .stairLeft{transform:rotateY(-90deg) translateZ(20px);filter:brightness(.88)}
+.stair3dIcon .stairStepLower .stairTop{transform:rotateX(90deg) translateZ(10px);filter:brightness(1.12)}
+.stair3dIcon .stairStepLower .stairBottom{transform:rotateX(-90deg) translateZ(10px);filter:brightness(.62)}
+.stair3dIcon .stairStepUpper .stairFront,
+.stair3dIcon .stairStepUpper .stairBack{width:40px;height:20px}
+.stair3dIcon .stairStepUpper .stairRight,
+.stair3dIcon .stairStepUpper .stairLeft{width:20px;height:20px}
+.stair3dIcon .stairStepUpper .stairTop,
+.stair3dIcon .stairStepUpper .stairBottom{width:40px;height:20px}
+.stair3dIcon .stairStepUpper .stairFront{transform:translateZ(10px);filter:brightness(.95)}
+.stair3dIcon .stairStepUpper .stairBack{transform:rotateY(180deg) translateZ(10px)}
+.stair3dIcon .stairStepUpper .stairRight{left:10px;transform:rotateY(90deg) translateZ(20px);filter:brightness(.78)}
+.stair3dIcon .stairStepUpper .stairLeft{left:10px;transform:rotateY(-90deg) translateZ(20px);filter:brightness(.88)}
+.stair3dIcon .stairStepUpper .stairTop{transform:rotateX(90deg) translateZ(10px);filter:brightness(1.12)}
+.stair3dIcon .stairStepUpper .stairBottom{transform:rotateX(-90deg) translateZ(10px);filter:brightness(.62)}
 .catalogStair3d,.slotStair3d{width:40px;height:40px}
 .hotbarStair3d{width:22px;height:22px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg) scale(.55)}
 .hotbarStair3d .stairFace{width:40px;height:40px}
