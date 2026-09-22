@@ -22,10 +22,19 @@ function injectStyle() {
 #createWorldSettingsCreate{width:100%;min-height:44px;padding:9px 14px;border:2px solid #1d5c20;background:#39a83f;color:#fff;font-family:"MinecraftFont",monospace;font-size:14px;text-shadow:2px 2px #256a29;box-shadow:0 2px 0 #151515;cursor:pointer;border-radius:0}
 #createWorldSettingsCreate:hover,#createWorldSettingsCreate:active{background:#39a83f;filter:none;transform:none}
 #createWorldSettingsTabs{flex:1;overflow:auto;padding:7px 8px}
-.createWorldSettingsTab{width:100%;min-height:40px;margin:3px 0;padding:8px 10px;text-align:left;border:2px solid #1a1a1a;border-top-color:#999;border-left-color:#999;background:linear-gradient(180deg,#858585,#666);color:#eee;font-family:"MinecraftFont",monospace;font-size:12px;cursor:pointer;border-radius:3px;text-shadow:1px 1px #333;box-shadow:inset 2px 2px 0 rgba(255,255,255,.1),inset -3px -4px 0 rgba(0,0,0,.2),0 4px 0 #1c1c1c;transition:transform .08s ease,filter .08s ease,box-shadow .08s ease}
-.createWorldSettingsTab:hover{background:linear-gradient(180deg,#949494,#707070);filter:brightness(1.04);transform:translateY(-1px)}
+.createWorldSettingsTab{--tab-accent:#6ec8ff;--tab-accent-dark:#245f86;width:100%;min-height:44px;margin:4px 0;padding:8px 10px;text-align:left;display:flex;align-items:center;gap:10px;border:2px solid #1a1a1a;border-top-color:var(--tab-accent);border-left-color:var(--tab-accent);background:linear-gradient(180deg,#747474,#4e4e4e);color:#f4f4f4;font-family:"MinecraftFont",monospace;font-size:12px;cursor:pointer;border-radius:4px;text-shadow:1px 1px #222;box-shadow:inset 2px 2px 0 rgba(255,255,255,.1),inset -3px -4px 0 rgba(0,0,0,.24),0 4px 0 #151515;transition:transform .08s ease,filter .08s ease,box-shadow .08s ease,background .12s ease}
+.createWorldSettingsTab:hover{background:linear-gradient(180deg,var(--tab-accent-dark),#4f4f4f);filter:brightness(1.06);transform:translateY(-1px)}
 .createWorldSettingsTab:active{transform:translateY(2px);box-shadow:inset 2px 2px 0 rgba(0,0,0,.2),inset -2px -2px 0 rgba(255,255,255,.08),0 2px 0 #1c1c1c}
-.createWorldSettingsTab.active{background:#999;color:#fff;border-color:#bdbdbd;box-shadow:inset 3px 0 0 #eee}\n.createWorldSettingsTab::before{content:"▣ ";color:#ddd;font-size:11px}
+.createWorldSettingsTab.active{background:linear-gradient(180deg,var(--tab-accent-dark),#303030);color:#fff;border-color:var(--tab-accent);box-shadow:inset 4px 0 0 var(--tab-accent),inset 0 0 0 1px rgba(255,255,255,.08),0 4px 0 #151515}
+.createWorldSettingsTabIcon{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;background:var(--tab-accent);color:#162016;border:2px solid rgba(0,0,0,.65);border-top-color:rgba(255,255,255,.75);border-left-color:rgba(255,255,255,.75);box-shadow:inset 2px 2px 0 rgba(255,255,255,.18),inset -2px -2px 0 rgba(0,0,0,.25),0 2px 0 rgba(0,0,0,.4);font-family:Arial,sans-serif;font-weight:900;font-size:14px;line-height:1;text-shadow:none;border-radius:2px}
+.createWorldSettingsTabLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.createWorldSettingsTab[data-cw-icon="general"]{--tab-accent:#5cc8ff;--tab-accent-dark:#1d7097}
+.createWorldSettingsTab[data-cw-icon="advanced"]{--tab-accent:#b88cff;--tab-accent-dark:#65419a}
+.createWorldSettingsTab[data-cw-icon="multiplayer"]{--tab-accent:#64e0c0;--tab-accent-dark:#267e6a}
+.createWorldSettingsTab[data-cw-icon="cheats"]{--tab-accent:#ff806e;--tab-accent-dark:#9e3d31}
+.createWorldSettingsTab[data-cw-icon="resources"]{--tab-accent:#7ed957;--tab-accent-dark:#3d7d29}
+.createWorldSettingsTab[data-cw-icon="behavior"]{--tab-accent:#ffd65c;--tab-accent-dark:#98731c}
+#createWorldSettingsTabs{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(0,0,0,.12));border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(0,0,0,.35)}
 #createWorldSettingsSidebarFooter{padding:8px 10px 10px;color:#999;background:#292929;font-size:9px;line-height:1.35;border-top:1px solid #171717}
 #createWorldSettingsContent{min-width:0;flex:1;display:flex;flex-direction:column;background:#424242}
 #createWorldSettingsHeader{height:56px;flex:0 0 56px;display:flex;align-items:center;padding:0 18px;background:#111;border-bottom:2px solid #282828;box-shadow:0 2px 0 rgba(0,0,0,.25)}
@@ -176,8 +185,11 @@ function injectStyle() {
     document.head.appendChild(style);
 }
 
-function tabButton(label, page) {
-    return `<button class="createWorldSettingsTab${page === "game" ? " active" : ""}" type="button" data-cw-tab="${page}">${label}</button>`;
+function tabButton(label, page, icon, iconName) {
+    return `<button class="createWorldSettingsTab${page === "game" ? " active" : ""}" type="button" data-cw-tab="${page}" data-cw-icon="${iconName}">
+        <span class="createWorldSettingsTabIcon" aria-hidden="true">${icon}</span>
+        <span class="createWorldSettingsTabLabel">${label}</span>
+    </button>`;
 }
 
 function enhance(modal) {
@@ -199,12 +211,12 @@ function enhance(modal) {
                 <div id="createWorldSettingsCreateWrap"><button id="createWorldSettingsCreate" class="createWorldSettingsAction" type="button">Create World</button></div>
                 <p id="createWorldSettingsSub">Set up your world before you create it.</p>
                 <nav id="createWorldSettingsTabs" aria-label="Create world sections">
-                    ${tabButton("General", "game")}
-                    ${tabButton("Advanced", "world")}
-                    ${tabButton("Multiplayer", "more")}
-                    ${tabButton("Cheats", "more")}
-                    ${tabButton("Resource Packs", "more")}
-                    ${tabButton("Behavior Packs", "more")}
+                    ${tabButton("General", "game", "◆", "general")}
+                    ${tabButton("Advanced", "world", "⚙", "advanced")}
+                    ${tabButton("Multiplayer", "more", "●", "multiplayer")}
+                    ${tabButton("Cheats", "more", "✦", "cheats")}
+                    ${tabButton("Resource Packs", "more", "✚", "resources")}
+                    ${tabButton("Behavior Packs", "more", "◇", "behavior")}
                 </nav>
                 <div id="createWorldSettingsSidebarFooter">World settings are saved with the world when it is created.</div>
             </aside>
@@ -324,7 +336,8 @@ function enhance(modal) {
             const page = tab.dataset.cwTab;
             modal.querySelectorAll("[data-cw-tab]").forEach(button => button.classList.toggle("active", button === tab));
             modal.querySelectorAll("[data-cw-page]").forEach(panel => panel.classList.toggle("active", panel.dataset.cwPage === page));
-            const titles = { game: "General", world: "Advanced", more: tab.textContent.trim() || "Multiplayer" };
+            const tabLabel = tab.querySelector(".createWorldSettingsTabLabel")?.textContent?.trim() || "";
+            const titles = { game: "General", world: "Advanced", more: tabLabel || "Multiplayer" };
             modal.querySelector("#createWorldSettingsSectionTitle").textContent = titles[page] || "Game";
             return;
         }
