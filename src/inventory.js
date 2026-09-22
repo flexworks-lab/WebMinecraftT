@@ -468,7 +468,11 @@ function createInventoryUI() {
     const style = document.createElement("style");
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
-.hotbarTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;overflow:visible}.hotbarTexture.stairIcon::before,.hotbarTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}.hotbarTexture.stairIcon::before{left:0;right:0;bottom:0;height:58%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.22)}.hotbarTexture.stairIcon::after{right:0;top:0;width:56%;height:46%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset -2px 0 0 rgba(0,0,0,.16)}#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
+.hotbarTexture.stairIcon,.slotTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;border:0!important;overflow:visible!important}
+.hotbarTexture.stairIcon::before,.hotbarTexture.stairIcon::after,.slotTexture.stairIcon::before,.slotTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
+.hotbarTexture.stairIcon::before,.slotTexture.stairIcon::before{left:0;right:0;bottom:0;height:56%;box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset 0 -2px 0 rgba(0,0,0,.24)}
+.hotbarTexture.stairIcon::after,.slotTexture.stairIcon::after{right:0;top:0;width:58%;height:48%;box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset -2px 0 0 rgba(0,0,0,.18)}
+.hotbarTexture.stairIcon,.slotTexture.stairIcon{inset:6px!important}#inventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:999999;pointer-events:auto;font-family:Arial,sans-serif;color:#fff}
 #inventoryScreen.open{display:flex}
 body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #inventoryPanel{position:relative;z-index:1000000;width:min(900px,94vw);height:min(690px,91vh);display:flex;flex-direction:column;padding:10px;background:#555;border:3px solid #252525;border-top-color:#777;border-left-color:#777;box-shadow:10px 10px 0 rgba(0,0,0,.32),inset 2px 2px 0 #747474;image-rendering:pixelated;overflow:hidden}
@@ -496,10 +500,10 @@ button.catalogGroup{appearance:none;-webkit-appearance:none;padding:0;margin:0;f
 .catalogGroup:hover .catalogGroupLabel{opacity:1}
 .catalogSlot:active{cursor:grabbing}.catalogSlot:hover{filter:brightness(1.13);border-color:#fff}
 .catalogIcon{position:absolute;inset:6px;display:block}.catalogGroupExpanded .catalogIcon{background-color:#656565}.catalogTexture{background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated}.catalogTexture{background-color:transparent}.catalogBlock3d{left:50%;top:50%;right:auto;bottom:auto;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent}.catalogSlab3d{transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg) scaleY(.5);}.catalogSlab3d{transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg) scaleY(.5)}.catalogBlock3d .blockFace{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;background-image:var(--block-front);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}.catalogBlock3d .blockFront{transform:translateZ(20px);background-image:var(--block-front);filter:brightness(.95)}.catalogBlock3d .blockBack{transform:rotateY(180deg) translateZ(20px);background-image:var(--block-back)}.catalogBlock3d .blockRight{transform:rotateY(90deg) translateZ(20px);background-image:var(--block-right);filter:brightness(.78)}.catalogBlock3d .blockLeft{transform:rotateY(-90deg) translateZ(20px);background-image:var(--block-left);filter:brightness(.88)}.catalogBlock3d .blockTop{transform:rotateX(90deg) translateZ(20px);background-image:var(--block-top);filter:brightness(1.12)}.catalogBlock3d .blockBottom{transform:rotateX(-90deg) translateZ(20px);background-image:var(--block-bottom);filter:brightness(.62)}.catalogTexture.slabIcon{top:44%;bottom:6px;background-size:100% 200%;background-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}
-.catalogTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;border-top:0!important;box-shadow:none!important;overflow:visible}
+.catalogTexture.stairIcon{background-image:none!important;background-size:auto!important;background-position:initial!important;border:0!important;box-shadow:none!important;overflow:visible!important;inset:6px!important}
 .catalogTexture.stairIcon::before,.catalogTexture.stairIcon::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
-.catalogTexture.stairIcon::before{left:0;right:0;bottom:0;height:58%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.22)}
-.catalogTexture.stairIcon::after{right:0;top:0;width:56%;height:46%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset -2px 0 0 rgba(0,0,0,.16)}
+.catalogTexture.stairIcon::before{left:0;right:0;bottom:0;height:56%;box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset 0 -2px 0 rgba(0,0,0,.24)}
+.catalogTexture.stairIcon::after{right:0;top:0;width:58%;height:48%;box-shadow:inset 0 2px 0 rgba(255,255,255,.14),inset -2px 0 0 rgba(0,0,0,.18)}
 .catalogFallback{position:absolute;inset:6px;display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;text-shadow:2px 2px 0 #222;background:#858585;color:#fff}
 .catalogColor{background:var(--item-color);box-shadow:inset 3px 3px 0 rgba(255,255,255,.14),inset -3px -3px 0 rgba(0,0,0,.2)}
 .catalogName{position:absolute;left:2px;right:2px;bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;text-shadow:1px 1px 0 #000;opacity:0;pointer-events:none}
@@ -941,4 +945,12 @@ function closeInventory() {
     if (!document.body.classList.contains("mobile-mode") && document.body.classList.contains("webminecraft-in-world") && !window.__webminecraftHasOpenMenu?.()) {
         try { document.body.requestPointerLock?.(); } catch {}
     }
+}
+\n/* Unified stair icon geometry */
+.catalogTexture.stairIcon,.slotTexture.stairIcon,.hotbarTexture.stairIcon{
+    width:auto!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    background-color:transparent!important;
 }
