@@ -37,7 +37,7 @@ function injectStyle() {
 #createWorldSettingsTabs{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(0,0,0,.12));border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(0,0,0,.35)}
 #createWorldSettingsSidebarFooter{padding:8px 10px 10px;color:#999;background:#292929;font-size:9px;line-height:1.35;border-top:1px solid #171717}
 #createWorldSettingsContent{min-width:0;flex:1;display:flex;flex-direction:column;background:rgba(66,66,66,.58)}
-#createWorldSettingsHeader{height:56px;flex:0 0 56px;display:flex;align-items:center;padding:0 18px;background:rgba(17,17,17,0);border-bottom:2px solid rgba(255,255,255,.12);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#createWorldSettingsHeader{height:56px;flex:0 0 56px;display:flex;align-items:center;padding:0 18px;background:#d0d0d0;border-bottom:2px solid #9a9a9a;box-shadow:0 2px 0 rgba(0,0,0,.25)}
 #createWorldSettingsSectionTitle{margin:0;color:#d6d6d6;position:relative;font-family:"MinecraftFont",monospace;font-size:17px;text-shadow:2px 2px #000;letter-spacing:.3px}
 #createWorldSettingsClose{margin-left:auto;width:34px;height:34px;border:1px solid #555;background:#777;color:#fff;font-size:18px;cursor:pointer;border-radius:0;line-height:1}
 #createWorldSettingsClose:hover{background:#aaa;filter:none}
