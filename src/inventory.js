@@ -486,10 +486,10 @@ function createInventoryUI() {
     const style = document.createElement("style");
     style.id = "webMinecraftInventoryStyles";
     style.textContent = `
-.stair3dIcon{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg);transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent;overflow:visible}
+.stair3dIcon{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotateX(-30deg) rotateY(45deg)!important;transform-style:preserve-3d;transform-origin:center center;pointer-events:none;background:transparent;overflow:visible;perspective:0}
 .stair3dIcon .stairStep{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;transform-style:preserve-3d;transform-origin:center center}
-.stair3dIcon .stairStepLower{transform:translate3d(0,8px,7px) scale3d(1,.72,.52)}
-.stair3dIcon .stairStepUpper{transform:translate3d(0,-9px,-7px) scale3d(1,.72,.52)}
+.stair3dIcon .stairStepLower{transform:translate3d(0,8px,7px) scale3d(1,.72,.52);transform-style:preserve-3d}
+.stair3dIcon .stairStepUpper{transform:translate3d(0,-9px,-7px) scale3d(1,.72,.52);transform-style:preserve-3d}
 .stair3dIcon .stairFace{position:absolute;left:0;top:0;width:40px;height:40px;display:block;margin:0;background-image:var(--stair-texture);background-position:center;background-size:100% 100%;background-repeat:no-repeat;image-rendering:pixelated;backface-visibility:hidden;transform-style:preserve-3d;border:0}
 .stair3dIcon .stairFront{transform:translateZ(20px);filter:brightness(.95)}
 .stair3dIcon .stairBack{transform:rotateY(180deg) translateZ(20px)}
