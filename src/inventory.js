@@ -946,11 +946,3 @@ function closeInventory() {
         try { document.body.requestPointerLock?.(); } catch {}
     }
 }
-\n/* Unified stair icon geometry */
-.catalogTexture.stairIcon,.slotTexture.stairIcon,.hotbarTexture.stairIcon{
-    width:auto!important;
-    height:auto!important;
-    min-width:0!important;
-    min-height:0!important;
-    background-color:transparent!important;
-}
