@@ -58,6 +58,17 @@ function injectStyle() {
 .createWorldSettingsMode button,.createWorldSettingsDifficulty button{min-height:36px;border:2px solid #555;border-right-width:1px;border-top-color:#aaa;border-left-color:#aaa;background:linear-gradient(180deg,#aaa,#888);color:#222;font-family:"MinecraftFont",monospace;font-size:11px;cursor:pointer;border-radius:2px;box-shadow:inset 2px 2px 0 rgba(255,255,255,.16),inset -2px -2px 0 rgba(0,0,0,.18),0 3px 0 #555;transition:transform .08s ease,filter .08s ease,box-shadow .08s ease}
 .createWorldSettingsMode button:last-child,.createWorldSettingsDifficulty button:last-child{border-right:0}
 .createWorldSettingsMode button.active,.createWorldSettingsDifficulty button.active{background:#8d8d8d;color:#fff}
+.createWorldSettingsChoices{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:320px}
+.createWorldSettingsChoice{min-height:76px!important;padding:8px 10px!important;display:flex;align-items:center;gap:10px;text-align:left!important;background:linear-gradient(180deg,#d7d7d7,#bcbcbc)!important;color:#222!important;border:2px solid #222!important;border-top-color:#f2f2f2!important;border-left-color:#f2f2f2!important;border-radius:4px!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.28),inset -3px -4px 0 rgba(0,0,0,.18),0 4px 0 #151515!important}
+.createWorldSettingsChoice:hover{background:linear-gradient(180deg,#e4e4e4,#c8c8c8)!important;transform:translateY(-1px)!important;filter:none!important}
+.createWorldSettingsChoice.active{background:linear-gradient(180deg,#c9f0cb,#a8d7aa)!important;border-color:#1d6c2a!important;box-shadow:inset 4px 0 0 #39a83f,inset 2px 2px 0 rgba(255,255,255,.22),inset -3px -4px 0 rgba(0,0,0,.18),0 4px 0 #151515!important}
+.createWorldSettingsChoiceIcon{width:28px;height:28px;flex:0 0 28px;display:grid;place-items:center;background:#9f9f9f;border:2px solid #222;border-top-color:#f1f1f1;border-left-color:#f1f1f1;font-family:Arial,sans-serif;font-weight:900;font-size:16px;box-shadow:inset 2px 2px 0 rgba(255,255,255,.16),inset -2px -2px 0 rgba(0,0,0,.2)}
+.createWorldSettingsChoice.active .createWorldSettingsChoiceIcon{background:#55b95c;color:#fff;border-color:#1d5c20}
+.createWorldSettingsChoice strong{display:block;font-family:"MinecraftFont",monospace;font-size:11px;line-height:1.1}
+.createWorldSettingsChoice small{display:block;margin-top:4px;color:#555;font:700 8px/1.25 Arial,sans-serif}
+.createWorldSettingsChoice.active small{color:#315f34}
+#cwGameMode{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+
 .createWorldSettingsDifficulty{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:600px;border:1px solid #161616}
 .createWorldSettingsRange{width:100%;max-width:270px;accent-color:#8a8a8a;cursor:pointer}
 .createWorldSettingsStatic{padding:8px 9px;background:#333;border:1px solid #111;color:#bbb;font-size:11px;line-height:1.45}
@@ -235,7 +246,22 @@ function enhance(modal) {
                             </div>
                             <div class="createWorldSettingsRow">
                                 <div><label for="cwGameMode">Game Mode</label><small>Choose how you play in this world.</small></div>
-                                <div class="createWorldSettingsControl"><select id="cwGameMode" class="createWorldSettingsSelect"><option value="survival">Survival</option><option value="creative">Creative</option></select></div>
+                                <div class="createWorldSettingsControl">
+    <div id="cwGameModeChoices" class="createWorldSettingsChoices" role="radiogroup" aria-label="Game Mode">
+        <button type="button" class="createWorldSettingsChoice active" data-game-mode="survival" role="radio" aria-checked="true">
+            <span class="createWorldSettingsChoiceIcon" aria-hidden="true">⚔</span>
+            <span><strong>Survival</strong><small>Gather, craft, and survive.</small></span>
+        </button>
+        <button type="button" class="createWorldSettingsChoice" data-game-mode="creative" role="radio" aria-checked="false">
+            <span class="createWorldSettingsChoiceIcon" aria-hidden="true">✦</span>
+            <span><strong>Creative</strong><small>Build freely with unlimited resources.</small></span>
+        </button>
+    </div>
+    <select id="cwGameMode" class="createWorldSettingsSelect" aria-hidden="true" tabindex="-1">
+        <option value="survival">Survival</option>
+        <option value="creative">Creative</option>
+    </select>
+</div>
                             </div>
                             <div class="createWorldSettingsRow">
                                 <div><label for="cwDifficulty">Difficulty</label><small>Controls the world difficulty.</small></div>
@@ -294,6 +320,24 @@ function enhance(modal) {
     const newSeedDisplay = modal.querySelector("#cwSeed");
     const newMessage = modal.querySelector("#createWorldSettingsMessage");
     const gameModeSelect = modal.querySelector("#cwGameMode");
+    const gameModeChoices = [...modal.querySelectorAll("[data-game-mode]")];
+    const syncGameModeChoices = () => {
+        const mode = gameModeSelect?.value === "creative" ? "creative" : "survival";
+        gameModeChoices.forEach(choice => {
+            const active = choice.dataset.gameMode === mode;
+            choice.classList.toggle("active", active);
+            choice.setAttribute("aria-checked", active ? "true" : "false");
+        });
+    };
+    gameModeChoices.forEach(choice => {
+        choice.addEventListener("click", () => {
+            if (!gameModeSelect) return;
+            gameModeSelect.value = choice.dataset.gameMode === "creative" ? "creative" : "survival";
+            syncGameModeChoices();
+            applyCreateMode();
+            newMessage.textContent = "";
+        });
+    });
     const renderWorldPreview = () => {};// Static preview image is used for the Create World screen.
 
     const hiddenCreate = document.createElement("button");
@@ -324,9 +368,13 @@ function enhance(modal) {
         if (Number.isFinite(seed)) setWorldMode(seed, mode);
         document.body.classList.toggle("webminecraft-survival", mode === "survival");
         document.body.classList.toggle("webminecraft-creative", mode === "creative");
+        syncGameModeChoices();
     };
 
-    gameModeSelect?.addEventListener("change", applyCreateMode);
+    gameModeSelect?.addEventListener("change", () => {
+        syncGameModeChoices();
+        applyCreateMode();
+    });
     modal.querySelector("#cwWorldType")?.addEventListener("change", renderWorldPreview);
     applyCreateMode();
 
