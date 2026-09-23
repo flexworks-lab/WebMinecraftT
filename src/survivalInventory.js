@@ -339,6 +339,23 @@ function slotButton(index, label) {
             collectMatching(index);
         });
     } else if (slot) {
+        button.addEventListener("pointerdown", event => {
+            if (!open || event.button !== 2) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (!cursorStack) {
+                const source = data[index];
+                if (!source) return;
+                const amount = Math.ceil(source.count / 2);
+                cursorStack = { ...cloneSlot(source), count: amount };
+                source.count -= amount;
+                if (source.count <= 0) data[index] = null;
+            } else {
+                placeInto(index, 2);
+            }
+            saveData();
+            renderSlots();
+        });
         button.addEventListener("dragstart", event => {
             draggedSurvivalInventory = index;
             draggedSurvivalCraft = null;
@@ -361,6 +378,17 @@ function slotButton(index, label) {
                 return;
             }
             selectHotbarSlot(index);
+        });
+    }
+
+    if (!mobile && !slot) {
+        button.addEventListener("pointerdown", event => {
+            if (!open || event.button !== 2 || !cursorStack) return;
+            event.preventDefault();
+            event.stopPropagation();
+            placeInto(index, 2);
+            saveData();
+            renderSlots();
         });
     }
 
@@ -597,7 +625,12 @@ function updateCraftResult() {
     craftOutput = null;
     if (nonEmpty.length === 1 && nonEmpty[0].slot.itemId === 5) {
         craftOutput = { itemId: 13, count: 4, texture: itemDef(13)?.texture || null, recipe: [{ index: nonEmpty[0].index, amount: 1 }] };
-    } else if (craftData.every(slot => slot?.itemId === 13)) {
+    } else if (
+        craftData.every(slot => {
+            const id = Number(slot?.itemId);
+            return [13, 23, 24, 25, 26, 27, 28, 29, 30, 31].includes(id);
+        })
+    ) {
         craftOutput = { itemId: 168, count: 1, texture: itemDef(168)?.texture || null, recipe: [0,1,2,3].map(index => ({ index, amount: 1 })) };
     }
 }
@@ -779,7 +812,7 @@ function createUI() {
             <div class="svi-section-title">Crafting</div>
             <div class="svi-craft-row"><div id="svi-craft-grid"></div><span class="svi-arrow">→</span><button id="svi-craft-output" class="svi-craft-output" type="button" aria-label="Crafting output"></button></div>
             <button id="svi-recipe-book" type="button">Recipe Book</button>
-            <div id="svi-recipe-panel" hidden>Basic recipes: Oak Log → 4 Oak Planks. Four Oak Planks → Crafting Table.</div>
+            <div id="svi-recipe-panel" hidden>Basic recipes: Logs → 4 Planks. Four Planks → Crafting Table.</div>
           </section>
         </div>
         <section id="svi-storage-section"><div class="svi-section-title">Inventory</div><div id="svi-storage"></div></section>
