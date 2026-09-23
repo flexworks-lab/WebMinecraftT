@@ -13,6 +13,7 @@ let craftGrid = Array.from({ length: 9 }, () => null);
 let craftOutput = null;
 let dragged = null;
 let suppressClick = false;
+let lastPrimaryPress = null;
 
 function textureUrl(name) {
     return name ? `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}` : "";
@@ -108,6 +109,10 @@ function renderSlot(index, type = "inventory") {
             render();
         });
     } else if (slot) {
+        button.addEventListener("dblclick", event => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
         button.addEventListener("dragstart", event => {
             dragged = { type, index };
             suppressClick = true;
@@ -121,7 +126,47 @@ function renderSlot(index, type = "inventory") {
             suppressClick = true;
         });
         button.addEventListener("pointerdown", event => {
+            if (event.button === 0) {
+                const now = performance.now();
+                const sameRecentSlot = lastPrimaryPress
+                    && lastPrimaryPress.type === type
+                    && lastPrimaryPress.index === index
+                    && now - lastPrimaryPress.time < 400
+                    && dragged?.type === "cursor"
+                    && dragged?.slot
+                    && Number(dragged.slot.itemId) === Number(lastPrimaryPress.itemId)
+                    && !getSlot(type, index);
+
+                if (sameRecentSlot) {
+                    const held = dragged.slot;
+                    const keepInSlot = Math.max(0, Number(held.count || 0) - 1);
+                    if (keepInSlot > 0) {
+                        setSlot(type, index, {
+                            ...cloneSlot(held),
+                            count: keepInSlot
+                        });
+                    }
+                    held.count = 1;
+                    lastPrimaryPress = null;
+                    suppressClick = true;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    render();
+                    return;
+                }
+
+                const current = getSlot(type, index);
+                lastPrimaryPress = current
+                    ? { type, index, itemId: Number(current.itemId), time: now }
+                    : null;
+                event.preventDefault();
+                event.stopPropagation();
+                pickupStack(type, index);
+                render();
+                return;
+            }
             if (event.button !== 2) return;
+            lastPrimaryPress = null;
             event.preventDefault();
             event.stopPropagation();
             if (!dragged) takeHalf(type, index);
@@ -131,6 +176,7 @@ function renderSlot(index, type = "inventory") {
     } else if (type === "inventory") {
         button.addEventListener("pointerdown", event => {
             if (event.button !== 2 || !dragged) return;
+            lastPrimaryPress = null;
             event.preventDefault();
             event.stopPropagation();
             placeOne(type, index);
