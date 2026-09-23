@@ -11,6 +11,8 @@ let friendRequestListenerUid = null;
 let friendRequestInitialLoad = true;
 let friendRequestKnown = new Map();
 let friendNotificationCount = 0;
+let startupAuthStateResolved = false;
+let startupPlayerSyncUserId = null;
 
 function loadFirebaseScript(src) {
     if (!window.__webMinecraftFirebaseLoads) window.__webMinecraftFirebaseLoads = new Map();
@@ -112,6 +114,13 @@ async function initFirebase() {
         auth = window.firebase.auth(app);
         auth.onAuthStateChanged(user => {
             currentUser = user || null;
+            startupAuthStateResolved = true;
+            if (user && user.uid && user.uid !== startupPlayerSyncUserId) {
+                startupPlayerSyncUserId = user.uid;
+                resetPlayerDataSyncCancellation();
+                showPlayerDataSync("Player data is syncing…");
+                setPlayerDataSyncProgress(5, "Connecting your player account…");
+            }
             friendCode = currentUser ? makeFriendCode(currentUser.uid) : "";
             friendRequestInitialLoad = true;
             friendRequestKnown.clear();
@@ -128,6 +137,16 @@ async function initFirebase() {
             updateAccountUi();
         });
         firebaseReady = true;
+        // Firebase startup is independent of the Account button. When a
+        // previously signed-in player is restored, the sync UI is already
+        // visible before their profile data is written.
+        const restoredUser = auth.currentUser;
+        if (restoredUser?.uid) {
+            startupPlayerSyncUserId = restoredUser.uid;
+            resetPlayerDataSyncCancellation();
+            showPlayerDataSync("Player data is syncing…");
+            setPlayerDataSyncProgress(5, "Restoring your signed-in player data…");
+        }
         return true;
     } catch (error) { console.error("Firebase authentication setup failed:", error); return false; }
 }
