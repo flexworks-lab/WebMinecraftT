@@ -107,6 +107,9 @@ let cursorStack = null;
 let craftData = Array.from({ length: 4 }, () => null);
 let craftOutput = null;
 let cursorElement = null;
+let draggedSurvivalInventory = null;
+let draggedSurvivalCraft = null;
+let suppressNextSurvivalClick = false;
 let equipment = Array.from({ length: 5 }, () => null);
 const EQUIPMENT_SIZE = 5;
 
@@ -268,7 +271,7 @@ function depositCraftAndCursor() {
     return !cursorStack && craftData.every(slot => !slot);
 }
 
-function itemHtml(slot) {
+function itemHtml(slot, options = {}) {
     if (!slot?.itemId) return "";
     const item = itemDef(slot.itemId);
     if (!item) return "";
@@ -278,11 +281,15 @@ function itemHtml(slot) {
     const stairClass = id >= 75 && id <= 84 ? " stair-item" : "";
     let visual = "";
     if (texture) {
-        visual = stairClass
-            ? `<span class="svi-item${stairClass}" style="--stair-texture:url('${textureUrl(texture)}')" aria-hidden="true"></span>`
-            : `<img class="svi-item${slabClass}" src="${textureUrl(texture)}" alt="" draggable="false">`;
+        if (options.craftSlot) {
+            visual = `<img class="svi-item svi-craft-item" src="${textureUrl(texture)}" alt="" draggable="false">`;
+        } else {
+            visual = stairClass
+                ? `<span class="svi-item${stairClass}" style="--stair-texture:url('${textureUrl(texture)}')" aria-hidden="true"></span>`
+                : `<img class="svi-item${slabClass}" src="${textureUrl(texture)}" alt="" draggable="false">`;
+        }
     } else {
-        visual = `<span class="svi-item svi-color${slabClass}${stairClass}" style="--c:#777"></span>`;
+        visual = `<span class="svi-item svi-color${slabClass}${options.craftSlot ? " svi-craft-item" : stairClass}" style="--c:#777"></span>`;
     }
     return `${visual}${slot.count > 1 ? `<b>${slot.count}</b>` : ""}`;
 }
@@ -312,19 +319,76 @@ function slotButton(index, label) {
     button.type = "button";
     button.className = "svi-slot";
     button.dataset.index = String(index);
-    button.title = data[index] ? `${itemDef(data[index].itemId)?.name || "Item"} (${data[index].count})` : (label || `Slot ${index + 1}`);
+    const mobile = document.body.classList.contains("mobile-mode");
+    const slot = data[index];
+    button.draggable = !!slot && !mobile;
+    button.title = slot ? `${itemDef(slot.itemId)?.name || "Item"} (${slot.count})` : (label || `Slot ${index + 1}`);
     button.setAttribute("aria-label", button.title);
-    button.innerHTML = itemHtml(data[index]);
-    button.addEventListener("pointerdown", event => {
-        if (!open) return;
-        event.preventDefault();
-        event.stopPropagation();
-        handleInventorySlot(index, event.button === 2 ? 2 : 0, event.shiftKey);
+    button.innerHTML = itemHtml(slot);
+
+    if (mobile) {
+        button.addEventListener("pointerdown", event => {
+            if (!open) return;
+            event.preventDefault();
+            event.stopPropagation();
+            handleInventorySlot(index, event.button === 2 ? 2 : 0, event.shiftKey);
+        });
+        button.addEventListener("dblclick", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            collectMatching(index);
+        });
+    } else if (slot) {
+        button.addEventListener("dragstart", event => {
+            draggedSurvivalInventory = index;
+            draggedSurvivalCraft = null;
+            suppressNextSurvivalClick = true;
+            button.classList.add("dragging");
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", `survival-inventory:${index}`);
+        });
+        button.addEventListener("dragend", () => {
+            draggedSurvivalInventory = null;
+            draggedSurvivalCraft = null;
+            button.classList.remove("dragging");
+            suppressNextSurvivalClick = true;
+        });
+        button.addEventListener("click", event => {
+            if (suppressNextSurvivalClick) {
+                suppressNextSurvivalClick = false;
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            selectHotbarSlot(index);
+        });
+    }
+
+    button.addEventListener("dragover", event => {
+        if (!mobile) event.preventDefault();
     });
-    button.addEventListener("dblclick", event => {
+    button.addEventListener("drop", event => {
+        if (mobile) return;
         event.preventDefault();
         event.stopPropagation();
-        collectMatching(index);
+        const sourceInventory = draggedSurvivalInventory;
+        const sourceCraft = draggedSurvivalCraft;
+        if (sourceInventory !== null && sourceInventory !== undefined) {
+            if (sourceInventory === index) return;
+            [data[index], data[sourceInventory]] = [data[sourceInventory], data[index]];
+        } else if (sourceCraft !== null && sourceCraft !== undefined) {
+            const oldInventory = data[index];
+            data[index] = craftData[sourceCraft];
+            craftData[sourceCraft] = oldInventory;
+            updateCraftResult();
+        } else {
+            return;
+        }
+        draggedSurvivalInventory = null;
+        draggedSurvivalCraft = null;
+        saveData();
+        suppressNextSurvivalClick = true;
+        renderSlots();
     });
     button.addEventListener("contextmenu", event => event.preventDefault());
     return button;
@@ -469,12 +533,61 @@ function renderCraftSlot(index) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "svi-craft-slot";
-    button.innerHTML = itemHtml(craftData[index]);
-    button.title = craftData[index] ? `${itemDef(craftData[index].itemId)?.name || "Item"} (${craftData[index].count})` : "Crafting slot";
-    button.addEventListener("pointerdown", event => {
+    const mobile = document.body.classList.contains("mobile-mode");
+    const slot = craftData[index];
+    button.draggable = !!slot && !mobile;
+    button.innerHTML = itemHtml(slot, { craftSlot: true });
+    button.title = slot ? `${itemDef(slot.itemId)?.name || "Item"} (${slot.count})` : "Crafting slot";
+
+    if (mobile) {
+        button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleCraftSlot(index, event.button === 2 ? 2 : 0);
+        });
+    } else if (slot) {
+        button.addEventListener("dragstart", event => {
+            draggedSurvivalCraft = index;
+            draggedSurvivalInventory = null;
+            button.classList.add("dragging");
+            suppressNextSurvivalClick = true;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", `survival-craft:${index}`);
+        });
+        button.addEventListener("dragend", () => {
+            draggedSurvivalCraft = null;
+            draggedSurvivalInventory = null;
+            button.classList.remove("dragging");
+            suppressNextSurvivalClick = true;
+        });
+    }
+
+    button.addEventListener("dragover", event => {
+        if (!mobile) event.preventDefault();
+    });
+    button.addEventListener("drop", event => {
+        if (mobile) return;
         event.preventDefault();
         event.stopPropagation();
-        handleCraftSlot(index, event.button === 2 ? 2 : 0);
+        const sourceInventory = draggedSurvivalInventory;
+        const sourceCraft = draggedSurvivalCraft;
+        if (sourceInventory !== null && sourceInventory !== undefined) {
+            const oldCraft = craftData[index];
+            craftData[index] = data[sourceInventory];
+            data[sourceInventory] = oldCraft;
+        } else if (sourceCraft !== null && sourceCraft !== undefined) {
+            if (sourceCraft === index) return;
+            [craftData[index], craftData[sourceCraft]] = [craftData[sourceCraft], craftData[index]];
+        } else {
+            return;
+        }
+        draggedSurvivalInventory = null;
+        draggedSurvivalCraft = null;
+        suppressNextSurvivalClick = true;
+        updateCraftResult();
+        saveData();
+        renderCrafting();
+        renderSlots();
     });
     button.addEventListener("contextmenu", event => event.preventDefault());
     return button;
@@ -743,6 +856,15 @@ function createUI() {
 #svi-panel{width:min(430px,92vw);height:min(760px,92vh);aspect-ratio:.71;padding:8px;gap:7px}
 #svi-storage,#svi-hotbar{grid-template-columns:repeat(9,minmax(28px,1fr));gap:3px}
 }
+`;
+    style.textContent += `
+/* Creative-style native drag/drop for Survival + contained 2x2 craft icons */
+.svi-slot,.svi-craft-slot{user-select:none;-webkit-user-select:none}
+.svi-slot.dragging,.svi-craft-slot.dragging{opacity:.45}
+.svi-craft-slot{position:relative;overflow:hidden;contain:layout paint;isolation:isolate}
+.svi-craft-item{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;inset:auto !important;width:30px !important;height:30px !important;max-width:30px !important;max-height:30px !important;object-fit:contain !important;object-position:center !important;display:block !important;margin:auto !important;transform:none !important;overflow:hidden !important;z-index:1}
+.svi-craft-slot .svi-craft-item{pointer-events:none}
+.svi-craft-slot b{z-index:2}
 `;
     document.head.appendChild(style);
 
