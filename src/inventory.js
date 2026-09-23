@@ -121,7 +121,8 @@ const ITEM_TYPES = [
     { id: 181, name: "Purple Concrete", texture: "purple_concrete.png", category: "natural" },
     { id: 182, name: "Red Concrete", texture: "red_concrete.png", category: "natural" },
     { id: 183, name: "White Concrete", texture: "white_concrete.png", category: "natural" },
-    { id: 184, name: "Yellow Concrete", texture: "yellow_concrete.png", category: "natural" }
+    { id: 184, name: "Yellow Concrete", texture: "yellow_concrete.png", category: "natural" },
+    { id: 185, name: "Stick", texture: "stick.png", category: "tools" }
 ];
 
 const TAB_DEFS = [

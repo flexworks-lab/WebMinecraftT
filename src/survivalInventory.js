@@ -638,6 +638,28 @@ function updateCraftResult() {
     // Four total wooden planks anywhere in the 2x2 grid craft one Crafting Table.
     // This supports both the normal 2x2 arrangement and a full dragged stack in one slot.
     const plankIds = new Set([13, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
+
+    // Two planks craft four sticks.
+    let stickCount = 0;
+    const stickRecipe = [];
+    for (const { slot, index } of nonEmpty) {
+        if (!plankIds.has(Number(slot.itemId))) continue;
+        const needed = Math.min(slot.count, 2 - stickCount);
+        if (needed <= 0) continue;
+        stickCount += needed;
+        stickRecipe.push({ index, amount: needed });
+        if (stickCount >= 2) break;
+    }
+    if (stickCount >= 2) {
+        craftOutput = {
+            itemId: 185,
+            count: 4,
+            texture: itemDef(185)?.texture || "stick.png",
+            recipe: stickRecipe
+        };
+        return;
+    }
+
     let plankCount = 0;
     const recipe = [];
     for (const { slot, index } of nonEmpty) {

@@ -217,6 +217,45 @@ function dropInto(type, index) {
     updateCraftResult();
     saveInventory();
 }
+function countInventoryItem(itemIds) {
+    const ids = new Set(itemIds.map(Number));
+    return inventory.reduce((sum, slot) => ids.has(Number(slot?.itemId)) ? sum + Number(slot.count || 0) : sum, 0);
+}
+function craftableRecipes() {
+    const recipes = [
+        { itemId: 13, count: 4, label: "Oak Planks", tip: "1 log", ingredients: [{ ids: [...LOG_IDS], count: 1 }] },
+        { itemId: 185, count: 4, label: "Stick", tip: "2 planks", ingredients: [{ ids: [...PLANK_IDS], count: 2 }] },
+        { itemId: 168, count: 1, label: "Crafting Table", tip: "4 planks", ingredients: [{ ids: [...PLANK_IDS], count: 4 }] },
+        { itemId: 17, count: 3, label: "Oak Door", tip: "6 oak planks", ingredients: [{ ids: [13], count: 6 }] },
+        { itemId: 56, count: 6, label: "Oak Slab", tip: "3 oak planks", ingredients: [{ ids: [13], count: 3 }] },
+        { itemId: 75, count: 4, label: "Oak Stairs", tip: "6 oak planks", ingredients: [{ ids: [13], count: 6 }] },
+        { itemId: 51, count: 6, label: "Stone Slab", tip: "3 stone", ingredients: [{ ids: [3], count: 3 }] },
+        { itemId: 52, count: 6, label: "Cobblestone Slab", tip: "3 cobblestone", ingredients: [{ ids: [7], count: 3 }] },
+        { itemId: 19, count: 4, label: "Stone Bricks", tip: "4 stone", ingredients: [{ ids: [3], count: 4 }] },
+        { itemId: 50, count: 1, label: "Furnace", tip: "8 cobblestone", ingredients: [{ ids: [7], count: 8 }] }
+    ];
+    return recipes.filter(recipe => recipe.ingredients.every(ingredient => countInventoryItem(ingredient.ids) >= ingredient.count));
+}
+function renderRecipeBrowser() {
+    const panel = root?.querySelector("#ctm-help");
+    if (!panel) return;
+    const recipes = craftableRecipes();
+    panel.innerHTML = `
+        <div class="ctm-title">Craftable</div>
+        <div class="ctm-recipe-tip">${recipes.length ? "Only recipes you can make right now are shown." : "Collect ingredients to unlock recipes."}</div>
+        <div id="ctm-recipe-grid">
+            ${recipes.map(recipe => {
+                const item = itemDef(recipe.itemId);
+                if (!item) return "";
+                const texture = item.texture;
+                return `<div class="ctm-recipe-card" title="${recipe.label}: ${recipe.tip}">
+                    <div class="ctm-recipe-icon">${texture ? `<img src="${textureUrl(texture)}" alt="" draggable="false">` : ""}</div>
+                    <div class="ctm-recipe-name">${recipe.label}</div>
+                    <div class="ctm-recipe-count">${recipe.count}× · ${recipe.tip}</div>
+                </div>`;
+            }).join("")}
+        </div>`;
+}
 function updateCraftResult() {
     craftOutput = null;
     const entries = craftGrid.map((slot, index) => ({ slot, index })).filter(x => x.slot);
@@ -278,6 +317,7 @@ function render() {
     for (let i = 0; i < HOTBAR_SIZE; i++) hotbarGrid.appendChild(renderSlot(i, "inventory"));
     output.innerHTML = craftOutput ? itemVisual(craftOutput, true) + slotCount(craftOutput) : "";
     output.classList.toggle("ready", !!craftOutput);
+    renderRecipeBrowser();
     output.onclick = event => { event.preventDefault(); event.stopPropagation(); takeOutput(); };
     output.oncontextmenu = event => event.preventDefault();
     renderCursor();
@@ -339,12 +379,7 @@ function createUI() {
             </div>
             <button id="ctm-recipe-book" type="button">Recipe Book</button>
           </div>
-          <div id="ctm-help">
-            <div class="ctm-title">Crafting Table</div>
-            <p>Use the 3×3 grid for expanded recipes.</p>
-            <p>Four planks craft a Crafting Table.</p>
-            <p>One log crafts four Oak Planks.</p>
-          </div>
+          <div id="ctm-help" aria-label="Craftable recipes"></div>
         </section>
         <section id="ctm-storage-section"><div class="ctm-title">Inventory</div><div id="ctm-storage"></div></section>
         <section id="ctm-hotbar-section"><div class="ctm-title">Hotbar</div><div id="ctm-hotbar"></div></section>
@@ -362,8 +397,14 @@ function createUI() {
 #ctm-top{display:grid;grid-template-columns:1.08fr .92fr;gap:10px;min-height:265px}
 #ctm-craft-box,#ctm-help,#ctm-storage-section,#ctm-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
 #ctm-craft-box{display:flex;flex-direction:column;align-items:center;justify-content:center}
-#ctm-help{font-size:11px;color:#404040}
-#ctm-help p{margin:8px 2px;line-height:1.45}
+#ctm-help{font-size:11px;color:#404040;overflow:auto;min-height:0}
+.ctm-recipe-tip{font-size:10px;color:#555;margin:-1px 0 7px}
+#ctm-recipe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;align-content:start}
+.ctm-recipe-card{min-width:0;padding:5px;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555}
+.ctm-recipe-icon{width:38px;height:38px;margin:0 auto 3px;background:#707070;border:2px solid #373737;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden}
+.ctm-recipe-icon img{width:30px;height:30px;max-width:30px;max-height:30px;object-fit:contain;image-rendering:pixelated}
+.ctm-recipe-name{font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#404040}
+.ctm-recipe-count{font-size:8px;text-align:center;margin-top:2px;color:#555}
 .ctm-title{font-size:13px;font-weight:800;margin-bottom:6px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.45)}
 .ctm-craft-row{display:flex;align-items:center;justify-content:center;gap:10px}
 .ctm-arrow{font-size:28px;color:#555;text-shadow:1px 1px #FFFFFF}
@@ -390,7 +431,8 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
 @media(max-width:720px){
 #ctm-panel{width:min(430px,92vw);height:min(760px,92vh);aspect-ratio:.71;padding:8px;gap:7px}
 #ctm-top{grid-template-columns:1fr;min-height:0;gap:7px}
-#ctm-help{display:none}
+#ctm-help{display:block;max-height:180px}
+#ctm-recipe-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 #ctm-craft-grid{grid-template-columns:repeat(3,36px);gap:3px}
 .ctm-slot,.ctm-craft-slot{width:36px;height:36px}
 #ctm-output{width:46px;height:46px}
@@ -402,6 +444,12 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
     root.querySelector("#ctm-delete").addEventListener("click", () => {
         dragged = null;
         renderCursor();
+    });
+    window.addEventListener("webminecraft:inventorychanged", () => {
+        if (open) {
+            loadInventory();
+            render();
+        }
     });
     root.addEventListener("pointerdown", event => {
         if (event.target === root) event.preventDefault();
