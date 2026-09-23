@@ -441,6 +441,7 @@ function hasOpenMenuScreen() {
         "#pauseMenu",
         "#inventoryScreen",
         "#survivalInventoryScreen",
+        "#craftingTableScreen",
         "#multiplayerMenu",
         "#friendsModal",
         "#newsCenter",

@@ -9,6 +9,7 @@ import { startSurvivalMining, setMiningContext } from "./survivalMiningSystem.js
 import "./worldSave.js";
 import "./heldBlock3D.js";
 import { spawnBlockBreakParticles } from "./blockParticles.js";
+import { setupCraftingTableMenu, openCraftingTableMenu } from "./craftingTableMenu.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);
@@ -98,6 +99,7 @@ export function setupInteraction(scene, camera) {
     setMiningContext(scene, camera);
     setupTexturedHotbar();
     setupInventory(camera);
+    setupCraftingTableMenu();
     setupDoorSystem(scene, camera);
     positionMobileInventoryButton();
     const outline = createSelectionOutline();
@@ -121,6 +123,7 @@ export function setupInteraction(scene, camera) {
         if (document.body.classList.contains("mobile-mode")) return;
         if (!document.body.classList.contains("webminecraft-in-world")) return;
         if (document.body.classList.contains("inventory-open")) return;
+        if (document.body.classList.contains("crafting-table-open")) return;
         if (event.target instanceof Element && event.target.closest("#hotbar, #inventoryScreen, #doorSelectButton, button, input, select, textarea, a")) return;
         if (event.button === 0) {
             if (isSurvivalWorldActive()) {
@@ -131,7 +134,14 @@ export function setupInteraction(scene, camera) {
             }
             breakBlock();
         }
-        if (event.button === 2) placeBlock();
+        if (event.button === 2) {
+            const target = getTargetBlock(scene, camera, BLOCK);
+            if (target && getBlockAt(target.x, target.y, target.z) === BLOCK.CRAFTING_TABLE) {
+                openCraftingTableMenu();
+                return;
+            }
+            placeBlock();
+        }
     });
     document.addEventListener("contextmenu", event => {
         if (document.body.classList.contains("webminecraft-in-world")) event.preventDefault();
@@ -145,7 +155,14 @@ export function setupInteraction(scene, camera) {
             // Short grass is its own decorative mesh, so give mobile taps a
             // chance to break it before normal block placement runs.
             if (window.__webMinecraftTryBreakShortGrass?.(ndcX, ndcY)) return;
-            if (isSurvivalWorldActive()) placeBlock(ndcX, ndcY);
+            if (isSurvivalWorldActive()) {
+                const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
+                if (target && getBlockAt(target.x, target.y, target.z) === BLOCK.CRAFTING_TABLE) {
+                    openCraftingTableMenu();
+                } else {
+                    placeBlock(ndcX, ndcY);
+                }
+            }
             else if (document.body.classList.contains("webminecraft-creative")) {
                 const duration = Number(touchInput.blockTapDuration) || 0;
                 if (duration <= CREATIVE_PLACE_TAP_MAX_MS) placeBlock(ndcX, ndcY);
