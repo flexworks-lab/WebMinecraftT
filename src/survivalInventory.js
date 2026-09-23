@@ -107,6 +107,8 @@ let cursorStack = null;
 let craftData = Array.from({ length: 4 }, () => null);
 let craftOutput = null;
 let cursorElement = null;
+let equipment = Array.from({ length: 5 }, () => null);
+const EQUIPMENT_SIZE = 5;
 
 function isInWorld() { return document.body.classList.contains("webminecraft-in-world"); }
 function textureUrl(name) { return name ? `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}` : ""; }
@@ -124,6 +126,85 @@ function normalizeSlot(slot) {
 }
 function cloneSlot(slot) { return slot ? { itemId: slot.itemId, count: slot.count, texture: slot.texture || itemDef(slot.itemId)?.texture || null } : null; }
 function sameItem(a, b) { return !!a && !!b && Number(a.itemId) === Number(b.itemId); }
+
+function maxStackForItem(itemId) {
+    const item = itemDef(itemId);
+    const name = String(item?.name || "").toLowerCase();
+    if (/helmet|chestplate|leggings|boots|sword|pickaxe|axe|shovel|hoe|bow|crossbow|trident|elytra|shield|flint and steel|fishing rod|shears/.test(name)) return 1;
+    if (/snowball|ender pearl|sign|firework|arrow/.test(name)) return 16;
+    return MAX_STACK;
+}
+function normalizeEquipmentSlot(slot, index) {
+    if (!slot || !Number.isFinite(Number(slot.itemId)) || !Number.isFinite(Number(slot.count))) return null;
+    const item = itemDef(slot.itemId);
+    if (!item) return null;
+    const name = String(item.name || "").toLowerCase();
+    let allowed = false;
+    if (index === 0) allowed = /helmet|skull|head/.test(name);
+    if (index === 1) allowed = /chestplate|elytra/.test(name);
+    if (index === 2) allowed = /leggings/.test(name);
+    if (index === 3) allowed = /boots/.test(name);
+    if (index === 4) allowed = /shield|arrow|firework|totem|map/.test(name);
+    if (!allowed) return null;
+    return { itemId: Math.floor(Number(slot.itemId)), count: Math.max(1, Math.min(maxStackForItem(slot.itemId), Math.floor(Number(slot.count)))), texture: slot.texture || item.texture || null };
+}
+function loadEquipment() {
+    try {
+        const saved = JSON.parse(localStorage.getItem("webminecraft_survival_equipment") || "[]");
+        equipment = Array.from({ length: EQUIPMENT_SIZE }, (_, index) => normalizeEquipmentSlot(Array.isArray(saved) ? saved[index] : null, index));
+    } catch {
+        equipment = Array.from({ length: EQUIPMENT_SIZE }, () => null);
+    }
+}
+function saveEquipment() {
+    equipment = equipment.map((slot, index) => normalizeEquipmentSlot(slot, index));
+    try { localStorage.setItem("webminecraft_survival_equipment", JSON.stringify(equipment)); } catch {}
+    window.dispatchEvent(new CustomEvent("webminecraft:equipmentchanged"));
+}
+function equipmentSlotButton(index, label) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "svi-equipment-slot";
+    button.dataset.equipmentIndex = String(index);
+    button.title = equipment[index] ? `${itemDef(equipment[index].itemId)?.name || label} (${equipment[index].count})` : label;
+    button.setAttribute("aria-label", button.title);
+    button.innerHTML = itemHtml(equipment[index]) || `<span class="svi-equipment-glyph">${["⛑","▣","▥","◈","◫"][index]}</span>`;
+    button.addEventListener("pointerdown", event => {
+        if (!open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        handleEquipmentSlot(index, event.button === 2 ? 2 : 0);
+    });
+    button.addEventListener("contextmenu", event => event.preventDefault());
+    return button;
+}
+function handleEquipmentSlot(index, button = 0) {
+    const target = equipment[index];
+    if (cursorStack) {
+        const accepted = normalizeEquipmentSlot(cursorStack, index);
+        if (!accepted) return;
+        if (button === 2) {
+            if (target) return;
+            equipment[index] = { ...accepted, count: 1 };
+            cursorStack.count--;
+            if (cursorStack.count <= 0) cursorStack = null;
+        } else {
+            equipment[index] = accepted;
+            cursorStack = target ? cloneSlot(target) : null;
+        }
+    } else if (target) {
+        if (button === 2) {
+            cursorStack = { ...cloneSlot(target), count: 1 };
+            target.count--;
+            if (target.count <= 0) equipment[index] = null;
+        } else {
+            cursorStack = cloneSlot(target);
+            equipment[index] = null;
+        }
+    }
+    saveEquipment();
+    renderSlots();
+}
 
 function loadData() {
     try {
@@ -253,10 +334,17 @@ function renderSlots() {
     if (!root) return;
     const storage = root.querySelector("#svi-storage");
     const hotbar = root.querySelector("#svi-hotbar");
-    if (!storage || !hotbar) return;
+    const armor = root.querySelector("#svi-armor");
+    const offhandOld = root.querySelector("#svi-offhand");
+    if (!storage || !hotbar || !armor || !offhandOld) return;
     storage.innerHTML = "";
     hotbar.innerHTML = "";
-    for (let i = HOTBAR_SIZE; i < INVENTORY_SIZE; i++) storage.appendChild(slotButton(i, `Storage slot ${i - HOTBAR_SIZE + 1}`));
+    armor.innerHTML = "";
+    for (let i = 0; i < 4; i++) armor.appendChild(equipmentSlotButton(i, ["Helmet","Chestplate","Leggings","Boots"][i]));
+    const offhandButton = equipmentSlotButton(4, "Offhand");
+    offhandButton.id = "svi-offhand";
+    offhandOld.replaceWith(offhandButton);
+    for (let i = HOTBAR_SIZE; i < INVENTORY_SIZE; i++) storage.appendChild(slotButton(i, `Inventory slot ${i - HOTBAR_SIZE + 1}`));
     for (let i = 0; i < HOTBAR_SIZE; i++) {
         const button = slotButton(i, `Hotbar slot ${i + 1}`);
         if (i === selectedHotbar) button.classList.add("selected");
@@ -543,30 +631,25 @@ function createUI() {
     root.id = "survivalInventoryScreen";
     root.innerHTML = `
       <div id="svi-panel">
-        <header id="svi-header"><span>Survival Inventory</span><button id="svi-close" type="button">×</button></header>
+        <header id="svi-header"><span>Inventory</span><button id="svi-close" type="button" aria-label="Close inventory">×</button></header>
         <div id="svi-top">
-          <section id="svi-player-box">
+          <section id="svi-player-box" aria-label="Character and equipment">
+            <div id="svi-armor"></div>
             <canvas id="svi-player-preview"></canvas>
-            <div id="svi-armor">
-              <div class="svi-armor-slot" title="Helmet">⛑</div>
-              <div class="svi-armor-slot" title="Chestplate">▣</div>
-              <div class="svi-armor-slot" title="Leggings">▥</div>
-              <div class="svi-armor-slot" title="Boots">◈</div>
-            </div>
-            <div id="svi-offhand" title="Off-hand">🛡</div>
-            <span class="svi-box-label">Character & Armor</span>
+            <div id="svi-offhand" title="Offhand"></div>
+            <span class="svi-box-label">Character</span>
           </section>
           <section id="svi-crafting">
             <div class="svi-section-title">Crafting</div>
             <div class="svi-craft-row"><div id="svi-craft-grid"></div><span class="svi-arrow">→</span><button id="svi-craft-output" class="svi-craft-output" type="button" aria-label="Crafting output"></button></div>
-            <button id="svi-recipe-book" type="button">📗 Recipe Book</button>
+            <button id="svi-recipe-book" type="button">Recipe Book</button>
             <div id="svi-recipe-panel" hidden>Basic recipes: Oak Log → 4 Oak Planks. Four Oak Planks → Crafting Table.</div>
           </section>
         </div>
-        <section id="svi-storage-section"><div class="svi-section-title">Inventory <small>Left click: move · Right click: half/place one · Shift click: quick move</small></div><div id="svi-storage"></div></section>
-        <section id="svi-hotbar-section"><div class="svi-section-title">Hotbar <small>1–9</small></div><div id="svi-hotbar"></div></section>
-        <div id="svi-actions"><button id="svi-trash" type="button" title="Delete held item">🗑 Delete</button><span>Double-click a stack to collect matching items.</span></div>
-      </div>`;
+        <section id="svi-storage-section"><div class="svi-section-title">Inventory</div><div id="svi-storage"></div></section>
+        <section id="svi-hotbar-section"><div class="svi-section-title">Hotbar</div><div id="svi-hotbar"></div></section>
+        <div id="svi-actions"><button id="svi-trash" type="button" title="Delete held item">Delete</button><span>Left click moves stacks · Right click takes half / places one · Shift click quick-moves.</span></div>
+      </div>`
     document.body.appendChild(root);
     ensureCursorUI();
 
@@ -628,6 +711,39 @@ function createUI() {
 #svi-actions span{line-height:1.25}
 }
 `;
+    style.textContent += `
+/* Bedrock-style Survival inventory skin */
+#survivalInventoryScreen{color:#404040;image-rendering:pixelated}
+#svi-panel{width:min(680px,84vw);height:min(960px,92vh);aspect-ratio:.71;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:8px 8px 0 rgba(0,0,0,.28);border-radius:0;gap:10px}
+#svi-header{color:#404040;text-shadow:1px 1px rgba(255,255,255,.55)}
+#svi-close{width:30px;height:28px;background:#C6C6C6;color:#404040;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:inset -2px -2px #555}
+#svi-top{grid-template-columns:1.08fr .92fr;gap:10px;min-height:265px}
+#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:none}
+#svi-player-box{grid-template-columns:48px 1fr;grid-template-rows:1fr 38px;min-height:265px}
+#svi-player-preview{background:#C6C6C6}
+#svi-armor{gap:5px;padding-right:4px}
+.svi-equipment-slot,.svi-craft-slot,.svi-craft-output{border:2px solid #373737;background:#8B8B8B;box-shadow:inset -2px -2px #FFFFFF;border-radius:0;color:#FFFFFF}
+.svi-equipment-slot{width:40px;height:40px}
+.svi-equipment-glyph{opacity:.65;text-shadow:1px 1px #3F3F3F}
+#svi-offhand{width:40px;height:40px}
+.svi-craft-output.ready{outline:3px solid #FFFFFF;outline-offset:-3px}
+#svi-recipe-book{background:#8B8B8B;color:#404040;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:inset -1px -1px #555}
+#svi-recipe-book.active{background:#FFFFFF}
+#svi-recipe-panel{background:#100010;border:1px solid #25015B;color:#FFFFFF;border-radius:0}
+#svi-storage,#svi-hotbar{grid-template-columns:repeat(9,minmax(38px,1fr));gap:4px}
+.svi-slot{background:#8B8B8B;border:2px solid #373737;border-top-color:#373737;border-left-color:#373737;box-shadow:inset -2px -2px #FFFFFF;border-radius:0}
+.svi-slot::after,.svi-equipment-slot::after,.svi-craft-slot::after,.svi-craft-output::after{background:rgba(255,255,255,0)}
+.svi-slot:hover::after,.svi-equipment-slot:hover::after,.svi-craft-slot:hover::after,.svi-craft-output:hover::after{background:rgba(255,255,255,.35)}
+.svi-slot.selected{border:3px solid #FFFFFF;box-shadow:inset 0 0 0 1px #373737}
+.svi-slot b,.svi-equipment-slot b,.svi-craft-slot b,.svi-craft-output b{color:#FFFFFF;text-shadow:1px 1px #3F3F3F}
+#svi-actions{color:#404040}
+#svi-trash{border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;background:#8B8B8B;color:#404040;border-radius:0;box-shadow:inset -1px -1px #555}
+#svi-cursor-stack{background:#8B8B8B;border:2px solid #373737;box-shadow:inset -2px -2px #FFFFFF;border-radius:0}
+@media(max-width:720px){
+#svi-panel{width:min(430px,92vw);height:min(760px,92vh);aspect-ratio:.71;padding:8px;gap:7px}
+#svi-storage,#svi-hotbar{grid-template-columns:repeat(9,minmax(28px,1fr));gap:3px}
+}
+`;
     document.head.appendChild(style);
 
     root.querySelector("#svi-close").addEventListener("click", close);
@@ -663,6 +779,7 @@ function close() {
 function openInventory() {
     if (!isInWorld() || !isSurvivalWorld()) return false;
     loadData();
+    loadEquipment();
     if (!root) createUI();
     renderSlots();
     root.classList.add("open");
@@ -704,6 +821,11 @@ function init() {
     }, true);
     window.addEventListener("webminecraft:inventorychanged", () => {
         loadData();
+        if (!open || !root || !isInWorld() || !isSurvivalWorld()) return;
+        renderSlots();
+    });
+    window.addEventListener("webminecraft:equipmentchanged", () => {
+        loadEquipment();
         if (!open || !root || !isInWorld() || !isSurvivalWorld()) return;
         renderSlots();
     });
