@@ -636,10 +636,6 @@ function updateCraftResult() {
     }
 
     // Four total wooden planks anywhere in the 2x2 grid craft one Crafting Table.
-    // This supports both the normal 2x2 arrangement and a full dragged stack in one slot.
-    const plankIds = new Set([13, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
-
-    // Four total wooden planks anywhere in the 2x2 grid craft one Crafting Table.
     // This is checked before the stick recipe so four planks produce the table.
     const plankIds = new Set([13, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
 
