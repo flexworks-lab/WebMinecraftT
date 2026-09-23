@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { isSurvivalWorld } from "./survivalMode.js";
 import { getInventoryItem } from "./inventory.js";
+import { createAvatar } from "./multiplayerAvatars.js";
 
 const ITEM_DEFS = [
     { id: 1, name: "Grass Block", texture: "grass_block_side.png" },
@@ -472,22 +473,39 @@ function renderCrafting() {
     output.oncontextmenu = event => event.preventDefault();
 }
 
+function getSurvivalAvatarIdentity() {
+    const seed = (() => {
+        try {
+            const value = Number(new URLSearchParams(window.location.search).get("seed"));
+            return Number.isFinite(value) ? Math.floor(Math.abs(value)) >>> 0 : 0;
+        } catch {
+            return 0;
+        }
+    })();
+    const playerId = String(
+        window.__webminecraftMultiplayerPlayerId
+        || window.__webminecraftPlayerId
+        || `survival-${seed}`
+    );
+    const playerName = String(
+        window.__webminecraftPlayerName
+        || window.__webminecraftUsername
+        || window.__webminecraftAccountName
+        || "Player"
+    ).slice(0, 16);
+    return { playerId, playerName };
+}
+
 function makePlayerModel() {
-    const group = new THREE.Group();
-    const skin = new THREE.MeshLambertMaterial({ color: 0xd39a72 });
-    const shirt = new THREE.MeshLambertMaterial({ color: 0x3f6fa2 });
-    const pants = new THREE.MeshLambertMaterial({ color: 0x273b53 });
-    const hair = new THREE.MeshLambertMaterial({ color: 0x2a1a12 });
-    const head = new THREE.Mesh(new THREE.BoxGeometry(.82,.82,.82), [skin,skin,skin,skin,hair,skin]);
-    head.position.y = 2.25;
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(.96,1,.55), shirt); torso.position.y = 1.35;
-    const armL = new THREE.Mesh(new THREE.BoxGeometry(.36,1,.5), shirt); armL.position.set(-.66,1.35,0);
-    const armR = armL.clone(); armR.position.x = .66;
-    const legL = new THREE.Mesh(new THREE.BoxGeometry(.42,1,.48), pants); legL.position.set(-.25,.35,0);
-    const legR = legL.clone(); legR.position.x = .25;
-    group.add(head,torso,armL,armR,legL,legR);
-    group.traverse(object => { if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; } });
-    return group;
+    const { playerId, playerName } = getSurvivalAvatarIdentity();
+    const avatar = createAvatar(playerId, playerName);
+    avatar.group.traverse(object => {
+        if (object.isSprite) {
+            object.visible = false;
+        }
+    });
+    avatar.group.scale.setScalar(1.25);
+    return avatar.group;
 }
 function startPreview() {
     const canvas = root?.querySelector("#svi-player-preview");

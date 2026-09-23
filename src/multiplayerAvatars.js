@@ -252,7 +252,7 @@ function makeMaterial(textureOrColor, options = {}) {
     return new THREE.MeshLambertMaterial({ color: textureOrColor, ...options });
 }
 
-function createAvatar(id, name) {
+export function createAvatar(id, name) {
     const rng = makeRng(hashString(id));
     const skinColor = SKIN_COLORS[Math.floor(rng() * SKIN_COLORS.length)];
     const hairColor = HAIR_COLORS[Math.floor(rng() * HAIR_COLORS.length)];
