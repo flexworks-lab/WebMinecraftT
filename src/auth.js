@@ -13,6 +13,7 @@ let friendRequestKnown = new Map();
 let friendNotificationCount = 0;
 let startupAuthStateResolved = false;
 let startupPlayerSyncUserId = null;
+let pendingSignupProfile = null;
 
 function loadFirebaseScript(src) {
     if (!window.__webMinecraftFirebaseLoads) window.__webMinecraftFirebaseLoads = new Map();
@@ -51,34 +52,57 @@ function makeFriendCode(uid) {
 
 function getFriendCode() { return friendCode || (currentUser?.uid ? makeFriendCode(currentUser.uid) : ""); }
 
-async function syncUserProfile(user) {
+async function syncUserProfile(user, profileOverride = null) {
     if (!user?.uid || !user?.email || !window.firebase?.firestore) return;
     const db = window.firebase.firestore();
     const code = makeFriendCode(user.uid);
     friendCode = code;
     resetPlayerDataSyncCancellation();
-    showPlayerDataSync("Connecting to the player data service...");
+    showPlayerDataSync("Player data is syncing…");
     try {
-        setPlayerDataSyncProgress(15, "Preparing your player profile...");
+        setPlayerDataSyncProgress(12, "Loading your player profile…");
+        if (isPlayerDataSyncCancelled()) return;
+
+        let existing = {};
+        try {
+            const existingSnap = await db.collection("profiles").doc(user.uid).get();
+            if (existingSnap.exists) existing = existingSnap.data() || {};
+        } catch {}
+
+        const username = String(profileOverride?.username || existing.username || "").trim();
+        const nickname = String(profileOverride?.nickname || existing.nickname || user.displayName || "Player").trim() || "Player";
+        const usernameLower = username.toLowerCase();
+
+        setPlayerDataSyncProgress(45, "Saving your player profile…");
         if (isPlayerDataSyncCancelled()) return;
         await db.collection("profiles").doc(user.uid).set({
             uid: user.uid,
             email: user.email,
-            displayName: user.displayName || "",
+            username,
+            usernameLower,
+            nickname,
+            displayName: nickname,
             photoURL: user.photoURL || "",
             updatedAt: new Date()
         }, { merge: true });
-        setPlayerDataSyncProgress(55, "Saving your public player profile...");
+
+        setPlayerDataSyncProgress(72, "Saving your public player profile…");
         if (isPlayerDataSyncCancelled()) return;
         await db.collection("publicProfiles").doc(user.uid).set({
             uid: user.uid,
-            displayName: user.displayName || "Player",
+            username,
+            usernameLower,
+            nickname,
+            displayName: nickname,
             photoURL: user.photoURL || "",
             friendCode: code,
             updatedAt: new Date()
         }, { merge: true });
+
+        try { if (user.displayName !== nickname) await user.updateProfile({ displayName: nickname }); } catch {}
+
         setPlayerDataSyncProgress(100, "Player data synced successfully.");
-        setTimeout(hidePlayerDataSync, 220);
+        setTimeout(hidePlayerDataSync, 500);
     } catch (error) {
         console.warn("Could not sync account profile:", error);
         setPlayerDataSyncProgress(100, "Player data could not be synced.");
@@ -112,12 +136,17 @@ async function initFirebase() {
             loadFirebaseScript(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore-compat.js`)
         ]);
         auth = window.firebase.auth(app);
-        // Always use Firebase's durable browser persistence so a signed-in
-        // player stays signed in after refreshing or reopening the game.
+        // Keep sign-in persistent, but clear the previously saved browser
+        // session once so the new username/nickname account format starts clean.
         try {
             await auth.setPersistence("local");
+            const resetKey = "webminecraft_login_data_reset_v1";
+            if (!localStorage.getItem(resetKey)) {
+                await auth.signOut().catch(() => {});
+                localStorage.setItem(resetKey, "1");
+            }
         } catch (error) {
-            console.warn("Could not enable persistent sign-in:", error);
+            console.warn("Could not configure saved login persistence:", error);
         }
         auth.onAuthStateChanged(user => {
             currentUser = user || null;
@@ -134,7 +163,9 @@ async function initFirebase() {
             friendNotificationCount = 0;
             updateFriendBadge();
             if (user) {
-                syncUserProfile(user);
+                const signupProfile = pendingSignupProfile;
+                pendingSignupProfile = null;
+                syncUserProfile(user, signupProfile);
                 startFriendRequestListener(user);
             } else {
                 stopFriendRequestListener();
@@ -213,6 +244,10 @@ function addStyles() {
 .friendEmpty{padding:10px;color:#888;background:#181818;border:1px solid #333;font-size:11px}
 #accountClose{background:#454545}
 #accountLoading{font-size:12px;color:#aaa;text-align:center;padding:10px 0}
+#signupFields{display:none}
+#signupFields.visible{display:block}
+.signupHint{margin:-2px 0 9px;color:#888;font-size:10px;line-height:1.35}
+.signupFieldLabel{display:block;margin:9px 0 5px;color:#bbb;font-size:10px;text-transform:uppercase;letter-spacing:.6px}
 @media(max-width:560px){#accountButton{top:76px;right:12px}.friendRequestBadge{min-width:17px;height:17px}#friendRequestToast{top:76px;right:12px;width:calc(100vw - 24px)}}
 `;
     document.head.appendChild(style);
@@ -227,7 +262,7 @@ function createUi() {
     const modal = document.createElement("div"); modal.id = "accountModal";
     modal.innerHTML = `
 <div id="accountPanel">
-<section id="accountLoginView"><h2 id="accountTitle">Player Account</h2><p id="accountSubtitle">Save your profile and use the same account across devices.</p><input id="accountEmailInput" class="accountField" type="email" autocomplete="email" placeholder="Email"><input id="accountPasswordInput" class="accountField" type="password" autocomplete="current-password" placeholder="Password"><button id="accountSubmit" class="accountAction accountPrimary" type="button">Log In</button><button id="accountGoogle" class="accountAction googleAction oauthAction" type="button"><span class="oauthIcon googleIcon">G</span><span>Continue with Google</span></button><button id="accountYahoo" class="accountAction oauthAction yahooAction" type="button"><span class="oauthIcon yahooIcon">Y!</span><span>Continue with Yahoo</span></button><button id="accountGithub" class="accountAction oauthAction githubAction" type="button"><span class="oauthIcon githubIcon">●</span><span>Continue with GitHub</span></button><button id="accountPlayGames" class="accountAction oauthAction playGamesAction" type="button"><span class="oauthIcon playGamesIcon">🎮</span><span>Continue with Google Play Games</span></button><button id="accountForgot" type="button">Forgot password?</button><div id="accountSwitch">New here? <button id="accountSwitchButton" type="button">Create an account</button></div><div id="accountMessage"></div><button id="accountClose" class="accountAction" type="button">Close</button></section>
+<section id="accountLoginView"><h2 id="accountTitle">Player Account</h2><p id="accountSubtitle">Save your profile and use the same account across devices.</p><div id="signupFields"><label class="signupFieldLabel" for="accountUsernameInput">Username</label><input id="accountUsernameInput" class="accountField" type="text" maxlength="16" autocomplete="username" spellcheck="false" placeholder="Choose a username"><div class="signupHint">3–16 characters. Letters, numbers, and underscores.</div><label class="signupFieldLabel" for="accountNicknameInput">Nickname</label><input id="accountNicknameInput" class="accountField" type="text" maxlength="20" autocomplete="nickname" placeholder="Choose a nickname"></div><input id="accountEmailInput" class="accountField" type="email" autocomplete="email" placeholder="Email"><input id="accountPasswordInput" class="accountField" type="password" autocomplete="current-password" placeholder="Password"><button id="accountSubmit" class="accountAction accountPrimary" type="button">Log In</button><button id="accountGoogle" class="accountAction googleAction oauthAction" type="button"><span class="oauthIcon googleIcon">G</span><span>Continue with Google</span></button><button id="accountYahoo" class="accountAction oauthAction yahooAction" type="button"><span class="oauthIcon yahooIcon">Y!</span><span>Continue with Yahoo</span></button><button id="accountGithub" class="accountAction oauthAction githubAction" type="button"><span class="oauthIcon githubIcon">●</span><span>Continue with GitHub</span></button><button id="accountPlayGames" class="accountAction oauthAction playGamesAction" type="button"><span class="oauthIcon playGamesIcon">🎮</span><span>Continue with Google Play Games</span></button><button id="accountForgot" type="button">Forgot password?</button><div id="accountSwitch">New here? <button id="accountSwitchButton" type="button">Create an account</button></div><div id="accountMessage"></div><button id="accountClose" class="accountAction" type="button">Close</button></section>
 <section id="accountUser"><h2 id="accountTitle">Your Account</h2><img id="accountAvatar" alt=""><div id="accountName"></div><div id="accountEmail"></div><div id="friendCodeBox"><div id="friendCodeLabel">Your Friend Code</div><div id="friendCodeValue">--------</div><button id="friendCopy" class="accountAction accountPrimary" type="button">Copy Friend Code</button></div><div class="friendSection"><div class="friendSectionTitle">Add a Friend</div><input id="friendCodeInput" class="accountField" maxlength="9" autocomplete="off" placeholder="Enter friend code"><button id="friendAdd" class="accountAction accountPrimary" type="button">Send Friend Request</button></div><div class="friendSection"><div class="friendSectionTitle">Friend Requests</div><div id="friendRequests"><div class="friendEmpty">No pending requests.</div></div></div><div class="friendSection"><div class="friendSectionTitle">Friends</div><div id="friendList"><div class="friendEmpty">No friends yet.</div></div></div><button id="accountLogout" class="accountAction accountPrimary" type="button">Log Out</button><button id="accountCloseUser" class="accountAction" type="button">Close</button></section>
 <div id="accountLoading">Connecting to account service…</div></div>`;
     document.body.appendChild(modal);
@@ -240,8 +275,62 @@ function createUi() {
     modal.querySelector("#friendAdd").addEventListener("click", sendFriendRequest);
     let signUpMode = false;
     const submit = modal.querySelector("#accountSubmit"), switchButton = modal.querySelector("#accountSwitchButton"), password = modal.querySelector("#accountPasswordInput"), email = modal.querySelector("#accountEmailInput");
-    switchButton.addEventListener("click", () => { signUpMode = !signUpMode; submit.textContent = signUpMode ? "Sign Up" : "Log In"; password.autocomplete = signUpMode ? "new-password" : "current-password"; password.placeholder = signUpMode ? "Create a password" : "Password"; switchButton.textContent = signUpMode ? "Log in instead" : "Create an account"; modal.querySelector("#accountSwitch").firstChild.textContent = signUpMode ? "Already have an account? " : "New here? "; setMessage(""); });
-    submit.addEventListener("click", async () => { if (!(await ensureReady())) return; const emailValue = email.value.trim(), passwordValue = password.value; if (!emailValue || !passwordValue) return setMessage("Enter your email and password."); try { submit.disabled = true; if (signUpMode) await auth.createUserWithEmailAndPassword(emailValue, passwordValue); else await auth.signInWithEmailAndPassword(emailValue, passwordValue); setMessage(""); } catch (error) { setMessage(error); } finally { submit.disabled = false; } });
+    const signupFields = modal.querySelector("#signupFields"), username = modal.querySelector("#accountUsernameInput"), nickname = modal.querySelector("#accountNicknameInput");
+    switchButton.addEventListener("click", () => {
+        signUpMode = !signUpMode;
+        submit.textContent = signUpMode ? "Sign Up" : "Log In";
+        password.autocomplete = signUpMode ? "new-password" : "current-password";
+        password.placeholder = signUpMode ? "Create a password" : "Password";
+        switchButton.textContent = signUpMode ? "Log in instead" : "Create an account";
+        modal.querySelector("#accountSwitch").firstChild.textContent = signUpMode ? "Already have an account? " : "New here? ";
+        signupFields.classList.toggle("visible", signUpMode);
+        setMessage("");
+    });
+    submit.addEventListener("click", async () => {
+        if (!(await ensureReady())) return;
+        const emailValue = email.value.trim();
+        const passwordValue = password.value;
+        if (!emailValue || !passwordValue) return setMessage("Enter your email and password.");
+
+        let usernameValue = "";
+        let nicknameValue = "";
+        if (signUpMode) {
+            usernameValue = username.value.trim();
+            nicknameValue = nickname.value.trim();
+            if (!/^[A-Za-z0-9_]{3,16}$/.test(usernameValue)) return setMessage("Username must be 3–16 characters using letters, numbers, or underscores.");
+            if (nicknameValue.length < 1 || nicknameValue.length > 20) return setMessage("Nickname must be 1–20 characters.");
+            try {
+                const existingUsername = await window.firebase.firestore().collection("usernames").doc(usernameValue.toLowerCase()).get();
+                if (existingUsername.exists) return setMessage("That username is already taken.");
+            } catch {
+                return setMessage("Could not check username availability. Try again.");
+            }
+        }
+
+        try {
+            submit.disabled = true;
+            if (signUpMode) {
+                pendingSignupProfile = { username: usernameValue, nickname: nicknameValue };
+                const credential = await auth.createUserWithEmailAndPassword(emailValue, passwordValue);
+                const createdUser = credential?.user || auth.currentUser;
+                if (!createdUser) throw new Error("Account creation failed.");
+                await window.firebase.firestore().collection("usernames").doc(usernameValue.toLowerCase()).set({
+                    uid: createdUser.uid,
+                    username: usernameValue,
+                    createdAt: new Date()
+                });
+                pendingSignupProfile = { username: usernameValue, nickname: nicknameValue };
+            } else {
+                await auth.signInWithEmailAndPassword(emailValue, passwordValue);
+            }
+            setMessage("");
+        } catch (error) {
+            pendingSignupProfile = null;
+            setMessage(error);
+        } finally {
+            submit.disabled = false;
+        }
+    });
     modal.querySelector("#accountGoogle").addEventListener("click", async () => { if (!(await ensureReady())) return; try { await auth.signInWithPopup(new window.firebase.auth.GoogleAuthProvider()); } catch (error) { setMessage(error); } });
     modal.querySelector("#accountYahoo").addEventListener("click", () => signInWithOAuth("yahoo.com", "Yahoo"));
     modal.querySelector("#accountGithub").addEventListener("click", () => signInWithOAuth("github.com", "GitHub"));
@@ -267,7 +356,7 @@ function setMessage(value) {
     const el = document.getElementById("accountMessage"); if (!el) return;
     if (!value) { el.textContent = ""; return; }
     if (typeof value === "string") { el.textContent = value; return; }
-    const messages = { "auth/invalid-email":"That email address is not valid.", "auth/user-not-found":"No account was found with that email.", "auth/wrong-password":"That password is incorrect.", "auth/invalid-credential":"The email or password is incorrect.", "auth/email-already-in-use":"That email is already in use.", "auth/weak-password":"Use a stronger password.", "auth/popup-closed-by-user":"Sign-in was closed.", "auth/operation-not-allowed":"This sign-in method is not enabled yet." };
+    const messages = { "auth/invalid-email":"That email address is not valid.", "auth/user-not-found":"No account was found with that email.", "auth/wrong-password":"That password is incorrect.", "auth/invalid-credential":"The email or password is incorrect.", "auth/email-already-in-use":"That email is already in use.", "auth/weak-password":"Use a stronger password.", "auth/popup-closed-by-user":"Sign-in was closed.", "auth/operation-not-allowed":"This sign-in method is not enabled yet.","auth/network-request-failed":"Network error. Check your connection and try again." };
     el.textContent = messages[value?.code] || value?.message || "Something went wrong. Please try again.";
 }
 
