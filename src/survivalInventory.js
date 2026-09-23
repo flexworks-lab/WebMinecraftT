@@ -642,6 +642,28 @@ function handleCraftSlot(index, button = 0) {
 function takeCraftOutput() {
     updateCraftResult();
     if (!craftOutput) return;
+
+    // Desktop uses the same native drag/drop workflow as Creative.
+    // Never move a crafted result into the legacy cursorStack on desktop.
+    if (!document.body.classList.contains("mobile-mode")) {
+        const resultStack = cloneSlot(craftOutput);
+        const leftover = insertStack(resultStack);
+        if (leftover) return;
+
+        for (const ingredient of craftOutput.recipe) {
+            const slot = craftData[ingredient.index];
+            if (!slot) continue;
+            slot.count -= ingredient.amount;
+            if (slot.count <= 0) craftData[ingredient.index] = null;
+        }
+        saveData();
+        updateCraftResult();
+        renderCrafting();
+        renderSlots();
+        return;
+    }
+
+    // Mobile keeps the touch-friendly held-stack behavior.
     if (cursorStack && (!sameItem(cursorStack, craftOutput) || cursorStack.count + craftOutput.count > MAX_STACK)) return;
     if (!cursorStack) cursorStack = cloneSlot(craftOutput);
     else cursorStack.count += craftOutput.count;
@@ -663,9 +685,10 @@ function renderCrafting() {
     updateCraftResult();
     craft.innerHTML = "";
     for (let i = 0; i < 4; i++) craft.appendChild(renderCraftSlot(i));
-    output.innerHTML = craftOutput ? itemHtml(craftOutput) : "";
+    output.innerHTML = craftOutput ? itemHtml(craftOutput, { craftSlot: true }) : "";
     output.title = craftOutput ? `Craft ${itemDef(craftOutput.itemId)?.name || "item"}` : "Crafting output";
     output.classList.toggle("ready", !!craftOutput);
+    output.draggable = false;
     output.onclick = event => {
         event.preventDefault();
         event.stopPropagation();
@@ -863,7 +886,9 @@ function createUI() {
 .svi-slot.dragging,.svi-craft-slot.dragging{opacity:.45}
 .svi-craft-slot{position:relative;overflow:hidden;contain:layout paint;isolation:isolate}
 .svi-craft-item{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;inset:auto !important;width:30px !important;height:30px !important;max-width:30px !important;max-height:30px !important;object-fit:contain !important;object-position:center !important;display:block !important;margin:auto !important;transform:none !important;overflow:hidden !important;z-index:1}
-.svi-craft-slot .svi-craft-item{pointer-events:none}
+.svi-craft-slot .svi-craft-item,.svi-craft-output .svi-craft-item{pointer-events:none}
+.svi-craft-output{position:relative;overflow:hidden;contain:layout paint;isolation:isolate}
+.svi-craft-output .svi-craft-item{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;inset:auto !important;width:34px !important;height:34px !important;max-width:34px !important;max-height:34px !important;object-fit:contain !important;object-position:center !important;display:block !important;margin:auto !important;transform:none !important;z-index:1}
 .svi-craft-slot b{z-index:2}
 `;
     document.head.appendChild(style);
