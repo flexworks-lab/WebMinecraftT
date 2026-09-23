@@ -261,10 +261,29 @@ function updateDepthLighting() {
 
     const profile = getLightingProfile();
 
-    // Sky visibility is now the main cave/open-air factor. A large opening
-    // quickly returns to normal daylight, while a small enclosed hole becomes
-    // dark even when the player is not far below the surface.
+    // Keep the sky-opening system as the main source of daylight, then add a
+    // smooth depth falloff. This means a large opening can still illuminate a
+    // deep cave, but going farther underground naturally makes it darker.
     const openingLight = smoothStep(0.10, 0.76, cachedSkyVisibility);
+
+    let undergroundDepth = 0;
+    if (!document.body.classList.contains("webminecraft-flat")) {
+        const terrain = getTerrainProfile(x, z);
+        const playerFeetY = y - 1.8;
+        const surfaceY = Number(terrain?.height);
+        if (Number.isFinite(surfaceY)) {
+            undergroundDepth = Math.max(0, surfaceY + 1 - playerFeetY);
+        }
+    }
+
+    // The first few blocks below the surface change gently; deeper areas keep
+    // getting darker without becoming completely black.
+    const depthT = smoothStep(0, 40, undergroundDepth);
+    const depthSunFactor = THREE.MathUtils.lerp(1, 0.34, depthT);
+    const depthSkyFactor = THREE.MathUtils.lerp(1, 0.52, depthT);
+    const depthAmbientFactor = THREE.MathUtils.lerp(1, 0.70, depthT);
+    const depthFillFactor = THREE.MathUtils.lerp(1, 0.58, depthT);
+
     const sunOpeningFactor = THREE.MathUtils.lerp(0.10, 1, openingLight);
     const skyOpeningFactor = THREE.MathUtils.lerp(0.16, 1, openingLight);
     const ambientOpeningFactor = THREE.MathUtils.lerp(0.20, 1, openingLight);
@@ -275,15 +294,16 @@ function updateDepthLighting() {
     const waterAmbientFactor = cachedUnderwater ? 0.50 : 1;
     const waterFillFactor = cachedUnderwater ? 0.18 : 1;
 
-    const targetSun = profile.sun * sunOpeningFactor * waterSunFactor;
-    const targetSky = profile.sky * skyOpeningFactor * waterSkyFactor;
-    const targetAmbient = profile.ambient * ambientOpeningFactor * waterAmbientFactor;
-    const targetFill = profile.fill * fillOpeningFactor * waterFillFactor;
+    const targetSun = profile.sun * sunOpeningFactor * depthSunFactor * waterSunFactor;
+    const targetSky = profile.sky * skyOpeningFactor * depthSkyFactor * waterSkyFactor;
+    const targetAmbient = profile.ambient * ambientOpeningFactor * depthAmbientFactor * waterAmbientFactor;
+    const targetFill = profile.fill * fillOpeningFactor * depthFillFactor * waterFillFactor;
 
     const exposureBase = 0.98 + settings.brightness * 0.30;
-    const caveExposure = THREE.MathUtils.lerp(0.70, 1, openingLight);
+    const caveExposure = THREE.MathUtils.lerp(0.58, 1, openingLight);
+    const depthExposure = THREE.MathUtils.lerp(0.72, 1, 1 - depthT);
     const underwaterExposure = cachedUnderwater ? 0.66 : 1;
-    const targetExposure = exposureBase * caveExposure * underwaterExposure;
+    const targetExposure = exposureBase * caveExposure * depthExposure * underwaterExposure;
 
     const lightingKey = [
         Math.round(targetSun * 100),
@@ -293,6 +313,8 @@ function updateDepthLighting() {
         Math.round(targetExposure * 100),
         Math.round(openingLight * 100),
         Math.round(cachedSkyVisibility * 100),
+        Math.round(undergroundDepth * 10),
+        Math.round(depthT * 100),
         cachedUnderwater
     ].join("|");
 
@@ -312,12 +334,13 @@ function updateDepthLighting() {
         scene.fog.color.lerpColors(skyColor, underwaterColor, 0.98);
         scene.fog.near = 1.8;
         scene.fog.far = 26;
-    } else if (openingLight < 0.92) {
+    } else if (openingLight < 0.92 || depthT > 0.02) {
         const caveAmount = 1 - openingLight;
+        const depthFog = depthT;
         scene.background.copy(skyColor);
         scene.fog.color.copy(caveFogColor);
-        scene.fog.near = THREE.MathUtils.lerp(55, 9, caveAmount);
-        scene.fog.far = THREE.MathUtils.lerp(175, 52, caveAmount);
+        scene.fog.near = THREE.MathUtils.lerp(55, 8, Math.max(caveAmount, depthFog * 0.65));
+        scene.fog.far = THREE.MathUtils.lerp(175, 44, Math.max(caveAmount, depthFog * 0.65));
     } else {
         scene.background.copy(skyColor);
         scene.fog.color.copy(skyColor);
