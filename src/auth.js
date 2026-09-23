@@ -1,4 +1,5 @@
 import { firebaseConfig, isFirebaseConfigured } from "./firebaseConfig.js";
+import { hidePlayerDataSync, isPlayerDataSyncCancelled, resetPlayerDataSyncCancellation, setPlayerDataSyncProgress, showPlayerDataSync } from "./playerDataSyncUi.js";
 
 let firebaseReady = false;
 let auth = null;
@@ -53,10 +54,33 @@ async function syncUserProfile(user) {
     const db = window.firebase.firestore();
     const code = makeFriendCode(user.uid);
     friendCode = code;
+    resetPlayerDataSyncCancellation();
+    showPlayerDataSync("Connecting to the player data service...");
     try {
-        await db.collection("profiles").doc(user.uid).set({ uid: user.uid, email: user.email, displayName: user.displayName || "", photoURL: user.photoURL || "", updatedAt: new Date() }, { merge: true });
-        await db.collection("publicProfiles").doc(user.uid).set({ uid: user.uid, displayName: user.displayName || "Player", photoURL: user.photoURL || "", friendCode: code, updatedAt: new Date() }, { merge: true });
-    } catch (error) { console.warn("Could not sync account profile:", error); }
+        setPlayerDataSyncProgress(15, "Preparing your player profile...");
+        if (isPlayerDataSyncCancelled()) return;
+        await db.collection("profiles").doc(user.uid).set({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || "",
+            photoURL: user.photoURL || "",
+            updatedAt: new Date()
+        }, { merge: true });
+        setPlayerDataSyncProgress(55, "Saving your public player profile...");
+        if (isPlayerDataSyncCancelled()) return;
+        await db.collection("publicProfiles").doc(user.uid).set({
+            uid: user.uid,
+            displayName: user.displayName || "Player",
+            photoURL: user.photoURL || "",
+            friendCode: code,
+            updatedAt: new Date()
+        }, { merge: true });
+        setPlayerDataSyncProgress(100, "Player data synced successfully.");
+        setTimeout(hidePlayerDataSync, 220);
+    } catch (error) {
+        console.warn("Could not sync account profile:", error);
+        setPlayerDataSyncProgress(100, "Player data could not be synced.");
+    }
 }
 
 async function initFirebase() {
