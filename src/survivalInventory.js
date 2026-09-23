@@ -575,7 +575,7 @@ function createUI() {
     style.textContent = `
 #survivalInventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000000;font-family:Arial,sans-serif;color:#fff;touch-action:none}
 #survivalInventoryScreen.open{display:flex}
-#svi-panel{width:min(790px,92vw);height:min(600px,90vh);box-sizing:border-box;padding:10px;background:linear-gradient(#555,#444);border:2px solid #262626;border-top-color:#a8a8a8;border-left-color:#a8a8a8;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset 1px 1px #777;display:flex;flex-direction:column;gap:8px;overflow:auto;border-radius:4px;touch-action:pan-y}
+#svi-panel{width:min(610px,78vw);height:min(860px,92vh);aspect-ratio:0.71;box-sizing:border-box;padding:10px;background:linear-gradient(#555,#444);border:2px solid #262626;border-top-color:#a8a8a8;border-left-color:#a8a8a8;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset 1px 1px #777;display:flex;flex-direction:column;gap:7px;overflow:auto;border-radius:4px;touch-action:pan-y}
 #svi-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;text-shadow:2px 2px #111;min-height:30px}
 #svi-close{width:32px;height:30px;background:#888;color:#fff;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;border-radius:3px;font-size:22px;line-height:22px;cursor:pointer;box-shadow:inset -1px -1px #333}
 #svi-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:205px}
@@ -599,8 +599,8 @@ function createUI() {
 #svi-recipe-book.active{background:#6cad6c}
 #svi-recipe-panel{width:100%;margin-top:5px;padding:6px;background:#2d2d2d;border:1px solid #6a6a6a;color:#ddd;font-size:10px;text-align:center;border-radius:2px}
 #svi-storage-section{flex:1;min-height:174px}
-#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(34px,1fr));gap:4px}
-.svi-slot{position:relative;aspect-ratio:1;background:#989898;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(28px,1fr));gap:3px}
+.svi-slot{position:relative;aspect-ratio:1;background:#989898;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px;touch-action:manipulation;user-select:none;-webkit-user-select:none;max-width:44px;justify-self:center;width:100%}
 .svi-slot:hover{filter:brightness(1.12)}
 .svi-slot.selected{border:2px solid #fff;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111}
 .svi-item{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:cover;object-position:center;image-rendering:pixelated;pointer-events:none}
@@ -616,7 +616,7 @@ function createUI() {
 #svi-cursor-stack{display:none;position:fixed;width:54px;height:54px;z-index:2147483647;pointer-events:none;background:#989898;border:2px solid #ddd;box-sizing:border-box;border-radius:2px;box-shadow:3px 3px 0 rgba(0,0,0,.3)}
 #svi-cursor-stack.visible{display:block}
 @media(max-width:720px){
-#svi-panel{width:min(520px,94vw);height:90vh;padding:8px;gap:6px}
+#svi-panel{width:min(430px,92vw);height:min(760px,92vh);aspect-ratio:0.71;padding:8px;gap:6px}
 #svi-top{grid-template-columns:1fr;min-height:0;gap:6px}
 #svi-player-box{min-height:180px}
 #svi-player-preview{min-height:120px}
