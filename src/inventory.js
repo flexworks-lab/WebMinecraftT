@@ -190,6 +190,7 @@ let heldTextureCache = new Map();
 
 function textureUrl(texture) { return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(texture)}`; }
 function getItem(itemId) { return ITEM_TYPES.find(item => item.id === Number(itemId)) || null; }
+export function getInventoryItem(itemId) { return getItem(itemId); }
 function normalizeSlot(slot) {
     if (!slot || !Number.isFinite(Number(slot.itemId)) || !Number.isFinite(Number(slot.count))) return null;
     const itemId = Math.floor(Number(slot.itemId));

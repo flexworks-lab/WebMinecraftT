@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { isSurvivalWorld } from "./survivalMode.js";
+import { getInventoryItem } from "./inventory.js";
 
 const ITEM_DEFS = [
     { id: 1, name: "Grass Block", texture: "grass_block_side.png" },
@@ -88,6 +89,10 @@ const ITEM_DEFS = [
     { id: 84, name: "Warped Planks Stairs", texture: "warped_planks.png" }
 ];
 
+const INVENTORY_SIZE = 36;
+const HOTBAR_SIZE = 9;
+const MAX_STACK = 64;
+
 let root = null;
 let previewRenderer = null;
 let previewScene = null;
@@ -97,86 +102,376 @@ let previewFrame = 0;
 let open = false;
 let data = [];
 let selectedHotbar = 0;
+let cursorStack = null;
+let craftData = Array.from({ length: 4 }, () => null);
+let craftOutput = null;
+let cursorElement = null;
 
 function isInWorld() { return document.body.classList.contains("webminecraft-in-world"); }
-function textureUrl(name) { return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}`; }
-function itemDef(id) { return ITEM_DEFS.find(item => item.id === Number(id)); }
+function textureUrl(name) { return name ? `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}` : ""; }
+function itemDef(id) { return getInventoryItem(id) || ITEM_DEFS.find(item => item.id === Number(id)) || null; }
+
 function normalizeSlot(slot) {
     if (!slot || !Number.isFinite(Number(slot.itemId)) || !Number.isFinite(Number(slot.count))) return null;
     const item = itemDef(slot.itemId);
     if (!item) return null;
-    return { itemId: Number(slot.itemId), count: Math.max(1, Math.min(64, Math.floor(Number(slot.count)))), texture: slot.texture || item.texture || null };
+    return {
+        itemId: Math.floor(Number(slot.itemId)),
+        count: Math.max(1, Math.min(MAX_STACK, Math.floor(Number(slot.count)))),
+        texture: slot.texture || item.texture || null
+    };
 }
+function cloneSlot(slot) { return slot ? { itemId: slot.itemId, count: slot.count, texture: slot.texture || itemDef(slot.itemId)?.texture || null } : null; }
+function sameItem(a, b) { return !!a && !!b && Number(a.itemId) === Number(b.itemId); }
+
 function loadData() {
     try {
         const saved = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
-        data = Array.isArray(saved) && saved.length === 36 ? saved.map(normalizeSlot) : Array.from({ length: 36 }, () => null);
-    } catch { data = Array.from({ length: 36 }, () => null); }
+        data = Array.isArray(saved) && saved.length === INVENTORY_SIZE
+            ? saved.map(normalizeSlot)
+            : Array.from({ length: INVENTORY_SIZE }, () => null);
+    } catch {
+        data = Array.from({ length: INVENTORY_SIZE }, () => null);
+    }
 }
 function saveData() {
     data = data.map(normalizeSlot);
     try { localStorage.setItem("webminecraft_inventory", JSON.stringify(data)); } catch {}
     window.dispatchEvent(new CustomEvent("webminecraft:inventorychanged"));
 }
+function insertStack(stack, start = 0, end = INVENTORY_SIZE) {
+    let left = stack?.count || 0;
+    if (!left) return null;
+    const item = itemDef(stack.itemId);
+    if (!item) return stack;
+    for (let i = start; i < end && left > 0; i++) {
+        const target = data[i];
+        if (!target || !sameItem(target, stack) || target.count >= MAX_STACK) continue;
+        const add = Math.min(left, MAX_STACK - target.count);
+        target.count += add;
+        left -= add;
+    }
+    for (let i = start; i < end && left > 0; i++) {
+        if (data[i]) continue;
+        const add = Math.min(left, MAX_STACK);
+        data[i] = { itemId: Number(stack.itemId), count: add, texture: stack.texture || item.texture || null };
+        left -= add;
+    }
+    return left > 0 ? { ...cloneSlot(stack), count: left } : null;
+}
+function depositCraftAndCursor() {
+    let changed = false;
+    for (let i = 0; i < craftData.length; i++) {
+        if (!craftData[i]) continue;
+        const leftover = insertStack(craftData[i]);
+        if (!leftover) {
+            craftData[i] = null;
+            changed = true;
+        } else if (leftover.count !== craftData[i].count) {
+            craftData[i] = leftover;
+            changed = true;
+        }
+    }
+    if (cursorStack) {
+        const leftover = insertStack(cursorStack);
+        if (!leftover) {
+            cursorStack = null;
+            changed = true;
+        } else if (leftover.count !== cursorStack.count) {
+            cursorStack = leftover;
+            changed = true;
+        }
+    }
+    if (changed) saveData();
+    return !cursorStack && craftData.every(slot => !slot);
+}
+
 function itemHtml(slot) {
     if (!slot?.itemId) return "";
     const item = itemDef(slot.itemId);
     if (!item) return "";
     const texture = slot.texture || item.texture;
-    const slabClass = Number(slot.itemId) >= 51 && Number(slot.itemId) <= 74 ? " slab-item" : "";
-    const stair = Number(slot.itemId) >= 75 && Number(slot.itemId) <= 84;
-    const stairClass = stair ? " stair-item" : "";
-    const visual = texture
-        ? stair
+    const id = Number(slot.itemId);
+    const slabClass = id >= 51 && id <= 74 ? " slab-item" : "";
+    const stairClass = id >= 75 && id <= 84 ? " stair-item" : "";
+    let visual = "";
+    if (texture) {
+        visual = stairClass
             ? `<span class="svi-item${stairClass}" style="--stair-texture:url('${textureUrl(texture)}')" aria-hidden="true"></span>`
-            : `<img class="svi-item${slabClass}" src="${textureUrl(texture)}" alt="" draggable="false">`
-        : `<span class="svi-item svi-color${slabClass}${stairClass}" style="--c:#777"></span>`;
+            : `<img class="svi-item${slabClass}" src="${textureUrl(texture)}" alt="" draggable="false">`;
+    } else {
+        visual = `<span class="svi-item svi-color${slabClass}${stairClass}" style="--c:#777"></span>`;
+    }
     return `${visual}${slot.count > 1 ? `<b>${slot.count}</b>` : ""}`;
 }
+
+function renderCursor() {
+    if (!cursorElement) return;
+    cursorElement.innerHTML = cursorStack ? itemHtml(cursorStack) : "";
+    cursorElement.classList.toggle("visible", !!cursorStack);
+}
+function updateCursorPosition(x, y) {
+    if (!cursorElement) return;
+    cursorElement.style.left = `${x + 12}px`;
+    cursorElement.style.top = `${y + 12}px`;
+}
+function ensureCursorUI() {
+    if (cursorElement) return;
+    cursorElement = document.createElement("div");
+    cursorElement.id = "svi-cursor-stack";
+    cursorElement.setAttribute("aria-hidden", "true");
+    document.body.appendChild(cursorElement);
+    document.addEventListener("pointermove", event => updateCursorPosition(event.clientX, event.clientY));
+    renderCursor();
+}
+
 function slotButton(index, label) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "svi-slot";
     button.dataset.index = String(index);
-    button.title = label || `Slot ${index + 1}`;
+    button.title = data[index] ? `${itemDef(data[index].itemId)?.name || "Item"} (${data[index].count})` : (label || `Slot ${index + 1}`);
     button.setAttribute("aria-label", button.title);
     button.innerHTML = itemHtml(data[index]);
-    button.addEventListener("click", () => selectSlot(index));
+    button.addEventListener("pointerdown", event => {
+        if (!open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        handleInventorySlot(index, event.button === 2 ? 2 : 0, event.shiftKey);
+    });
+    button.addEventListener("dblclick", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        collectMatching(index);
+    });
+    button.addEventListener("contextmenu", event => event.preventDefault());
     return button;
 }
+
 function renderSlots() {
+    if (!root) return;
     const storage = root.querySelector("#svi-storage");
     const hotbar = root.querySelector("#svi-hotbar");
+    if (!storage || !hotbar) return;
     storage.innerHTML = "";
     hotbar.innerHTML = "";
-    for (let i = 9; i < 36; i++) storage.appendChild(slotButton(i, `Storage slot ${i - 8}`));
-    for (let i = 0; i < 9; i++) {
+    for (let i = HOTBAR_SIZE; i < INVENTORY_SIZE; i++) storage.appendChild(slotButton(i, `Storage slot ${i - HOTBAR_SIZE + 1}`));
+    for (let i = 0; i < HOTBAR_SIZE; i++) {
         const button = slotButton(i, `Hotbar slot ${i + 1}`);
         if (i === selectedHotbar) button.classList.add("selected");
         hotbar.appendChild(button);
     }
+    renderCrafting();
+    renderCursor();
 }
-function selectSlot(index) {
-    if (index < 0 || index >= 9) return;
+
+function syncGameplayInventory() {
+    saveData();
+}
+function selectHotbarSlot(index) {
+    if (index < 0 || index >= HOTBAR_SIZE) return;
     selectedHotbar = index;
-    const event = new KeyboardEvent("keydown", { key: String(selectedHotbar + 1), code: `Digit${selectedHotbar + 1}`, bubbles: true });
+    const event = new KeyboardEvent("keydown", {
+        key: String(selectedHotbar + 1),
+        code: `Digit${selectedHotbar + 1}`,
+        bubbles: true
+    });
     window.dispatchEvent(event);
     document.dispatchEvent(event);
     renderSlots();
 }
-function close() { open = false; root?.classList.remove("open"); document.body.classList.remove("survival-inventory-open"); cancelAnimationFrame(previewFrame); if (!document.body.classList.contains("mobile-mode") && isInWorld() && !window.__webminecraftHasOpenMenu?.()) { try { document.body.requestPointerLock?.(); } catch {} } }
-function openInventory() {
-    if (!isInWorld() || !isSurvivalWorld()) return false;
-    loadData();
-    if (!root) createUI();
-    renderSlots();
-    root.classList.add("open");
-    document.body.classList.add("survival-inventory-open");
-    open = true;
-    document.exitPointerLock?.();
-    startPreview();
+
+function quickMove(index) {
+    const slot = data[index];
+    if (!slot) return false;
+    const start = index < HOTBAR_SIZE ? HOTBAR_SIZE : 0;
+    const end = index < HOTBAR_SIZE ? INVENTORY_SIZE : HOTBAR_SIZE;
+    let moving = cloneSlot(slot);
+    const merged = insertStack(moving, start, end);
+    if (!merged) {
+        data[index] = null;
+    } else {
+        data[index] = merged;
+    }
+    saveData();
     return true;
 }
+
+function pickUp(index, button) {
+    const source = data[index];
+    if (button === 2) {
+        if (!source) return;
+        const amount = Math.ceil(source.count / 2);
+        cursorStack = { ...cloneSlot(source), count: amount };
+        source.count -= amount;
+        if (source.count <= 0) data[index] = null;
+        return;
+    }
+    if (!source) return;
+    cursorStack = cloneSlot(source);
+    data[index] = null;
+}
+
+function placeInto(index, button) {
+    const target = data[index];
+    if (button === 2) {
+        if (!cursorStack || (target && !sameItem(target, cursorStack))) return;
+        if (!target) {
+            data[index] = { ...cloneSlot(cursorStack), count: 1 };
+            cursorStack.count--;
+        } else if (target.count < MAX_STACK) {
+            target.count++;
+            cursorStack.count--;
+        }
+        if (cursorStack.count <= 0) cursorStack = null;
+        return;
+    }
+
+    if (!target) {
+        data[index] = cloneSlot(cursorStack);
+        cursorStack = null;
+        return;
+    }
+    if (sameItem(target, cursorStack)) {
+        const add = Math.min(cursorStack.count, MAX_STACK - target.count);
+        target.count += add;
+        cursorStack.count -= add;
+        if (cursorStack.count <= 0) cursorStack = null;
+        return;
+    }
+    data[index] = cloneSlot(cursorStack);
+    cursorStack = cloneSlot(target);
+}
+
+function handleInventorySlot(index, button = 0, shiftKey = false) {
+    if (!open || index < 0 || index >= INVENTORY_SIZE) return;
+    if (!cursorStack && shiftKey && button === 0) {
+        quickMove(index);
+        renderSlots();
+        return;
+    }
+    if (!cursorStack) pickUp(index, button);
+    else placeInto(index, button);
+    saveData();
+    renderSlots();
+}
+
+function collectMatching(index) {
+    const clicked = data[index];
+    if (!cursorStack && !clicked) return;
+    if (!cursorStack && clicked) {
+        cursorStack = cloneSlot(clicked);
+        data[index] = null;
+    }
+    if (!cursorStack) return;
+    for (let i = 0; i < data.length && cursorStack.count < MAX_STACK; i++) {
+        if (i === index || !sameItem(data[i], cursorStack)) continue;
+        const amount = Math.min(cursorStack.count > 0 ? MAX_STACK - cursorStack.count : 0, data[i].count);
+        if (!amount) continue;
+        cursorStack.count += amount;
+        data[i].count -= amount;
+        if (data[i].count <= 0) data[i] = null;
+    }
+    saveData();
+    renderSlots();
+}
+
+function renderCraftSlot(index) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "svi-craft-slot";
+    button.innerHTML = itemHtml(craftData[index]);
+    button.title = craftData[index] ? `${itemDef(craftData[index].itemId)?.name || "Item"} (${craftData[index].count})` : "Crafting slot";
+    button.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        handleCraftSlot(index, event.button === 2 ? 2 : 0);
+    });
+    button.addEventListener("contextmenu", event => event.preventDefault());
+    return button;
+}
+function updateCraftResult() {
+    const nonEmpty = craftData.map((slot, index) => ({ slot, index })).filter(entry => entry.slot);
+    craftOutput = null;
+    if (nonEmpty.length === 1 && nonEmpty[0].slot.itemId === 5) {
+        craftOutput = { itemId: 13, count: 4, texture: itemDef(13)?.texture || null, recipe: [{ index: nonEmpty[0].index, amount: 1 }] };
+    } else if (craftData.every(slot => slot?.itemId === 13)) {
+        craftOutput = { itemId: 168, count: 1, texture: itemDef(168)?.texture || null, recipe: [0,1,2,3].map(index => ({ index, amount: 1 })) };
+    }
+}
+function handleCraftSlot(index, button = 0) {
+    const target = craftData[index];
+    if (button === 2) {
+        if (!cursorStack) {
+            if (!target) return;
+            const amount = Math.ceil(target.count / 2);
+            cursorStack = { ...cloneSlot(target), count: amount };
+            target.count -= amount;
+            if (target.count <= 0) craftData[index] = null;
+        } else if (!target) {
+            craftData[index] = { ...cloneSlot(cursorStack), count: 1 };
+            cursorStack.count--;
+            if (cursorStack.count <= 0) cursorStack = null;
+        } else if (sameItem(target, cursorStack) && target.count < MAX_STACK) {
+            target.count++;
+            cursorStack.count--;
+            if (cursorStack.count <= 0) cursorStack = null;
+        }
+    } else if (!cursorStack) {
+        if (!target) return;
+        cursorStack = cloneSlot(target);
+        craftData[index] = null;
+    } else if (!target) {
+        craftData[index] = cloneSlot(cursorStack);
+        cursorStack = null;
+    } else if (sameItem(target, cursorStack)) {
+        const add = Math.min(cursorStack.count, MAX_STACK - target.count);
+        target.count += add;
+        cursorStack.count -= add;
+        if (cursorStack.count <= 0) cursorStack = null;
+    } else {
+        craftData[index] = cloneSlot(cursorStack);
+        cursorStack = cloneSlot(target);
+    }
+    updateCraftResult();
+    renderCrafting();
+    renderCursor();
+}
+function takeCraftOutput() {
+    updateCraftResult();
+    if (!craftOutput) return;
+    if (cursorStack && (!sameItem(cursorStack, craftOutput) || cursorStack.count + craftOutput.count > MAX_STACK)) return;
+    if (!cursorStack) cursorStack = cloneSlot(craftOutput);
+    else cursorStack.count += craftOutput.count;
+    for (const ingredient of craftOutput.recipe) {
+        const slot = craftData[ingredient.index];
+        if (!slot) continue;
+        slot.count -= ingredient.amount;
+        if (slot.count <= 0) craftData[ingredient.index] = null;
+    }
+    updateCraftResult();
+    renderCrafting();
+    renderCursor();
+}
+function renderCrafting() {
+    if (!root) return;
+    const craft = root.querySelector("#svi-craft-grid");
+    const output = root.querySelector("#svi-craft-output");
+    if (!craft || !output) return;
+    updateCraftResult();
+    craft.innerHTML = "";
+    for (let i = 0; i < 4; i++) craft.appendChild(renderCraftSlot(i));
+    output.innerHTML = craftOutput ? itemHtml(craftOutput) : "";
+    output.title = craftOutput ? `Craft ${itemDef(craftOutput.itemId)?.name || "item"}` : "Crafting output";
+    output.classList.toggle("ready", !!craftOutput);
+    output.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        takeCraftOutput();
+    };
+    output.oncontextmenu = event => event.preventDefault();
+}
+
 function makePlayerModel() {
     const group = new THREE.Group();
     const skin = new THREE.MeshLambertMaterial({ color: 0xd39a72 });
@@ -185,36 +480,42 @@ function makePlayerModel() {
     const hair = new THREE.MeshLambertMaterial({ color: 0x2a1a12 });
     const head = new THREE.Mesh(new THREE.BoxGeometry(.82,.82,.82), [skin,skin,skin,skin,hair,skin]);
     head.position.y = 2.25;
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(.96,1.0,.55), shirt); torso.position.y = 1.35;
-    const armL = new THREE.Mesh(new THREE.BoxGeometry(.36,1.0,.5), shirt); armL.position.set(-.66,1.35,0);
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(.96,1,.55), shirt); torso.position.y = 1.35;
+    const armL = new THREE.Mesh(new THREE.BoxGeometry(.36,1,.5), shirt); armL.position.set(-.66,1.35,0);
     const armR = armL.clone(); armR.position.x = .66;
-    const legL = new THREE.Mesh(new THREE.BoxGeometry(.42,1.0,.48), pants); legL.position.set(-.25,.35,0);
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(.42,1,.48), pants); legL.position.set(-.25,.35,0);
     const legR = legL.clone(); legR.position.x = .25;
     group.add(head,torso,armL,armR,legL,legR);
-    group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    group.traverse(object => { if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; } });
     return group;
 }
 function startPreview() {
-    const canvas = root.querySelector("#svi-player-preview");
+    const canvas = root?.querySelector("#svi-player-preview");
+    if (!canvas) return;
     if (!previewRenderer) {
         previewRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
         previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
         previewScene = new THREE.Scene();
-        previewScene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.6));
-        const light = new THREE.DirectionalLight(0xffffff,2.2); light.position.set(2,5,4); previewScene.add(light);
-        previewCamera = new THREE.PerspectiveCamera(34,1,.1,50); previewCamera.position.set(3.2,2.4,4.2);
-        previewModel = makePlayerModel(); previewScene.add(previewModel);
+        previewScene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.6));
+        const light = new THREE.DirectionalLight(0xffffff, 2.2);
+        light.position.set(2,5,4);
+        previewScene.add(light);
+        previewCamera = new THREE.PerspectiveCamera(34, 1, .1, 50);
+        previewCamera.position.set(3.2,2.4,4.2);
+        previewModel = makePlayerModel();
+        previewScene.add(previewModel);
     }
     const rect = canvas.getBoundingClientRect();
-    previewRenderer.setSize(Math.max(1,rect.width),Math.max(1,rect.height),false);
+    previewRenderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height), false);
     previewModel.rotation.y += .008;
     previewRenderer.render(previewScene, previewCamera);
     if (open) previewFrame = requestAnimationFrame(startPreview);
 }
 function recipeBook() {
-    const button = root.querySelector("#svi-recipe-book");
-    const panel = root.querySelector("#svi-recipe-panel");
+    const button = root?.querySelector("#svi-recipe-book");
+    const panel = root?.querySelector("#svi-recipe-panel");
+    if (!button || !panel) return;
     const shown = !panel.hidden;
     panel.hidden = shown;
     button.classList.toggle("active", !shown);
@@ -239,49 +540,148 @@ function createUI() {
           </section>
           <section id="svi-crafting">
             <div class="svi-section-title">Crafting</div>
-            <div class="svi-craft-row"><div id="svi-craft-grid"></div><span class="svi-arrow">→</span><div class="svi-craft-output"> </div></div>
+            <div class="svi-craft-row"><div id="svi-craft-grid"></div><span class="svi-arrow">→</span><button id="svi-craft-output" class="svi-craft-output" type="button" aria-label="Crafting output"></button></div>
             <button id="svi-recipe-book" type="button">📗 Recipe Book</button>
-            <div id="svi-recipe-panel" hidden>Basic recipes will appear here as they are added.</div>
+            <div id="svi-recipe-panel" hidden>Basic recipes: Oak Log → 4 Oak Planks. Four Oak Planks → Crafting Table.</div>
           </section>
         </div>
-        <section id="svi-storage-section"><div class="svi-section-title">Inventory</div><div id="svi-storage"></div></section>
+        <section id="svi-storage-section"><div class="svi-section-title">Inventory <small>Left click: move · Right click: half/place one · Shift click: quick move</small></div><div id="svi-storage"></div></section>
         <section id="svi-hotbar-section"><div class="svi-section-title">Hotbar <small>1–9</small></div><div id="svi-hotbar"></div></section>
+        <div id="svi-actions"><button id="svi-trash" type="button" title="Delete held item">🗑 Delete</button><span>Double-click a stack to collect matching items.</span></div>
       </div>`;
     document.body.appendChild(root);
-    const craft = root.querySelector("#svi-craft-grid");
-    for (let i=0;i<4;i++) craft.appendChild(document.createElement("div")).className="svi-craft-slot";
-    root.querySelector("#svi-close").addEventListener("click", close);
-    root.querySelector("#svi-recipe-book").addEventListener("click", recipeBook);
+    ensureCursorUI();
+
     const style = document.createElement("style");
+    style.id = "survivalInventoryUsableStyles";
     style.textContent = `
-#survivalInventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000000;font-family:Arial,sans-serif;color:#fff}
+#survivalInventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000000;font-family:Arial,sans-serif;color:#fff;touch-action:none}
 #survivalInventoryScreen.open{display:flex}
-#svi-panel{width:min(790px,92vw);height:min(585px,88vh);box-sizing:border-box;padding:10px;background:linear-gradient(#555,#444);border:2px solid #262626;border-top-color:#a8a8a8;border-left-color:#a8a8a8;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset 1px 1px #777;display:flex;flex-direction:column;gap:8px;overflow:auto;border-radius:4px}
-#svi-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;text-shadow:2px 2px #111;min-height:30px}#svi-close{width:32px;height:30px;background:#888;color:#fff;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;border-radius:3px;font-size:22px;line-height:22px;cursor:pointer;box-shadow:inset -1px -1px #333}#svi-close:hover{filter:brightness(1.12)}
-#svi-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:205px}.svi-section-title{font-size:13px;font-weight:800;margin-bottom:5px;text-shadow:1px 1px #111}.svi-section-title small{color:#aaa;font-size:10px;font-weight:600}
-#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#363636;border:2px solid #222;padding:8px;box-sizing:border-box;border-radius:3px;box-shadow:inset 1px 1px rgba(255,255,255,.05)}.svi-box-label{display:block;color:#999;font-size:10px;margin-top:4px}
-#svi-player-box{position:relative;display:grid;grid-template-columns:1fr 58px;grid-template-rows:1fr 40px;min-height:205px}#svi-player-preview{width:100%;height:100%;min-height:145px;background:radial-gradient(circle,#777 0%,#4a4a4a 70%)}#svi-armor{display:flex;flex-direction:column;gap:4px;padding-left:6px;align-items:center;justify-content:center}.svi-armor-slot,.svi-craft-slot,.svi-craft-output,#svi-offhand{border:2px solid #555;border-top-color:#1d1d1d;border-left-color:#1d1d1d;background:#969696;box-shadow:inset -1px -1px #414141;display:grid;place-items:center;font-size:20px;color:#ddd;border-radius:2px}.svi-armor-slot{width:38px;height:38px}.svi-armor-slot:hover,#svi-offhand:hover{filter:brightness(1.15)}#svi-offhand{width:40px;height:40px;grid-column:2;grid-row:2;justify-self:center}
-#svi-crafting{display:flex;flex-direction:column;align-items:center}.svi-craft-row{display:flex;align-items:center;justify-content:center;gap:9px;flex:1}.svi-arrow{font-size:30px;color:#bbb}.svi-craft-output{width:48px;height:48px}.svi-craft-slot{width:42px;height:42px}.svi-craft-slot:hover,.svi-craft-output:hover{filter:brightness(1.15)}#svi-craft-grid{display:grid;grid-template-columns:repeat(2,42px);gap:4px}#svi-recipe-book{margin-top:5px;border:2px solid #315d34;background:#4c8a50;color:#fff;border-radius:4px;padding:5px 9px;cursor:pointer;font-weight:800;font-size:11px}#svi-recipe-book.active{background:#6cad6c}#svi-recipe-panel{width:100%;margin-top:5px;padding:6px;background:#2d2d2d;border:1px solid #6a6a6a;color:#ddd;font-size:10px;text-align:center;border-radius:2px}
-#svi-storage-section{flex:1;min-height:174px}#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(34px,1fr));gap:4px}.svi-slot{position:relative;aspect-ratio:1;background:#989898;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px}.svi-slot:hover{filter:brightness(1.12)}.svi-slot.selected{border:2px solid #fff;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111}.svi-item{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:cover;object-position:center;image-rendering:pixelated;pointer-events:none}.svi-item.stair-item{width:auto;height:auto;overflow:visible}.svi-item.stair-item::before,.svi-item.stair-item::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}.svi-item.stair-item::before{left:0;right:0;bottom:0;height:58%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.22)}.svi-item.stair-item::after{right:0;top:0;width:56%;height:46%;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset -2px 0 0 rgba(0,0,0,.16)}.svi-item.slab-item{top:44%;bottom:4px;height:auto;object-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.10)}.svi-color{background:var(--c);box-shadow:inset 3px 3px rgba(255,255,255,.15),inset -3px -3px rgba(0,0,0,.2)}.svi-slot b{position:absolute;right:3px;bottom:1px;font-size:12px;text-shadow:2px 2px #111}.svi-slot::after{content:attr(data-index);position:absolute;left:3px;top:1px;color:rgba(255,255,255,.55);font-size:8px;text-shadow:1px 1px #111;pointer-events:none}
-#svi-hotbar-section{flex:0 0 auto}#svi-hotbar{grid-template-columns:repeat(9,42px);justify-content:center}.survival-inventory-open #hotbar{display:none!important}.survival-inventory-open #inventoryScreen{display:none!important}
-@media(max-width:720px){#svi-panel{width:min(520px,94vw);height:88vh;padding:8px;gap:6px}#svi-top{grid-template-columns:1fr;min-height:0;gap:6px}#svi-player-box{min-height:180px}#svi-player-preview{min-height:120px}#svi-storage-section{min-height:0}.svi-slot{min-width:0}.svi-item{inset:3px;width:calc(100% - 6px);height:calc(100% - 6px)}#svi-hotbar{grid-template-columns:repeat(9,minmax(26px,40px))}.svi-section-title{font-size:12px}}
+#svi-panel{width:min(790px,92vw);height:min(600px,90vh);box-sizing:border-box;padding:10px;background:linear-gradient(#555,#444);border:2px solid #262626;border-top-color:#a8a8a8;border-left-color:#a8a8a8;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset 1px 1px #777;display:flex;flex-direction:column;gap:8px;overflow:auto;border-radius:4px;touch-action:pan-y}
+#svi-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;text-shadow:2px 2px #111;min-height:30px}
+#svi-close{width:32px;height:30px;background:#888;color:#fff;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;border-radius:3px;font-size:22px;line-height:22px;cursor:pointer;box-shadow:inset -1px -1px #333}
+#svi-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:205px}
+.svi-section-title{font-size:13px;font-weight:800;margin-bottom:5px;text-shadow:1px 1px #111}
+.svi-section-title small{color:#aaa;font-size:10px;font-weight:600}
+#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#363636;border:2px solid #222;padding:8px;box-sizing:border-box;border-radius:3px;box-shadow:inset 1px 1px rgba(255,255,255,.05)}
+#svi-player-box{position:relative;display:grid;grid-template-columns:1fr 58px;grid-template-rows:1fr 40px;min-height:205px}
+#svi-player-preview{width:100%;height:100%;min-height:145px;background:radial-gradient(circle,#777 0%,#4a4a4a 70%)}
+#svi-armor{display:flex;flex-direction:column;gap:4px;padding-left:6px;align-items:center;justify-content:center}
+.svi-armor-slot,.svi-craft-slot,.svi-craft-output,#svi-offhand{border:2px solid #555;border-top-color:#1d1d1d;border-left-color:#1d1d1d;background:#969696;box-shadow:inset -1px -1px #414141;display:grid;place-items:center;font-size:20px;color:#ddd;border-radius:2px}
+.svi-armor-slot{width:38px;height:38px}
+#svi-offhand{width:40px;height:40px;grid-column:2;grid-row:2;justify-self:center}
+#svi-crafting{display:flex;flex-direction:column;align-items:center}
+.svi-craft-row{display:flex;align-items:center;justify-content:center;gap:9px;flex:1}
+.svi-arrow{font-size:30px;color:#bbb}
+.svi-craft-output{width:50px;height:50px;padding:0;cursor:pointer}
+.svi-craft-output.ready{outline:2px solid #ddd;filter:brightness(1.08)}
+.svi-craft-slot{width:42px;height:42px;padding:0;cursor:pointer}
+#svi-craft-grid{display:grid;grid-template-columns:repeat(2,42px);gap:4px}
+#svi-recipe-book{margin-top:5px;border:2px solid #315d34;background:#4c8a50;color:#fff;border-radius:4px;padding:5px 9px;cursor:pointer;font-weight:800;font-size:11px}
+#svi-recipe-book.active{background:#6cad6c}
+#svi-recipe-panel{width:100%;margin-top:5px;padding:6px;background:#2d2d2d;border:1px solid #6a6a6a;color:#ddd;font-size:10px;text-align:center;border-radius:2px}
+#svi-storage-section{flex:1;min-height:174px}
+#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(34px,1fr));gap:4px}
+.svi-slot{position:relative;aspect-ratio:1;background:#989898;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.svi-slot:hover{filter:brightness(1.12)}
+.svi-slot.selected{border:2px solid #fff;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111}
+.svi-item{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:cover;object-position:center;image-rendering:pixelated;pointer-events:none}
+.svi-item.stair-item{width:auto;height:auto;overflow:visible}
+.svi-item.stair-item::before,.svi-item.stair-item::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
+.svi-item.stair-item::before{left:0;right:0;bottom:0;height:58%}
+.svi-item.stair-item::after{right:0;top:0;width:56%;height:46%}
+.svi-item.slab-item{top:44%;bottom:4px;height:auto;object-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.1)}
+.svi-color{background:var(--c)}
+.svi-slot b,.svi-craft-slot b,.svi-craft-output b{position:absolute;right:3px;bottom:1px;font-size:12px;text-shadow:2px 2px #111;pointer-events:none}
+#svi-actions{display:flex;align-items:center;gap:10px;font-size:10px;color:#aaa}
+#svi-trash{border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#744;color:#fff;padding:6px 10px;cursor:pointer;border-radius:3px;font-weight:700}
+#svi-cursor-stack{display:none;position:fixed;width:54px;height:54px;z-index:2147483647;pointer-events:none;background:#989898;border:2px solid #ddd;box-sizing:border-box;border-radius:2px;box-shadow:3px 3px 0 rgba(0,0,0,.3)}
+#svi-cursor-stack.visible{display:block}
+@media(max-width:720px){
+#svi-panel{width:min(520px,94vw);height:90vh;padding:8px;gap:6px}
+#svi-top{grid-template-columns:1fr;min-height:0;gap:6px}
+#svi-player-box{min-height:180px}
+#svi-player-preview{min-height:120px}
+#svi-storage-section{min-height:0}
+#svi-storage,#svi-hotbar{gap:3px}
+.svi-slot{min-width:0}
+.svi-item{inset:3px;width:calc(100% - 6px);height:calc(100% - 6px)}
+#svi-hotbar{grid-template-columns:repeat(9,minmax(26px,40px))}
+#svi-actions span{line-height:1.25}
+}
 `;
     document.head.appendChild(style);
+
+    root.querySelector("#svi-close").addEventListener("click", close);
+    root.querySelector("#svi-recipe-book").addEventListener("click", recipeBook);
+    root.querySelector("#svi-trash").addEventListener("pointerdown", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        cursorStack = null;
+        renderCursor();
+    });
+    root.querySelector("#svi-craft-output").addEventListener("contextmenu", event => event.preventDefault());
+    root.addEventListener("contextmenu", event => event.preventDefault());
+    root.addEventListener("pointerdown", event => {
+        if (event.target === root) {
+            event.preventDefault();
+        }
+    });
 }
+
+function close() {
+    if (!open) return;
+    if (!depositCraftAndCursor()) return;
+    open = false;
+    root?.classList.remove("open");
+    document.body.classList.remove("survival-inventory-open");
+    cancelAnimationFrame(previewFrame);
+    renderCursor();
+    if (!document.body.classList.contains("mobile-mode") && isInWorld() && !window.__webminecraftHasOpenMenu?.()) {
+        try { document.body.requestPointerLock?.(); } catch {}
+    }
+}
+
+function openInventory() {
+    if (!isInWorld() || !isSurvivalWorld()) return false;
+    loadData();
+    if (!root) createUI();
+    renderSlots();
+    root.classList.add("open");
+    document.body.classList.add("survival-inventory-open");
+    open = true;
+    document.exitPointerLock?.();
+    ensureCursorUI();
+    startPreview();
+    return true;
+}
+
 function init() {
+    ensureCursorUI();
     document.addEventListener("keydown", event => {
         if (!isInWorld() || !isSurvivalWorld()) return;
         if (event.code === "KeyE") {
-            event.preventDefault(); event.stopImmediatePropagation();
+            event.preventDefault();
+            event.stopImmediatePropagation();
             open ? close() : openInventory();
         }
-        if (event.code === "Escape" && open) { event.preventDefault(); close(); }
+        if (event.code === "Escape" && open) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            close();
+        }
+        if (open && event.code === "Delete" && cursorStack) {
+            event.preventDefault();
+            cursorStack = null;
+            renderCursor();
+        }
     }, true);
     document.addEventListener("click", event => {
         if (!isInWorld() || !isSurvivalWorld()) return;
         const button = event.target.closest?.("#inventoryButton, #inventoryMobileButton");
         if (!button) return;
-        event.preventDefault(); event.stopImmediatePropagation();
+        event.preventDefault();
+        event.stopImmediatePropagation();
         openInventory();
     }, true);
     window.addEventListener("webminecraft:inventorychanged", () => {
@@ -289,10 +689,12 @@ function init() {
         if (!open || !root || !isInWorld() || !isSurvivalWorld()) return;
         renderSlots();
     });
-    window.addEventListener("webminecraft:modechange", () => { if (!isInWorld() || !isSurvivalWorld()) close(); });
+    window.addEventListener("webminecraft:modechange", () => {
+        if (!isInWorld() || !isSurvivalWorld()) close();
+    });
     const worldObserver = new MutationObserver(() => {
         if (!isInWorld() && open) close();
-        if (!isInWorld() && root?.classList.contains("open")) root.classList.remove("open");
+        if (!isInWorld()) root?.classList.remove("open");
     });
     worldObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 }
