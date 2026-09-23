@@ -139,8 +139,8 @@ async function initFirebase() {
         // Keep sign-in persistent, but clear the previously saved browser
         // session once so the new username/nickname account format starts clean.
         try {
-            await auth.setPersistence("local");
-            const resetKey = "webminecraft_login_data_reset_v1";
+            await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+            const resetKey = "webminecraft_login_data_reset_v2_username_nickname";
             if (!localStorage.getItem(resetKey)) {
                 await auth.signOut().catch(() => {});
                 localStorage.setItem(resetKey, "1");
