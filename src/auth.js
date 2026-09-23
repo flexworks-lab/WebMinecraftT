@@ -112,6 +112,13 @@ async function initFirebase() {
             loadFirebaseScript(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore-compat.js`)
         ]);
         auth = window.firebase.auth(app);
+        // Always use Firebase's durable browser persistence so a signed-in
+        // player stays signed in after refreshing or reopening the game.
+        try {
+            await auth.setPersistence("local");
+        } catch (error) {
+            console.warn("Could not enable persistent sign-in:", error);
+        }
         auth.onAuthStateChanged(user => {
             currentUser = user || null;
             startupAuthStateResolved = true;
