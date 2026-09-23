@@ -108,11 +108,7 @@ function renderSlot(index, type = "inventory") {
             }
             render();
         });
-    } else if (slot) {
-        button.addEventListener("dblclick", event => {
-            event.preventDefault();
-            event.stopPropagation();
-        });
+    } else if (slot || lastPrimaryPress?.type === type && lastPrimaryPress?.index === index) {
         button.addEventListener("dragstart", event => {
             dragged = { type, index };
             suppressClick = true;
