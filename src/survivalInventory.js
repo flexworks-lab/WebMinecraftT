@@ -623,15 +623,38 @@ function renderCraftSlot(index) {
 function updateCraftResult() {
     const nonEmpty = craftData.map((slot, index) => ({ slot, index })).filter(entry => entry.slot);
     craftOutput = null;
+
+    // One log crafts into four planks.
     if (nonEmpty.length === 1 && nonEmpty[0].slot.itemId === 5) {
-        craftOutput = { itemId: 13, count: 4, texture: itemDef(13)?.texture || null, recipe: [{ index: nonEmpty[0].index, amount: 1 }] };
-    } else if (
-        craftData.every(slot => {
-            const id = Number(slot?.itemId);
-            return [13, 23, 24, 25, 26, 27, 28, 29, 30, 31].includes(id);
-        })
-    ) {
-        craftOutput = { itemId: 168, count: 1, texture: itemDef(168)?.texture || null, recipe: [0,1,2,3].map(index => ({ index, amount: 1 })) };
+        craftOutput = {
+            itemId: 13,
+            count: 4,
+            texture: itemDef(13)?.texture || null,
+            recipe: [{ index: nonEmpty[0].index, amount: 1 }]
+        };
+        return;
+    }
+
+    // Four total wooden planks anywhere in the 2x2 grid craft one Crafting Table.
+    // This supports both the normal 2x2 arrangement and a full dragged stack in one slot.
+    const plankIds = new Set([13, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
+    let plankCount = 0;
+    const recipe = [];
+    for (const { slot, index } of nonEmpty) {
+        if (!plankIds.has(Number(slot.itemId))) continue;
+        const needed = Math.min(slot.count, 4 - plankCount);
+        if (needed <= 0) break;
+        recipe.push({ index, amount: needed });
+        plankCount += needed;
+        if (plankCount >= 4) break;
+    }
+    if (plankCount >= 4) {
+        craftOutput = {
+            itemId: 168,
+            count: 1,
+            texture: itemDef(168)?.texture || null,
+            recipe
+        };
     }
 }
 function handleCraftSlot(index, button = 0) {
