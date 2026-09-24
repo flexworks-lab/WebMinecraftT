@@ -5,6 +5,15 @@ const HOTBAR_SIZE = 9;
 const MAX_STACK = 64;
 const PLANK_IDS = new Set([13, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
 const LOG_IDS = new Set([5, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167]);
+const LOG_TO_PLANK = new Map([
+    [5, 13], [161, 13],
+    [155, 23], [162, 23],
+    [156, 25], [163, 25],
+    [157, 27], [164, 27],
+    [158, 28], [165, 28],
+    [159, 29], [166, 29],
+    [160, 30], [167, 30]
+]);
 
 let root = null;
 let open = false;
@@ -504,14 +513,20 @@ function updateCraftResult() {
     // Keep the classic quick recipes working even when the player places
     // ingredients manually instead of using the recipe book.
     const entries = craftGrid.map((slot, index) => ({ slot, index })).filter(x => x.slot);
-    if (entries.length === 1 && LOG_IDS.has(Number(entries[0].slot.itemId))) {
-        craftOutput = {
-            itemId: 13,
-            count: 4,
-            texture: itemDef(13)?.texture || null,
-            recipe: [{ index: entries[0].index, amount: 1 }]
-        };
-        return;
+
+    // Manual 3x3 log -> matching planks recipe.
+    if (entries.length === 1) {
+        const sourceLogId = Number(entries[0].slot.itemId);
+        const plankId = LOG_TO_PLANK.get(sourceLogId);
+        if (plankId && Number(entries[0].slot.count) >= 1) {
+            craftOutput = {
+                itemId: plankId,
+                count: 4,
+                texture: itemDef(plankId)?.texture || null,
+                recipe: [{ index: entries[0].index, amount: 1 }]
+            };
+            return;
+        }
     }
 
     let totalPlanks = 0;
@@ -644,7 +659,7 @@ function createUI() {
     style.textContent = `
 #craftingTableScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000001;font-family:monospace,monospace;color:#404040;image-rendering:pixelated;touch-action:none}
 #craftingTableScreen.open{display:flex}
-#ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:0;background:transparent;border:0;box-shadow:none;display:flex;flex-direction:column;gap:0;overflow:hidden}
+#ctm-panel{width:min(720px,92vw);height:min(72vh,620px);max-height:72vh;box-sizing:border-box;padding:0;background:transparent;border:0;box-shadow:none;display:flex;flex-direction:column;gap:0;overflow:hidden}
 #ctm-pages{display:grid;grid-template-columns:minmax(0,0.88fr) minmax(0,1.12fr);gap:18px;min-height:0;flex:1}
 .ctm-page{background:#C6C6C6;border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;padding:10px;box-sizing:border-box;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;image-rendering:pixelated}
 #ctm-left-page{overflow:hidden}
@@ -683,7 +698,7 @@ function createUI() {
 body.crafting-table-open #hotbar.textured-hotbar{display:none!important}
 body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:.5}
 @media(max-width:720px){
-#ctm-panel{width:min(760px,96vw);max-height:94vh;padding:7px;gap:6px}
+#ctm-panel{width:min(760px,96vw);height:min(74vh,560px);max-height:74vh;padding:7px;gap:6px}
 #ctm-pages{grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:12px}
 .ctm-page{padding:6px}
 .ctm-page-title{font-size:12px;margin-bottom:4px}
