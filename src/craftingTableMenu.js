@@ -266,18 +266,16 @@ function renderRecipeBrowser() {
 
     const recipes = recipeDefinitions();
     const recipeByItemId = new Map(recipes.map(recipe => [Number(recipe.itemId), recipe]));
-    // Show every block in the build catalog, including TNT and the oak door.
-    const blockItems = [...new Set([...BUILD_BLOCK_IDS, 15, 17])]
-        .map(id => itemDef(id))
-        .filter(Boolean)
-        .filter(item => Number(item.id) !== 185)
-        .map(item => {
-            const recipe = recipeByItemId.get(Number(item.id));
-            const available = recipe
-                ? recipeAvailable(recipe)
-                : countInventoryItem([Number(item.id)]) > 0;
-            return { item, recipe, available };
-        })
+    // Only show blocks that have a defined crafting recipe.
+    // Non-craftable/world-generated blocks are completely excluded.
+    const blockItems = recipes
+        .filter(recipe => Number(recipe.itemId) !== 185 && BUILD_BLOCK_IDS.has(Number(recipe.itemId)))
+        .map(recipe => ({
+            item: itemDef(recipe.itemId),
+            recipe,
+            available: recipeAvailable(recipe)
+        }))
+        .filter(entry => entry.item)
         .sort((a, b) => Number(b.available) - Number(a.available));
 
     panel.innerHTML = `
