@@ -122,7 +122,13 @@ const ITEM_TYPES = [
     { id: 182, name: "Red Concrete", texture: "red_concrete.png", category: "natural" },
     { id: 183, name: "White Concrete", texture: "white_concrete.png", category: "natural" },
     { id: 184, name: "Yellow Concrete", texture: "yellow_concrete.png", category: "natural" },
-    { id: 185, name: "Stick", texture: "stick.png", category: "tools" }
+    { id: 185, name: "Stick", texture: "stick.png", category: "tools" },
+    { id: 186, name: "Wooden Sword", texture: "tools/wooden_sword.png", category: "tools" },
+    { id: 187, name: "Stone Sword", texture: "tools/stone_sword.png", category: "tools" },
+    { id: 188, name: "Iron Sword", texture: "tools/iron_sword.png", category: "tools" },
+    { id: 189, name: "Golden Sword", texture: "tools/golden_sword.png", category: "tools" },
+    { id: 190, name: "Diamond Sword", texture: "tools/diamond_sword.png", category: "tools" },
+    { id: 191, name: "Netherite Sword", texture: "tools/netherite_sword.png", category: "tools" }
 ];
 
 const TAB_DEFS = [
