@@ -377,6 +377,30 @@ function updateCraftResult() {
         return;
     }
 
+    // Two planks stacked vertically in the 3x3 crafting grid make 4 sticks.
+    // Accept the same pattern in any of the three columns.
+    if (entries.length === 2 &&
+        PLANK_IDS.has(Number(entries[0].slot.itemId)) &&
+        PLANK_IDS.has(Number(entries[1].slot.itemId)) &&
+        entries.every(entry => Number(entry.slot.count) >= 1)) {
+        const first = entries[0].index;
+        const second = entries[1].index;
+        const sameColumn = first % 3 === second % 3;
+        const adjacentRows = Math.abs(Math.floor(first / 3) - Math.floor(second / 3)) === 1;
+        if (sameColumn && adjacentRows) {
+            craftOutput = {
+                itemId: 185,
+                count: 4,
+                texture: itemDef(185)?.texture || null,
+                recipe: [
+                    { index: first, amount: 1 },
+                    { index: second, amount: 1 }
+                ]
+            };
+            return;
+        }
+    }
+
     let totalPlanks = 0;
     const recipe = [];
     for (const entry of entries) {
