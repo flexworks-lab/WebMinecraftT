@@ -630,7 +630,7 @@ function createUI() {
     style.textContent = `
 #craftingTableScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000001;font-family:monospace,monospace;color:#404040;image-rendering:pixelated;touch-action:none}
 #craftingTableScreen.open{display:flex}
-#ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:10px;background:#C6C6C6;border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset -2px -2px 0 #777,inset 2px 2px 0 #EAEAEA;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+#ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:10px;background:transparent;border:0;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset -2px -2px 0 #777,inset 2px 2px 0 #EAEAEA;display:flex;flex-direction:column;gap:8px;overflow:hidden}
 #ctm-header{display:flex;align-items:center;justify-content:flex-end;min-height:28px}
 #ctm-close{position:relative;width:30px;height:28px;margin-left:auto;background:#C6C6C6;color:transparent;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;font-size:0;line-height:0;cursor:pointer;padding:0;box-shadow:inset -2px -2px #555}
 #ctm-close::before,#ctm-close::after{content:"";position:absolute;left:7px;top:12px;width:14px;height:2px;background:#404040}
