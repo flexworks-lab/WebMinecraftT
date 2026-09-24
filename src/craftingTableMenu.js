@@ -14,6 +14,7 @@ let craftOutput = null;
 let dragged = null;
 let suppressClick = false;
 let lastPrimaryPress = null;
+let pointerDrag = null;
 
 function textureUrl(name) {
     return name ? `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}` : "";
@@ -147,6 +148,14 @@ function renderSlot(index, type = "inventory") {
                 event.preventDefault();
                 event.stopPropagation();
                 pickupStack(type, index);
+                if (dragged?.slot) {
+                    pointerDrag = {
+                        button: 0,
+                        sourceKey: slotKey(type, index),
+                        visited: new Set(),
+                        moved: false
+                    };
+                }
                 render();
                 return;
             }
@@ -154,8 +163,19 @@ function renderSlot(index, type = "inventory") {
             lastPrimaryPress = null;
             event.preventDefault();
             event.stopPropagation();
-            if (!dragged) takeHalf(type, index);
-            else placeOne(type, index);
+            if (!dragged) {
+                takeHalf(type, index);
+                if (dragged?.slot) {
+                    pointerDrag = {
+                        button: 2,
+                        sourceKey: slotKey(type, index),
+                        visited: new Set(),
+                        moved: false
+                    };
+                }
+            } else {
+                placeOne(type, index);
+            }
             render();
         });
     } else if (type === "inventory") {
@@ -431,18 +451,18 @@ function createUI() {
     style.textContent = `
 #craftingTableScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000001;font-family:Arial,sans-serif;color:#404040;image-rendering:pixelated;touch-action:none}
 #craftingTableScreen.open{display:flex}
-#ctm-panel{width:min(680px,84vw);height:min(960px,92vh);aspect-ratio:.71;box-sizing:border-box;padding:10px;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:8px 8px 0 rgba(0,0,0,.28);display:flex;flex-direction:column;gap:10px;overflow:auto}
+#ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:10px;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:8px 8px 0 rgba(0,0,0,.28);display:flex;flex-direction:column;gap:8px;overflow:hidden}
 #ctm-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;color:#404040;min-height:28px;text-shadow:1px 1px rgba(255,255,255,.55)}
 #ctm-close{width:30px;height:28px;background:#C6C6C6;color:#404040;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;font-size:20px;line-height:20px;cursor:pointer;padding:0;box-shadow:inset -2px -2px #555}
-#ctm-top{display:grid;grid-template-columns:1.08fr .92fr;gap:10px;min-height:265px}
+#ctm-top{display:grid;grid-template-columns:1.08fr .92fr;gap:8px;min-height:0}
 #ctm-craft-box,#ctm-help,#ctm-storage-section,#ctm-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
 #ctm-craft-box{display:flex;flex-direction:column;align-items:center;justify-content:center}
-#ctm-help{font-size:11px;color:#404040;overflow:auto;min-height:0}
+#ctm-help{font-size:11px;color:#404040;overflow:hidden;min-height:0}
 .ctm-recipe-tip{font-size:10px;color:#555;margin:-1px 0 7px}
-#ctm-recipe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;align-content:start}
-.ctm-recipe-card{min-width:0;padding:5px;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555}
-.ctm-recipe-icon{width:38px;height:38px;margin:0 auto 3px;background:#707070;border:2px solid #373737;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden}
-.ctm-recipe-icon img{width:30px;height:30px;max-width:30px;max-height:30px;object-fit:contain;image-rendering:pixelated}
+#ctm-recipe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;align-content:start}
+.ctm-recipe-card{min-width:0;padding:4px;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555}
+.ctm-recipe-icon{width:34px;height:34px;margin:0 auto 2px;background:#707070;border:2px solid #373737;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden}
+.ctm-recipe-icon img{width:27px;height:27px;max-width:27px;max-height:27px;object-fit:contain;image-rendering:pixelated}
 .ctm-recipe-name{font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#404040}
 .ctm-recipe-count{font-size:8px;text-align:center;margin-top:2px;color:#555}
 .ctm-title{font-size:13px;font-weight:800;margin-bottom:6px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.45)}
@@ -460,8 +480,8 @@ function createUI() {
 #ctm-output .ctm-item{width:34px;height:34px;max-width:34px;max-height:34px}
 #ctm-recipe-book{margin-top:10px;background:#8B8B8B;color:#404040;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:5px 10px;cursor:pointer;font-weight:800;font-size:11px;box-shadow:inset -1px -1px #555}
 #ctm-recipe-book.active{background:#FFFFFF}
-#ctm-storage,#ctm-hotbar{display:grid;grid-template-columns:repeat(9,minmax(38px,1fr));gap:4px}
-#ctm-hotbar-section{min-height:70px}
+#ctm-storage,#ctm-hotbar{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px}
+#ctm-hotbar-section{min-height:0}
 #ctm-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:#404040}
 #ctm-delete{border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;background:#8B8B8B;color:#404040;padding:5px 9px;cursor:pointer;font-weight:700;box-shadow:inset -1px -1px #555}
 #ctm-cursor{display:none;position:fixed;width:46px;height:46px;z-index:2147483647;pointer-events:none;background:transparent;border:0;transform:translate(-50%,-50%);filter:drop-shadow(2px 2px 1px rgba(0,0,0,.55))}
@@ -471,14 +491,25 @@ function createUI() {
 body.crafting-table-open #hotbar.textured-hotbar{display:none!important}
 body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:.5}
 @media(max-width:720px){
-#ctm-panel{width:min(430px,92vw);height:min(760px,92vh);aspect-ratio:.71;padding:8px;gap:7px}
-#ctm-top{grid-template-columns:1fr;min-height:0;gap:7px}
-#ctm-help{display:block;max-height:180px}
-#ctm-recipe-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-#ctm-craft-grid{grid-template-columns:repeat(3,36px);gap:3px}
-.ctm-slot,.ctm-craft-slot{width:36px;height:36px}
-#ctm-output{width:46px;height:46px}
-#ctm-storage,#ctm-hotbar{grid-template-columns:repeat(9,minmax(28px,1fr));gap:3px}
+#ctm-panel{width:min(430px,94vw);max-height:94vh;padding:7px;gap:6px}
+#ctm-top{grid-template-columns:1.12fr .88fr;gap:6px}
+#ctm-craft-box,#ctm-help,#ctm-storage-section,#ctm-hotbar-section{padding:6px}
+#ctm-title,.ctm-title{font-size:11px;margin-bottom:4px}
+#ctm-help{display:block}
+#ctm-recipe-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+.ctm-recipe-card{padding:3px}
+.ctm-recipe-icon{width:28px;height:28px}
+.ctm-recipe-icon img{width:23px;height:23px;max-width:23px;max-height:23px}
+.ctm-recipe-name{font-size:8px}
+.ctm-recipe-count{font-size:7px}
+#ctm-craft-grid{grid-template-columns:repeat(3,32px);gap:2px}
+.ctm-slot,.ctm-craft-slot{width:32px;height:32px}
+.ctm-item{width:24px;height:24px;max-width:24px;max-height:24px}
+#ctm-output{width:40px;height:40px}
+#ctm-output .ctm-item{width:28px;height:28px;max-width:28px;max-height:28px}
+#ctm-storage,#ctm-hotbar{grid-template-columns:repeat(9,minmax(0,1fr));gap:2px}
+#ctm-actions{font-size:8px}
+#ctm-delete{padding:4px 6px;font-size:9px}
 }
 `;
     document.head.appendChild(style);
@@ -510,24 +541,103 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
             renderCursor();
         }
     }, true);
+    function slotAtPoint(clientX, clientY) {
+        const target = document.elementFromPoint(clientX, clientY)?.closest(".ctm-slot");
+        if (!target || !root.contains(target)) return null;
+        const type = target.classList.contains("ctm-craft-slot") ? "craft" : "inventory";
+        const slots = type === "craft"
+            ? [...root.querySelectorAll("#ctm-craft-grid .ctm-slot")]
+            : [...root.querySelectorAll("#ctm-storage .ctm-slot"), ...root.querySelectorAll("#ctm-hotbar .ctm-slot")];
+        const index = slots.indexOf(target);
+        return index >= 0 ? { type, index, target } : null;
+    }
+
+    function slotKey(type, index) {
+        return `${type}:${index}`;
+    }
+
+    function distributeLeftDrag() {
+        if (!pointerDrag || pointerDrag.button !== 0 || !dragged?.slot) return;
+        const targets = [...pointerDrag.visited];
+        if (!targets.length) return;
+
+        const valid = targets
+            .map(key => {
+                const [type, index] = key.split(":");
+                return { type, index: Number(index), slot: getSlot(type, Number(index)) };
+            })
+            .filter(entry => {
+                const target = entry.slot;
+                return !target || sameItem(target, dragged.slot);
+            });
+
+        if (!valid.length) return;
+
+        let remaining = Number(dragged.slot.count || 0);
+        const base = Math.floor(remaining / valid.length);
+        let remainder = remaining % valid.length;
+
+        for (const entry of valid) {
+            const target = getSlot(entry.type, entry.index);
+            const capacity = target ? Math.max(0, MAX_STACK - target.count) : MAX_STACK;
+            let add = Math.min(base, capacity);
+            if (remainder > 0 && add < capacity) {
+                add++;
+                remainder--;
+            }
+            if (add <= 0) continue;
+            if (target) target.count += add;
+            else setSlot(entry.type, entry.index, {
+                itemId: Number(dragged.slot.itemId),
+                count: add,
+                texture: dragged.slot.texture || itemDef(dragged.slot.itemId)?.texture || null
+            });
+            remaining -= add;
+        }
+
+        dragged.slot.count = remaining;
+        if (dragged.slot.count <= 0) dragged = null;
+    }
+
     document.addEventListener("pointermove", event => {
         if (!open || !dragged?.slot) return;
         const cursor = root.querySelector("#ctm-cursor");
-        if (!cursor) return;
-        cursor.style.left = `${event.clientX}px`;
-        cursor.style.top = `${event.clientY}px`;
-    });
-    document.addEventListener("pointerup", event => {
-        if (!open || !dragged?.slot) return;
-        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".ctm-slot");
-        if (target && root.contains(target)) {
-            const type = target.classList.contains("ctm-craft-slot") ? "craft" : "inventory";
-            const slots = type === "craft"
-                ? [...root.querySelectorAll("#ctm-craft-grid .ctm-slot")]
-                : [...root.querySelectorAll("#ctm-storage .ctm-slot"), ...root.querySelectorAll("#ctm-hotbar .ctm-slot")];
-            const index = slots.indexOf(target);
-            if (index >= 0) dropInto(type, index);
+        if (cursor) {
+            cursor.style.left = `${event.clientX}px`;
+            cursor.style.top = `${event.clientY}px`;
         }
+
+        if (!pointerDrag) return;
+        const hit = slotAtPoint(event.clientX, event.clientY);
+        if (!hit) return;
+        const key = slotKey(hit.type, hit.index);
+        if (key === pointerDrag.sourceKey || pointerDrag.visited.has(key)) return;
+        pointerDrag.moved = true;
+        pointerDrag.visited.add(key);
+
+        if (pointerDrag.button === 2) {
+            placeOne(hit.type, hit.index);
+            if (!dragged?.slot) pointerDrag = null;
+            render();
+        }
+    });
+
+    document.addEventListener("pointerup", event => {
+        if (!open || !dragged?.slot) {
+            pointerDrag = null;
+            return;
+        }
+
+        const drag = pointerDrag;
+        pointerDrag = null;
+        if (drag?.moved && drag.visited.size) {
+            if (drag.button === 0) distributeLeftDrag();
+            // Right-drag already placed one item into each newly visited slot.
+        } else {
+            const hit = slotAtPoint(event.clientX, event.clientY);
+            if (hit) dropInto(hit.type, hit.index);
+        }
+
         if (dragged?.slot) {
             const leftover = insertStack(dragged.slot);
             if (!leftover) dragged = null;
