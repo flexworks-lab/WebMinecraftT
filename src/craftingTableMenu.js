@@ -14,7 +14,6 @@ let craftOutput = null;
 let dragged = null;
 let suppressClick = false;
 let lastPrimaryPress = null;
-let pointerDrag = null;
 
 function textureUrl(name) {
     return name ? `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}` : "";
@@ -113,49 +112,15 @@ function renderSlot(index, type = "inventory") {
     } else if (slot || lastPrimaryPress?.type === type && lastPrimaryPress?.index === index) {
         button.addEventListener("pointerdown", event => {
             if (event.button === 0) {
-                const now = performance.now();
-                const sameRecentSlot = lastPrimaryPress
-                    && lastPrimaryPress.type === type
-                    && lastPrimaryPress.index === index
-                    && now - lastPrimaryPress.time < 400
-                    && dragged?.type === "cursor"
-                    && dragged?.slot
-                    && Number(dragged.slot.itemId) === Number(lastPrimaryPress.itemId)
-                    && !getSlot(type, index);
-
-                if (sameRecentSlot) {
-                    const held = dragged.slot;
-                    const keepInSlot = Math.max(0, Number(held.count || 0) - 1);
-                    if (keepInSlot > 0) {
-                        setSlot(type, index, {
-                            ...cloneSlot(held),
-                            count: keepInSlot
-                        });
-                    }
-                    held.count = 1;
-                    lastPrimaryPress = null;
-                    suppressClick = true;
-                    event.preventDefault();
-                    event.stopPropagation();
-                    render();
-                    return;
-                }
-
-                const current = getSlot(type, index);
-                lastPrimaryPress = current
-                    ? { type, index, itemId: Number(current.itemId), time: now }
-                    : null;
                 event.preventDefault();
                 event.stopPropagation();
-                pickupStack(type, index);
-                if (dragged?.slot) {
-                    pointerDrag = {
-                        button: 0,
-                        sourceKey: slotKey(type, index),
-                        visited: new Set(),
-                        moved: false
-                    };
+                if (!dragged) {
+                    pickupStack(type, index);
+                } else {
+                    dropInto(type, index);
                 }
+                lastPrimaryPress = null;
+                suppressClick = true;
                 render();
                 return;
             }
@@ -165,17 +130,11 @@ function renderSlot(index, type = "inventory") {
             event.stopPropagation();
             if (!dragged) {
                 takeHalf(type, index);
-                if (dragged?.slot) {
-                    pointerDrag = {
-                        button: 2,
-                        sourceKey: slotKey(type, index),
-                        visited: new Set(),
-                        moved: false
-                    };
-                }
             } else {
                 placeOne(type, index);
             }
+            lastPrimaryPress = null;
+            suppressClick = true;
             render();
         });
     } else if (type === "inventory") {
@@ -442,7 +401,7 @@ function createUI() {
         </section>
         <section id="ctm-storage-section"><div class="ctm-title">Inventory</div><div id="ctm-storage"></div></section>
         <section id="ctm-hotbar-section"><div class="ctm-title">Hotbar</div><div id="ctm-hotbar"></div></section>
-        <div id="ctm-actions"><span>Drag items with your mouse · Right click takes half / places one.</span><button id="ctm-delete" type="button">Delete held</button></div>
+        <div id="ctm-actions"><span>Left click: pick up / put down whole stack · Right click: take half / place 1.</span><button id="ctm-delete" type="button">Delete held</button></div>
       </div>
       <div id="ctm-cursor" aria-hidden="true"></div>`;
     document.body.appendChild(root);
@@ -471,7 +430,6 @@ function createUI() {
 #ctm-craft-grid{display:grid;grid-template-columns:repeat(3,42px);gap:4px}
 .ctm-slot{position:relative;width:42px;height:42px;background:#8B8B8B;border:2px solid #373737;box-shadow:inset -2px -2px #FFFFFF;color:#FFFFFF;padding:0;cursor:pointer;overflow:hidden;contain:layout paint;isolation:isolate}
 .ctm-craft-slot{width:42px;height:42px}
-.ctm-slot.dragging{opacity:.45}
 .ctm-item{position:relative;width:30px;height:30px;max-width:30px;max-height:30px;display:block;margin:auto;object-fit:contain;object-position:center;image-rendering:pixelated;pointer-events:none}
 .ctm-craft-item{width:30px;height:30px;max-width:30px;max-height:30px;object-fit:contain}
 .ctm-slot b,#ctm-output b{position:absolute;right:2px;bottom:0;color:#FFFFFF;font-size:12px;text-shadow:1px 1px #3F3F3F;z-index:2;pointer-events:none}
@@ -549,102 +507,27 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
             ? [...root.querySelectorAll("#ctm-craft-grid .ctm-slot")]
             : [...root.querySelectorAll("#ctm-storage .ctm-slot"), ...root.querySelectorAll("#ctm-hotbar .ctm-slot")];
         const index = slots.indexOf(target);
-        return index >= 0 ? { type, index, target } : null;
-    }
-
-    function slotKey(type, index) {
-        return `${type}:${index}`;
-    }
-
-    function distributeLeftDrag() {
-        if (!pointerDrag || pointerDrag.button !== 0 || !dragged?.slot) return;
-        const targets = [...pointerDrag.visited];
-        if (!targets.length) return;
-
-        const valid = targets
-            .map(key => {
-                const [type, index] = key.split(":");
-                return { type, index: Number(index), slot: getSlot(type, Number(index)) };
-            })
-            .filter(entry => {
-                const target = entry.slot;
-                return !target || sameItem(target, dragged.slot);
-            });
-
-        if (!valid.length) return;
-
-        let remaining = Number(dragged.slot.count || 0);
-        const base = Math.floor(remaining / valid.length);
-        let remainder = remaining % valid.length;
-
-        for (const entry of valid) {
-            const target = getSlot(entry.type, entry.index);
-            const capacity = target ? Math.max(0, MAX_STACK - target.count) : MAX_STACK;
-            let add = Math.min(base, capacity);
-            if (remainder > 0 && add < capacity) {
-                add++;
-                remainder--;
-            }
-            if (add <= 0) continue;
-            if (target) target.count += add;
-            else setSlot(entry.type, entry.index, {
-                itemId: Number(dragged.slot.itemId),
-                count: add,
-                texture: dragged.slot.texture || itemDef(dragged.slot.itemId)?.texture || null
-            });
-            remaining -= add;
-        }
-
-        dragged.slot.count = remaining;
-        if (dragged.slot.count <= 0) dragged = null;
+        return index >= 0 ? { type, index } : null;
     }
 
     document.addEventListener("pointermove", event => {
         if (!open || !dragged?.slot) return;
         const cursor = root.querySelector("#ctm-cursor");
-        if (cursor) {
-            cursor.style.left = `${event.clientX}px`;
-            cursor.style.top = `${event.clientY}px`;
-        }
-
-        if (!pointerDrag) return;
-        const hit = slotAtPoint(event.clientX, event.clientY);
-        if (!hit) return;
-        const key = slotKey(hit.type, hit.index);
-        if (key === pointerDrag.sourceKey || pointerDrag.visited.has(key)) return;
-        pointerDrag.moved = true;
-        pointerDrag.visited.add(key);
-
-        if (pointerDrag.button === 2) {
-            placeOne(hit.type, hit.index);
-            if (!dragged?.slot) pointerDrag = null;
-            render();
-        }
+        if (!cursor) return;
+        cursor.style.left = `${event.clientX}px`;
+        cursor.style.top = `${event.clientY}px`;
     });
 
     document.addEventListener("pointerup", event => {
-        if (!open || !dragged?.slot) {
-            pointerDrag = null;
-            return;
-        }
-
-        const drag = pointerDrag;
-        pointerDrag = null;
-        if (drag?.moved && drag.visited.size) {
-            if (drag.button === 0) distributeLeftDrag();
-            // Right-drag already placed one item into each newly visited slot.
-        } else {
+        if (!open || !dragged?.slot) return;
+        // Left click is handled immediately on the slot press. If the player
+        // releases after moving away, keep the stack on the cursor.
+        // Right click places one item only when the cursor is touching a slot.
+        if (event.button === 2) {
             const hit = slotAtPoint(event.clientX, event.clientY);
-            if (hit) dropInto(hit.type, hit.index);
+            if (hit) placeOne(hit.type, hit.index);
+            render();
         }
-
-        if (dragged?.slot) {
-            const leftover = insertStack(dragged.slot);
-            if (!leftover) dragged = null;
-            else dragged.slot = leftover;
-        }
-        suppressClick = true;
-        render();
     });
     document.addEventListener("click", event => {
         if (!open) return;
