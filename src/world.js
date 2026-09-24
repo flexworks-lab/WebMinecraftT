@@ -825,6 +825,27 @@ function updateFacingVisibility(playerPosition, camera) {
     }
 }
 
+export function beginWorldEditBatch() {
+    worldEditBatchDepth++;
+}
+
+export function endWorldEditBatch() {
+    if (worldEditBatchDepth <= 0) return;
+    worldEditBatchDepth--;
+    if (worldEditBatchDepth !== 0) return;
+    const rebuilds = [...pendingChunkRebuilds];
+    pendingChunkRebuilds.clear();
+    for (const key of rebuilds) {
+        const parts = key.split(",").map(Number);
+        const chunk = getChunk(parts[0], parts[1]);
+        if (chunk) rebuildChunkMesh(chunk);
+    }
+}
+
+function queueChunkRebuild(chunkX, chunkZ) {
+    pendingChunkRebuilds.add(chunkKey(chunkX, chunkZ));
+}
+
 export function setBlockAt(x, y, z, type) {
     x = Math.floor(x);
     y = Math.floor(y);
