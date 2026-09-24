@@ -545,7 +545,6 @@ function spawnPlayer() {
     const spawn = findRandomSpawn();
     if (!spawn) return false;
 
-    const spawn = findRandomSpawn();
     camera.up.set(0, 1, 0);
     camera.position.set(spawn.x, spawn.y, spawn.z);
     const spawnYaw = Math.random() * Math.PI * 2;
