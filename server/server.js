@@ -551,6 +551,23 @@ function handleMessage(ws, raw, state) {
         broadcast(room, { type: "chat_message", playerId: player.id, name: player.name, text });
         return;
     }
+    if (message.type === "save_and_quit") {
+        const room = rooms.get(player.room);
+        if (!room) {
+            send(ws, { type: "save_and_quit_ack", ok: false });
+            return;
+        }
+        // Flush the room snapshot immediately instead of waiting for the
+        // debounced 250ms persistence timer. The client waits for this ack
+        // before leaving/reloading.
+        try {
+            saveRoomsStateSync();
+            send(ws, { type: "save_and_quit_ack", ok: true, room: room.id });
+        } catch {
+            send(ws, { type: "save_and_quit_ack", ok: false });
+        }
+        return;
+    }
     if (message.type === "block_changes") {
         if (getPlayerRole(rooms.get(player.room), player) === ROLE_VISITOR) { send(ws,{type:"error",code:"visitor_readonly",message:"Visitors cannot build or break blocks."}); return; }
         if (!Array.isArray(message.changes) || message.changes.length > 1024) return;
