@@ -600,7 +600,6 @@ function createUI() {
     root.id = "craftingTableScreen";
     root.innerHTML = `
       <div id="ctm-panel">
-        <header id="ctm-header"><button id="ctm-close" type="button" aria-label="Close"></button></header>
         <section id="ctm-pages">
           <div id="ctm-left-page" class="ctm-page">
             <div id="ctm-help" aria-label="Craftable recipes"></div>
@@ -630,12 +629,7 @@ function createUI() {
     style.textContent = `
 #craftingTableScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000001;font-family:monospace,monospace;color:#404040;image-rendering:pixelated;touch-action:none}
 #craftingTableScreen.open{display:flex}
-#ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:10px;background:transparent;border:0;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset -2px -2px 0 #777,inset 2px 2px 0 #EAEAEA;display:flex;flex-direction:column;gap:8px;overflow:hidden}
-#ctm-header{display:flex;align-items:center;justify-content:flex-end;min-height:28px}
-#ctm-close{position:relative;width:30px;height:28px;margin-left:auto;background:#C6C6C6;color:transparent;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;font-size:0;line-height:0;cursor:pointer;padding:0;box-shadow:inset -2px -2px #555}
-#ctm-close::before,#ctm-close::after{content:"";position:absolute;left:7px;top:12px;width:14px;height:2px;background:#404040}
-#ctm-close::before{transform:rotate(45deg)}
-#ctm-close::after{transform:rotate(-45deg)}
+#ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:0;background:transparent;border:0;box-shadow:none;display:flex;flex-direction:column;gap:0;overflow:hidden}
 #ctm-pages{display:grid;grid-template-columns:minmax(0,0.88fr) minmax(0,1.12fr);gap:18px;min-height:0;flex:1}
 .ctm-page{background:#C6C6C6;border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;padding:10px;box-sizing:border-box;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;image-rendering:pixelated}
 #ctm-left-page{overflow:hidden}
@@ -696,7 +690,6 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
 }
 `;
     document.head.appendChild(style);
-    root.querySelector("#ctm-close").addEventListener("click", closeMenu);
     window.addEventListener("webminecraft:inventorychanged", () => {
         if (open) {
             loadInventory();
