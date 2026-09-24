@@ -111,6 +111,14 @@ function loadHeldTexture(file) {
 }
 
 const flintSteelTexture = loadHeldTexture("Flint_and_Steel_JE4_BE2.png");
+const swordTextures = {
+    186: loadHeldTexture("tools/wooden_sword.png"),
+    187: loadHeldTexture("tools/stone_sword.png"),
+    188: loadHeldTexture("tools/iron_sword.png"),
+    189: loadHeldTexture("tools/golden_sword.png"),
+    190: loadHeldTexture("tools/diamond_sword.png"),
+    191: loadHeldTexture("tools/netherite_sword.png")
+};
 
 function makeHandTexture() {
     const canvas = document.createElement("canvas");
@@ -182,6 +190,23 @@ function clearHeldMesh() {
 
 function updateBlock() {
     clearHeldMesh();
+
+    if (swordTextures[selectedItemId]) {
+        const geometry = new THREE.PlaneGeometry(0.40, 0.90);
+        const material = new THREE.MeshBasicMaterial({
+            map: swordTextures[selectedItemId],
+            transparent: true,
+            alphaTest: 0.05,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        itemMesh = new THREE.Mesh(geometry, material);
+        itemMesh.position.set(-0.02, 0.08, -0.03);
+        itemMesh.rotation.set(0.02, 0.12, -0.18);
+        itemMesh.renderOrder = 3;
+        heldRoot.add(itemMesh);
+        return;
+    }
 
     if (selectedItemId === 16) {
         const geometry = new THREE.PlaneGeometry(0.48, 0.72);
