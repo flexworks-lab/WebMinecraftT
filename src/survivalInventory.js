@@ -120,7 +120,7 @@ let equipment = Array.from({ length: 5 }, () => null);
 const EQUIPMENT_SIZE = 5;
 
 function isInWorld() { return document.body.classList.contains("webminecraft-in-world"); }
-function textureUrl(name) { return name ? `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}` : ""; }
+function textureUrl(name) { const value = String(name || ""); if (!value) return ""; return value.startsWith("tools/") ? `${import.meta.env.BASE_URL}${value}` : `${import.meta.env.BASE_URL}textures/${encodeURIComponent(value)}`; }
 function itemDef(id) { return getInventoryItem(id) || ITEM_DEFS.find(item => item.id === Number(id)) || null; }
 
 function normalizeSlot(slot) {
