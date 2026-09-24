@@ -266,7 +266,8 @@ function renderRecipeBrowser() {
 
     const recipes = recipeDefinitions();
     const recipeByItemId = new Map(recipes.map(recipe => [Number(recipe.itemId), recipe]));
-    const blockItems = [...BUILD_BLOCK_IDS]
+    // Show every block in the build catalog, including TNT and the oak door.
+    const blockItems = [...new Set([...BUILD_BLOCK_IDS, 15, 17])]
         .map(id => itemDef(id))
         .filter(Boolean)
         .filter(item => Number(item.id) !== 185);
