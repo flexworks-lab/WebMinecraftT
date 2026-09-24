@@ -1,4 +1,4 @@
-import { getInventoryItem } from "./inventory.js";
+import { BUILD_BLOCK_IDS, getInventoryItem } from "./inventory.js";
 
 const INVENTORY_SIZE = 36;
 const HOTBAR_SIZE = 9;
@@ -235,8 +235,8 @@ function countInventoryItem(itemIds) {
     const ids = new Set(itemIds.map(Number));
     return inventory.reduce((sum, slot) => ids.has(Number(slot?.itemId)) ? sum + Number(slot.count || 0) : sum, 0);
 }
-function craftableRecipes() {
-    const recipes = [
+function recipeDefinitions() {
+    return [
         { itemId: 13, count: 4, label: "Oak Planks", tip: "1 log", ingredients: [{ ids: [...LOG_IDS], count: 1 }] },
         { itemId: 185, count: 4, label: "Stick", tip: "2 planks", ingredients: [{ ids: [...PLANK_IDS], count: 2 }] },
         { itemId: 168, count: 1, label: "Crafting Table", tip: "4 planks", ingredients: [{ ids: [...PLANK_IDS], count: 4 }] },
@@ -248,32 +248,58 @@ function craftableRecipes() {
         { itemId: 19, count: 4, label: "Stone Bricks", tip: "4 stone", ingredients: [{ ids: [3], count: 4 }] },
         { itemId: 50, count: 1, label: "Furnace", tip: "8 cobblestone", ingredients: [{ ids: [7], count: 8 }] }
     ];
-    return recipes.filter(recipe => recipe.ingredients.every(ingredient => countInventoryItem(ingredient.ids) >= ingredient.count));
 }
+
+function recipeAvailable(recipe) {
+    return !!recipe && recipe.ingredients?.every(ingredient =>
+        countInventoryItem(ingredient.ids) >= Number(ingredient.count || 0)
+    );
+}
+
+function craftableRecipes() {
+    return recipeDefinitions().filter(recipeAvailable);
+}
+
 function renderRecipeBrowser() {
     const panel = root?.querySelector("#ctm-help");
     if (!panel) return;
-    const recipes = craftableRecipes();
+
+    const recipes = recipeDefinitions();
+    const recipeByItemId = new Map(recipes.map(recipe => [Number(recipe.itemId), recipe]));
+    const blockItems = [...BUILD_BLOCK_IDS]
+        .map(id => itemDef(id))
+        .filter(Boolean)
+        .filter(item => Number(item.id) !== 185);
+
     panel.innerHTML = `
         <div id="ctm-recipe-grid">
-            ${recipes.map((recipe, recipeIndex) => {
-                const item = itemDef(recipe.itemId);
-                if (!item) return "";
+            ${blockItems.map(item => {
+                const recipe = recipeByItemId.get(Number(item.id));
+                const available = recipe
+                    ? recipeAvailable(recipe)
+                    : countInventoryItem([Number(item.id)]) > 0;
                 const texture = item.texture;
-                return "<button class=\"ctm-recipe-card\" type=\"button\" data-recipe-index=\"" + recipeIndex + "\" aria-label=\"" + recipe.label + "\">" +
-                    "<div class=\"ctm-recipe-icon\">" + (texture ? "<img src=\"" + textureUrl(texture) + "\" alt=\"\" draggable=\"false\">" : "") + "</div>" +
+                const className = "ctm-recipe-card" + (available ? "" : " unavailable");
+                return "<button class=\\""+className+"\\" type=\\"button\\" data-recipe-item=\\""+Number(item.id)+"\\" aria-label=\\"\\">" +
+                    "<div class=\\"ctm-recipe-icon\\"><img src=\\""+textureUrl(texture)+"\\" alt=\\"\\" draggable=\\"false\\"></div>" +
                 "</button>";
             }).join("")}
         </div>`;
-    panel.querySelectorAll("[data-recipe-index]").forEach(button => {
+
+    panel.querySelectorAll("[data-recipe-item]").forEach(button => {
         button.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
-            const recipe = recipes[Number(button.dataset.recipeIndex)];
-            if (recipe) useRecipe(recipe);
+
+            const itemId = Number(button.dataset.recipeItem);
+            const recipe = recipeByItemId.get(itemId);
+            if (recipe && recipeAvailable(recipe)) {
+                useRecipe(recipe);
+            }
         });
     });
 }
+
 
 function clearCraftGridToInventory() {
     for (let i = 0; i < craftGrid.length; i++) {
@@ -572,12 +598,12 @@ function createUI() {
 .ctm-craft-box{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:12px;box-sizing:border-box}
 #ctm-storage-section,#ctm-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
 .ctm-recipe-tip{font-size:10px;color:#555;margin:-1px 0 7px}
-#ctm-recipe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;align-content:start}
-.ctm-recipe-card{min-width:0;padding:4px;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555}
-.ctm-recipe-icon{width:34px;height:34px;margin:0 auto 2px;background:#707070;border:2px solid #373737;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden}
-.ctm-recipe-icon img{width:27px;height:27px;max-width:27px;max-height:27px;object-fit:contain;image-rendering:pixelated}
-.ctm-recipe-name{font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#404040}
-.ctm-recipe-count{font-size:8px;text-align:center;margin-top:2px;color:#555}
+#ctm-recipe-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;align-content:start}
+.ctm-recipe-card{min-width:0;aspect-ratio:1;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555;padding:3px;cursor:pointer;display:grid;place-items:center}
+.ctm-recipe-card.unavailable{cursor:default}
+.ctm-recipe-icon{width:100%;height:100%;background:#707070;border:2px solid #373737;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden}
+.ctm-recipe-icon img{width:80%;height:80%;max-width:80%;max-height:80%;object-fit:contain;image-rendering:pixelated}
+.ctm-recipe-card.unavailable .ctm-recipe-icon img{filter:brightness(.28) saturate(.25);opacity:.75}
 .ctm-title{font-size:13px;font-weight:800;margin-bottom:6px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.45)}
 .ctm-craft-row{display:flex;align-items:center;justify-content:center;gap:10px}
 .ctm-arrow{position:relative;width:28px;height:28px;flex:0 0 28px}
@@ -608,12 +634,10 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
 .ctm-craft-box,#ctm-storage-section,#ctm-hotbar-section{padding:6px}
 #ctm-title,.ctm-title{font-size:11px;margin-bottom:4px}
 #ctm-help{display:block}
-#ctm-recipe-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
-.ctm-recipe-card{padding:3px}
-.ctm-recipe-icon{width:28px;height:28px}
-.ctm-recipe-icon img{width:23px;height:23px;max-width:23px;max-height:23px}
-.ctm-recipe-name{font-size:8px}
-.ctm-recipe-count{font-size:7px}
+#ctm-recipe-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:3px}
+.ctm-recipe-card{padding:2px}
+.ctm-recipe-icon{width:100%;height:100%}
+.ctm-recipe-icon img{width:78%;height:78%;max-width:78%;max-height:78%}
 #ctm-craft-grid{grid-template-columns:repeat(3,32px);gap:2px}
 .ctm-slot,.ctm-craft-slot{width:32px;height:32px}
 .ctm-item{width:24px;height:24px;max-width:24px;max-height:24px}
