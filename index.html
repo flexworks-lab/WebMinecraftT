@@ -150,7 +150,7 @@
 
 <<<<<<< HEAD
     <script>
-        const menuTips=["Never dig straight down!","Watch your step around cliffs.","Trees are a great early source of wood.","You can sprint while moving forward.","Caves can hide valuable ores.","Water can save you from a long fall.","Keep some blocks handy for building.","A good shelter is better than no shelter.","Explore different biomes to find new terrain.","You can fly with F.","Leaves make trees look much better with texture.","Sometimes the best view is from a mountain."];
+        const menuTips=["Never dig straight down!","Watch your step around cliffs.","Trees are a great early source of wood.","You can sprint while moving forward.","Caves can hide valuable ores.","Water can save you from a long fall.","Keep some blocks handy for building.","A good shelter is better than no shelter.","Explore different biomes to find new terrain.","You can fly with F.","Leaves make trees look much better with texture.","Sometimes the best view is from a mountain."]; 
         const menuSplash=document.getElementById("menuSplash"); if(menuSplash) menuSplash.textContent=menuTips[Math.floor(Math.random()*menuTips.length)];
     </script>
     <script type="module" src="./src/loadingScreen.js"></script>
@@ -161,5 +161,17 @@
     <button id="settingsButton" aria-label="Settings">⚙</button>
 >>>>>>> 8cf521c0847471e01f70dbe635b93219a24b727e
     <script type="module" src="./src/main.js"></script>
+    <script type="module">
+        import { initSavedWorlds } from "./src/worlds.js";
+        initSavedWorlds({
+            onOpenWorld(seed) {
+                const input = document.getElementById("seedInput");
+                const button = document.getElementById("openWorldButton");
+                if (!input || !button) return;
+                input.value = String(seed);
+                button.click();
+            }
+        });
+    </script>
 </body>
 </html>

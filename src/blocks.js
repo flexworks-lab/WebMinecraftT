@@ -26,15 +26,22 @@ function createTexture(baseColor, colors, density = 45, seed = 1) {
     return texture;
 }
 
-function loadTexture(path) {
-    const texture = new THREE.TextureLoader().load(path);
+function loadTexture(path, label = path) {
+    const texture = new THREE.TextureLoader().load(
+        path,
+        loaded => { loaded.needsUpdate = true; },
+        undefined,
+        error => { console.error(`[WebMinecraftT] Failed to load texture: ${label}`, error); }
+    );
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
     return texture;
 }
 
-// Vite copies /public to the root of the build, so BASE_URL is the correct path prefix.
 const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURIComponent(file)}`;
 
 const grassTopTexture = loadTexture(texturePath("Grass_Block_(top_texture)_JE2.png"));
@@ -43,57 +50,51 @@ const dirtTexture = loadTexture(texturePath("dirt.png"));
 const oakSideTexture = loadTexture(texturePath("oak_log.png"));
 const oakTopTexture = loadTexture(texturePath("oak_log_top.png"));
 const stoneTexture = loadTexture(texturePath("stone.png"));
-const cobblestoneTexture = createTexture("#666666", ["#555555", "#7b7b7b", "#4d4d4d", "#898989"], 75, 18);
-const gravelTexture = createTexture("#88847a", ["#6f6b62", "#9d988c", "#747066", "#aba69a"], 80, 19);
-const sandTexture = createTexture("#d8c07b", ["#c5aa64", "#e5d18f", "#b99f58", "#eddc9c"], 54, 14);
-const sandstoneTexture = createTexture("#c7ae72", ["#b4985a", "#ddc790", "#ad8f51", "#ead59d"], 42, 20);
-const bedrockTexture = createTexture("#303030", ["#242424", "#494949", "#1d1d1d", "#555555"], 80, 21);
-const coalTexture = createTexture("#535353", ["#151515", "#252525", "#707070", "#0c0c0c"], 72, 22);
-const ironTexture = createTexture("#88827b", ["#c0bbb3", "#6c6762", "#a7a098", "#5d5955"], 68, 23);
-const oakPlankTexture = createTexture("#9b6a3b", ["#83562e", "#b67c45", "#744b28", "#c58d54"], 34, 24);
+const cobblestoneTexture = createTexture("#555555", ["#454545", "#686868", "#3f3f3f", "#737373"], 75, 18);
+const gravelTexture = createTexture("#74716a", ["#5e5b54", "#858178", "#626057", "#918d82"], 80, 19);
+const sandTexture = createTexture("#b9a568", ["#a89155", "#c9b77a", "#9d864c", "#d0c18b"], 54, 14);
+const sandstoneTexture = createTexture("#a9966a", ["#988455", "#b9a878", "#8f7b49", "#c5b58a"], 42, 20);
+const bedrockTexture = createTexture("#282828", ["#1e1e1e", "#3d3d3d", "#181818", "#484848"], 80, 21);
+const coalTexture = createTexture("#444444", ["#111111", "#202020", "#5c5c5c", "#090909"], 72, 22);
+const ironTexture = createTexture("#706d68", ["#a7a39d", "#595650", "#908b84", "#4e4b47"], 68, 23);
+const oakPlankTexture = createTexture("#80582f", ["#6d4828", "#98663a", "#5e3d23", "#aa7645"], 34, 24);
 const leavesTexture = loadTexture(texturePath("oak-leaves-normal-original-default.png"));
-const snowTexture = createTexture("#e8f1f4", ["#d6e2e7", "#ffffff", "#c3d3da", "#eef7fa"], 34, 25);
+const snowTexture = createTexture("#cbd6da", ["#c0ccd1", "#e3e9eb", "#adbcc2", "#d6e1e5"], 34, 25);
+const tntBottomTexture = loadTexture(texturePath("tnt_bottom.png"), "TNT bottom");
+const tntSideTexture = loadTexture(texturePath("tnt_side.png"), "TNT side");
+const tntTopTexture = loadTexture(texturePath("tnt_top.png"), "TNT top");
 const waterTexture = createTexture("#2b78aa", ["#1e628f", "#3f91c0", "#6bb9dc", "#245f86"], 30, 26);
 
-const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true });
-const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true });
-const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture, vertexColors: true });
-const stoneMaterial = new THREE.MeshLambertMaterial({ map: stoneTexture, vertexColors: true });
-const cobblestoneMaterial = new THREE.MeshLambertMaterial({ map: cobblestoneTexture, vertexColors: true });
-const gravelMaterial = new THREE.MeshLambertMaterial({ map: gravelTexture, vertexColors: true });
-const sandMaterial = new THREE.MeshLambertMaterial({ map: sandTexture, vertexColors: true });
-const sandstoneMaterial = new THREE.MeshLambertMaterial({ map: sandstoneTexture, vertexColors: true });
-const bedrockMaterial = new THREE.MeshLambertMaterial({ map: bedrockTexture, vertexColors: true });
-const coalMaterial = new THREE.MeshLambertMaterial({ map: coalTexture, vertexColors: true });
-const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture, vertexColors: true });
-const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, vertexColors: true });
-const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true });
-const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true });
+const grassTopMaterial = new THREE.MeshLambertMaterial({ map: grassTopTexture, vertexColors: true, color: 0xffffff });
+const grassSideMaterial = new THREE.MeshLambertMaterial({ map: grassSideTexture, vertexColors: true, color: 0xffffff });
+const dirtMaterial = new THREE.MeshLambertMaterial({ map: dirtTexture, vertexColors: true, color: 0xffffff });
+const stoneMaterial = new THREE.MeshLambertMaterial({ map: stoneTexture, vertexColors: true, color: 0xffffff });
+const cobblestoneMaterial = new THREE.MeshLambertMaterial({ map: cobblestoneTexture, vertexColors: true, color: 0xffffff });
+const gravelMaterial = new THREE.MeshLambertMaterial({ map: gravelTexture, vertexColors: true, color: 0xffffff });
+const sandMaterial = new THREE.MeshLambertMaterial({ map: sandTexture, vertexColors: true, color: 0xffffff });
+const sandstoneMaterial = new THREE.MeshLambertMaterial({ map: sandstoneTexture, vertexColors: true, color: 0xffffff });
+const bedrockMaterial = new THREE.MeshLambertMaterial({ map: bedrockTexture, vertexColors: true, color: 0xffffff });
+const coalMaterial = new THREE.MeshLambertMaterial({ map: coalTexture, vertexColors: true, color: 0xffffff });
+const ironMaterial = new THREE.MeshLambertMaterial({ map: ironTexture, vertexColors: true, color: 0xffffff });
+const oakSideMaterial = new THREE.MeshLambertMaterial({ map: oakSideTexture, vertexColors: true, color: 0xffffff });
+const oakTopMaterial = new THREE.MeshLambertMaterial({ map: oakTopTexture, vertexColors: true, color: 0xffffff });
+const oakPlankMaterial = new THREE.MeshLambertMaterial({ map: oakPlankTexture, vertexColors: true, color: 0xffffff });
 
-// Leaf faces on the outside of the canopy are fully opaque.
-// The PNG's transparent pixels are still cut out, but the actual leaf pixels are never blended.
 const leavesMaterial = new THREE.MeshLambertMaterial({
-    map: leavesTexture,
-    transparent: false,
-    opacity: 1,
-    alphaTest: 0.5,
-    depthWrite: true,
-    depthTest: true,
-    side: THREE.DoubleSide,
-    vertexColors: true
+    map: leavesTexture, transparent: false, opacity: 1, alphaTest: 0.1,
+    depthWrite: true, depthTest: true, side: THREE.DoubleSide,
+    vertexColors: true, color: 0xffffff
 });
 
-const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true });
-const waterMaterial = new THREE.MeshLambertMaterial({
-    map: waterTexture,
-    transparent: true,
-    opacity: 0.58,
-    depthWrite: false,
-    side: THREE.DoubleSide
-});
+const snowMaterial = new THREE.MeshLambertMaterial({ map: snowTexture, vertexColors: true, color: 0xffffff });
+const tntSideMaterial = new THREE.MeshLambertMaterial({ map: tntSideTexture, vertexColors: true, color: 0xffffff });
+const tntTopMaterial = new THREE.MeshLambertMaterial({ map: tntTopTexture, vertexColors: true, color: 0xffffff });
+const tntBottomMaterial = new THREE.MeshLambertMaterial({ map: tntBottomTexture, vertexColors: true, color: 0xffffff });
+const waterMaterial = new THREE.MeshLambertMaterial({ map: waterTexture, transparent: true, opacity: 0.58, depthWrite: false, side: THREE.DoubleSide });
 
 const grassMaterial = [grassSideMaterial, grassSideMaterial, grassTopMaterial, dirtMaterial, grassSideMaterial, grassSideMaterial];
 const oakLogMaterial = [oakSideMaterial, oakSideMaterial, oakTopMaterial, oakTopMaterial, oakSideMaterial, oakSideMaterial];
+const tntMaterial = [tntSideMaterial, tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntSideMaterial, tntSideMaterial];
 
 function createBlock(scene, x, y, z, material) {
     const block = new THREE.Mesh(blockGeometry, material);
@@ -105,5 +106,6 @@ export {
     blockGeometry, grassMaterial, dirtMaterial, stoneMaterial, cobblestoneMaterial,
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial, coalMaterial,
     ironMaterial, oakLogMaterial, oakPlankMaterial, leavesMaterial, snowMaterial,
+    tntSideMaterial, tntTopMaterial, tntBottomMaterial, tntMaterial,
     waterMaterial, waterTexture, createBlock
 };
