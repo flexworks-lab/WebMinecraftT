@@ -614,7 +614,11 @@ async function startWorldWithSeed(seed, savedMode = null) {
     clearHotbar();
     setWorldSeed(seed);
     const multiplayerStarting = Boolean(window.__webminecraftMultiplayerActive);
-    const mode = savedMode === "creative" || savedMode === "survival" ? savedMode : getWorldMode(seed);
+    const mode = savedMode === "creative" || savedMode === "survival"
+        ? savedMode
+        : (multiplayerStarting
+            ? (window.__webminecraftMultiplayerMode === "creative" ? "creative" : "survival")
+            : getWorldMode(seed));
     window.webMinecraftSelectedWorldMode = mode;
     window.__webminecraftPendingSingleplayerMode = mode;
     document.body.classList.toggle("webminecraft-survival", mode === "survival");
