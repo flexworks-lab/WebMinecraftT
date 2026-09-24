@@ -265,23 +265,40 @@ function removeGrassAtRay(ndcX = 0, ndcY = 0) {
     return true;
 }
 
-function tick(now) {
-    const playerX = Number(cameraRef?.position?.x);
-    const playerZ = Number(cameraRef?.position?.z);
+export function updateShortGrass(now = performance.now()) {
+    if (!cameraRef || !root || !mesh) return;
+    const playerX = Number(cameraRef.position?.x);
+    const playerZ = Number(cameraRef.position?.z);
     const movedEnough = Number.isFinite(lastScanX) && Number.isFinite(lastScanZ) && Number.isFinite(playerX) && Number.isFinite(playerZ)
         ? Math.hypot(playerX - lastScanX, playerZ - lastScanZ) >= MOVE_SCAN_DISTANCE
         : true;
-    if (now - lastScan >= SCAN_INTERVAL || movedEnough) { lastScan = now; scan(); }
-    if (now - lastGravelPhysicsScan >= GRAVEL_PHYSICS_INTERVAL) { lastGravelPhysicsScan = now; scanForUnsupportedGravel(); }
-    updateFallingGravel((now - (tick.lastTime || now)) / 1000);
-    tick.lastTime = now;
+
+    // Run immediately after world/chunk updates when the player moves, and
+    // also retry periodically so newly generated terrain gets vegetation
+    // without needing a block break/place event.
+    if (now - lastScan >= SCAN_INTERVAL || movedEnough) {
+        lastScan = now;
+        scan();
+    }
     updateGrassOutline();
+}
+
+function tick(now) {
+    const deltaTime = Math.min((now - (tick.lastTime || now)) / 1000, 0.05);
+    if (now - lastGravelPhysicsScan >= GRAVEL_PHYSICS_INTERVAL) {
+        lastGravelPhysicsScan = now;
+        scanForUnsupportedGravel();
+    }
+    updateFallingGravel(deltaTime);
+    tick.lastTime = now;
+    updateShortGrass(now);
     requestAnimationFrame(tick);
 }
 
 export function initShortGrass(scene, camera) {
     cameraRef = camera;
     window.__webMinecraftTryBreakShortGrass = removeGrassAtRay;
+    window.__webMinecraftUpdateShortGrass = updateShortGrass;
     if (!root) { root = new THREE.Group(); root.name = ROOT_NAME; root.renderOrder = 5; scene.add(root); }
     ensureMesh();
     ensureGrassOutline();
