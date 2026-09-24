@@ -603,7 +603,7 @@ function createUI() {
 .ctm-craft-box{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:12px;box-sizing:border-box}
 #ctm-storage-section,#ctm-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
 .ctm-recipe-tip{font-size:10px;color:#555;margin:-1px 0 7px}
-#ctm-recipe-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(58px,auto);gap:6px;align-content:start;overflow-x:hidden;overflow-y:auto;padding:2px 4px 4px 2px;min-height:0;flex:1}
+#ctm-recipe-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(58px,auto);gap:6px;align-content:start;overflow-x:hidden;overflow-y:auto;padding:2px 4px 4px 2px;min-height:0;flex:1}
 .ctm-recipe-card{min-width:0;min-height:0;aspect-ratio:1;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555;padding:4px;cursor:pointer;display:grid;place-items:center}
 .ctm-recipe-card.unavailable{cursor:default}
 .ctm-recipe-icon{width:100%;height:100%;background:#707070;border:2px solid #373737;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden}
@@ -639,7 +639,7 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
 .ctm-craft-box,#ctm-storage-section,#ctm-hotbar-section{padding:6px}
 #ctm-title,.ctm-title{font-size:11px;margin-bottom:4px}
 #ctm-help{display:block}
-#ctm-recipe-grid{grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:58px;gap:3px;overflow-x:hidden;overflow-y:auto}
+#ctm-recipe-grid{grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:58px;gap:3px;overflow-x:hidden;overflow-y:auto}
 .ctm-recipe-card{padding:3px}
 .ctm-recipe-icon{width:100%;height:100%}
 .ctm-recipe-icon img{width:82%;height:82%;max-width:82%;max-height:82%}
