@@ -331,30 +331,33 @@ function useRecipe(recipe) {
 function updateCraftResult() {
     craftOutput = null;
 
-    // Manual 3x3 crafting-table recipe: two planks vertically adjacent
-    // anywhere in the table produce four sticks.
-    const stickEntries = craftGrid
-        .map((slot, index) => ({ slot, index }))
-        .filter(entry => entry.slot);
+    // Manual 3x3 crafting-table recipe.
+    // Two planks directly above/below each other make four sticks.
+    const stickPattern = [
+        [0, 3], [1, 4], [2, 5],
+        [3, 6], [4, 7], [5, 8]
+    ];
 
-    if (
-        stickEntries.length === 2 &&
-        stickEntries.every(entry => PLANK_IDS.has(Number(entry.slot.itemId))) &&
-        stickEntries.every(entry => Number(entry.slot.count) >= 1)
-    ) {
-        const first = stickEntries[0].index;
-        const second = stickEntries[1].index;
-        const sameColumn = first % 3 === second % 3;
-        const adjacentRows = Math.abs(Math.floor(first / 3) - Math.floor(second / 3)) === 1;
+    for (const [topIndex, bottomIndex] of stickPattern) {
+        const top = craftGrid[topIndex];
+        const bottom = craftGrid[bottomIndex];
+        const occupied = craftGrid.filter(Boolean);
 
-        if (sameColumn && adjacentRows) {
+        if (
+            occupied.length === 2 &&
+            top && bottom &&
+            PLANK_IDS.has(Number(top.itemId)) &&
+            PLANK_IDS.has(Number(bottom.itemId)) &&
+            Number(top.count) >= 1 &&
+            Number(bottom.count) >= 1
+        ) {
             craftOutput = {
                 itemId: 185,
                 count: 4,
                 texture: itemDef(185)?.texture || null,
                 recipe: [
-                    { index: first, amount: 1 },
-                    { index: second, amount: 1 }
+                    { index: topIndex, amount: 1 },
+                    { index: bottomIndex, amount: 1 }
                 ]
             };
             return;
