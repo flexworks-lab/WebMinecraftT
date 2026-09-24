@@ -626,10 +626,6 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
 `;
     document.head.appendChild(style);
     root.querySelector("#ctm-close").addEventListener("click", closeMenu);
-    root.querySelector("#ctm-delete").addEventListener("click", () => {
-        dragged = null;
-        renderCursor();
-    });
     window.addEventListener("webminecraft:inventorychanged", () => {
         if (open) {
             loadInventory();
