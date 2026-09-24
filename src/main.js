@@ -486,14 +486,34 @@ function setMenuUiVisible(visible) {
     if (performanceHud) performanceHud.style.display = display;
 }
 
+function isSpawnFloorBlock(type) {
+    const types = getBlockTypes();
+    const id = Number(type);
+    if (!Number.isFinite(id) || id === types.AIR || id === types.LEAVES || id === types.OAK_DOOR) return false;
+    // Do not treat partial shapes as a full standing floor.
+    if (id >= 51 && id <= 154) return false;
+    return true;
+}
+
+function isSafeSpawnPosition(x, floorY, z) {
+    const types = getBlockTypes();
+    return (
+        isSpawnFloorBlock(getBlockAt(x, floorY, z)) &&
+        getBlockAt(x, floorY + 1, z) === types.AIR &&
+        getBlockAt(x, floorY + 2, z) === types.AIR
+    );
+}
+
 function findRandomSpawn() {
     const types = getBlockTypes();
+
+    // Prefer natural grass/dirt spawn locations.
     for (let attempt = 0; attempt < 700; attempt++) {
         const x = Math.floor(Math.random() * 97) - 48;
         const z = Math.floor(Math.random() * 97) - 48;
         for (let y = 70; y >= -31; y--) {
             if (getBlockAt(x, y, z) !== types.GRASS) continue;
-            if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+            if (!isSafeSpawnPosition(x, y, z)) continue;
             let safeLand = true;
             for (let ox = -1; ox <= 1 && safeLand; ox++) {
                 for (let oz = -1; oz <= 1; oz++) {
@@ -503,22 +523,28 @@ function findRandomSpawn() {
                 }
             }
             if (safeLand) return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
-            break;
         }
     }
-    for (let x = -16; x <= 16; x++) {
-        for (let z = -16; z <= 16; z++) {
-            for (let y = 60; y >= -31; y--) {
-                if (getBlockAt(x, y, z) !== types.GRASS) continue;
-                if (getBlockAt(x, y + 1, z) !== types.AIR || getBlockAt(x, y + 2, z) !== types.AIR) continue;
+
+    // Fallback: any full block with two clear blocks above it.
+    for (let x = -48; x <= 48; x++) {
+        for (let z = -48; z <= 48; z++) {
+            for (let y = 70; y >= -31; y--) {
+                if (!isSafeSpawnPosition(x, y, z)) continue;
                 return { x: x + 0.5, y: y + 0.5 + 1.8, z: z + 0.5 };
             }
         }
     }
-    return { x: 0.5, y: 80, z: 0.5 };
+
+    // This should only be reachable if the generated world has no valid spawn
+    // at all. Keep the player above the terrain until a later safety pass.
+    return null;
 }
 
 function spawnPlayer() {
+    const spawn = findRandomSpawn();
+    if (!spawn) return false;
+
     const spawn = findRandomSpawn();
     camera.up.set(0, 1, 0);
     camera.position.set(spawn.x, spawn.y, spawn.z);
@@ -628,12 +654,9 @@ async function startWorldWithSeed(seed, savedMode = null) {
     setupWaterPhysics(scene);
     setWorldCloudSeed(seed);
     setWorldUrl(seed);
-    spawnPlayer();
-    gameStarted = true;
     closeSeedMenu();
     if (mainMenu) mainMenu.style.display = "none";
-    setMenuUiVisible(false);
-    requestPointerLock();
+    gameStarted = false;
 
     try {
         if (multiplayerStarting) {
@@ -651,8 +674,46 @@ async function startWorldWithSeed(seed, savedMode = null) {
 
         window.__webminecraftSetWorldLoadingStatus?.("Building world chunks...");
         await waitForInitialWorldRender();
+
+        window.__webminecraftSetWorldLoadingStatus?.("Finding a safe place to stand...");
+        let spawned = false;
+        for (let attempt = 0; attempt < 3 && !spawned; attempt++) {
+            spawned = spawnPlayer();
+            if (!spawned) {
+                await waitForInitialWorldRender(2500);
+            }
+        }
+        if (!spawned) {
+            throw new Error("Could not find a safe spawn floor.");
+        }
+
+        // Recheck the exact block below the player's feet before enabling physics.
+        const floorY = Math.floor(camera.position.y - 2.3);
+        const safeFloor = isSafeSpawnPosition(
+            Math.floor(camera.position.x),
+            floorY,
+            Math.floor(camera.position.z)
+        );
+        if (!safeFloor) {
+            throw new Error("Spawn position has no solid floor.");
+        }
+
+        gameStarted = true;
+        setMenuUiVisible(false);
+        requestPointerLock();
     } catch (error) {
         console.warn("World persistence/load failed:", error);
+        window.__webminecraftSetWorldLoadingStatus?.("Could not find a safe spawn. Retrying...");
+        gameStarted = false;
+        try {
+            const retrySpawn = findRandomSpawn();
+            if (retrySpawn) {
+                camera.position.set(retrySpawn.x, retrySpawn.y, retrySpawn.z);
+                gameStarted = true;
+                setMenuUiVisible(false);
+                requestPointerLock();
+            }
+        } catch {}
     } finally {
         window.dispatchEvent(new CustomEvent("webminecraft:world-ready", { detail: { seed, multiplayer: multiplayerStarting } }));
         window.__webminecraftHideWorldLoading?.();
