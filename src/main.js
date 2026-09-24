@@ -575,9 +575,45 @@ async function copyText(text) {
         helper.remove(); return ok;
     }
 }
-function startWorldWithSeed(seed, savedMode = null) {
+function waitForEventOnce(eventName, timeoutMs = 12000) {
+    return new Promise(resolve => {
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            window.removeEventListener(eventName, onEvent);
+            clearTimeout(timer);
+            resolve();
+        };
+        const onEvent = () => finish();
+        const timer = setTimeout(finish, timeoutMs);
+        window.addEventListener(eventName, onEvent, { once: true });
+    });
+}
+
+async function waitForInitialWorldRender(timeoutMs = 5000) {
+    const started = performance.now();
+    await new Promise(resolve => {
+        const check = () => {
+            const stats = getPerformanceStats();
+            const hasChunks = Number(stats?.loadedChunks || 0) > 0;
+            const queueSettled = Number(stats?.queuedChunks || 0) <= 4;
+            if ((hasChunks && queueSettled) || performance.now() - started >= timeoutMs) {
+                resolve();
+                return;
+            }
+            requestAnimationFrame(check);
+        };
+        requestAnimationFrame(check);
+    });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+async function startWorldWithSeed(seed, savedMode = null) {
+    window.__webminecraftShowWorldLoading?.("Loading world data...");
     clearHotbar();
     setWorldSeed(seed);
+    const multiplayerStarting = Boolean(window.__webminecraftMultiplayerActive);
     const mode = savedMode === "creative" || savedMode === "survival" ? savedMode : getWorldMode(seed);
     window.webMinecraftSelectedWorldMode = mode;
     window.__webminecraftPendingSingleplayerMode = mode;
@@ -594,7 +630,29 @@ function startWorldWithSeed(seed, savedMode = null) {
     if (mainMenu) mainMenu.style.display = "none";
     setMenuUiVisible(false);
     requestPointerLock();
-    void setWorldSeedForPersistence(seed).then(() => { const restoredMode = getWorldMode(seed); window.webMinecraftSelectedWorldMode = restoredMode; document.body.classList.toggle("webminecraft-survival", restoredMode === "survival"); document.body.classList.toggle("webminecraft-creative", restoredMode === "creative"); window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode: restoredMode } })); }).catch(error => console.warn("World persistence load failed:", error));
+
+    try {
+        if (multiplayerStarting) {
+            window.__webminecraftSetWorldLoadingStatus?.("Applying server world data...");
+            await waitForEventOnce("webminecraft:multiplayer-world-ready", 12000);
+        } else {
+            window.__webminecraftSetWorldLoadingStatus?.("Loading saved world data...");
+            await setWorldSeedForPersistence(seed, { waitForCloud: true });
+            const restoredMode = getWorldMode(seed);
+            window.webMinecraftSelectedWorldMode = restoredMode;
+            document.body.classList.toggle("webminecraft-survival", restoredMode === "survival");
+            document.body.classList.toggle("webminecraft-creative", restoredMode === "creative");
+            window.dispatchEvent(new CustomEvent("webminecraft-modechange", { detail: { mode: restoredMode } }));
+        }
+
+        window.__webminecraftSetWorldLoadingStatus?.("Building world chunks...");
+        await waitForInitialWorldRender();
+    } catch (error) {
+        console.warn("World persistence/load failed:", error);
+    } finally {
+        window.dispatchEvent(new CustomEvent("webminecraft:world-ready", { detail: { seed, multiplayer: multiplayerStarting } }));
+        window.__webminecraftHideWorldLoading?.();
+    }
 }
 
 initSavedWorlds({ onOpenWorld: startWorldWithSeed });
