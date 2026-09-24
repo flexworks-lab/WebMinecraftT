@@ -306,10 +306,8 @@ function renderRecipeBrowser() {
         const itemId = Number(recipe.itemId);
         if (seenItemIds.has(itemId)) continue;
 
-        const isStick = itemId === 185;
-        const isCraftableBlock = BUILD_BLOCK_IDS.has(itemId);
-        if (!isStick && !isCraftableBlock) continue;
-
+        // Every entry in recipeDefinitions is a real craftable item.
+        // This includes normal items such as sticks and doors, plus blocks/slabs/stairs.
         seenItemIds.add(itemId);
         uniqueRecipes.push(recipe);
     }
