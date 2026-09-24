@@ -139,16 +139,6 @@ function renderSlot(index, type = "inventory") {
             suppressClick = true;
             render();
         });
-    } else if (type === "inventory") {
-        button.addEventListener("pointerdown", event => {
-            if (event.button !== 2 || !dragged) return;
-            lastPrimaryPress = null;
-            event.preventDefault();
-            event.stopPropagation();
-            placeOne(type, index);
-            render();
-        });
-    }
 
     button.addEventListener("click", event => {
         if (suppressClick) {
