@@ -327,7 +327,7 @@ async function reconcileCloudWorld(seed, switchId, localWorld, localBlocks) {
     }
 }
 
-async function loadSavedBlocks(seed, switchId) {
+async function loadSavedBlocks(seed, switchId, waitForCloud = false) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
 
@@ -349,11 +349,16 @@ async function loadSavedBlocks(seed, switchId) {
         const baseWorld = localWorld || { seed: normalizedSeed };
         const storedPreview = baseWorld.preview || readWorldPreview(normalizedSeed);
 
-        // Enter immediately using the local snapshot. Cloud reconciliation continues
-        // in the background and only applies differences if it finds anything newer.
+        // Apply the local snapshot first so the world has a complete immediate base.
         await applySavedBlocks(normalizedSeed, switchId, { ...baseWorld, preview: storedPreview || null }, mergedBlocks);
 
-        void reconcileCloudWorld(normalizedSeed, switchId, localWorld, storedBlocks);
+        if (waitForCloud) {
+            // When a loading screen is active, wait for the cloud copy to reconcile
+            // before letting gameplay become visible.
+            await reconcileCloudWorld(normalizedSeed, switchId, localWorld, storedBlocks);
+        } else {
+            void reconcileCloudWorld(normalizedSeed, switchId, localWorld, storedBlocks);
+        }
         return activeWorld;
     } catch (error) {
         console.warn("Could not load saved world blocks:", error);
@@ -468,7 +473,7 @@ window.addEventListener("webminecraft:blockchange", event => {
     }
 });
 
-async function switchWorld(seed) {
+async function switchWorld(seed, options = {}) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return null;
 
@@ -489,11 +494,11 @@ async function switchWorld(seed) {
         return null;
     }
 
-    return loadSavedBlocks(normalizedSeed, switchId);
+    return loadSavedBlocks(normalizedSeed, switchId, options?.waitForCloud === true);
 }
 
-export async function setWorldSeedForPersistence(seed) {
-    return switchWorld(seed);
+export async function setWorldSeedForPersistence(seed, options = {}) {
+    return switchWorld(seed, options);
 }
 
 export async function saveCurrentWorld(options = {}) {
