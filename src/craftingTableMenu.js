@@ -405,4 +405,3 @@ function updateCraftResult() {
         };
     }
 }
-}
