@@ -92,7 +92,8 @@ function renderSlot(index, type = "inventory") {
     const button = document.createElement("button");
     button.type = "button";
     button.className = type === "inventory" ? "ctm-slot" : "ctm-slot ctm-craft-slot";
-    button.draggable = !!slot && !document.body.classList.contains("mobile-mode");
+    // Use pointer events for dragging so it works consistently across browsers
+    // and does not depend on native HTML5 drag/drop behavior.
     button.innerHTML = itemVisual(slot, type !== "inventory") + slotCount(slot);
     button.title = slot ? (itemDef(slot.itemId)?.name || "Item") + ` (${slot.count})` : "Empty slot";
 
@@ -109,18 +110,6 @@ function renderSlot(index, type = "inventory") {
             render();
         });
     } else if (slot || lastPrimaryPress?.type === type && lastPrimaryPress?.index === index) {
-        button.addEventListener("dragstart", event => {
-            dragged = { type, index };
-            suppressClick = true;
-            button.classList.add("dragging");
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", `crafting-table:${type}:${index}`);
-        });
-        button.addEventListener("dragend", () => {
-            dragged = null;
-            button.classList.remove("dragging");
-            suppressClick = true;
-        });
         button.addEventListener("pointerdown", event => {
             if (event.button === 0) {
                 const now = performance.now();
@@ -187,19 +176,7 @@ function renderSlot(index, type = "inventory") {
             event.stopPropagation();
         }
     });
-    button.addEventListener("dragover", event => {
-        if (!document.body.classList.contains("mobile-mode")) event.preventDefault();
-    });
-    button.addEventListener("drop", event => {
-        if (document.body.classList.contains("mobile-mode")) return;
-        event.preventDefault();
-        event.stopPropagation();
-        if (!dragged) return;
-        dropInto(type, index);
-        dragged = null;
-        suppressClick = true;
-        render();
-    });
+
     button.addEventListener("contextmenu", event => event.preventDefault());
     return button;
 }
@@ -239,6 +216,26 @@ function placeOne(type, index) {
 function dropInto(type, index) {
     if (!dragged) return;
     const target = getSlot(type, index);
+
+    // Pointer-based dragging uses a temporary cursor stack. Support placing,
+    // merging, and swapping it into any inventory/crafting slot.
+    if (dragged.type === "cursor" && dragged.slot) {
+        if (!target) {
+            setSlot(type, index, cloneSlot(dragged.slot));
+            dragged = null;
+        } else if (sameItem(target, dragged.slot) && target.count < MAX_STACK) {
+            const add = Math.min(MAX_STACK - target.count, dragged.slot.count);
+            target.count += add;
+            dragged.slot.count -= add;
+            if (dragged.slot.count <= 0) dragged = null;
+        } else if (!sameItem(target, dragged.slot)) {
+            setSlot(type, index, cloneSlot(dragged.slot));
+            dragged.slot = cloneSlot(target);
+        }
+        updateCraftResult();
+        saveInventory();
+        return;
+    }
     if (dragged.type === "inventory" && type === "inventory") {
         if (dragged.index === index) return;
         [inventory[index], inventory[dragged.index]] = [inventory[dragged.index], inventory[index]];
@@ -516,6 +513,25 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
         if (!cursor) return;
         cursor.style.left = `${event.clientX + 12}px`;
         cursor.style.top = `${event.clientY + 12}px`;
+    });
+    document.addEventListener("pointerup", event => {
+        if (!open || !dragged?.slot) return;
+        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".ctm-slot");
+        if (target && root.contains(target)) {
+            const type = target.classList.contains("ctm-craft-slot") ? "craft" : "inventory";
+            const slots = type === "craft"
+                ? [...root.querySelectorAll("#ctm-craft-grid .ctm-slot")]
+                : [...root.querySelectorAll("#ctm-storage .ctm-slot"), ...root.querySelectorAll("#ctm-hotbar .ctm-slot")];
+            const index = slots.indexOf(target);
+            if (index >= 0) dropInto(type, index);
+        }
+        if (dragged?.slot) {
+            const leftover = insertStack(dragged.slot);
+            if (!leftover) dragged = null;
+            else dragged.slot = leftover;
+        }
+        suppressClick = true;
+        render();
     });
     document.addEventListener("click", event => {
         if (!open) return;
