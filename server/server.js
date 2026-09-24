@@ -460,6 +460,44 @@ function handleMessage(ws, raw, state) {
 
     const player = state.player;
     if (!state.joined || !player) return;
+    if (message.type === "player_name") {
+        const room = rooms.get(player.room);
+        if (!room) return;
+        const nextName = sanitizeName(message.name);
+        if (!/^[A-Za-z0-9_]{3,16}$/.test(nextName)) {
+            send(ws, { type: "error", code: "invalid_player_name", message: "Username must be 3–16 characters using letters, numbers, or underscores." });
+            return;
+        }
+        const nextKey = roleKey(nextName);
+        const currentKey = roleKey(player.name);
+        if (room.bannedNames?.has(nextKey)) {
+            send(ws, { type: "error", code: "banned_name", message: "That username is not allowed in this room." });
+            return;
+        }
+        const duplicate = [...room.players.values()].some(candidate => candidate.id !== player.id && roleKey(candidate.name) === nextKey);
+        if (duplicate) {
+            send(ws, { type: "error", code: "name_in_use", message: "That username is already being used in this room." });
+            return;
+        }
+        if (nextKey === currentKey) {
+            send(ws, { type: "player_name_changed", playerId: player.id, name: player.name, role: getPlayerRole(room, player) });
+            return;
+        }
+        const oldName = player.name;
+        const savedRole = room.playerRoles?.get(currentKey);
+        if (savedRole && currentKey !== nextKey) {
+            room.playerRoles.delete(currentKey);
+            room.playerRoles.set(nextKey, savedRole);
+        }
+        if (roleKey(room.ownerName) === currentKey) room.ownerName = nextName;
+        player.name = nextName;
+        scheduleRoomStateSave();
+        const role = getPlayerRole(room, player);
+        send(ws, { type: "player_name_changed", playerId: player.id, oldName, name: nextName, role });
+        broadcast(room, { type: "player_renamed", playerId: player.id, oldName, name: nextName, role, isHost: roleKey(room.ownerName) === nextKey });
+        broadcast(room, { type: "chat_system", text: oldName + " is now known as " + nextName });
+        return;
+    }
     if (message.type === "server_control") {
         const room = rooms.get(player.room);
         if (!room) return;
