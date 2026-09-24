@@ -1,9 +1,13 @@
+import "./discussion.js";
 import "./welcome.js";
 import "./playerList.js";
 import "./worldSync.js";
-import { touchInput } from "./controls.js";
+import "./mobileFlightControls.js";
 import "./uiFixes.js";
 import "./waterPhysics.js";
+import "./waterTextureFix.js";
+import "./survivalMode.js";
+import "./performance.js";
 
 function applyDirtBackgrounds() {
     if (document.getElementById("webMinecraftDirtBackgrounds")) return;
@@ -11,18 +15,14 @@ function applyDirtBackgrounds() {
     style.id = "webMinecraftDirtBackgrounds";
     style.textContent = `
 #savedWorlds {
-    background-color:rgba(35,24,16,.72) !important;
-    background-image:url("./textures/dirt.png") !important;
-    background-repeat:repeat !important;
-    background-size:64px 64px !important;
+    background-color:rgba(32,32,32,.78) !important;
+    background-image:none !important;
 }
 #savedWorldsShell {
-    background-color:rgba(28,20,14,.82) !important;
-    background-image:linear-gradient(rgba(20,14,10,.62),rgba(20,14,10,.82)),url("./textures/dirt.png") !important;
-    background-repeat:repeat !important;
-    background-size:64px 64px !important;
+    background-color:rgba(42,42,42,.86) !important;
+    background-image:none !important;
 }
-#savedWorldsBody { background:rgba(0,0,0,.08); }
+#savedWorldsBody { background:rgba(0,0,0,.03); }
 `;
     document.head.appendChild(style);
 }
@@ -33,6 +33,7 @@ function setupMenuAndMobileUi() {
     style.id = "webMinecraftMenuUiFixes";
     style.textContent = `
 #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:97 !important}
+#friendsButton{position:fixed !important;left:158px !important;bottom:28px !important;width:118px !important;height:48px !important;margin:0 !important;z-index:97 !important}
 #globalPlayerCount{left:auto !important;right:28px !important;bottom:28px !important;width:142px !important;min-height:48px !important;text-align:center !important}
 #globalPlayerPanel{left:auto !important;right:28px !important;bottom:88px !important}
 #mobileModeButton{margin-top:12px !important;background:linear-gradient(#536b82,#3e5265) !important;border-color:#111 !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -2px -3px 0 rgba(0,0,0,.3),0 3px 0 rgba(0,0,0,.72) !important}
@@ -49,49 +50,28 @@ body:not(.webminecraft-in-world) #touchAimKnob,
 body:not(.webminecraft-in-world) #touchHint{display:none !important}
 body.webminecraft-in-world #accountButton,
 body.webminecraft-in-world #newsButton,
+body.webminecraft-in-world #friendsButton,
 body.webminecraft-in-world #globalPlayerPanel,
 body.webminecraft-in-world #mainMenu button,
+body.webminecraft-in-world #menuButtons,
+body.webminecraft-in-world #playButton,
+body.webminecraft-in-world #multiplayerButton,
+body.webminecraft-in-world #menuSettingsButton,
+body.webminecraft-in-world #mobileModeButton,
+body.webminecraft-in-world #mainMenu .menuButton,
 body.webminecraft-in-world #seedMenu,
 body.webminecraft-in-world #menuUpdates{display:none !important}
-body.webminecraft-in-world #devControlsButton,
-body.webminecraft-in-world #discussionButton{display:none !important}
+body.webminecraft-in-world #devControlsButton{display:none !important;visibility:hidden !important;pointer-events:none !important}
 body.webminecraft-in-world #webMinecraftMovingClouds{display:none !important}
 body.webminecraft-in-world #globalPlayerCount{display:none !important}
 #settingsVersion{display:none !important}
 #gameVersionButton,#gameVersionPicker{display:none !important}
 #webMinecraftMovingClouds{display:none !important}
-
 #touchMovePad{overflow:visible}
-#touchHybridJoystick{
-    position:absolute;
-    left:56px;
-    top:56px;
-    width:56px;
-    height:56px;
-    margin:0;
-    border:2px solid rgba(255,255,255,.24);
-    border-radius:14px;
-    background:rgba(20,20,20,.34);
-    pointer-events:auto;
-    touch-action:none;
-    z-index:4;
-    -webkit-tap-highlight-color:transparent;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+@media(max-width:560px){
+    #newsButton{left:12px !important;bottom:18px !important;width:calc(50vw - 18px) !important}
+    #friendsButton{left:calc(50vw + 6px) !important;bottom:18px !important;width:calc(50vw - 18px) !important}
 }
-#touchHybridJoystickKnob{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:28px;
-    height:28px;
-    margin:-14px 0 0 -14px;
-    border:2px solid rgba(255,255,255,.5);
-    border-radius:9px;
-    background:rgba(255,255,255,.2);
-    pointer-events:none;
-    transition:transform .05s ease;
-}
-#touchHybridJoystick.dragging #touchHybridJoystickKnob{background:rgba(255,255,255,.3)}
 `;
     document.head.appendChild(style);
 
@@ -105,14 +85,51 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
         return params.get("mobile") === "1" || params.get("mode") === "mobile";
     };
 
+    const syncNewsButtonPosition = () => {
+        const button = document.getElementById("newsButton");
+        if (!button) return;
+        const mobile = isMobileMode() || window.innerWidth <= 560;
+        button.style.position = "fixed";
+        button.style.left = mobile ? "12px" : "28px";
+        button.style.bottom = mobile ? "18px" : "28px";
+        button.style.width = mobile ? "calc(50vw - 18px)" : "118px";
+        button.style.margin = "0";
+        button.style.zIndex = "97";
+    };
+
+    const menuButtons = document.getElementById("menuButtons");
+    if (menuButtons) {
+        new MutationObserver(syncNewsButtonPosition).observe(menuButtons, { childList:true });
+    }
+    syncNewsButtonPosition();
+    window.addEventListener("resize", syncNewsButtonPosition, { passive:true });
+
+    const ensureFriendsButton = () => {
+        if (document.getElementById("friendsButton")) return;
+        const button = document.createElement("button");
+        button.id = "friendsButton";
+        button.type = "button";
+        button.textContent = "Friends";
+        button.addEventListener("click", () => {
+            const accountButton = document.getElementById("accountButton");
+            if (accountButton) accountButton.click();
+        });
+        document.body.appendChild(button);
+    };
+
+    ensureFriendsButton();
+
     const syncState = () => {
         const menuVisible = getComputedStyle(mainMenu).display !== "none";
-        const inWorld = !menuVisible;
+        const worldsMenuOpen = document.body.classList.contains("webminecraft-worlds-menu");
+        const inWorld = !menuVisible && !worldsMenuOpen;
         document.body.classList.toggle("webminecraft-in-world", inWorld);
 
         if (settingsButton) {
             settingsButton.style.display = menuVisible || (inWorld && isMobileMode()) ? "block" : "none";
         }
+        ensureFriendsButton();
+        syncNewsButtonPosition();
     };
 
     const syncMobileButton = () => {
@@ -133,76 +150,6 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
     });
     observer.observe(mainMenu, { attributes:true, attributeFilter:["style","class"] });
     if (settingsButton) observer.observe(settingsButton, { attributes:true, attributeFilter:["style","class"] });
-
-    const attachHybridJoystick = () => {
-        const pad = document.getElementById("touchMovePad");
-        if (!pad || document.getElementById("touchHybridJoystick")) return !!pad;
-
-        const joystick = document.createElement("div");
-        joystick.id = "touchHybridJoystick";
-        joystick.setAttribute("aria-label", "Joystick movement");
-        const knob = document.createElement("div");
-        knob.id = "touchHybridJoystickKnob";
-        joystick.appendChild(knob);
-        pad.appendChild(joystick);
-
-        let pointerId = null;
-        const radius = 30;
-        const release = () => {
-            pointerId = null;
-            touchInput.moveX = 0;
-            touchInput.moveZ = 0;
-            joystick.classList.remove("dragging");
-            knob.style.transform = "translate(0,0)";
-        };
-        const update = (x, y) => {
-            const rect = joystick.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            let dx = x - centerX;
-            let dy = y - centerY;
-            const distance = Math.hypot(dx, dy);
-            if (distance > radius && distance > 0) {
-                dx = (dx / distance) * radius;
-                dy = (dy / distance) * radius;
-            }
-            const normalizedX = dx / radius;
-            const normalizedZ = -dy / radius;
-            touchInput.moveX = Math.abs(normalizedX) > .12 ? Math.max(-1, Math.min(1, normalizedX)) : 0;
-            touchInput.moveZ = Math.abs(normalizedZ) > .12 ? Math.max(-1, Math.min(1, normalizedZ)) : 0;
-            knob.style.transform = `translate(${dx}px,${dy}px)`;
-        };
-
-        joystick.addEventListener("pointerdown", event => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (pointerId !== null || event.pointerType === "mouse") return;
-            pointerId = event.pointerId;
-            joystick.setPointerCapture?.(event.pointerId);
-            joystick.classList.add("dragging");
-            update(event.clientX, event.clientY);
-        });
-        joystick.addEventListener("pointermove", event => {
-            if (event.pointerId !== pointerId) return;
-            event.preventDefault();
-            update(event.clientX, event.clientY);
-        });
-        joystick.addEventListener("pointerup", event => {
-            if (event.pointerId === pointerId) { event.preventDefault(); release(); }
-        });
-        joystick.addEventListener("pointercancel", event => {
-            if (event.pointerId === pointerId) release();
-        });
-        joystick.addEventListener("lostpointercapture", release);
-        return true;
-    };
-
-    if (!attachHybridJoystick()) {
-        const touchObserver = new MutationObserver(() => {
-            if (attachHybridJoystick()) touchObserver.disconnect();
-        });
-        touchObserver.observe(document.body, { childList:true, subtree:true });
-    }
 }
 
 function init() {
@@ -210,5 +157,5 @@ function init() {
     setupMenuAndMobileUi();
 }
 
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
 else init();

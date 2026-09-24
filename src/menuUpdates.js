@@ -6,6 +6,7 @@ const menu = document.getElementById("mainMenu");
 const seedMenu = document.getElementById("seedMenu");
 const VERSION_KEY = "webminecraft-game-version";
 const VERSIONS = ["v1.0", "v1.1", "v1.2", "Beta"];
+const NEWS_SEEN_KEY = "webminecraft-news-seen-v2";
 
 const UPDATE_DETAILS = [
     { version: "LATEST • World Saves", title: "Separate World Saves Fixed", body: "Each saved world now keeps its own block data. Creating or opening another world no longer overwrites the first world's saved blocks." },
@@ -325,20 +326,27 @@ function addStyles() {
         }
 =======
         #menuUpdates{display:none!important}
-        #newsButton{margin-top:8px}
-        #newsCenter{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.68);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:240;padding:20px;color:#fff}
-        #newsPanel{width:min(760px,94vw);max-height:min(760px,90vh);display:flex;flex-direction:column;background:#242424;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:7px 7px 0 rgba(0,0,0,.58)}
-        #newsHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 18px;background:#303030;border-bottom:2px solid #111}
-        #newsTitle{margin:0;font-family:"MinecraftFont",monospace;font-size:25px;text-shadow:2px 2px 0 #000}
-        #newsSubtitle{margin:3px 0 0;color:#999;font-size:11px}
-        #newsClose{min-width:78px}
-        #newsList{padding:16px;overflow:auto}
-        .newsItem{display:block;width:100%;margin:0 0 10px;padding:14px;text-align:left;background:#3b3b3b;border:2px solid #171717;border-top-color:#777;border-left-color:#777;color:#fff;cursor:pointer}
-        .newsItem:hover{filter:brightness(1.1);transform:translateY(-1px)}
+        #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:98 !important;display:block !important;pointer-events:auto !important;border-radius:0 !important;background:linear-gradient(#737373,#565656) !important;border:2px solid #1b1b1b !important;border-top-color:#a4a4a4 !important;border-left-color:#a4a4a4 !important;outline:none !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62) !important;transition:none !important;animation:none !important}
+#newsButton:hover,#newsButton:active{filter:none !important;transform:none !important}
+        #newsButton.newsHasUnread::after{content:"";position:absolute;top:7px;right:7px;width:10px;height:10px;border-radius:50%;background:#e33;border:2px solid #4b0000;box-shadow:0 0 0 1px rgba(0,0,0,.65),0 0 8px rgba(255,40,40,.55)}
+        #newsCenter{position:fixed;inset:0;display:none;background:linear-gradient(180deg,#1b1b1b,#111);z-index:240;color:#fff;overflow:hidden}
+        #newsPanel{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;display:grid;grid-template-columns:minmax(260px,31vw) minmax(0,1fr);grid-template-rows:100%;background:#1a1a1a;overflow:hidden}
+        #newsSidebar{min-width:0;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#242424,#191919);border-right:2px solid #0b0b0b}
+        #newsHeader{flex:0 0 auto;padding:28px 24px 22px;background:linear-gradient(180deg,#343434,#292929);border-bottom:2px solid #0f0f0f}
+        #newsTitle{margin:0;font-family:"MinecraftFont",monospace;font-size:clamp(26px,2.5vw,38px);text-shadow:3px 3px 0 #000}
+        #newsSubtitle{margin:7px 0 0;color:#aaa;font-size:13px;line-height:1.4}
+        #newsList{flex:1 1 auto;min-height:0;padding:14px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#6f6f6f #151515}
+        #newsList::-webkit-scrollbar{width:13px}
+        #newsList::-webkit-scrollbar-track{background:#151515}
+        #newsList::-webkit-scrollbar-thumb{background:#686868;border:2px solid #151515}
+        #newsList::-webkit-scrollbar-thumb:hover{background:#818181}
+        .newsItem{display:block;width:100%;margin:0 0 10px;padding:15px;text-align:left;background:#3b3b3b;border:2px solid #171717;border-top-color:#777;border-left-color:#777;color:#fff;cursor:pointer}
+        .newsItem:hover,.newsItem:focus-visible{filter:brightness(1.1);outline:2px solid rgba(255,255,255,.65);outline-offset:1px}
         .newsItem:last-child{margin-bottom:0}
         .newsItemVersion{color:#9dcc76;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:1px 1px 0 #111}
         .newsItemTitle{margin-top:5px;font-family:"MinecraftFont",monospace;font-size:16px;text-shadow:2px 2px 0 #111}
         .newsItemBody{margin-top:6px;color:#cfcfcf;font-size:12px;line-height:1.45}
+<<<<<<< HEAD
         #newsDetails{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.74);z-index:250;padding:20px}
         #newsDetailsPanel{width:min(650px,94vw);max-height:85vh;overflow:auto;padding:28px;background:#262626;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:7px 7px 0 rgba(0,0,0,.58)}
         #newsDetailsVersion{color:#9dcc76;font-family:"MinecraftFont",monospace;font-size:12px;margin-bottom:10px}
@@ -346,10 +354,35 @@ function addStyles() {
         #newsDetailsBody{color:#d6d6d6;font-size:14px;line-height:1.65;margin-bottom:22px}
         @media(max-width:600px){#newsHeader{padding:13px}.newsItem{padding:12px}#newsDetailsPanel{padding:22px}#newsDetailsTitle{font-size:25px}}
 >>>>>>> 3b6eb35da2cafd8fac0c64b277b1cdbca6cba417
+=======
+        #newsClose{width:calc(100% - 28px);margin:14px 14px 18px;min-height:44px;flex:0 0 auto}
+        #newsReading{min-width:0;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#2b2b2b,#202020)}
+        #newsReadingHeader{flex:0 0 auto;padding:26px 34px 20px;border-bottom:2px solid #111;background:#2e2e2e}
+        #newsReadingVersion{margin-bottom:8px;color:#9dcc76;font-family:"MinecraftFont",monospace;font-size:14px;text-shadow:2px 2px 0 #111}
+        #newsReadingTitle{margin:0;font-family:"MinecraftFont",monospace;font-size:clamp(28px,3vw,44px);line-height:1.15;text-shadow:3px 3px 0 #000}
+        #newsReadingBody{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:28px 34px 60px;color:#d9d9d9;font-size:16px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere;scrollbar-width:thin;scrollbar-color:#777 #171717}
+        #newsReadingBody::-webkit-scrollbar{width:14px}
+        #newsReadingBody::-webkit-scrollbar-track{background:#171717}
+        #newsReadingBody::-webkit-scrollbar-thumb{background:#707070;border:2px solid #171717;border-radius:7px}
+        #newsReadingBody::-webkit-scrollbar-thumb:hover{background:#898989}
+        @media(max-width:700px){
+            #newsButton{left:12px !important;bottom:18px !important;width:calc(50vw - 18px) !important}
+            #newsPanel{grid-template-columns:1fr;grid-template-rows:44% 56%}
+            #newsSidebar{border-right:0;border-bottom:2px solid #0b0b0b}
+            #newsHeader{padding:16px 16px 12px}
+            #newsList{padding:10px}
+            .newsItem{padding:12px;margin-bottom:8px}
+            .newsItemBody{font-size:11px}
+            #newsClose{margin:8px 12px 10px;width:calc(100% - 24px)}
+            #newsReadingHeader{padding:18px 18px 14px}
+            #newsReadingBody{padding:18px 18px 34px;font-size:14px;line-height:1.6}
+        }
+>>>>>>> 230c89e8ed1d4d1cf25173e2e4d1a680b101e68c
     `;
     document.head.appendChild(style);
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 function createUpdateDetail() {
     if (!updates || document.getElementById("updateDetail")) return;
@@ -725,35 +758,65 @@ function createNewsUi() {
     center.id = "newsCenter";
     center.setAttribute("aria-hidden", "true");
     center.innerHTML = `
+=======
+function setNewsUnread(unread){
+    const button=document.getElementById("newsButton");
+    if(button) button.classList.toggle("newsHasUnread",unread);
+    try{localStorage.setItem(NEWS_SEEN_KEY,unread?"0":"1")}catch{}
+}
+
+function hasNewsBeenSeen(){
+    try{return localStorage.getItem(NEWS_SEEN_KEY)==="1"}catch{return false}
+}
+
+function createNewsUi(){
+    if(document.getElementById("newsButton"))return;
+    addStyles();
+    const button=document.createElement("button");
+    button.id="newsButton";
+    button.className="menuButton";
+    button.type="button";
+    button.textContent="News";
+    document.body.appendChild(button);
+    const center=document.createElement("div");
+    center.id="newsCenter";
+    center.setAttribute("aria-hidden","true");
+    center.innerHTML=`
+>>>>>>> 230c89e8ed1d4d1cf25173e2e4d1a680b101e68c
         <div id="newsPanel" role="dialog" aria-modal="true" aria-labelledby="newsTitle">
-            <header id="newsHeader"><div><h2 id="newsTitle">News & Updates</h2><p id="newsSubtitle">The latest WebMinecraftT changes</p></div><button id="newsClose" class="menuButton" type="button">Close</button></header>
-            <div id="newsList"></div>
+            <aside id="newsSidebar">
+                <header id="newsHeader"><h2 id="newsTitle">News & Updates</h2><p id="newsSubtitle">The latest WebMinecraftT changes</p></header>
+                <div id="newsList"></div>
+                <button id="newsClose" class="menuButton" type="button">Back to Main Menu</button>
+            </aside>
+            <section id="newsReading">
+                <header id="newsReadingHeader"><div id="newsReadingVersion">Open a patch note</div><h2 id="newsReadingTitle">Open a patch note</h2></header>
+                <div id="newsReadingBody">Select a patch note from the list to view its full details.</div>
+            </section>
         </div>`;
     document.body.appendChild(center);
-    const details = document.createElement("div");
-    details.id = "newsDetails";
-    details.setAttribute("aria-hidden", "true");
-    details.innerHTML = `<div id="newsDetailsPanel" role="dialog" aria-modal="true" aria-labelledby="newsDetailsTitle"><div id="newsDetailsVersion"></div><h2 id="newsDetailsTitle"></h2><div id="newsDetailsBody"></div><button id="newsDetailsBack" class="menuButton" type="button">← Back</button></div>`;
-    document.body.appendChild(details);
-    const list = center.querySelector("#newsList");
-    const detailVersion = details.querySelector("#newsDetailsVersion");
-    const detailTitle = details.querySelector("#newsDetailsTitle");
-    const detailBody = details.querySelector("#newsDetailsBody");
+    const list=center.querySelector("#newsList");
+    const detailVersion=center.querySelector("#newsReadingVersion");
+    const detailTitle=center.querySelector("#newsReadingTitle");
+    const detailBody=center.querySelector("#newsReadingBody");
+    const showItem=item=>{detailVersion.textContent=item.version;detailTitle.textContent=item.title;detailBody.textContent=item.body;};
     UPDATE_DETAILS.forEach((item,index)=>{
-        const card=document.createElement("button"); card.className="newsItem"; card.type="button";
+        const card=document.createElement("button");card.className="newsItem";card.type="button";
         card.innerHTML=`<div class="newsItemVersion">${escapeHtml(item.version)}</div><div class="newsItemTitle">${escapeHtml(item.title)}</div><div class="newsItemBody">${escapeHtml(item.body)}</div>`;
-        card.addEventListener("click",event=>{event.stopPropagation();detailVersion.textContent=item.version;detailTitle.textContent=item.title;detailBody.textContent=item.body;details.style.display="flex";details.setAttribute("aria-hidden","false");});
+        card.addEventListener("click",event=>{event.stopPropagation();showItem(item);});
         list.appendChild(card);
+<<<<<<< HEAD
 >>>>>>> 3b6eb35da2cafd8fac0c64b277b1cdbca6cba417
+=======
+        if(index===0)showItem(item);
+>>>>>>> 230c89e8ed1d4d1cf25173e2e4d1a680b101e68c
     });
-    const closeNews=()=>{details.style.display="none";details.setAttribute("aria-hidden","true");center.style.display="none";center.setAttribute("aria-hidden","true");};
-    const openNews=event=>{event?.preventDefault();event?.stopPropagation();center.style.display="flex";center.setAttribute("aria-hidden","false");details.style.display="none";details.setAttribute("aria-hidden","true");center.querySelector("#newsClose")?.focus();};
+    const closeNews=()=>{center.style.display="none";center.setAttribute("aria-hidden","true");};
+    const openNews=event=>{event?.preventDefault();event?.stopPropagation();center.style.display="block";center.setAttribute("aria-hidden","false");setNewsUnread(false);list.scrollTop=0;};
     button.addEventListener("click",openNews);
     center.querySelector("#newsClose").addEventListener("click",closeNews);
-    details.querySelector("#newsDetailsBack").addEventListener("click",()=>{details.style.display="none";details.setAttribute("aria-hidden","true");});
-    center.addEventListener("click",event=>{if(event.target===center)closeNews();});
-    details.addEventListener("click",event=>{if(event.target===details)details.style.display="none";});
-    document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(details.style.display==="flex"){details.style.display="none";details.setAttribute("aria-hidden","true");}else if(center.style.display==="flex")closeNews();},true);
+    document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(center.style.display==="block")closeNews();},true);
+    setNewsUnread(!hasNewsBeenSeen());
 }
 
 <<<<<<< HEAD
@@ -767,23 +830,64 @@ function escapeHtml(value){return String(value??"").replaceAll("&","&amp;").repl
 function setupPauseMenu(){
     if(document.getElementById("pauseMenu"))return;
     const style=document.createElement("style"); style.id="pauseMenuStyles";
-    style.textContent=`#pauseMenu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.62);color:#fff;z-index:500;pointer-events:auto}#pausePanel{width:min(420px,90vw);padding:30px 28px 26px;background:#262626;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:6px 6px 0 rgba(0,0,0,.6);text-align:center}#pauseTitle{margin:0 0 8px;font-family:"MinecraftFont",monospace;font-size:34px;text-shadow:3px 3px 0 #000}#pauseSeed{min-height:20px;margin:0 0 20px;color:#999;font:12px Arial,sans-serif;overflow-wrap:anywhere}#pauseButtons{display:grid;gap:9px}.pauseButton{width:100%;min-height:46px;padding:9px 12px;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#696969,#505050);color:#fff;font-family:"MinecraftFont",monospace;font-size:13px;cursor:pointer;text-shadow:2px 2px 0 #222}#pauseResume{background:linear-gradient(#6d8d4e,#526f3c)}#pauseReturn{background:linear-gradient(#5d5d5d,#444)}`;
+    style.textContent=[
+        "#pauseMenu{position:fixed;inset:0;display:none;background:rgba(0,0,0,.38);color:#fff;z-index:2000000!important;pointer-events:auto;font-family:Arial,sans-serif}",
+        "#pauseMenu.pauseOpen{display:block}",
+        "#pauseShell{position:absolute;inset:0;display:grid;grid-template-columns:minmax(460px,1fr) minmax(300px,34vw);background:linear-gradient(180deg,rgba(25,29,26,.48),rgba(14,17,15,.58))}",
+        "#pauseMain{position:relative;min-width:0;display:flex;flex-direction:column;align-items:center;padding:clamp(34px,7vh,72px) 7vw 28px;box-sizing:border-box;justify-content:flex-start}",
+        "#pauseLogo{display:block;width:min(500px,76%);height:auto;max-height:150px;object-fit:contain;image-rendering:auto;margin:0 0 clamp(22px,4vh,38px);filter:drop-shadow(4px 5px 0 rgba(0,0,0,.62))}",
+        "#pauseLogoSub{margin-top:-18px;margin-bottom:clamp(34px,7vh,62px);color:#a9cf87;font:800 11px Arial,sans-serif;letter-spacing:4px;text-shadow:0 2px 0 #111}",
+        "#pauseNav{width:min(390px,100%);margin-left:-7vw;margin-top:clamp(88px,14vh,150px);display:grid;gap:6px}",
+        ".pauseButton{width:100%;min-height:48px;padding:11px 16px;border:2px solid #111;border-top-color:#919791;border-left-color:#919791;background:linear-gradient(#6b6d6b,#505451);color:#fff;font-family:Arial Black,Arial,sans-serif;font-size:13px;text-align:left;cursor:pointer;text-shadow:2px 2px 0 #222;box-shadow:inset 2px 2px 0 rgba(255,255,255,.08),inset -3px -3px 0 rgba(0,0,0,.28),0 4px 0 #111}",
+        ".pauseButton:hover{filter:brightness(1.08)}.pauseButton:active{transform:translateY(2px)}",
+        "#pauseResume{background:linear-gradient(#6f9a4d,#537539);font-size:14px}",
+        "#pauseNavSpacer{display:none}#pauseQuit{margin-top:2px;background:linear-gradient(#5c5c5c,#434343)}",
+        "#pauseSide{min-width:0;min-height:0;padding:clamp(28px,5vh,50px) clamp(22px,3vw,42px);box-sizing:border-box;background:linear-gradient(180deg,#252a26,#1a1f1b);border-left:2px solid #111;box-shadow:inset 2px 0 0 rgba(255,255,255,.04);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#687166 #141814}",
+        "#pauseSide::-webkit-scrollbar{width:12px}#pauseSide::-webkit-scrollbar-track{background:#141814}#pauseSide::-webkit-scrollbar-thumb{background:#687166;border:2px solid #141814}#pauseSide::-webkit-scrollbar-thumb:hover{background:#818b80}",
+        "#pauseSideHeader{padding-bottom:16px;border-bottom:2px solid #101310}#pauseSideTitle{margin:0;font-family:Arial Black,Arial,sans-serif;font-size:24px;text-shadow:3px 3px 0 #111}#pauseSideSubtitle{margin:7px 0 0;color:#9ea79f;font-size:11px;line-height:1.45}",
+        ".pauseInfoCard{margin-top:14px;padding:13px;background:#202520;border:2px solid #101310;border-top-color:#687166;border-left-color:#687166;box-shadow:3px 3px 0 rgba(0,0,0,.3)}.pauseInfoLabel{color:#8f9b90;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px}.pauseInfoValue{margin-top:5px;color:#fff;font-family:Arial Black,Arial,sans-serif;font-size:14px;line-height:1.4;overflow-wrap:anywhere;text-shadow:1px 1px 0 #111}.pauseMeta{margin-top:8px;color:#afb7b0;font-size:10px;line-height:1.6}",
+        "#pauseMembersWrap{margin-top:18px;min-height:0;display:flex;flex-direction:column}#pauseMembersHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}#pauseMembersTitle{margin:0;font-family:Arial Black,Arial,sans-serif;font-size:15px;text-shadow:2px 2px 0 #111}#pauseMemberCount{padding:4px 7px;background:#303730;border:1px solid #525d51;color:#b9c9b1;font:bold 9px Arial,sans-serif}",
+        "#pauseMembers{min-height:0;max-height:34vh;overflow-y:auto;display:grid;gap:7px;padding-right:3px;scrollbar-width:thin;scrollbar-color:#687166 #141814}.pauseMember{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:9px 10px;background:#202520;border:1px solid #3d463e}.pauseMemberName{min-width:0;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pauseMemberRole{display:block;margin-top:2px;color:#89938a;font-size:9px}",
+        "#pauseServerControls{display:none;margin-top:16px;padding-top:14px;border-top:2px solid #101310}#pauseServerControls.visible{display:block}#pauseServerControlsHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}#pauseServerControlsTitle{margin:0;font-family:Arial Black,Arial,sans-serif;font-size:15px;text-shadow:2px 2px 0 #111}.pauseRoleBadge{padding:4px 7px;background:#35452f;border:1px solid #617454;color:#b9d79e;font:bold 9px Arial,sans-serif}.pauseControlBox{padding:10px;background:#202520;border:1px solid #3d463e}.pauseControlLabel{display:block;margin:0 0 5px;color:#929d93;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.pauseControlSelect{box-sizing:border-box;width:100%;height:34px;padding:6px 8px;background:#161a17;color:#fff;border:2px solid #111;border-top-color:#6f786e;border-left-color:#6f786e;font:10px Arial,sans-serif;outline:none;cursor:pointer}.pauseControlGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.pauseControlButton{min-height:34px;padding:6px 7px;background:linear-gradient(#5b625b,#454a46);color:#fff;border:2px solid #111;border-top-color:#858d83;border-left-color:#858d83;cursor:pointer;font:700 9px Arial,sans-serif;text-shadow:1px 1px 0 #111}.pauseControlButton:hover{filter:brightness(1.08)}.pauseControlButton.warn{background:linear-gradient(#70453f,#5a3834)}.pauseControlButton.good{background:linear-gradient(#618047,#4d6839)}.pauseControlStatus{min-height:15px;margin-top:7px;color:#a8ca8e;font-size:9px;line-height:1.35}",
+        ".pauseInvite{min-width:64px;padding:6px 8px;background:linear-gradient(#596958,#465346);color:#fff;border:1px solid #111;border-top-color:#7f8d7d;border-left-color:#7f8d7d;font:700 9px Arial,sans-serif;cursor:pointer}.pauseInvite:hover{filter:brightness(1.08)}#pauseInviteAll{width:100%;margin-top:9px;min-height:40px;text-align:center;background:linear-gradient(#6f9253,#54743d)}#pauseInviteStatus{min-height:16px;margin-top:7px;color:#9fbd8d;font-size:10px;line-height:1.35}#pauseFooter{position:absolute;right:18px;bottom:13px;color:#667067;font-size:9px}",
+        "@media(max-width:820px){#pauseShell{grid-template-columns:1fr;overflow-y:auto}#pauseMain{min-height:68vh;padding:26px 7vw 18px}#pauseLogo{margin-bottom:26px}#pauseNav{margin-left:0;width:min(400px,92vw)}#pauseSide{border-left:0;border-top:2px solid #111;padding:22px 7vw 34px}#pauseMembers{max-height:none}#pauseFooter{position:static;margin-top:8px;text-align:center}}"
+    ].join("");
     document.head.appendChild(style);
     const overlay=document.createElement("div"); overlay.id="pauseMenu"; overlay.setAttribute("aria-hidden","true");
-    overlay.innerHTML=`<div id="pausePanel"><h2 id="pauseTitle">Game Paused</h2><div id="pauseSeed"></div><div id="pauseButtons"><button id="pauseResume" class="pauseButton" type="button">Resume Game</button><button id="pauseSettings" class="pauseButton" type="button">Settings</button><button id="pauseMobile" class="pauseButton" type="button">Mobile Mode</button><button id="pauseReturn" class="pauseButton" type="button">Return to Main Menu</button></div></div>`;
+    overlay.innerHTML=[
+        "<div id=\"pauseShell\">",
+        "<main id=\"pauseMain\"><img id=\"pauseLogo\" src=\"" + import.meta.env.BASE_URL + "WEBMINECRAFT-9-12-2026.png\" alt=\"WebMinecraftT\"><div id=\"pauseLogoSub\">WEB EDITION</div><div id=\"pauseNav\">",
+        "<button id=\"pauseResume\" class=\"pauseButton\" type=\"button\">Resume Game</button>",
+        "<button id=\"pauseSettings\" class=\"pauseButton\" type=\"button\">Settings</button>",
+        "<div id=\"pauseNavSpacer\"></div><button id=\"pauseQuit\" class=\"pauseButton\" type=\"button\">Save &amp; Quit</button></div><div id=\"pauseFooter\">WebMinecraftT</div></main>",
+        "<aside id=\"pauseSide\"><header id=\"pauseSideHeader\"><h2 id=\"pauseSideTitle\">World</h2><p id=\"pauseSideSubtitle\">Current world and multiplayer information</p></header>",
+        "<div id=\"pauseWorldInfo\"></div><section id=\"pauseMembersWrap\"><div id=\"pauseMembersHead\"><h3 id=\"pauseMembersTitle\">Players</h3><span id=\"pauseMemberCount\">1</span></div>",
+        "<div id=\"pauseMembers\"></div><button id=\"pauseInviteAll\" class=\"pauseInvite\" type=\"button\">Invite Players</button><div id=\"pauseInviteStatus\" aria-live=\"polite\"></div></section>"+
+        "<section id=\"pauseServerControls\"><div id=\"pauseServerControlsHead\"><h3 id=\"pauseServerControlsTitle\">Server Controls</h3><span class=\"pauseRoleBadge\">OP</span></div><div class=\"pauseControlBox\"><label class=\"pauseControlLabel\" for=\"pauseControlTarget\">Player</label><select id=\"pauseControlTarget\" class=\"pauseControlSelect\"></select><div class=\"pauseControlLabel\" style=\"margin-top:9px\">Role</div><div class=\"pauseControlGrid\"><button class=\"pauseControlButton good\" type=\"button\" data-role=\"visitor\">Visitor</button><button class=\"pauseControlButton good\" type=\"button\" data-role=\"member\">Member</button><button class=\"pauseControlButton good\" type=\"button\" data-role=\"operator\">Operator</button></div><div class=\"pauseControlGrid\"><button class=\"pauseControlButton\" type=\"button\" data-action=\"gamemode-survival\">Survival</button><button class=\"pauseControlButton\" type=\"button\" data-action=\"gamemode-creative\">Creative</button><button class=\"pauseControlButton\" type=\"button\" data-action=\"teleport\">Teleport to Me</button><button class=\"pauseControlButton\" type=\"button\" data-action=\"give\">Give</button><button class=\"pauseControlButton warn\" type=\"button\" data-action=\"kick\">Kick</button><button class=\"pauseControlButton warn\" type=\"button\" data-action=\"ban\">Ban</button></div><div id=\"pauseControlStatus\" class=\"pauseControlStatus\" aria-live=\"polite\"></div></div></section></aside></div>"
+    ].join("");
     document.body.appendChild(overlay);
     const isGameRunning=()=>Boolean(menu&&menu.style.display==="none"); let paused=false;
-    const close=event=>{event?.preventDefault();paused=false;overlay.style.display="none";overlay.setAttribute("aria-hidden","true");if(isGameRunning())document.body.requestPointerLock?.();};
-    const open=event=>{event?.preventDefault();event?.stopPropagation();if(!isGameRunning())return;paused=true;overlay.querySelector("#pauseSeed").textContent=`Seed: ${getWorldSeed()}`;overlay.style.display="flex";overlay.setAttribute("aria-hidden","false");document.exitPointerLock?.();overlay.querySelector("#pauseResume").focus();};
+    const getRoomInfo=()=>{const mp=window.__webminecraftMultiplayerRoomInfo||{};return {active:Boolean(window.__webminecraftMultiplayerActive),room:String(mp.room||window.__webminecraftMultiplayerRoom||""),server:String(mp.serverName||window.__webminecraftMultiplayerServerName||""),private:Boolean(mp.private),mode:String(window.__webminecraftMultiplayerMode||"survival"),seed:getWorldSeed()};};
+    const getMembers=()=>{const localName=localStorage.getItem("webminecraft-player-name")||"Player";const remotes=typeof window.__webminecraftGetRemotePlayers==="function"?window.__webminecraftGetRemotePlayers():new Map();const localRole=String(window.__webminecraftMultiplayerRole||"member");const members=[{id:"local",name:localName,role:localRole}];if(remotes instanceof Map){for(const [id,player] of remotes)members.push({id:String(id),name:String(player?.name||"Player"),role:String(player?.role||"member").toLowerCase()});}return members;};
+    const makeInvite=()=>{window.__webminecraftOpenGameInvitePicker?.();};
+    const renderSide=()=>{const info=getRoomInfo();const members=getMembers();const worldInfo=overlay.querySelector("#pauseWorldInfo"),membersEl=overlay.querySelector("#pauseMembers"),count=overlay.querySelector("#pauseMemberCount"),title=overlay.querySelector("#pauseSideTitle"),subtitle=overlay.querySelector("#pauseSideSubtitle");title.textContent=info.active?(info.room||"Multiplayer World"):"World";subtitle.textContent=info.active?"Server · "+(info.server||"WebMinecraft server"):"Singleplayer world";worldInfo.innerHTML="<div class=\"pauseInfoCard\"><div class=\"pauseInfoLabel\">Game Mode</div><div class=\"pauseInfoValue\">"+(info.mode==="creative"?"Creative":"Survival")+"</div><div class=\"pauseMeta\">Seed: "+escapeHtml(info.seed)+"</div></div>"+(info.active?"<div class=\"pauseInfoCard\"><div class=\"pauseInfoLabel\">Server</div><div class=\"pauseInfoValue\">"+escapeHtml(info.server||"WebMinecraft Server")+"</div><div class=\"pauseMeta\">"+(info.private?"Private room":"Public room")+"</div></div>":"");count.textContent=String(members.length);membersEl.innerHTML="";for(const member of members){const row=document.createElement("div");row.className="pauseMember";row.innerHTML="<div><div class=\"pauseMemberName\">"+escapeHtml(member.name)+"</div><span class=\"pauseMemberRole\">"+escapeHtml(member.role)+"</span></div>";if(member.id!=="local"){const invite=document.createElement("button");invite.type="button";invite.className="pauseInvite";invite.textContent="Invite";invite.addEventListener("click",makeInvite);row.appendChild(invite);}membersEl.appendChild(row);}renderServerControls(members);};
+    const renderServerControls=members=>{const controls=overlay.querySelector("#pauseServerControls"),select=overlay.querySelector("#pauseControlTarget");if(!controls||!select)return;const host=Boolean(window.__webminecraftMultiplayerIsHost);controls.classList.toggle("visible",host);if(!host)return;const current=select.value;select.innerHTML="";for(const member of members.filter(item=>item.id!=="local")){const option=document.createElement("option");option.value=member.id;option.textContent=member.name+" · "+String(member.role||"member").toUpperCase();select.appendChild(option);}if(current&&[...select.options].some(option=>option.value===current))select.value=current;};
+    const selectedControlMember=()=>{const select=overlay.querySelector("#pauseControlTarget");return getMembers().find(member=>member.id===select?.value)||null;};
+    const close=event=>{event?.preventDefault();event?.stopPropagation();paused=false;overlay.classList.remove("pauseOpen");overlay.setAttribute("aria-hidden","true");if(isGameRunning()&&!window.__webminecraftHasOpenMenu?.())document.body.requestPointerLock?.();};
+    const open=event=>{event?.preventDefault();event?.stopPropagation();if(!isGameRunning())return;paused=true;renderSide();overlay.classList.add("pauseOpen");overlay.setAttribute("aria-hidden","false");document.exitPointerLock?.();overlay.querySelector("#pauseResume").focus();};
     overlay.querySelector("#pauseResume").addEventListener("click",close);
-    overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();overlay.style.display="none";overlay.setAttribute("aria-hidden","true");document.getElementById("settingsMenu")?.style.setProperty("display","flex");document.exitPointerLock?.();paused=false;});
-    overlay.querySelector("#pauseMobile").addEventListener("click",()=>{const url=new URL(window.location.href);const enabled=url.searchParams.get("mobile")==="1"||url.searchParams.get("mode")==="mobile";if(enabled){url.searchParams.delete("mobile");url.searchParams.delete("mode");}else{url.searchParams.set("mobile","1");url.searchParams.delete("mode");}window.location.href=url.toString();});
-    overlay.querySelector("#pauseReturn").addEventListener("click",()=>window.location.reload());
+    overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();event.stopPropagation();overlay.classList.remove("pauseOpen");overlay.setAttribute("aria-hidden","true");paused=false;if(settingsMenu){settingsMenu.style.display="flex";document.exitPointerLock?.();}});
+    overlay.querySelector("#pauseInviteAll").addEventListener("click",makeInvite);
+    overlay.querySelector("#pauseQuit").addEventListener("click",()=>{const button=overlay.querySelector("#pauseQuit");const saveAndReturn=async()=>{if(button){button.disabled=true;button.textContent="Saving...";}try{if(window.__webminecraftMultiplayerActive===true){await window.__webminecraftSaveMultiplayerAndQuit?.(3000);}else{await window.webminecraftSaveCurrentWorld?.({ skipCloud:true, skipPreview:true });}}catch{}window.__webminecraftFastQuit=true;window.location.reload();};void saveAndReturn();});
+    const refreshMembers=()=>{if(paused)renderSide();};
+    window.addEventListener("webminecraft:multiplayer-player-joined",refreshMembers);window.addEventListener("webminecraft:multiplayer-player-left",refreshMembers);window.addEventListener("webminecraft:multiplayer-state-changed",refreshMembers);
+    window.addEventListener("webminecraft:multiplayer-role-changed",refreshMembers);window.addEventListener("webminecraft:multiplayer-player-role-changed",refreshMembers);
+    overlay.querySelectorAll("#pauseServerControls [data-role]").forEach(button=>button.addEventListener("click",()=>{const member=selectedControlMember();if(!member)return;window.__webminecraftSendServerControl?.("set_role",{targetName:member.name,role:button.dataset.role});overlay.querySelector("#pauseControlStatus").textContent="Role change sent.";setTimeout(refreshMembers,200);}));
+    overlay.querySelectorAll("#pauseServerControls [data-action]").forEach(button=>button.addEventListener("click",()=>{const member=selectedControlMember();if(!member)return;const action=button.dataset.action;const details={targetName:member.name};if(action.startsWith("gamemode-")){details.mode=action.endsWith("creative")?"creative":"survival";window.__webminecraftSendServerControl?.("gamemode",details);}else if(action==="teleport"){details.x=Math.floor(Number(window.__webminecraftCamera?.position?.x)||0);details.y=Math.floor(Number(window.__webminecraftCamera?.position?.y)||0);details.z=Math.floor(Number(window.__webminecraftCamera?.position?.z)||0);window.__webminecraftSendServerControl?.("teleport",details);}else if(action==="give"){const itemId=Math.floor(Number(prompt("Item ID to give (1-184):","1")));const count=Math.floor(Number(prompt("Amount (1-64):","1")));if(Number.isFinite(itemId)&&Number.isFinite(count))window.__webminecraftSendServerControl?.("give",{...details,itemId,count});}else window.__webminecraftSendServerControl?.(action,details);overlay.querySelector("#pauseControlStatus").textContent="Control sent.";setTimeout(refreshMembers,200);}));
     document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(paused)close(event);else if(isGameRunning())open(event);},true);
     document.getElementById("settingsButton")?.addEventListener("pointerdown",event=>{if(!isGameRunning())return;event.preventDefault();event.stopImmediatePropagation();open(event);},true);
     window.webminecraftPause={open,close,isOpen:()=>paused};
 }
-
 function setupSeedBackButton(){
     const button=document.getElementById("backSeedButton"); if(!button||button.dataset.backHookInstalled)return; button.dataset.backHookInstalled="1";
     button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();if(seedMenu){seedMenu.style.display="none";seedMenu.setAttribute("aria-hidden","true");}if(menu)menu.style.display="flex";window.setTimeout(()=>window.location.reload(),80);});
@@ -791,16 +895,62 @@ function setupSeedBackButton(){
 
 function createVersionPicker(){
     if(document.getElementById("gameVersionPicker"))return;
-    const style=document.createElement("style");style.id="gameVersionStyles";
+    const style=document.createElement("style");
+    style.id="gameVersionStyles";
     style.textContent=`#gameVersionButton{position:fixed;right:10px;bottom:8px;min-width:88px;height:34px;padding:5px 10px;border:2px solid #111;border-top-color:#9a9a9a;border-left-color:#9a9a9a;background:linear-gradient(#666,#4d4d4d);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-shadow:2px 2px 0 #222;cursor:pointer;z-index:97;box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),0 2px 0 rgba(0,0,0,.7)}#gameVersionPicker{position:fixed;right:10px;bottom:48px;width:160px;padding:6px;background:#191919;border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:4px 4px 0 rgba(0,0,0,.55);z-index:97;display:none}.gameVersionOption{display:block;width:100%;min-height:34px;margin:3px 0;border:2px solid #111;border-top-color:#777;border-left-color:#777;background:#3d3d3d;color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;text-align:left;padding:7px 9px;cursor:pointer;text-shadow:2px 2px 0 #111}.gameVersionOption.active{background:#5e5e5e}`;
-    document.head.appendChild(style); const button=document.createElement("button");button.id="gameVersionButton";button.type="button";const picker=document.createElement("div");picker.id="gameVersionPicker";let current=VERSIONS.includes(localStorage.getItem(VERSION_KEY))?localStorage.getItem(VERSION_KEY):VERSIONS[0];
-    VERSIONS.forEach(version=>{const option=document.createElement("button");option.className="gameVersionOption";option.type="button";option.dataset.version=version;option.textContent=version;option.addEventListener("click",()=>{current=version;localStorage.setItem(VERSION_KEY,version);window.webminecraftVersion=version;refresh();picker.style.display="none";});picker.appendChild(option);});
-    const refresh=()=>{button.textContent=current;picker.querySelectorAll(".gameVersionOption").forEach(option=>option.classList.toggle("active",option.dataset.version===current));};
-    button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();picker.style.display=picker.style.display==="block"?"none":"block";});
-    document.addEventListener("click",event=>{if(event.target!==button&&!picker.contains(event.target))picker.style.display="none";});
+    document.head.appendChild(style);
+
+    const button=document.createElement("button");
+    button.id="gameVersionButton";
+    button.type="button";
+    const picker=document.createElement("div");
+    picker.id="gameVersionPicker";
+    let current=VERSIONS.includes(localStorage.getItem(VERSION_KEY))?localStorage.getItem(VERSION_KEY):VERSIONS[0];
+
+    VERSIONS.forEach(version=>{
+        const option=document.createElement("button");
+        option.className="gameVersionOption";
+        option.type="button";
+        option.dataset.version=version;
+        option.textContent=version;
+        option.addEventListener("click",()=>{
+            current=version;
+            localStorage.setItem(VERSION_KEY,version);
+            window.webminecraftVersion=version;
+            refresh();
+            picker.style.display="none";
+        });
+        picker.appendChild(option);
+    });
+
+    const refresh=()=>{
+        button.textContent=current;
+        picker.querySelectorAll(".gameVersionOption").forEach(option=>option.classList.toggle("active",option.dataset.version===current));
+    };
+
+    button.addEventListener("click",event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        picker.style.display=picker.style.display==="block"?"none":"block";
+    });
+
+    document.addEventListener("click",event=>{
+        if(event.target!==button&&!picker.contains(event.target)) picker.style.display="none";
+    });
     document.addEventListener("keydown",event=>{if(event.code==="Escape")picker.style.display="none";});
-    document.body.append(button,picker);window.webminecraftVersion=current;refresh();
-    if(menu){const observer=new MutationObserver(()=>{const visible=getComputedStyle(menu).display!=="none";button.style.display=visible?"block":"none";if(!visible)picker.style.display="none";});observer.observe(menu,{attributes:true,attributeFilter:["style","class"]});}
+
+    document.body.append(button,picker);
+    window.webminecraftVersion=current;
+    refresh();
+
+    if(menu){
+        const observer=new MutationObserver(()=>{
+            const visible=getComputedStyle(menu).display!=="none";
+            button.style.display=visible?"block":"none";
+            if(!visible) picker.style.display="none";
+        });
+        observer.observe(menu,{attributes:true,attributeFilter:["style","class"]});
+    }
 }
 
 addStyles();

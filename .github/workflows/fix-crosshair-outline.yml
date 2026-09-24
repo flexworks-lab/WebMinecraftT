@@ -1,11 +1,6 @@
 name: Add crosshair and block-facing outline
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - 'src/interaction.js'
-      - '.github/workflows/fix-crosshair-outline.yml'
   workflow_dispatch:
 
 permissions:

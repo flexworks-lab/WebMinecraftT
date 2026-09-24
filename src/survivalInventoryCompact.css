@@ -1,0 +1,20 @@
+/* Compact Survival inventory redesign. */
+#svi-panel{width:min(680px,86vw)!important;height:min(500px,82vh)!important;padding:8px!important;gap:6px!important;overflow:hidden!important;background:linear-gradient(#373737,#292929)!important;border:2px solid #141414!important;border-top-color:#8b8b8b!important;border-left-color:#8b8b8b!important;box-shadow:7px 7px 0 rgba(0,0,0,.42),inset 1px 1px #555!important;border-radius:3px!important}
+#svi-header{font-size:16px!important;min-height:26px!important}
+#svi-close{width:28px!important;height:25px!important;font-size:18px!important;padding:0!important}
+#svi-top{min-height:145px!important;height:145px!important;gap:6px!important}
+#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{padding:6px!important;background:#202020!important;border:2px solid #101010!important;box-shadow:inset 1px 1px #414141!important;border-radius:3px!important}
+#svi-player-box{min-height:145px!important;grid-template-columns:1fr 44px!important;grid-template-rows:1fr 26px!important}
+#svi-player-preview{min-height:105px!important}
+#svi-armor{gap:3px!important;padding-left:3px!important}.svi-armor-slot{width:28px!important;height:28px!important;font-size:14px!important}
+#svi-offhand{width:30px!important;height:30px!important;font-size:14px!important}
+#svi-player-box .svi-box-label{font-size:8px!important;margin-top:1px!important}
+#svi-crafting{justify-content:flex-start!important}.svi-section-title{font-size:11px!important;margin-bottom:3px!important}.svi-craft-row{gap:6px!important}.svi-arrow{font-size:20px!important}
+#svi-craft-grid{grid-template-columns:repeat(2,31px)!important;gap:3px!important}.svi-craft-slot{width:31px!important;height:31px!important}.svi-craft-output{width:37px!important;height:37px!important}
+#svi-recipe-book{margin-top:3px!important;padding:4px 7px!important;font-size:9px!important}
+#svi-recipe-panel{margin-top:3px!important;padding:4px!important;font-size:8px!important}
+#svi-storage-section{min-height:0!important;padding:5px!important}#svi-hotbar-section{padding:5px!important}
+#svi-storage,#svi-hotbar{gap:3px!important}.svi-slot{min-width:0!important;border-width:1px!important;background:linear-gradient(145deg,#929292,#6e6e6e)!important;box-shadow:inset 1px 1px rgba(255,255,255,.17),inset -1px -1px #414141!important}
+.svi-slot.selected{border:2px solid #fff!important}.svi-item{inset:2px!important}.svi-slot b{right:2px!important;bottom:0!important;font-size:9px!important}.svi-slot::after{display:none!important}
+#svi-hotbar{grid-template-columns:repeat(9,minmax(25px,38px))!important;justify-content:center!important}
+@media(max-width:720px){#svi-panel{width:94vw!important;height:88vh!important;padding:6px!important;gap:5px!important}#svi-top{min-height:125px!important;height:125px!important;gap:5px!important}#svi-player-box{min-height:125px!important;grid-template-columns:1fr 38px!important}.svi-armor-slot{width:24px!important;height:24px!important;font-size:12px!important}#svi-offhand{width:26px!important;height:26px!important}.svi-craft-slot{width:27px!important;height:27px!important}#svi-craft-grid{grid-template-columns:repeat(2,27px)!important}.svi-craft-output{width:32px!important;height:32px!important}.svi-arrow{font-size:17px!important}}

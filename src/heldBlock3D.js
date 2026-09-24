@@ -8,9 +8,26 @@ import {
     gravelMaterial,
     sandMaterial,
     sandstoneMaterial,
+    bedrockMaterial,
+    coalMaterial,
+    ironMaterial,
     oakLogMaterial,
+    oakPlankMaterial,
     leavesMaterial,
-    tntMaterial
+    snowMaterial,
+    tntMaterial,
+    bricksMaterial,
+    stoneBricksMaterial,
+    crackedStoneBricksMaterial,
+    mossyStoneBricksMaterial,
+    dirtPathMaterial,
+    acaciaPlanksMaterial, bambooPlanksMaterial, birchPlanksMaterial, crimsonPlanksMaterial,
+    darkOakPlanksMaterial, junglePlanksMaterial, mangrovePlanksMaterial, sprucePlanksMaterial, warpedPlanksMaterial,
+    blastFurnaceMaterial, furnaceMaterial, chiseledDeepslateMaterial, cobbledDeepslateMaterial,
+    crackedDeepslateBricksMaterial, crackedDeepslateTilesMaterial, deepslateMaterial, deepslateBricksMaterial,
+    deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
+    deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
+    deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial, extraBlockMaterials
 } from "./blocks.js";
 
 const ITEM_MATERIALS = {
@@ -23,7 +40,52 @@ const ITEM_MATERIALS = {
     7: cobblestoneMaterial,
     8: gravelMaterial,
     9: sandstoneMaterial,
-    15: tntMaterial
+    10: bedrockMaterial,
+    11: coalMaterial,
+    12: ironMaterial,
+    13: oakPlankMaterial,
+    14: snowMaterial,
+    15: tntMaterial,
+    18: bricksMaterial,
+    19: stoneBricksMaterial,
+    20: crackedStoneBricksMaterial,
+    21: mossyStoneBricksMaterial,
+    22: dirtPathMaterial,
+    23: acaciaPlanksMaterial,
+    24: bambooPlanksMaterial,
+    25: birchPlanksMaterial,
+    26: crimsonPlanksMaterial,
+    27: darkOakPlanksMaterial,
+    28: junglePlanksMaterial,
+    29: mangrovePlanksMaterial,
+    30: sprucePlanksMaterial,
+    31: warpedPlanksMaterial,
+    32: blastFurnaceMaterial,
+    33: chiseledDeepslateMaterial,
+    34: cobbledDeepslateMaterial,
+    35: crackedDeepslateBricksMaterial,
+    36: crackedDeepslateTilesMaterial,
+    37: deepslateMaterial,
+    38: deepslateBricksMaterial,
+    39: deepslateCoalOreMaterial,
+    40: deepslateCopperOreMaterial,
+    41: deepslateDiamondOreMaterial,
+    42: deepslateEmeraldOreMaterial,
+    43: deepslateGoldOreMaterial,
+    44: deepslateIronOreMaterial,
+    45: deepslateLapisOreMaterial,
+    46: deepslateRedstoneOreMaterial,
+    47: deepslateTilesMaterial,
+    48: polishedDeepslateMaterial,
+    50: furnaceMaterial,
+    51: stoneMaterial, 52: cobblestoneMaterial, 53: stoneBricksMaterial, 54: crackedStoneBricksMaterial, 55: mossyStoneBricksMaterial,
+    56: oakPlankMaterial, 57: acaciaPlanksMaterial, 58: bambooPlanksMaterial, 59: birchPlanksMaterial, 60: crimsonPlanksMaterial,
+    61: darkOakPlanksMaterial, 62: junglePlanksMaterial, 63: mangrovePlanksMaterial, 64: sprucePlanksMaterial, 65: warpedPlanksMaterial,
+    66: chiseledDeepslateMaterial, 67: cobbledDeepslateMaterial, 68: crackedDeepslateBricksMaterial, 69: crackedDeepslateTilesMaterial,
+    70: deepslateMaterial, 71: deepslateBricksMaterial, 72: deepslateTilesMaterial, 73: polishedDeepslateMaterial, 74: reinforcedDeepslateMaterial,
+    75: oakPlankMaterial, 76: acaciaPlanksMaterial, 77: bambooPlanksMaterial, 78: birchPlanksMaterial, 79: crimsonPlanksMaterial,
+    80: darkOakPlanksMaterial, 81: junglePlanksMaterial, 82: mangrovePlanksMaterial, 83: sprucePlanksMaterial, 84: warpedPlanksMaterial,
+    ...extraBlockMaterials
 };
 
 const BASE_POS = new THREE.Vector3(0.84, -0.76, -1.05);
@@ -33,7 +95,10 @@ const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURICo
 
 let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
 let visible = false;
-let selectedItemId = 1;
+function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
+function isStairItem(itemId) { return Number(itemId) >= 75 && Number(itemId) <= 84; }
+let selectedItemId = 0;
+let selectedSlot = 0;
 let action = null;
 let actionStartedAt = 0;
 
@@ -82,7 +147,7 @@ function isWorldVisible() {
     const main = document.getElementById("mainMenu");
     const seed = document.getElementById("seedMenu");
     const saved = document.getElementById("savedWorlds");
-    return (ITEM_MATERIALS[selectedItemId] || selectedItemId === 16) && inWorld
+    return inWorld
         && (!main || getComputedStyle(main).display === "none")
         && (!seed || getComputedStyle(seed).display === "none")
         && (!saved || getComputedStyle(saved).display === "none");
@@ -95,7 +160,13 @@ function updateVisibility() {
 
 function clearHeldMesh() {
     if (blockMesh) {
-        blockMesh.geometry.dispose();
+        blockMesh.traverse?.(child => {
+            if (!child?.isMesh) return;
+            child.geometry?.dispose?.();
+            if (Array.isArray(child.material)) child.material.forEach(m => m?.dispose?.());
+            else child.material?.dispose?.();
+        });
+        blockMesh.geometry?.dispose?.();
         if (Array.isArray(blockMesh.material)) blockMesh.material.forEach(m => m?.dispose?.());
         else blockMesh.material?.dispose?.();
         heldRoot.remove(blockMesh);
@@ -113,7 +184,6 @@ function updateBlock() {
     clearHeldMesh();
 
     if (selectedItemId === 16) {
-        // Flint & Steel is a thin held item, not a cube.
         const geometry = new THREE.PlaneGeometry(0.48, 0.72);
         const material = new THREE.MeshBasicMaterial({
             map: flintSteelTexture,
@@ -131,19 +201,43 @@ function updateBlock() {
     }
 
     if (ITEM_MATERIALS[selectedItemId]) {
-        blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.64, 0.64), getMaterials(selectedItemId));
-        blockMesh.position.set(-0.04, 0.10, 0);
-        blockMesh.rotation.set(0.06, 0.32, -0.06);
-        blockMesh.renderOrder = 2;
-        heldRoot.add(blockMesh);
+        if (isStairItem(selectedItemId)) {
+            const material = getMaterials(selectedItemId);
+            const topMaterial = Array.isArray(material) ? material.map(m => m?.clone?.() || m) : (material?.clone?.() || material);
+            const lower = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.32, 0.64), material);
+            lower.position.set(-0.04, -0.02, 0);
+            const upper = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.64), topMaterial);
+            upper.position.set(0.12, 0.14, 0);
+            const stairGroup = new THREE.Group();
+            stairGroup.add(lower, upper);
+            stairGroup.position.set(-0.04, 0.10, 0);
+            stairGroup.rotation.set(0.06, 0.32, -0.06);
+            stairGroup.renderOrder = 2;
+            blockMesh = stairGroup;
+            heldRoot.add(stairGroup);
+        } else {
+            blockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.64, 0.64), getMaterials(selectedItemId));
+            blockMesh.position.set(-0.04, isSlabItem(selectedItemId) ? -0.06 : 0.10, 0);
+            blockMesh.scale.y = isSlabItem(selectedItemId) ? 0.5 : 1;
+            blockMesh.rotation.set(0.06, 0.32, -0.06);
+            blockMesh.renderOrder = 2;
+            heldRoot.add(blockMesh);
+        }
     }
 }
 
 function readSelectedItem(slot) {
     try {
         const inv = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
-        return Number(inv?.[slot]?.itemId) || 1;
-    } catch { return 1; }
+        return Number(inv?.[slot]?.itemId) || 0;
+    } catch { return 0; }
+}
+
+function refreshSelectedItem() {
+    const nextItemId = readSelectedItem(selectedSlot);
+    if (nextItemId === selectedItemId) return;
+    selectedItemId = nextItemId;
+    updateBlock();
 }
 
 function triggerAction(type) {
@@ -203,6 +297,7 @@ function init() {
     hand.rotation.z = -0.12;
     heldRoot.add(hand);
 
+    selectedItemId = readSelectedItem(selectedSlot);
     updateBlock();
     updateVisibility();
 
@@ -213,8 +308,8 @@ function init() {
     });
 
     window.addEventListener("webminecraft:selectedslot", event => {
-        selectedItemId = readSelectedItem(Number(event.detail?.slot ?? 0));
-        updateBlock();
+        selectedSlot = Number(event.detail?.slot ?? 0);
+        refreshSelectedItem();
         updateVisibility();
     });
 
@@ -232,7 +327,11 @@ function init() {
 
     const observer = new MutationObserver(updateVisibility);
     observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    setInterval(updateVisibility, 250);
+
+    setInterval(() => {
+        refreshSelectedItem();
+        updateVisibility();
+    }, 100);
 
     function render() {
         requestAnimationFrame(render);

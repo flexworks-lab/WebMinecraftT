@@ -1,9 +1,6 @@
 name: Fix TNT renderer
 on:
-  push:
-    paths:
-      - 'src/world.js'
-      - '.github/workflows/fix-tnt-render.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write

@@ -1,0 +1,63 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "worlds": {
+          "$seed": {
+            ".validate": "newData.hasChildren(['seed', 'name', 'createdAt', 'updatedAt']) && newData.child('seed').isNumber() && newData.child('name').isString() && newData.child('name').val().length <= 40"
+          }
+        },
+        "worldData": {
+          "$seed": {
+            "$chunk": {
+              ".validate": "newData.hasChildren(['blocks', 'updatedAt'])"
+            }
+          }
+        },
+        "deletedWorlds": {
+          "$seed": {
+            ".validate": "newData.hasChildren(['seed', 'deletedAt']) && newData.child('seed').isNumber()"
+          }
+        }
+      }
+    },
+    "publicProfiles": {
+      ".read": true,
+      ".indexOn": [
+        "friendCode"
+      ],
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "friendRequests": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "sentFriendRequests": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "friends": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "friendPresence": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "gameInvites": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$inviteId": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === newData.child('fromUid').val())",
+          ".validate": "newData.hasChildren(['inviteId','fromUid','toUid','fromName','room','serverName','websocket','mode','createdAt','status']) && newData.child('inviteId').isString() && newData.child('fromUid').isString() && newData.child('toUid').val() === $uid && newData.child('room').isString() && newData.child('serverName').isString() && newData.child('websocket').isString() && newData.child('mode').isString() && newData.child('status').isString()"
+        }
+      }
+    }
+  }
+}

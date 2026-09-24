@@ -41,6 +41,101 @@ const gameplayUiPlugin = {
                 "const punch = mobile && !!touchInput.punchPressed;",
                 "const punch = mobile && !!touchInput.breakPressed;"
             );
+            const textureCss = '.hotbarTexture{position:absolute!important;inset:5px!important;display:block!important;background-position:center!important;background-size:100% 100%!important;background-repeat:no-repeat!important;image-rendering:pixelated!important;pointer-events:none!important;z-index:1!important}';
+            const hotbarCountRule = '#hotbar.textured-hotbar .hotbarCount{position:absolute;right:3px;bottom:1px;color:#fff;font:bold 13px Arial,sans-serif;text-shadow:2px 2px 0 #000;pointer-events:none;z-index:3}';
+            code = code.replace(hotbarCountRule, `${hotbarCountRule}\n${textureCss}`);
+            code = code.replace(
+                "export function setupInteraction(scene, camera) {",
+                "export function setupInteraction(scene, camera) {\n    window.__webminecraftMiningScene = scene;\n    window.__webminecraftMiningCamera = camera;"
+            );
+            return { code, map: null };
+        }
+
+        if (id.endsWith("/src/survivalMining.js")) {
+            code = code.replace(
+                "function getTarget() {\n    if (!sceneRef || !cameraRef) return null;",
+                "function getTarget() {\n    sceneRef ||= window.__webminecraftMiningScene || null;\n    cameraRef ||= window.__webminecraftMiningCamera || window.__webminecraftCamera || null;\n    if (!sceneRef || !cameraRef) return null;"
+            );
+            code = code.replace(
+                "function updateDrops(time) {\n    if (!sceneRef || !cameraRef || !isSurvivalWorld()) return;",
+                "function updateDrops(time) {\n    sceneRef ||= window.__webminecraftMiningScene || null;\n    cameraRef ||= window.__webminecraftMiningCamera || window.__webminecraftCamera || null;\n    if (!sceneRef || !cameraRef || !isSurvivalWorld()) return;"
+            );
+            return { code, map: null };
+        }
+
+        if (id.endsWith("/src/inventory.js")) {
+            code = code.replace(
+                'texture: "Grass_Block_(top_texture)_JE2.png"',
+                'texture: "grass_block_side.png"'
+            );
+            code = code.replace(
+                '{ id: 10, name: "Bedrock", texture: null, color: "#4b4b4b", category: "natural" }',
+                '{ id: 10, name: "Bedrock", texture: "bedrock.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 11, name: "Coal Ore", texture: null, color: "#343434", category: "natural" }',
+                '{ id: 11, name: "Coal Ore", texture: "coal_ore.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 12, name: "Iron Ore", texture: null, color: "#8c8c8c", category: "natural" }',
+                '{ id: 12, name: "Iron Ore", texture: "iron_ore.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 13, name: "Oak Planks", texture: null, color: "#b48754", category: "natural" }',
+                '{ id: 13, name: "Oak Planks", texture: "oak_planks.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 14, name: "Snow", texture: null, color: "#e9f4ff", category: "natural" }',
+                '{ id: 14, name: "Snow", texture: "snow.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 8, name: "Gravel", texture: "dirt.png", category: "natural" }',
+                '{ id: 8, name: "Gravel", texture: "gravel.png", category: "natural" }'
+            );
+            code = code.replace(
+                '{ id: 9, name: "Sandstone", texture: "sand.png", category: "natural" }',
+                '{ id: 9, name: "Sandstone", texture: "sandstone.png", category: "natural" }'
+            );
+            return { code, map: null };
+        }
+
+        if (id.endsWith("/src/tnt.js")) {
+            const scanCode = `
+let looseGravelScanStarted = false;
+function startLooseGravelScan() {
+    if (looseGravelScanStarted) return;
+    looseGravelScanStarted = true;
+    const scan = () => {
+        if (!lastScene) return;
+        const camera = window.__webminecraftCamera;
+        const centerX = Number.isFinite(camera?.position?.x) ? Math.floor(camera.position.x) : 0;
+        const centerY = Number.isFinite(camera?.position?.y) ? Math.floor(camera.position.y) : 32;
+        const centerZ = Number.isFinite(camera?.position?.z) ? Math.floor(camera.position.z) : 0;
+        const BLOCK = getBlockTypes();
+        const radius = 10;
+        const minY = Math.max(-31, centerY - 10);
+        const maxY = Math.min(127, centerY + 18);
+        for (let x = centerX - radius; x <= centerX + radius; x++) {
+            for (let z = centerZ - radius; z <= centerZ + radius; z++) {
+                for (let y = minY; y <= maxY; y++) {
+                    if (getBlockAt(x, y, z) === BLOCK.GRAVEL && !isSolidBlock(getBlockAt(x, y - 1, z), BLOCK)) {
+                        tryTrackGravelAt(lastScene, x, y, z);
+                    }
+                }
+            }
+        }
+    };
+    scan();
+    setInterval(scan, 350);
+}
+`;
+            if (!code.includes("startLooseGravelScan")) {
+                code = code.replace("function startPhysicsLoop() {", `${scanCode}\nfunction startPhysicsLoop() {`);
+                code = code.replace(
+                    'export function registerTNTPhysicsScene(scene) { lastScene = scene; startPhysicsLoop(); }',
+                    'export function registerTNTPhysicsScene(scene) { lastScene = scene; startPhysicsLoop(); startLooseGravelScan(); }'
+                );
+            }
             return { code, map: null };
         }
 
@@ -55,7 +150,7 @@ const gameplayUiPlugin = {
         if (id.endsWith("/src/main.js")) {
             code = code.replace(
                 'import * as THREE from "three";',
-                'import * as THREE from "three";\nimport { initMultiplayerAvatars } from "./multiplayerAvatars.js";'
+                'import * as THREE from "three";\nimport { initMultiplayerAvatars } from "./multiplayerAvatars.js";\nimport { initShortGrass } from "./shortGrass.js";'
             );
             code = code.replace(
                 "const scene = new THREE.Scene();",
@@ -70,12 +165,13 @@ const gameplayUiPlugin = {
                 'const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1, showCoordinates: false };'
             );
             const anchor = 'const hotbar = document.getElementById("hotbar");';
-            const injected = `${anchor}\n\nconst coordinatesHud = document.createElement("div");\ncoordinatesHud.id = "coordinatesHud";\ncoordinatesHud.setAttribute("aria-live", "polite");\ncoordinatesHud.textContent = "X: 0  Y: 0  Z: 0";\ndocument.body.appendChild(coordinatesHud);\n\nfunction updateCoordinatesHud() {\n    const visible = gameStarted && settings.showCoordinates === true && settingsMenu?.style.display !== "flex";\n    coordinatesHud.style.display = visible ? "block" : "none";\n    if (visible) {\n        coordinatesHud.textContent = \`X: \${Math.floor(camera.position.x)}  Y: \${Math.floor(camera.position.y)}  Z: \${Math.floor(camera.position.z)}\`;\n    }\n}\n\nconst showCoordinatesToggle = document.getElementById("showCoordinatesToggle");\nif (showCoordinatesToggle) {\n    showCoordinatesToggle.checked = settings.showCoordinates === true;\n    showCoordinatesToggle.addEventListener("change", () => {\n        settings.showCoordinates = showCoordinatesToggle.checked;\n        saveSettings();\n        updateCoordinatesHud();\n    });\n}\n\nsetInterval(updateCoordinatesHud, 100);`;
+            const injected = `${anchor}\n\nconst coordinatesHud = document.createElement("div");\ncoordinatesHud.id = "coordinatesHud";\ncoordinatesHud.setAttribute("aria-live", "polite");\ncoordinatesHud.textContent = "X: 0  Y: 0  Z: 0";\ndocument.body.appendChild(coordinatesHud);\n\nfunction updateCoordinatesHud() {\n    const visible = gameStarted && settings.showCoordinates === true && settingsMenu?.style.display !== "flex";\n    coordinatesHud.style.display = visible ? "block" : "none";\n    if (visible) {\n        coordinatesHud.textContent = "X: " + Math.floor(camera.position.x) + "  Y: " + Math.floor(camera.position.y) + "  Z: " + Math.floor(camera.position.z);\n    }\n}\n\nconst showCoordinatesToggle = document.getElementById("showCoordinatesToggle");\nif (showCoordinatesToggle) {\n    showCoordinatesToggle.checked = settings.showCoordinates === true;\n    showCoordinatesToggle.addEventListener("change", () => {\n        settings.showCoordinates = showCoordinatesToggle.checked;\n        saveSettings();\n        updateCoordinatesHud();\n    });\n}\n\nsetInterval(updateCoordinatesHud, 100);`;
             if (!code.includes('id = "coordinatesHud"')) code = code.replace(anchor, injected);
             code = code.replace(
                 'if (performanceHud) performanceHud.style.display = display;\n}',
                 'if (performanceHud) performanceHud.style.display = display;\n    updateCoordinatesHud();\n}'
             );
+            code = code.replace(/createWorld\(scene\);/g, "createWorld(scene);\n    initShortGrass(scene, camera);");
             return { code, map: null };
         }
 
@@ -102,7 +198,7 @@ const gameplayUiPlugin = {
             );
             code = code.replace(
                 'if (text && isMultiplayerActive()) {\n                try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}\n            }',
-                'if (text) {\n                const handled = runLocalCommand(text, {\n                    camera: window.__webminecraftCamera,\n                    getWorldSeed,\n                    getPlayerCount: () => remotePlayers.size + 1,\n                    addMessage: (message) => window.__webminecraftChatAdd?.(message, true),\n                    clearChat\n                });\n                if (!handled && isMultiplayerActive()) {\n                    try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}\n                }\n            }'
+                'if (text) {\n                const handled = runLocalCommand(text, {\n                    camera: window.__webminecraftCamera,\n                    getWorldSeed,\n                    getPlayerCount: () => remotePlayers.size + 1,\n                    addMessage: (message) => window.__webMinecraftChatAdd?.(message, true),\n                    clearChat\n                });\n                if (!handled && isMultiplayerActive()) {\n                    try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}\n                }\n            }'
             );
             return { code, map: null };
         }

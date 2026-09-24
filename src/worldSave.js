@@ -1,4 +1,4 @@
-import { setBlockAt } from "./world.js";
+import { setBlockAt, beginWorldEditBatch, endWorldEditBatch } from "./world.js";
 import { loadCloudWorld, saveCloudWorld } from "./cloudWorlds.js";
 import { isWorldDeleted } from "./worlds.js";
 
@@ -6,6 +6,8 @@ const WAIT_MS = 50;
 const LOCAL_SAVE_DELAY_MS = 350;
 const CLOUD_SAVE_DELAY_MS = 1500;
 const LIVE_CLOUD_SAVE_MS = 5000;
+const BLOCK_SNAPSHOT_PREFIX = "webminecraft-singleplayer-world-blocks-";
+const PLAYER_STATE_PREFIX = "webminecraft-singleplayer-world-state-";
 
 let activeWorld = null;
 let activeWorldSeed = null;
@@ -14,6 +16,7 @@ let saveTimer = null;
 let cloudSaveTimer = null;
 let liveCloudSaveTimer = null;
 let worldSwitchId = 0;
+let worldDirty = false;
 const pendingChanges = new Map();
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -37,6 +40,193 @@ async function waitForStorage(timeout = 10000) {
     return null;
 }
 
+function blockSnapshotKey(seed) {
+    const normalized = normalizeSeed(seed);
+    return normalized === null ? null : `${BLOCK_SNAPSHOT_PREFIX}${normalized}`;
+}
+
+function playerStateKey(seed) {
+    const normalized = normalizeSeed(seed);
+    return normalized === null ? null : `${PLAYER_STATE_PREFIX}${normalized}`;
+}
+
+function readLocalBlockSnapshot(seed) {
+    const key = blockSnapshotKey(seed);
+    if (!key) return {};
+    try {
+        const value = JSON.parse(localStorage.getItem(key) || "{}");
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    } catch { return {}; }
+}
+
+function writeLocalBlockSnapshot(seed, blocks) {
+    const key = blockSnapshotKey(seed);
+    if (!key) return;
+    try { localStorage.setItem(key, JSON.stringify(blocks || {})); } catch {}
+}
+
+function readWorldPreview(seed) {
+    const normalized = normalizeSeed(seed);
+    if (normalized === null) return null;
+    try {
+        const value = localStorage.getItem(`webminecraft-world-preview-${normalized}`);
+        return typeof value === "string" && value.startsWith("data:image/") ? value : null;
+    } catch { return null; }
+}
+
+function clearLocalBlockSnapshot(seed) {
+    const key = blockSnapshotKey(seed);
+    if (!key) return;
+    try { localStorage.removeItem(key); } catch {}
+}
+
+function inventoryTexture(itemId) {
+    const textures = {
+        1: "grass_block_side.png",
+        2: "dirt.png",
+        3: "stone.png",
+        4: "sand.png",
+        5: "oak_log_top.png",
+        6: "oak-leaves-normal-original-default.png",
+        7: "cobblestone.png",
+        8: "gravel.png",
+        9: "sandstone.png",
+        10: "bedrock.png",
+        11: "coal_ore.png",
+        12: "iron_ore.png",
+        13: "oak_planks.png",
+        14: "snow.png",
+        15: "tnt_side.png",
+        16: "Flint_and_Steel_JE4_BE2.png",
+        17: "oak_door_bottom.png",
+        18: "bricks.png",
+        19: "stone_bricks.png",
+        20: "cracked_stone_bricks.png",
+        21: "mossy_stone_bricks.png",
+        22: "dirt_path_top.png",
+        23: "acacia_planks.png",
+        24: "bamboo_planks.png",
+        25: "birch_planks.png",
+        26: "crimson_planks.png",
+        27: "dark_oak_planks.png",
+        28: "jungle_planks.png",
+        29: "mangrove_planks.png",
+        30: "spruce_planks.png",
+        31: "warped_planks.png",
+        32: "blast_furnace_front.png",
+        33: "chiseled_deepslate.png",
+        34: "cobbled_deepslate.png",
+        35: "cracked_deepslate_bricks.png",
+        36: "cracked_deepslate_tiles.png",
+        37: "deepslate.png",
+        38: "deepslate_bricks.png",
+        39: "deepslate_coal_ore.png",
+        40: "deepslate_copper_ore.png",
+        41: "deepslate_diamond_ore.png",
+        42: "deepslate_emerald_ore.png",
+        43: "deepslate_gold_ore.png",
+        44: "deepslate_iron_ore.png",
+        45: "deepslate_lapis_ore.png",
+        46: "deepslate_redstone_ore.png",
+        47: "deepslate_tiles.png",
+        48: "polished_deepslate.png",
+        49: "reinforced_deepslate_top.png",
+        50: "furnace_front.png",
+        51: "stone.png",
+        52: "cobblestone.png",
+        53: "stone_bricks.png",
+        54: "cracked_stone_bricks.png",
+        55: "mossy_stone_bricks.png",
+        56: "oak_planks.png",
+        57: "acacia_planks.png",
+        58: "bamboo_planks.png",
+        59: "birch_planks.png",
+        60: "crimson_planks.png",
+        61: "dark_oak_planks.png",
+        62: "jungle_planks.png",
+        63: "mangrove_planks.png",
+        64: "spruce_planks.png",
+        65: "warped_planks.png",
+        66: "chiseled_deepslate.png",
+        67: "cobbled_deepslate.png",
+        68: "cracked_deepslate_bricks.png",
+        69: "cracked_deepslate_tiles.png",
+        70: "deepslate.png",
+        71: "deepslate_bricks.png",
+        72: "deepslate_tiles.png",
+        73: "polished_deepslate.png",
+        74: "reinforced_deepslate_top.png"
+    };
+    return textures[Number(itemId)] || null;
+}
+
+function normalizeInventory(value) {
+    if (!Array.isArray(value) || value.length !== 36) return Array.from({ length: 36 }, () => null);
+    return value.map(slot => {
+        if (!slot || !Number.isFinite(Number(slot.itemId)) || !Number.isFinite(Number(slot.count))) return null;
+        const itemId = Math.floor(Number(slot.itemId));
+        const count = Math.max(1, Math.min(64, Math.floor(Number(slot.count))));
+        return { itemId, count, texture: slot.texture || inventoryTexture(itemId) };
+    });
+}
+
+function readInventory() {
+    try { return normalizeInventory(JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]")); }
+    catch { return Array.from({ length: 36 }, () => null); }
+}
+
+function saveWorldPreview(seed, force = false) {
+    const normalized = normalizeSeed(seed);
+    const renderer = window.__webminecraftRenderer;
+    if (normalized === null || (!force && !worldDirty) || !renderer?.domElement) return false;
+    try {
+        const source = renderer.domElement;
+        if (!source.width || !source.height) return false;
+        const canvas = document.createElement("canvas");
+        canvas.width = 500;
+        canvas.height = 236;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return false;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.62);
+        if (!dataUrl || dataUrl.length < 100) return false;
+        localStorage.setItem(`webminecraft-world-preview-${normalized}`, dataUrl);
+        if (activeWorld && activeWorldSeed === normalized) activeWorld.preview = dataUrl;
+        return true;
+    } catch (error) {
+        console.warn("Could not capture saved-world preview:", error);
+        return false;
+    }
+}
+
+window.webminecraftSaveWorldPreview = saveWorldPreview;
+window.webminecraftSaveCurrentWorld = saveCurrentWorld;
+
+function writePlayerState(seed, force = false) {
+    const key = playerStateKey(seed);
+    const camera = window.__webminecraftCamera;
+    if (!key || !camera || (!force && window.__webminecraftMultiplayerActive === true)) return;
+
+    let existing = {};
+    try {
+        const parsed = JSON.parse(localStorage.getItem(key) || "{}");
+        if (parsed && typeof parsed === "object") existing = parsed;
+    } catch {}
+
+    const state = {
+        ...existing,
+        version: 2,
+        seed: normalizeSeed(seed),
+        position: existing.position && Number.isFinite(Number(existing.position.x)) && Number.isFinite(Number(existing.position.y)) && Number.isFinite(Number(existing.position.z))
+            ? existing.position
+            : { x: Number(camera.position.x), y: Number(camera.position.y), z: Number(camera.position.z) },
+        inventory: readInventory(),
+        updatedAt: new Date().toISOString()
+    };
+    try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
+}
+
 async function resolveActiveWorld(seed, switchId) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
@@ -51,65 +241,130 @@ async function resolveActiveWorld(seed, switchId) {
         activeWorld = { ...world, seed: normalizedSeed };
         activeWorldSeed = normalizedSeed;
     }
-    return world;
+    return activeWorld || world;
 }
 
-async function loadSavedBlocks(seed, switchId) {
-    const normalizedSeed = normalizeSeed(seed);
-    if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
+async function applySavedBlocks(seed, switchId, world, blocks) {
+    if (!world || switchId !== worldSwitchId || activeWorldSeed !== seed || isWorldDeleted(seed)) return false;
 
+    activeWorld = { ...world, seed, blocks: { ...(blocks || {}) } };
+    activeWorldSeed = seed;
+    activeBlocks = { ...activeWorld.blocks };
+    worldDirty = false;
+
+    // Apply all saved blocks as one world-edit batch. This rebuilds each affected
+    // chunk once instead of rebuilding the mesh after every restored block.
+    beginWorldEditBatch();
     try {
-        let world = await resolveActiveWorld(normalizedSeed, switchId);
-        if (switchId !== worldSwitchId || isWorldDeleted(normalizedSeed)) return null;
-
-        world = await loadCloudWorld(normalizedSeed, world);
-        if (switchId !== worldSwitchId || !world || isWorldDeleted(normalizedSeed)) return null;
-
-        activeWorld = {
-            ...world,
-            seed: normalizedSeed,
-            blocks: world.blocks && typeof world.blocks === "object" ? { ...world.blocks } : {}
-        };
-        activeWorldSeed = normalizedSeed;
-        activeBlocks = { ...activeWorld.blocks };
-
-        const storage = await waitForStorage();
-        if (!storage || isWorldDeleted(normalizedSeed) || switchId !== worldSwitchId) return null;
-        if (storage.saveLocalWorld) await storage.saveLocalWorld(activeWorld).catch(() => {});
-
         for (const [key, value] of Object.entries(activeBlocks)) {
-            if (switchId !== worldSwitchId || activeWorldSeed !== normalizedSeed || isWorldDeleted(normalizedSeed)) return null;
+            if (switchId !== worldSwitchId || activeWorldSeed !== seed || isWorldDeleted(seed)) return false;
             const parts = key.split(",").map(Number);
             if (parts.length !== 3 || parts.some(number => !Number.isFinite(number))) continue;
             const type = Number(value);
             if (!Number.isFinite(type)) continue;
             setBlockAt(parts[0], parts[1], parts[2], type);
         }
+    } finally {
+        endWorldEditBatch();
+    }
 
-        startLiveCloudSave();
+    // Rebuild the queued chunks once after the whole snapshot has been applied.
+    // The world module handles the actual queued mesh work.
+    writeLocalBlockSnapshot(seed, activeBlocks);
+    startLiveCloudSave();
+    return true;
+}
+
+async function reconcileCloudWorld(seed, switchId, localWorld, localBlocks) {
+    try {
+        const cloudWorld = await loadCloudWorld(seed, localWorld).catch(() => null);
+        if (!cloudWorld || switchId !== worldSwitchId || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
+
+        const cloudBlocks = cloudWorld.blocks && typeof cloudWorld.blocks === "object" ? cloudWorld.blocks : {};
+        const liveEdits = {};
+        for (const change of pendingChanges.values()) {
+            liveEdits[`${change.x},${change.y},${change.z}`] = change.type;
+        }
+
+        // Preserve the existing precedence: cloud -> local world -> local snapshot
+        // -> edits made while the cloud request was in flight.
+        const mergedBlocks = { ...cloudBlocks, ...(localWorld?.blocks || {}), ...localBlocks, ...liveEdits };
+        const storedPreview = cloudWorld.preview || localWorld?.preview || readWorldPreview(seed);
+        const changed = Object.keys(mergedBlocks).length !== Object.keys(activeBlocks).length ||
+            Object.entries(mergedBlocks).some(([key, value]) => Number(activeBlocks[key]) !== Number(value));
+
+        if (!changed) {
+            activeWorld = { ...activeWorld, ...cloudWorld, seed, blocks: activeBlocks, preview: storedPreview || null };
+            return;
+        }
+
+        const previousBlocks = activeBlocks;
+        activeWorld = { ...cloudWorld, seed, blocks: mergedBlocks, preview: storedPreview || null };
+        activeBlocks = { ...mergedBlocks };
+
+        beginWorldEditBatch();
+        try {
+            for (const [key, value] of Object.entries(mergedBlocks)) {
+                const previous = Number(previousBlocks[key]);
+                const next = Number(value);
+                if (previous === next) continue;
+                const parts = key.split(",").map(Number);
+                if (parts.length !== 3 || parts.some(number => !Number.isFinite(number))) continue;
+                if (!Number.isFinite(next)) continue;
+                setBlockAt(parts[0], parts[1], parts[2], next);
+            }
+        } finally {
+            endWorldEditBatch();
+        }
+
+        writeLocalBlockSnapshot(seed, activeBlocks);
+        const storage = await waitForStorage();
+        if (storage?.saveLocalWorld && switchId === worldSwitchId && activeWorldSeed === seed && !isWorldDeleted(seed)) {
+            await storage.saveLocalWorld(activeWorld).catch(() => {});
+        }
+    } catch (error) {
+        console.warn("Could not reconcile saved cloud world:", error);
+    }
+}
+
+async function loadSavedBlocks(seed, switchId, waitForCloud = false) {
+    const normalizedSeed = normalizeSeed(seed);
+    if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
+
+    try {
+        // Fast path: local browser storage is the first source of truth for startup.
+        // Do not make the player wait on Firebase/auth/network before entering the world.
+        const localWorld = await resolveActiveWorld(normalizedSeed, switchId);
+        if (switchId !== worldSwitchId || isWorldDeleted(normalizedSeed)) return null;
+
+        const storedBlocks = readLocalBlockSnapshot(normalizedSeed);
+        const localBlocks = localWorld?.blocks && typeof localWorld.blocks === "object" ? localWorld.blocks : {};
+
+        const liveEdits = {};
+        for (const change of pendingChanges.values()) {
+            liveEdits[`${change.x},${change.y},${change.z}`] = change.type;
+        }
+
+        const mergedBlocks = { ...localBlocks, ...storedBlocks, ...liveEdits };
+        const baseWorld = localWorld || { seed: normalizedSeed };
+        const storedPreview = baseWorld.preview || readWorldPreview(normalizedSeed);
+
+        // Apply the local snapshot first so the world has a complete immediate base.
+        await applySavedBlocks(normalizedSeed, switchId, { ...baseWorld, preview: storedPreview || null }, mergedBlocks);
+
+        if (waitForCloud) {
+            // When a loading screen is active, wait for the cloud copy to reconcile
+            // before letting gameplay become visible.
+            await reconcileCloudWorld(normalizedSeed, switchId, localWorld, storedBlocks);
+        } else {
+            void reconcileCloudWorld(normalizedSeed, switchId, localWorld, storedBlocks);
+        }
         return activeWorld;
     } catch (error) {
         console.warn("Could not load saved world blocks:", error);
         return null;
     }
 }
-
-async function queueBlockSave(change) {
-    const seed = getSeedFromUrl();
-    if (seed === null || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
-
-    const world = activeWorld?.seed === seed
-        ? activeWorld
-        : await resolveActiveWorld(seed, worldSwitchId);
-    if (!world || world.seed !== seed || activeWorldSeed !== seed || isWorldDeleted(seed)) return;
-
-    const key = `${change.x},${change.y},${change.z}`;
-    activeBlocks[key] = change.type;
-    pendingChanges.set(key, change);
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(flushBlockSaves, LOCAL_SAVE_DELAY_MS);
-}
-
 async function saveCloudNow(world, switchId = worldSwitchId) {
     if (!world || isWorldDeleted(world.seed)) return false;
     if (switchId !== worldSwitchId || activeWorldSeed !== world.seed || activeWorld !== world) return false;
@@ -125,12 +380,10 @@ async function saveCloudNow(world, switchId = worldSwitchId) {
 function scheduleCloudSave(world, switchId = worldSwitchId, immediate = false) {
     clearTimeout(cloudSaveTimer);
     if (!world || isWorldDeleted(world.seed)) return;
-
     if (immediate) {
         void saveCloudNow(world, switchId);
         return;
     }
-
     cloudSaveTimer = setTimeout(async () => {
         cloudSaveTimer = null;
         await saveCloudNow(world, switchId);
@@ -142,6 +395,7 @@ function startLiveCloudSave() {
     liveCloudSaveTimer = setInterval(() => {
         if (!activeWorld || !activeWorldSeed || isWorldDeleted(activeWorldSeed)) return;
         if (pendingChanges.size > 0 || saveTimer) return;
+        writePlayerState(activeWorldSeed);
         void saveCloudNow(activeWorld, worldSwitchId);
     }, LIVE_CLOUD_SAVE_MS);
 }
@@ -153,7 +407,7 @@ function stopLiveCloudSave() {
 
 async function flushBlockSaves() {
     saveTimer = null;
-    if (!activeWorld || pendingChanges.size === 0) return;
+    if (!activeWorld) return;
 
     const worldToSave = activeWorld;
     const seedToSave = worldToSave.seed;
@@ -163,8 +417,15 @@ async function flushBlockSaves() {
         return;
     }
 
-    const blocksToSave = { ...activeBlocks };
+    const blocksToSave = { ...activeBlocks, ...readLocalBlockSnapshot(seedToSave) };
     pendingChanges.clear();
+    activeBlocks = { ...blocksToSave };
+    writeLocalBlockSnapshot(seedToSave, blocksToSave);
+    writePlayerState(seedToSave, true);
+
+    // Block edits make the world dirty. Capture a new preview now so the
+    // previous snapshot remains untouched when the world is only opened.
+    const previewSaved = worldDirty ? saveWorldPreview(seedToSave) : false;
 
     const storage = await waitForStorage();
     if (!storage?.saveLocalWorld || saveSwitchId !== worldSwitchId || activeWorld !== worldToSave || isWorldDeleted(seedToSave)) {
@@ -175,10 +436,10 @@ async function flushBlockSaves() {
     try {
         worldToSave.blocks = blocksToSave;
         worldToSave.updatedAt = new Date().toISOString();
-        if (isWorldDeleted(seedToSave) || saveSwitchId !== worldSwitchId) return;
         const saved = await storage.saveLocalWorld(worldToSave);
         if (saved && activeWorld === worldToSave && activeWorldSeed === seedToSave && saveSwitchId === worldSwitchId && !isWorldDeleted(seedToSave)) {
             activeWorld = saved;
+            if (previewSaved) worldDirty = false;
             scheduleCloudSave(saved, saveSwitchId);
         }
     } catch (error) {
@@ -194,10 +455,25 @@ window.addEventListener("webminecraft:blockchange", event => {
     const z = Math.floor(Number(detail.z));
     const type = Math.floor(Number(detail.type));
     if (![x, y, z, type].every(Number.isFinite)) return;
-    queueBlockSave({ x, y, z, type }).catch(error => console.warn("Could not queue world block save:", error));
+
+    const seed = getSeedFromUrl();
+    if (seed === null || isWorldDeleted(seed)) return;
+    const key = `${x},${y},${z}`;
+    activeBlocks[key] = type;
+    pendingChanges.set(key, { x, y, z, type });
+    worldDirty = true;
+    writeLocalBlockSnapshot(seed, activeBlocks);
+    writePlayerState(seed);
+
+    // Mirror the edit into the active world, but let worldEditSave.js be the only
+    // module responsible for persisting block edits to the browser world record.
+    if (activeWorld && activeWorldSeed === seed) {
+        activeWorld.blocks = { ...activeWorld.blocks, ...activeBlocks };
+        activeWorld.updatedAt = new Date().toISOString();
+    }
 });
 
-export async function setWorldSeedForPersistence(seed) {
+async function switchWorld(seed, options = {}) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return null;
 
@@ -211,35 +487,47 @@ export async function setWorldSeedForPersistence(seed) {
     activeBlocks = {};
     activeWorld = null;
     activeWorldSeed = normalizedSeed;
+    worldDirty = false;
 
     if (isWorldDeleted(normalizedSeed)) {
         activeWorldSeed = null;
         return null;
     }
 
-    try {
-        const world = await loadSavedBlocks(normalizedSeed, switchId);
-        if (switchId !== worldSwitchId || isWorldDeleted(normalizedSeed)) return null;
-        return world;
-    } catch (error) {
-        console.warn("Could not switch world persistence:", error);
-        return null;
-    }
+    return loadSavedBlocks(normalizedSeed, switchId, options?.waitForCloud === true);
 }
 
-export async function saveCurrentWorld() {
+export async function setWorldSeedForPersistence(seed, options = {}) {
+    return switchWorld(seed, options);
+}
+
+export async function saveCurrentWorld(options = {}) {
     if (!activeWorld || isWorldDeleted(activeWorld.seed)) return null;
+    const skipCloud = options?.skipCloud === true;
+    const skipPreview = options?.skipPreview === true;
     clearTimeout(saveTimer);
     saveTimer = null;
     if (pendingChanges.size > 0) await flushBlockSaves();
+
     if (activeWorld && !isWorldDeleted(activeWorld.seed)) {
-        activeWorld.updatedAt = new Date().toISOString();
+        const savedBlocks = { ...activeBlocks, ...readLocalBlockSnapshot(activeWorld.seed) };
+        activeBlocks = savedBlocks;
+        activeWorld.blocks = savedBlocks;
+        const savedAt = new Date().toISOString();
+        activeWorld.updatedAt = savedAt;
+        const previewSaved = !skipPreview && worldDirty ? saveWorldPreview(activeWorld.seed) : false;
+        writeLocalBlockSnapshot(activeWorld.seed, savedBlocks);
+        writePlayerState(activeWorld.seed, true);
+
         const storage = await waitForStorage();
         if (storage?.saveLocalWorld && activeWorldSeed === activeWorld.seed && !isWorldDeleted(activeWorld.seed)) {
-            try { activeWorld = await storage.saveLocalWorld(activeWorld) || activeWorld; } catch {}
+            try {
+                const saved = await storage.saveLocalWorld(activeWorld);
+                if (saved) activeWorld = saved;
+                if (previewSaved && activeWorld === saved) worldDirty = false;
+            } catch {}
         }
-        // Do not wait for the delayed timer when the player is leaving the world.
-        await saveCloudNow(activeWorld, worldSwitchId);
+        if (!skipCloud) await saveCloudNow(activeWorld, worldSwitchId);
     }
     return activeWorld;
 }
@@ -263,6 +551,13 @@ export async function deleteCurrentWorld(seed) {
         activeBlocks = {};
     }
 
+    clearLocalBlockSnapshot(normalizedSeed);
+    worldDirty = false;
+    try {
+        localStorage.removeItem(playerStateKey(normalizedSeed));
+        localStorage.removeItem(`webminecraft-world-preview-${normalizedSeed}`);
+    } catch {}
+
     const storage = await waitForStorage();
     if (!storage?.deleteLocalWorld) return false;
 
@@ -279,13 +574,25 @@ async function initialize() {
     const seed = getSeedFromUrl();
     if (seed === null) return;
     await sleep(WAIT_MS);
-    await setWorldSeedForPersistence(seed);
+    await switchWorld(seed);
 }
 
 window.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") void saveCurrentWorld();
+    if (document.visibilityState === "hidden") {
+        if (window.__webminecraftFastQuit === true) return;
+        saveWorldPreview(getSeedFromUrl());
+        void saveCurrentWorld();
+    }
 });
-window.addEventListener("pagehide", () => { void saveCurrentWorld(); });
-window.addEventListener("beforeunload", () => { void saveCurrentWorld(); });
+window.addEventListener("pagehide", () => {
+    if (window.__webminecraftFastQuit === true) return;
+    saveWorldPreview(getSeedFromUrl());
+    void saveCurrentWorld();
+});
+window.addEventListener("beforeunload", () => {
+    if (window.__webminecraftFastQuit === true) return;
+    saveWorldPreview(getSeedFromUrl());
+    void saveCurrentWorld();
+});
 
 initialize().catch(error => console.warn("World persistence initialization failed:", error));
