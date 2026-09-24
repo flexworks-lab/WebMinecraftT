@@ -87,7 +87,13 @@ const ITEM_DEFS = [
     { id: 81, name: "Jungle Planks Stairs", texture: "jungle_planks.png" },
     { id: 82, name: "Mangrove Planks Stairs", texture: "mangrove_planks.png" },
     { id: 83, name: "Spruce Planks Stairs", texture: "spruce_planks.png" },
-    { id: 84, name: "Warped Planks Stairs", texture: "warped_planks.png" }
+    { id: 84, name: "Warped Planks Stairs", texture: "warped_planks.png" },
+    { id: 186, name: "Wooden Sword", texture: "tools/wooden_sword.png" },
+    { id: 187, name: "Stone Sword", texture: "tools/stone_sword.png" },
+    { id: 188, name: "Iron Sword", texture: "tools/iron_sword.png" },
+    { id: 189, name: "Golden Sword", texture: "tools/golden_sword.png" },
+    { id: 190, name: "Diamond Sword", texture: "tools/diamond_sword.png" },
+    { id: 191, name: "Netherite Sword", texture: "tools/netherite_sword.png" }
 ];
 
 const INVENTORY_SIZE = 36;
