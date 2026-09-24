@@ -866,8 +866,13 @@ function animate() {
     const currentTime = performance.now();
     const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
     lastTime = currentTime;
-    if (gameStarted) { updatePlayer(camera, scene, deltaTime); updateChunkVisibility(camera.position, camera); updateSunPosition(); updateDepthLighting(); }
-    else updateMenuCamera(deltaTime);
+    if (gameStarted) {
+        updatePlayer(camera, scene, deltaTime);
+        updateChunkVisibility(camera.position, camera);
+        window.__webMinecraftUpdateShortGrass?.(currentTime);
+        updateSunPosition();
+        updateDepthLighting();
+    } else updateMenuCamera(deltaTime);
     renderer.render(scene, camera);
     fpsFrames++;
     if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
