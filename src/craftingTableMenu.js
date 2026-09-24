@@ -139,6 +139,7 @@ function renderSlot(index, type = "inventory") {
             suppressClick = true;
             render();
         });
+    }
 
     button.addEventListener("click", event => {
         if (suppressClick) {
