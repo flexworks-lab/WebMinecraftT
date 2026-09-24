@@ -91,7 +91,7 @@ const ITEM_MATERIALS = {
 const BASE_POS = new THREE.Vector3(0.84, -0.76, -1.05);
 const BASE_ROT = new THREE.Euler(0.08, -0.18, -0.10);
 const ACTION_DURATION = 180;
-const texturePath = (file) => `${import.meta.env.BASE_URL}textures/${encodeURIComponent(file)}`;
+const texturePath = (file) => { const value = String(file || ""); return value.startsWith("tools/") ? `${import.meta.env.BASE_URL}${value}` : `${import.meta.env.BASE_URL}textures/${encodeURIComponent(value)}`; };
 
 let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
 let visible = false;
