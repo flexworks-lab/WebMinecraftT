@@ -5,6 +5,59 @@ const menuUpdates = document.getElementById("menuUpdates");
 
 let loadingOpen = false;
 let allowWorldStart = false;
+let funnyStatusTimer = null;
+let loadingStage = "Generating terrain...";
+
+const funnyLoadingMessages = {
+    "Generating terrain...": [
+        "Generating terrain... hopefully the ground is still there.",
+        "Asking the mountains where they came from...",
+        "Convincing trees that leaves belong on trees...",
+        "Teaching the dirt how to be dirt...",
+        "Making 8 billion blocks behave themselves...",
+        "Negotiating with the caves...",
+    ],
+    "Building world...": [
+        "Building the world... one suspicious block at a time.",
+        "Placing blocks without dropping any on our foot...",
+        "Assembling the universe with zero instructions.",
+        "Making the world look like somebody planned it...",
+        "Counting blocks. We lost count.",
+        "Constructing important Minecraft stuff™...",
+    ],
+    "Loading saved world data...": [
+        "Loading saved world data... checking the ancient scrolls.",
+        "Looking for your world... it was here five seconds ago.",
+        "Reassembling your blocks from the cloud...",
+        "Asking the save file what happened while you were gone...",
+        "Dusting off your world save...",
+        "Making sure your hard work did not vanish into the void...",
+    ],
+    "Applying server world data...": [
+        "Applying server world data... politely asking everyone to stand by.",
+        "Syncing the server... no, the creeper did not break it.",
+        "Making your blocks agree with everybody else's blocks...",
+        "Checking what changed while you were away...",
+        "Connecting all the tiny multiplayer block brains...",
+        "Making sure everybody sees the same dirt...",
+    ],
+    "Building world chunks...": [
+        "Building world chunks... chunk by chunk by chunk by chunk...",
+        "Convincing distant chunks to load faster.",
+        "Waking up the next patch of terrain...",
+        "Carving out places for you to immediately get lost.",
+        "Generating somewhere nice to fall from...",
+        "Loading chunks. Please do not stare at them. They get nervous.",
+    ],
+    "Finding a safe place to stand...": [
+        "Finding a safe place to stand... preferably not a cliff.",
+        "Looking for solid ground that is not secretly a trap...",
+        "Checking if the floor exists. Very important.",
+        "Searching for somewhere you probably will not fall through...",
+        "Finding a spawn point with actual ground underneath it...",
+        "Making sure you are standing on blocks and not pure optimism...",
+    ]
+};
 
 function ensureStyles() {
     if (document.getElementById("worldLoadingStyles")) return;
@@ -35,7 +88,8 @@ function ensureStyles() {
             justify-content: center;
             background: #171717;
             color: #fff;
-            z-index: 500;
+            z-index: 2147483647 !important;
+            isolation: isolate;
             pointer-events: auto;
         }
         #worldLoadingScreen.open {
@@ -109,8 +163,38 @@ function ensureOverlay() {
 }
 
 function setStatus(text) {
+    loadingStage = String(text || "Working...");
     const status = document.getElementById("worldLoadingStatus");
-    if (status) status.textContent = text;
+    if (status) status.textContent = getFunnyStatus(loadingStage);
+}
+
+function getFunnyStatus(stage = loadingStage) {
+    const pool = funnyLoadingMessages[stage] || [
+        "Doing important block things...",
+        "Turning computer magic into Minecraft...",
+        "The blocks are thinking very hard...",
+        "Almost ready... probably.",
+        "Checking one last thing...",
+        "Please hold. The pixels are negotiating."
+    ];
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function startFunnyStatusCycle() {
+    stopFunnyStatusCycle();
+    const showNext = () => {
+        if (!loadingOpen) return;
+        setStatus(loadingStage);
+    };
+    showNext();
+    funnyStatusTimer = window.setInterval(showNext, 1500);
+}
+
+function stopFunnyStatusCycle() {
+    if (funnyStatusTimer !== null) {
+        window.clearInterval(funnyStatusTimer);
+        funnyStatusTimer = null;
+    }
 }
 
 function waitForWorldReady(timeoutMs = 15000) {
@@ -138,12 +222,14 @@ function showLoading() {
     overlay.classList.add("open");
     overlay.setAttribute("aria-hidden", "false");
     setStatus("Generating terrain...");
+    startFunnyStatusCycle();
     document.body.style.cursor = "wait";
 }
 
 function hideLoading() {
     const overlay = document.getElementById("worldLoadingScreen");
     loadingOpen = false;
+    stopFunnyStatusCycle();
     if (!overlay) return;
     overlay.classList.remove("open");
     overlay.style.display = "none";
