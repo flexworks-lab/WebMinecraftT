@@ -350,9 +350,15 @@ function renderRecipeBrowser() {
         <div id="ctm-recipe-grid">
             ${blockItems.map(({ item, available }) => {
                 const texture = item.texture;
+                const itemId = Number(item.id);
+                const kind = (itemId >= 51 && itemId <= 74)
+                    ? " slab"
+                    : (itemId >= 75 && itemId <= 84)
+                        ? " stairs"
+                        : "";
                 const stateClass = available ? "" : " unavailable";
-                return '<button class="ctm-recipe-card' + stateClass + '" type="button" data-recipe-item="' + Number(item.id) + '" aria-label="">' +
-                    '<div class="ctm-recipe-icon"><img src="' + textureUrl(texture) + '" alt="" draggable="false"></div>' +
+                return '<button class="ctm-recipe-card' + stateClass + '" type="button" data-recipe-item="' + itemId + '" aria-label="">' +
+                    '<div class="ctm-recipe-icon' + kind + '"><img src="' + textureUrl(texture) + '" alt="" draggable="false"></div>' +
                 '</button>';
             }).join("")}
         </div>`;
@@ -674,6 +680,8 @@ function createUI() {
 .ctm-recipe-card.unavailable{cursor:default}
 .ctm-recipe-icon{width:100%;height:100%;background:#707070;border:2px solid #373737;border-radius:0;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden;image-rendering:pixelated}
 .ctm-recipe-icon img{width:80%;height:80%;max-width:80%;max-height:80%;object-fit:contain;image-rendering:pixelated}
+.ctm-recipe-icon.slab img{width:82%;height:42%;max-width:82%;max-height:42%;align-self:end;object-fit:fill}
+.ctm-recipe-icon.stairs img{width:82%;height:82%;max-width:82%;max-height:82%;object-fit:fill;clip-path:polygon(0 50%,50% 50%,50% 0,100% 0,100% 100%,0 100%)}
 .ctm-recipe-card.unavailable .ctm-recipe-icon img{filter:brightness(.28) saturate(.25);opacity:.75}
 .ctm-title{font-size:13px;font-weight:800;margin-bottom:6px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.45)}
 .ctm-craft-row{display:flex;align-items:center;justify-content:center;gap:10px}
