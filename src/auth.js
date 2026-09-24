@@ -14,6 +14,7 @@ let friendNotificationCount = 0;
 let startupAuthStateResolved = false;
 let startupPlayerSyncUserId = null;
 let pendingSignupProfile = null;
+const USERNAME_CHANGE_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000;
 
 function loadFirebaseScript(src) {
     if (!window.__webMinecraftFirebaseLoads) window.__webMinecraftFirebaseLoads = new Map();
@@ -248,6 +249,13 @@ function addStyles() {
 #signupFields.visible{display:block}
 .signupHint{margin:-2px 0 9px;color:#888;font-size:10px;line-height:1.35}
 .signupFieldLabel{display:block;margin:9px 0 5px;color:#bbb;font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+#accountSettingsView{display:none}
+#accountSettingsTitle{margin:0 0 6px;font-family:MinecraftFont,monospace;font-size:26px;text-align:center;text-shadow:2px 2px 0 #000}
+#accountSettingsSubtitle{margin:0 0 16px;color:#999;font-size:12px;text-align:center;line-height:1.45}
+.accountSettingsLabel{display:block;margin:10px 0 5px;color:#bbb;font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+.accountSettingsHint{margin:-3px 0 8px;color:#888;font-size:10px;line-height:1.4}
+#accountSettingsCooldown{min-height:20px;margin:10px 0;padding:9px 10px;background:#111;border:1px solid #303030;color:#aaa;font-size:11px;line-height:1.4}
+#accountSettingsMessage{min-height:20px;margin:10px 0;color:#d8d8d8;text-align:center;font-size:12px;line-height:1.4}
 @media(max-width:560px){#accountButton{top:76px;right:12px}.friendRequestBadge{min-width:17px;height:17px}#friendRequestToast{top:76px;right:12px;width:calc(100vw - 24px)}}
 `;
     document.head.appendChild(style);
@@ -263,13 +271,42 @@ function createUi() {
     modal.innerHTML = `
 <div id="accountPanel">
 <section id="accountLoginView"><h2 id="accountTitle">Player Account</h2><p id="accountSubtitle">Save your profile and use the same account across devices.</p><div id="signupFields"><label class="signupFieldLabel" for="accountUsernameInput">Username</label><input id="accountUsernameInput" class="accountField" type="text" maxlength="16" autocomplete="username" spellcheck="false" placeholder="Choose a username"><div class="signupHint">3–16 characters. Letters, numbers, and underscores.</div><label class="signupFieldLabel" for="accountNicknameInput">Nickname</label><input id="accountNicknameInput" class="accountField" type="text" maxlength="20" autocomplete="nickname" placeholder="Choose a nickname"></div><input id="accountEmailInput" class="accountField" type="email" autocomplete="email" placeholder="Email"><input id="accountPasswordInput" class="accountField" type="password" autocomplete="current-password" placeholder="Password"><button id="accountSubmit" class="accountAction accountPrimary" type="button">Log In</button><button id="accountGoogle" class="accountAction googleAction oauthAction" type="button"><span class="oauthIcon googleIcon">G</span><span>Continue with Google</span></button><button id="accountYahoo" class="accountAction oauthAction yahooAction" type="button"><span class="oauthIcon yahooIcon">Y!</span><span>Continue with Yahoo</span></button><button id="accountGithub" class="accountAction oauthAction githubAction" type="button"><span class="oauthIcon githubIcon">●</span><span>Continue with GitHub</span></button><button id="accountPlayGames" class="accountAction oauthAction playGamesAction" type="button"><span class="oauthIcon playGamesIcon">🎮</span><span>Continue with Google Play Games</span></button><button id="accountForgot" type="button">Forgot password?</button><div id="accountSwitch">New here? <button id="accountSwitchButton" type="button">Create an account</button></div><div id="accountMessage"></div><button id="accountClose" class="accountAction" type="button">Close</button></section>
-<section id="accountUser"><h2 id="accountTitle">Your Account</h2><img id="accountAvatar" alt=""><div id="accountName"></div><div id="accountEmail"></div><div id="friendCodeBox"><div id="friendCodeLabel">Your Friend Code</div><div id="friendCodeValue">--------</div><button id="friendCopy" class="accountAction accountPrimary" type="button">Copy Friend Code</button></div><div class="friendSection"><div class="friendSectionTitle">Add a Friend</div><input id="friendCodeInput" class="accountField" maxlength="9" autocomplete="off" placeholder="Enter friend code"><button id="friendAdd" class="accountAction accountPrimary" type="button">Send Friend Request</button></div><div class="friendSection"><div class="friendSectionTitle">Friend Requests</div><div id="friendRequests"><div class="friendEmpty">No pending requests.</div></div></div><div class="friendSection"><div class="friendSectionTitle">Friends</div><div id="friendList"><div class="friendEmpty">No friends yet.</div></div></div><button id="accountLogout" class="accountAction accountPrimary" type="button">Log Out</button><button id="accountCloseUser" class="accountAction" type="button">Close</button></section>
+<section id="accountUser"><h2 id="accountTitle">Your Account</h2><img id="accountAvatar" alt=""><div id="accountName"></div><div id="accountEmail"></div><button id="accountSettingsButton" class="accountAction" type="button">Account Settings</button><div id="friendCodeBox"><div id="friendCodeLabel">Your Friend Code</div><div id="friendCodeValue">--------</div><button id="friendCopy" class="accountAction accountPrimary" type="button">Copy Friend Code</button></div><div class="friendSection"><div class="friendSectionTitle">Add a Friend</div><input id="friendCodeInput" class="accountField" maxlength="9" autocomplete="off" placeholder="Enter friend code"><button id="friendAdd" class="accountAction accountPrimary" type="button">Send Friend Request</button></div><div class="friendSection"><div class="friendSectionTitle">Friend Requests</div><div id="friendRequests"><div class="friendEmpty">No pending requests.</div></div></div><div class="friendSection"><div class="friendSectionTitle">Friends</div><div id="friendList"><div class="friendEmpty">No friends yet.</div></div></div><button id="accountLogout" class="accountAction accountPrimary" type="button">Log Out</button><button id="accountCloseUser" class="accountAction" type="button">Close</button></section>
+<section id="accountSettingsView">
+<h2 id="accountSettingsTitle">Account Settings</h2>
+<p id="accountSettingsSubtitle">Change the name used for your WebMinecraftT account and multiplayer.</p>
+<label class="accountSettingsLabel" for="accountSettingsUsername">Username</label>
+<input id="accountSettingsUsername" class="accountField" type="text" maxlength="16" autocomplete="username" spellcheck="false" placeholder="Username">
+<div class="accountSettingsHint">3–16 characters: letters, numbers, and underscores. Your username is your online player name.</div>
+<label class="accountSettingsLabel" for="accountSettingsNickname">Nickname</label>
+<input id="accountSettingsNickname" class="accountField" type="text" maxlength="20" autocomplete="nickname" placeholder="Nickname">
+<div class="accountSettingsHint">Nickname can change whenever you want.</div>
+<div id="accountSettingsCooldown" aria-live="polite"></div>
+<div id="accountSettingsMessage" aria-live="polite"></div>
+<button id="accountSettingsSave" class="accountAction accountPrimary" type="button">Save Changes</button>
+<button id="accountSettingsBack" class="accountAction" type="button">Back to Account</button>
+</section>
 <div id="accountLoading">Connecting to account service…</div></div>`;
     document.body.appendChild(modal);
-    const close = () => modal.style.display = "none";
+    const close = () => {
+        modal.style.display = "none";
+        modal.querySelector("#accountSettingsView")?.style.setProperty("display","none");
+        if (currentUser) modal.querySelector("#accountUser")?.style.setProperty("display","block");
+    };
     modal.addEventListener("click", event => { if (event.target === modal) close(); });
     modal.querySelector("#accountClose").addEventListener("click", close);
     modal.querySelector("#accountCloseUser").addEventListener("click", close);
+    modal.querySelector("#accountSettingsButton").addEventListener("click", async () => {
+        modal.querySelector("#accountUser").style.display = "none";
+        modal.querySelector("#accountSettingsView").style.display = "block";
+        await loadAccountSettings();
+    });
+    modal.querySelector("#accountSettingsBack").addEventListener("click", () => {
+        modal.querySelector("#accountSettingsView").style.display = "none";
+        modal.querySelector("#accountUser").style.display = "block";
+        setAccountSettingsMessage("");
+    });
+    modal.querySelector("#accountSettingsSave").addEventListener("click", saveAccountSettings);
     modal.querySelector("#accountLogout").addEventListener("click", async () => { if (!auth) return; try { await auth.signOut(); } catch (error) { setMessage(error); } });
     modal.querySelector("#friendCopy").addEventListener("click", async () => { try { await navigator.clipboard.writeText(getFriendCode()); modal.querySelector("#friendCopy").textContent = "Copied!"; setTimeout(() => modal.querySelector("#friendCopy").textContent = "Copy Friend Code", 1200); } catch { setMessage("Could not copy the friend code."); } });
     modal.querySelector("#friendAdd").addEventListener("click", sendFriendRequest);
@@ -368,9 +405,155 @@ async function ensureReady() {
     const ready = await initFirebase(); if (loading) loading.style.display = "none"; if (!ready) setMessage("Could not connect to the account service."); return ready;
 }
 
+function usernameChangedAtMillis(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === "function") return Number(value.toMillis()) || 0;
+    if (value instanceof Date) return value.getTime();
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatUsernameCooldown(remainingMs) {
+    if (remainingMs <= 0) return "Username changes are available now.";
+    const totalMinutes = Math.ceil(remainingMs / 60000);
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const minutes = totalMinutes % 60;
+    const parts = [];
+    if (days) parts.push(days + (days === 1 ? " day" : " days"));
+    if (hours) parts.push(hours + (hours === 1 ? " hour" : " hours"));
+    if (minutes && parts.length < 2) parts.push(minutes + (minutes === 1 ? " minute" : " minutes"));
+    return "You can change your username again in " + parts.join(", ") + ".";
+}
+
+function setAccountSettingsMessage(text, error = false) {
+    const el = document.getElementById("accountSettingsMessage");
+    if (!el) return;
+    el.textContent = String(text || "");
+    el.style.color = error ? "#ef9a8e" : "#d8d8d8";
+}
+
+async function loadAccountSettings() {
+    const usernameInput = document.getElementById("accountSettingsUsername");
+    const nicknameInput = document.getElementById("accountSettingsNickname");
+    const cooldown = document.getElementById("accountSettingsCooldown");
+    if (!usernameInput || !nicknameInput || !cooldown || !(await ensureReady()) || !currentUser) return null;
+    try {
+        const snap = await window.firebase.firestore().collection("profiles").doc(currentUser.uid).get();
+        const data = snap.exists ? (snap.data() || {}) : {};
+        const username = String(data.username || "").trim();
+        const nickname = String(data.nickname || currentUser.displayName || "Player").trim() || "Player";
+        const changedAt = usernameChangedAtMillis(data.usernameChangedAt);
+        usernameInput.value = username;
+        nicknameInput.value = nickname;
+        const remaining = changedAt > 0 ? Math.max(0, USERNAME_CHANGE_COOLDOWN_MS - (Date.now() - changedAt)) : 0;
+        usernameInput.disabled = Boolean(remaining);
+        const save = document.getElementById("accountSettingsSave");
+        if (save) save.disabled = Boolean(remaining && username !== String(data.username || ""));
+        cooldown.textContent = formatUsernameCooldown(remaining);
+        cooldown.style.color = remaining > 0 ? "#d9b38c" : "#a8ca8e";
+        setAccountSettingsMessage("");
+        return { data, remaining };
+    } catch (error) {
+        setAccountSettingsMessage("Could not load your account settings.", true);
+        return null;
+    }
+}
+
+async function saveAccountSettings() {
+    if (!(await ensureReady()) || !currentUser) return;
+    const usernameInput = document.getElementById("accountSettingsUsername");
+    const nicknameInput = document.getElementById("accountSettingsNickname");
+    const saveButton = document.getElementById("accountSettingsSave");
+    const username = String(usernameInput?.value || "").trim();
+    const nickname = String(nicknameInput?.value || "").trim();
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(username)) return setAccountSettingsMessage("Username must be 3–16 characters using letters, numbers, or underscores.", true);
+    if (nickname.length < 1 || nickname.length > 20) return setAccountSettingsMessage("Nickname must be 1–20 characters.", true);
+    if (saveButton) saveButton.disabled = true;
+
+    const db = window.firebase.firestore();
+    const profileRef = db.collection("profiles").doc(currentUser.uid);
+    const publicRef = db.collection("publicProfiles").doc(currentUser.uid);
+    try {
+        const existingSnap = await profileRef.get();
+        const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
+        const oldUsername = String(existing.username || "").trim();
+        const oldLower = oldUsername.toLowerCase();
+        const newLower = username.toLowerCase();
+        const changedAt = usernameChangedAtMillis(existing.usernameChangedAt);
+        const changingUsername = newLower !== oldLower;
+        const remaining = changedAt > 0 ? Math.max(0, USERNAME_CHANGE_COOLDOWN_MS - (Date.now() - changedAt)) : 0;
+        if (changingUsername && remaining > 0) {
+            setAccountSettingsMessage(formatUsernameCooldown(remaining), true);
+            if (saveButton) saveButton.disabled = false;
+            return;
+        }
+
+        if (changingUsername) {
+            await db.runTransaction(async transaction => {
+                const newUsernameRef = db.collection("usernames").doc(newLower);
+                const newUsernameSnap = await transaction.get(newUsernameRef);
+                if (newUsernameSnap.exists && newUsernameSnap.data()?.uid !== currentUser.uid) {
+                    throw new Error("USERNAME_TAKEN");
+                }
+                const now = new Date();
+                if (oldLower && oldLower !== newLower) {
+                    const oldUsernameRef = db.collection("usernames").doc(oldLower);
+                    transaction.delete(oldUsernameRef);
+                }
+                transaction.set(newUsernameRef, { uid: currentUser.uid, username, updatedAt: now }, { merge: true });
+                transaction.set(profileRef, {
+                    uid: currentUser.uid,
+                    email: currentUser.email || "",
+                    username,
+                    usernameLower: newLower,
+                    nickname,
+                    displayName: nickname,
+                    usernameChangedAt: now,
+                    updatedAt: now
+                }, { merge: true });
+                transaction.set(publicRef, {
+                    uid: currentUser.uid,
+                    username,
+                    usernameLower: newLower,
+                    nickname,
+                    displayName: nickname,
+                    photoURL: currentUser.photoURL || "",
+                    friendCode: getFriendCode(),
+                    updatedAt: now
+                }, { merge: true });
+            });
+        } else {
+            const now = new Date();
+            await Promise.all([
+                profileRef.set({ uid: currentUser.uid, email: currentUser.email || "", nickname, displayName: nickname, updatedAt: now }, { merge: true }),
+                publicRef.set({ uid: currentUser.uid, username: oldUsername, usernameLower: oldLower, nickname, displayName: nickname, photoURL: currentUser.photoURL || "", friendCode: getFriendCode(), updatedAt: now }, { merge: true })
+            ]);
+        }
+
+        try { await currentUser.updateProfile({ displayName: nickname }); } catch {}
+        if (changingUsername) {
+            localStorage.setItem("webminecraft-player-name", username);
+            localStorage.setItem("webminecraft-account-username", username);
+            window.dispatchEvent(new CustomEvent("webminecraft:account-username-changed", { detail: { username } }));
+        }
+        if (!changingUsername) localStorage.setItem("webminecraft-account-username", oldUsername || username);
+        setAccountSettingsMessage("Account settings saved.");
+        await updateAccountUi();
+        await loadAccountSettings();
+    } catch (error) {
+        const message = error?.message === "USERNAME_TAKEN" ? "That username is already taken." : "Could not save your account settings. Check your connection and Firestore rules.";
+        setAccountSettingsMessage(message, true);
+    } finally {
+        const current = document.getElementById("accountSettingsSave");
+        if (current) current.disabled = false;
+    }
+}
+
 function openAccountModal() {
     const modal = document.getElementById("accountModal"); if (!modal) return;
     modal.style.display = "flex";
+    modal.querySelector("#accountSettingsView")?.style.setProperty("display","none");
     const loading = document.getElementById("accountLoading");
     if (!isFirebaseConfigured()) { if (loading) { loading.style.display = "block"; loading.textContent = "Connect Firebase to enable accounts."; } updateAccountUi(); return; }
     ensureReady().then(() => updateAccountUi());
@@ -562,6 +745,10 @@ function updateAccountUi() {
         if (modalAvatar) modalAvatar.src = currentUser.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%234a4a4a'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23aaa'/%3E%3Cpath d='M14 57c2-12 10-18 18-18s16 6 18 18' fill='%23aaa'/%3E%3C/svg%3E";
         document.getElementById("accountName").textContent = currentUser.displayName || "Player";
         document.getElementById("accountEmail").textContent = currentUser.email || "";
+        try {
+            const cachedUsername = localStorage.getItem("webminecraft-account-username");
+            if (cachedUsername) localStorage.setItem("webminecraft-player-name", cachedUsername);
+        } catch {}
         renderFriendCode(); refreshFriends();
         updateFriendBadge();
     } else {
