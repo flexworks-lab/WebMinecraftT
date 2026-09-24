@@ -87,7 +87,7 @@ function itemVisual(slot, craft = false) {
     return `<img class="ctm-item${craft ? " ctm-craft-item" : ""}" src="${textureUrl(texture)}" alt="" draggable="false">`;
 }
 function slotCount(slot) {
-    return slot?.count > 1 ? `<b>${slot.count}</b>` : "";
+    return "";
 }
 function renderSlot(index, type = "inventory") {
     const slot = type === "inventory" ? inventory[index] : craftGrid[index];
@@ -255,17 +255,13 @@ function renderRecipeBrowser() {
     if (!panel) return;
     const recipes = craftableRecipes();
     panel.innerHTML = `
-        <div class="ctm-title">Craftable</div>
-        <div class="ctm-recipe-tip">${recipes.length ? "Click a recipe to load it into the table." : "Collect ingredients to unlock recipes."}</div>
         <div id="ctm-recipe-grid">
             ${recipes.map((recipe, recipeIndex) => {
                 const item = itemDef(recipe.itemId);
                 if (!item) return "";
                 const texture = item.texture;
-                return "<button class=\"ctm-recipe-card\" type=\"button\" data-recipe-index=\"" + recipeIndex + "\" title=\"" + recipe.label + ": " + recipe.tip + "\">" +
+                return "<button class=\"ctm-recipe-card\" type=\"button\" data-recipe-index=\"" + recipeIndex + "\" aria-label=\"" + recipe.label + "\">" +
                     "<div class=\"ctm-recipe-icon\">" + (texture ? "<img src=\"" + textureUrl(texture) + "\" alt=\"\" draggable=\"false\">" : "") + "</div>" +
-                    "<div class=\"ctm-recipe-name\">" + recipe.label + "</div>" +
-                    "<div class=\"ctm-recipe-count\">" + recipe.count + "× · " + recipe.tip + "</div>" +
                 "</button>";
             }).join("")}
         </div>`;
@@ -531,34 +527,29 @@ function createUI() {
     root.id = "craftingTableScreen";
     root.innerHTML = `
       <div id="ctm-panel">
-        <header id="ctm-header"><span>Crafting Table</span><button id="ctm-close" type="button" aria-label="Close">×</button></header>
+        <header id="ctm-header"><button id="ctm-close" type="button" aria-label="Close"></button></header>
         <section id="ctm-pages">
           <div id="ctm-left-page" class="ctm-page">
-            <div class="ctm-page-title">Craftable</div>
             <div id="ctm-help" aria-label="Craftable recipes"></div>
           </div>
 
           <div id="ctm-right-page" class="ctm-page">
-            <div class="ctm-page-title">Crafting</div>
             <div class="ctm-craft-box">
               <div class="ctm-craft-row">
                 <div id="ctm-craft-grid"></div>
-                <span class="ctm-arrow">→</span>
+                <span class="ctm-arrow" aria-hidden="true"></span>
                 <button id="ctm-output" type="button" aria-label="Crafting output"></button>
               </div>
             </div>
             <div id="ctm-storage-section">
-              <div class="ctm-title">Inventory</div>
               <div id="ctm-storage"></div>
             </div>
             <div id="ctm-hotbar-section">
-              <div class="ctm-title">Hotbar</div>
               <div id="ctm-hotbar"></div>
             </div>
           </div>
         </section>
-        <div id="ctm-actions"><span>Left click: pick up / put down whole stack · Right click: take half / place 1.</span><button id="ctm-delete" type="button">Delete held</button></div>
-      </div>
+              </div>
       <div id="ctm-cursor" aria-hidden="true"></div>`;
     document.body.appendChild(root);
     const style = document.createElement("style");
@@ -567,8 +558,11 @@ function createUI() {
 #craftingTableScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000001;font-family:Arial,sans-serif;color:#404040;image-rendering:pixelated;touch-action:none}
 #craftingTableScreen.open{display:flex}
 #ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:10px;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:8px 8px 0 rgba(0,0,0,.28);display:flex;flex-direction:column;gap:8px;overflow:hidden}
-#ctm-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;color:#404040;min-height:28px;text-shadow:1px 1px rgba(255,255,255,.55)}
-#ctm-close{width:30px;height:28px;background:#C6C6C6;color:#404040;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;font-size:20px;line-height:20px;cursor:pointer;padding:0;box-shadow:inset -2px -2px #555}
+#ctm-header{display:flex;align-items:center;justify-content:flex-end;min-height:28px}
+#ctm-close{position:relative;width:30px;height:28px;margin-left:auto;background:#C6C6C6;color:transparent;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;font-size:0;line-height:0;cursor:pointer;padding:0;box-shadow:inset -2px -2px #555}
+#ctm-close::before,#ctm-close::after{content:"";position:absolute;left:7px;top:12px;width:14px;height:2px;background:#404040}
+#ctm-close::before{transform:rotate(45deg)}
+#ctm-close::after{transform:rotate(-45deg)}
 #ctm-pages{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0;flex:1}
 .ctm-page{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:10px;box-sizing:border-box;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 #ctm-left-page{overflow:hidden}
@@ -586,7 +580,9 @@ function createUI() {
 .ctm-recipe-count{font-size:8px;text-align:center;margin-top:2px;color:#555}
 .ctm-title{font-size:13px;font-weight:800;margin-bottom:6px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.45)}
 .ctm-craft-row{display:flex;align-items:center;justify-content:center;gap:10px}
-.ctm-arrow{font-size:28px;color:#555;text-shadow:1px 1px #FFFFFF}
+.ctm-arrow{position:relative;width:28px;height:28px;flex:0 0 28px}
+.ctm-arrow::before{content:"";position:absolute;left:2px;top:13px;width:18px;height:2px;background:#555}
+.ctm-arrow::after{content:"";position:absolute;right:2px;top:8px;width:10px;height:10px;border-top:2px solid #555;border-right:2px solid #555;transform:rotate(45deg)}
 #ctm-craft-grid{display:grid;grid-template-columns:repeat(3,42px);gap:4px}
 .ctm-slot{position:relative;width:42px;height:42px;background:#8B8B8B;border:2px solid #373737;box-shadow:inset -2px -2px #FFFFFF;color:#FFFFFF;padding:0;cursor:pointer;overflow:hidden;contain:layout paint;isolation:isolate}
 .ctm-craft-slot{width:42px;height:42px}
@@ -598,8 +594,6 @@ function createUI() {
 #ctm-output .ctm-item{width:34px;height:34px;max-width:34px;max-height:34px}
 #ctm-storage,#ctm-hotbar{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px}
 #ctm-hotbar-section{min-height:0}
-#ctm-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:#404040}
-#ctm-delete{border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;background:#8B8B8B;color:#404040;padding:5px 9px;cursor:pointer;font-weight:700;box-shadow:inset -1px -1px #555}
 #ctm-cursor{display:none;position:fixed;width:46px;height:46px;z-index:2147483647;pointer-events:none;background:transparent;border:0;transform:translate(-50%,-50%);filter:drop-shadow(2px 2px 1px rgba(0,0,0,.55))}
 #ctm-cursor.visible{display:block}
 #ctm-cursor .ctm-item{width:40px;height:40px;max-width:40px;max-height:40px;margin:3px}
