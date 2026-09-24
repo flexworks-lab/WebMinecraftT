@@ -281,9 +281,9 @@ function renderRecipeBrowser() {
                     : countInventoryItem([Number(item.id)]) > 0;
                 const texture = item.texture;
                 const className = "ctm-recipe-card" + (available ? "" : " unavailable");
-                return "<button class=\\""+className+"\\" type=\\"button\\" data-recipe-item=\\""+Number(item.id)+"\\" aria-label=\\"\\">" +
-                    "<div class=\\"ctm-recipe-icon\\"><img src=\\""+textureUrl(texture)+"\\" alt=\\"\\" draggable=\\"false\\"></div>" +
-                "</button>";
+                return '<button class="ctm-recipe-card' + (available ? '' : ' unavailable') + '" type="button" data-recipe-item="' + Number(item.id) + '" aria-label="">' +
+                    '<div class="ctm-recipe-icon"><img src="' + textureUrl(texture) + '" alt="" draggable="false"></div>' +
+                '</button>';
             }).join("")}
         </div>`;
 
