@@ -192,7 +192,7 @@ function updateBlock() {
     clearHeldMesh();
 
     if (swordTextures[selectedItemId]) {
-        const geometry = new THREE.PlaneGeometry(0.31, 0.78);
+        const geometry = new THREE.PlaneGeometry(0.42, 1.05);
         const material = new THREE.MeshBasicMaterial({
             map: swordTextures[selectedItemId],
             transparent: true,
@@ -203,9 +203,9 @@ function updateBlock() {
         itemMesh = new THREE.Mesh(geometry, material);
         // Keep the sword grip aligned with the blocky hand and keep the blade
         // close enough to read as being held rather than floating in front.
-        itemMesh.position.set(0.08, -0.02, -0.10);
-        itemMesh.rotation.set(0.02, 0.12, -0.12);
-        itemMesh.renderOrder = 3;
+        itemMesh.position.set(0.10, 0.02, -0.24);
+        itemMesh.rotation.set(0.02, 0.10, -0.10);
+        itemMesh.renderOrder = 4;
         heldRoot.add(itemMesh);
         return;
     }
