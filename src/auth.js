@@ -101,6 +101,13 @@ async function syncUserProfile(user, profileOverride = null) {
         }, { merge: true });
 
         try { if (user.displayName !== nickname) await user.updateProfile({ displayName: nickname }); } catch {}
+        if (username) {
+            try {
+                localStorage.setItem("webminecraft-account-username", username);
+                localStorage.setItem("webminecraft-player-name", username);
+                window.dispatchEvent(new CustomEvent("webminecraft:account-username-changed", { detail: { username } }));
+            } catch {}
+        }
 
         setPlayerDataSyncProgress(100, "Player data synced successfully.");
         setTimeout(hidePlayerDataSync, 500);
@@ -497,6 +504,7 @@ async function saveAccountSettings() {
                     throw new Error("USERNAME_TAKEN");
                 }
                 const now = new Date();
+                const serverNow = window.firebase.firestore.FieldValue.serverTimestamp();
                 if (oldLower && oldLower !== newLower) {
                     const oldUsernameRef = db.collection("usernames").doc(oldLower);
                     transaction.delete(oldUsernameRef);
@@ -509,8 +517,8 @@ async function saveAccountSettings() {
                     usernameLower: newLower,
                     nickname,
                     displayName: nickname,
-                    usernameChangedAt: now,
-                    updatedAt: now
+                    usernameChangedAt: serverNow,
+                    updatedAt: serverNow
                 }, { merge: true });
                 transaction.set(publicRef, {
                     uid: currentUser.uid,
@@ -520,7 +528,7 @@ async function saveAccountSettings() {
                     displayName: nickname,
                     photoURL: currentUser.photoURL || "",
                     friendCode: getFriendCode(),
-                    updatedAt: now
+                    updatedAt: serverNow
                 }, { merge: true });
             });
         } else {
