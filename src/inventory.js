@@ -123,12 +123,12 @@ const ITEM_TYPES = [
     { id: 183, name: "White Concrete", texture: "white_concrete.png", category: "natural" },
     { id: 184, name: "Yellow Concrete", texture: "yellow_concrete.png", category: "natural" },
     { id: 185, name: "Stick", texture: "stick.png", category: "tools" },
-    { id: 186, name: "Wooden Sword", texture: "tools/wooden_sword.png", category: "tools" },
-    { id: 187, name: "Stone Sword", texture: "tools/stone_sword.png", category: "tools" },
-    { id: 188, name: "Iron Sword", texture: "tools/iron_sword.png", category: "tools" },
-    { id: 189, name: "Golden Sword", texture: "tools/golden_sword.png", category: "tools" },
-    { id: 190, name: "Diamond Sword", texture: "tools/diamond_sword.png", category: "tools" },
-    { id: 191, name: "Netherite Sword", texture: "tools/netherite_sword.png", category: "tools" }
+    { id: 186, name: "Wooden Sword", texture: "tools/Wooden_Sword_JE2_BE2.png", category: "tools" },
+    { id: 187, name: "Stone Sword", texture: "tools/Stone_Sword_JE2_BE2.png", category: "tools" },
+    { id: 188, name: "Iron Sword", texture: "tools/Iron_Sword_JE2_BE2.png", category: "tools" },
+    { id: 189, name: "Golden Sword", texture: "tools/Golden_Sword_JE3_BE2.png", category: "tools" },
+    { id: 190, name: "Diamond Sword", texture: "tools/Diamond_Sword_JE3_BE3.png", category: "tools" },
+    
 ];
 
 const TAB_DEFS = [
@@ -204,7 +204,7 @@ function normalizeSlot(slot) {
     const item = getItem(itemId);
     if (!item) return null;
     const count = Math.max(1, Math.min(MAX_STACK, Math.floor(Number(slot.count))));
-    return { itemId, count, texture: slot.texture || item.texture || null };
+    return { itemId, count, texture: item.texture || slot.texture || null };
 }
 function normalizeInventory(value) {
     if (!Array.isArray(value) || value.length !== INVENTORY_SIZE) return Array.from({ length: INVENTORY_SIZE }, () => null);
