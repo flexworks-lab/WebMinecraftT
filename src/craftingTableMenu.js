@@ -15,6 +15,7 @@ let dragged = null;
 let suppressClick = false;
 let lastPrimaryPress = null;
 let recipeBookOpen = true;
+let activeRecipe = null;
 
 function textureUrl(name) {
     return name ? `${import.meta.env.BASE_URL}textures/${encodeURIComponent(name)}` : "";
@@ -168,12 +169,14 @@ function setSlot(type, index, value) {
     else craftGrid[index] = value;
 }
 function pickupStack(type, index) {
+    activeRecipe = null;
     const slot = getSlot(type, index);
     if (!slot || dragged) return;
     dragged = { type: "cursor", slot: cloneSlot(slot) };
     setSlot(type, index, null);
 }
 function takeHalf(type, index) {
+    activeRecipe = null;
     const slot = getSlot(type, index);
     if (!slot || dragged) return;
     const amount = Math.ceil(slot.count / 2);
@@ -194,6 +197,7 @@ function placeOne(type, index) {
     if (dragged.slot.count <= 0) dragged = null;
 }
 function dropInto(type, index) {
+    activeRecipe = null;
     if (!dragged) return;
     const target = getSlot(type, index);
 
@@ -296,6 +300,7 @@ function clearCraftGridToInventory() {
 
 function useRecipe(recipe) {
     if (!recipe || !recipe.ingredients?.length) return;
+    activeRecipe = recipe;
 
     // Return anything currently on the table before loading a new recipe.
     if (!clearCraftGridToInventory()) {
@@ -331,5 +336,73 @@ function useRecipe(recipe) {
 
     saveInventory();
     render();
+}
+function updateCraftResult() {
+    craftOutput = null;
+
+    // A recipe selected from the recipe book is valid when the crafting grid
+    // contains exactly the ingredients required by that recipe.
+    if (activeRecipe) {
+        const totalGridItems = craftGrid.reduce((sum, slot) => sum + Number(slot?.count || 0), 0);
+        const requiredTotal = activeRecipe.ingredients.reduce((sum, ingredient) => sum + Number(ingredient.count || 0), 0);
+
+        if (totalGridItems === requiredTotal) {
+            const matches = activeRecipe.ingredients.every(ingredient => {
+                const ids = new Set(ingredient.ids.map(Number));
+                const have = craftGrid.reduce((sum, slot) => (
+                    slot && ids.has(Number(slot.itemId)) ? sum + Number(slot.count || 0) : sum
+                ), 0);
+                return have === Number(ingredient.count || 0);
+            });
+
+            if (matches) {
+                const recipe = [];
+                for (let index = 0; index < craftGrid.length; index++) {
+                    const slot = craftGrid[index];
+                    if (!slot) continue;
+                    recipe.push({ index, amount: slot.count });
+                }
+                craftOutput = {
+                    itemId: activeRecipe.itemId,
+                    count: activeRecipe.count,
+                    texture: itemDef(activeRecipe.itemId)?.texture || null,
+                    recipe
+                };
+                return;
+            }
+        }
+    }
+
+    // Keep the classic quick recipes working even when the player places
+    // ingredients manually instead of using the recipe book.
+    const entries = craftGrid.map((slot, index) => ({ slot, index })).filter(x => x.slot);
+    if (entries.length === 1 && LOG_IDS.has(Number(entries[0].slot.itemId))) {
+        craftOutput = {
+            itemId: 13,
+            count: 4,
+            texture: itemDef(13)?.texture || null,
+            recipe: [{ index: entries[0].index, amount: 1 }]
+        };
+        return;
+    }
+
+    let totalPlanks = 0;
+    const recipe = [];
+    for (const entry of entries) {
+        if (!PLANK_IDS.has(Number(entry.slot.itemId))) continue;
+        const needed = Math.min(entry.slot.count, 4 - totalPlanks);
+        if (needed <= 0) break;
+        totalPlanks += needed;
+        recipe.push({ index: entry.index, amount: needed });
+        if (totalPlanks >= 4) break;
+    }
+    if (totalPlanks >= 4) {
+        craftOutput = {
+            itemId: 168,
+            count: 1,
+            texture: itemDef(168)?.texture || null,
+            recipe
+        };
+    }
 }
 }
