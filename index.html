@@ -1,14 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="icon" type="image/svg+xml" href="/WebMinecraftT/favicon.svg" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-    <link rel="apple-touch-icon" href="./favicon.svg">
-    <link rel="manifest" href="./site.webmanifest">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>WebMinecraft</title>
     <style>
         @font-face { font-family:"MinecraftFont"; src:url("./Minecraft.ttf") format("truetype"); font-display:swap; }
@@ -57,7 +52,7 @@
         .slot.selected { border:3px solid white; background:rgba(105,105,105,.86); }
         #settingsButton { position:fixed; top:20px; right:20px; width:48px; height:48px; border:2px solid #111; border-top-color:#888; border-left-color:#888; border-radius:3px; background:#4c4c4c; color:white; font-size:24px; cursor:pointer; z-index:90; box-shadow:0 3px 0 #171717; }
         #settingsButton:hover { background:#5e5e5e; }
-        #settingsMenu { position:fixed; inset:0; display:none; background:#171717; z-index:2000000 !important; pointer-events:auto; overflow:hidden; }
+        #settingsMenu { position:fixed; inset:0; display:none; background:#171717; z-index:100; pointer-events:auto; overflow:hidden; }
         #settingsPanel { width:100vw; height:100vh; max-width:none; max-height:none; overflow:hidden; display:grid; grid-template-columns:270px minmax(0,1fr); grid-template-rows:100%; padding:0; background:#1b1b1b; border:0; color:white; box-shadow:none; font-family:Arial,sans-serif; }
         #settingsSidebar { background:linear-gradient(#202020,#181818); border-right:2px solid #090909; padding:28px 18px 20px; display:flex; flex-direction:column; }
         #settingsPanel h1 { margin:0 10px 8px; font-family:"MinecraftFont",monospace; font-size:30px; text-shadow:2px 2px 0 #000; }
@@ -82,15 +77,10 @@
         #settingsBottom { max-width:980px; margin:6px auto 0; display:flex; justify-content:flex-end; } #closeSettings { min-width:180px; min-height:48px; padding:12px 20px; border:2px solid #111; border-top-color:#8c8c8c; border-left-color:#8c8c8c; background:linear-gradient(#686868,#505050); color:white; font-family:"MinecraftFont",monospace; font-size:14px; cursor:pointer; text-shadow:2px 2px 0 #222; }
         #closeSettings:hover { filter:brightness(1.1); } #closeSettings:active { transform:translateY(2px); }
         @media(max-width:1050px){#menuUpdates{left:0;width:210px}}
-<<<<<<< HEAD
         @media(max-width:900px){#settingsButton{top:max(12px,env(safe-area-inset-top));right:12px}#menuPanel{margin-top:-7px}#menuTitle{font-size:clamp(46px,13vw,62px)}#menuSubtitle{font-size:10px;margin-bottom:14px}#menuSplash{font-size:14px;margin-bottom:14px}#menuButtons{width:min(300px,88vw)}.menuButton{height:45px;font-size:16px;margin:9px auto}#seedPanel{padding:24px 14px}#seedActions{grid-template-columns:1fr;max-width:420px}.seedButton{min-height:48px}#settingsPanel{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}#settingsSidebar{padding:max(14px,env(safe-area-inset-top)) 12px 10px;border-right:0;border-bottom:2px solid #090909}#settingsPanel h1{margin:0 8px 4px;font-size:23px}#settingsSubtitle{display:none}#settingsTabs{display:flex;gap:6px;overflow-x:auto}.settingsTab{flex:0 0 auto;width:auto;min-height:40px;margin:0;padding:8px 12px}#settingsVersion{display:none}#settingsHeader{height:64px;flex-basis:64px;padding:0 16px}#settingsSectionTitle{font-size:17px}#settingsCloseTop{width:38px;height:38px;font-size:19px}#settingsScroll{padding:18px 12px 24px}.setting{grid-template-columns:1fr;gap:12px;padding:13px}.settingControl{justify-content:flex-start}select,input[type=range]{width:100%}#settingsBottom{justify-content:stretch}#closeSettings{width:100%}}
         @media(max-width:760px){#menuUpdates{display:none}}
         body.mobile-mode #hotbar{pointer-events:auto;bottom:154px;max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none}
         body.mobile-mode #hotbar::-webkit-scrollbar{display:none}
-=======
-        @media(max-width:900px){#settingsButton{top:max(12px,env(safe-area-inset-top));right:12px}#menuPanel{margin-top:-7px}#menuTitle{font-size:clamp(46px,13vw,62px)}#menuSubtitle{font-size:10px;margin-bottom:14px}#menuSplash{font-size:14px;margin-bottom:14px}#menuButtons{width:min(300px,88vw)}.menuButton{height:46px;font-size:14px}.menuButton{margin:7px 0}}
-        @media(max-width:760px){#menuUpdates{display:none}#menuFooter{left:7px;bottom:6px;font-size:9px}#menuCopyright{right:7px;bottom:6px;font-size:9px}#seedActions{grid-template-columns:1fr}.setting{grid-template-columns:1fr;gap:10px}.settingControl{justify-content:flex-start}select,input[type="range"]{width:100%;max-width:100%}#settingsPanel{grid-template-columns:1fr}#settingsSidebar{display:none}#settingsHeader{padding:0 16px}#settingsScroll{padding:18px 14px 26px}}
->>>>>>> 8cf521c0847471e01f70dbe635b93219a24b727e
     </style>
 <style>
 /* WebMinecraft fun UI v1 */
@@ -188,580 +178,38 @@ button{touch-action:manipulation}
 @keyframes wmBootLoad{from{width:0}to{width:100%}}
 @media(max-width:700px){#menuUpdates{width:190px}.setting{grid-template-columns:1fr}.settingControl{justify-content:flex-start}#seedActions{grid-template-columns:1fr}.menuButton{height:44px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}#webminecraftBootScreen{display:none!important}}
-/* Menu UI neutral gray theme */
-#mainMenu {
-  background: linear-gradient(180deg, rgba(12,12,12,.16), rgba(12,12,12,.48));
-}
-#menuButtons .menuButton,
-#menuButtons #playButton,
-#menuButtons #multiplayerButton,
-#menuButtons #menuSettingsButton,
-#menuButtons #mobileModeButton {
-  background: linear-gradient(180deg,#737373,#565656) !important;
-  border-radius: 7px;
-  border-color: #1b1b1b;
-  border-top-color: #a4a4a4;
-  border-left-color: #a4a4a4;
-  box-shadow: inset 2px 2px 0 rgba(255,255,255,.14), inset -2px -3px 0 rgba(0,0,0,.3), 0 4px 0 rgba(0,0,0,.62);
-}
-#menuButtons .menuButton:hover,
-#menuButtons #playButton:hover,
-#menuButtons #multiplayerButton:hover,
-#menuButtons #menuSettingsButton:hover,
-#menuButtons #mobileModeButton:hover {
-  background: linear-gradient(180deg,#858585,#666666) !important;
-}
-#menuButtons .menuButton:active {
-  background:#4d4d4d !important;
-}
-#menuUpdates {
-  border-radius: 0 0 9px 0;
-  background: linear-gradient(180deg,#303030,#202020);
-  border-color:#111;
-}
-.menuUpdate {
-  border-radius:7px;
-  background:linear-gradient(180deg,#4c4c4c,#383838);
-  border-color:#1b1b1b;
-  border-top-color:#777;
-  border-left-color:#777;
-}
-.menuUpdateVersion { color:#d0d0d0; }
-.menuUpdateText { color:#e2e2e2; }
-#seedMenu {
-  background:#202020;
-}
-#seedPanel {
-  background:linear-gradient(180deg,#333333,#202020);
-  border-radius:12px;
-  box-shadow:0 8px 28px rgba(0,0,0,.45);
-}
-#seedInput {
-  background:#171717;
-  border-radius:7px;
-  border-color:#0b0b0b;
-  border-top-color:#777;
-  border-left-color:#777;
-}
-.seedButton,
-#openWorldButton,
-#backSeedButton {
-  background:linear-gradient(180deg,#727272,#555555) !important;
-  border-radius:7px;
-  border-color:#171717;
-  border-top-color:#919191;
-  border-left-color:#919191;
-}
-.seedButton:hover {
-  background:linear-gradient(180deg,#858585,#666666) !important;
-}
-#settingsMenu {
-  background:#202020;
-}
-#settingsPanel {
-  background:#242424;
-  border-radius:12px;
-  overflow:hidden;
-}
-#settingsSidebar {
-  background:linear-gradient(180deg,#303030,#1e1e1e);
-}
-.settingsTab {
-  background:linear-gradient(180deg,#505050,#3b3b3b) !important;
-  border-radius:7px;
-  border-color:#161616;
-  border-top-color:#777;
-  border-left-color:#777;
-}
-.settingsTab:hover,
-.settingsTab.active {
-  background:linear-gradient(180deg,#707070,#555555) !important;
-}
-#settingsContent,
-#settingsHeader {
-  background:#2b2b2b;
-}
-#settingsCloseTop,
-#closeSettings {
-  background:linear-gradient(180deg,#727272,#555555) !important;
-  border-radius:7px;
-}
-.setting {
-  background:linear-gradient(180deg,#414141,#303030);
-  border-radius:8px;
-  border-color:#171717;
-  border-top-color:#666;
-  border-left-color:#666;
-}
-select {
-  background:#242424;
-  border-radius:7px;
-}
-#menuFooter,
-#menuCopyright {
-  color:#d0d0d0;
-}
-
-/* Static square menu UI */
-#mainMenu,
-#menuPanel,
-#menuTitle,
-#menuSplash,
-#menuButtons,
-#menuUpdates,
-#menuUpdate,
-.menuUpdate,
-#seedMenu,
-#seedPanel,
-#seedInput,
-.seedButton,
-#openWorldButton,
-#backSeedButton,
-#settingsMenu,
-#settingsPanel,
-#settingsSidebar,
-#settingsContent,
-#settingsHeader,
-.settingsTab,
-.setting,
-#settingsCloseTop,
-#closeSettings,
-#settingsScroll select {
-  border-radius:0 !important;
-  animation:none !important;
-  transition:none !important;
-}
-#menuButtons .menuButton,
-#playButton,
-#multiplayerButton,
-#menuSettingsButton,
-#mobileModeButton,
-.menuButton,
-.seedButton,
-#settingsCloseTop,
-#closeSettings,
-.settingsTab,
-.setting {
-  animation:none !important;
-  transition:none !important;
-  border-radius:0 !important;
-}
-#menuTitle,
-#menuSplash,
-#menuUpdates,
-#menuPanel,
-#seedPanel,
-#settingsPanel {
-  animation:none !important;
-  transition:none !important;
-}
-#mainMenu.menu-entering #menuPanel,
-#mainMenu.menu-ready #menuPanel {
-  opacity:1 !important;
-  transform:none !important;
-}
-#menuSplash {
-  transform:none !important;
-}
-#menuButtons .menuButton:hover,
-#menuButtons .menuButton:active,
-.seedButton:hover,
-.settingsTab:hover,
-.settingsTab.active,
-#settingsCloseTop:hover,
-#closeSettings:hover {
-  transform:none !important;
-}
-
-/* Remove menu UI outlines */
-#mainMenu *,
-#seedMenu *,
-#settingsMenu * {
-  outline:none !important;
-}
-#mainMenu .menuButton:focus,
-#mainMenu .menuButton:focus-visible,
-#seedMenu .seedButton:focus,
-#seedMenu .seedButton:focus-visible,
-#settingsMenu .settingsTab:focus,
-#settingsMenu .settingsTab:focus-visible,
-#settingsMenu #settingsCloseTop:focus,
-#settingsMenu #settingsCloseTop:focus-visible,
-#settingsMenu #closeSettings:focus,
-#settingsMenu #closeSettings:focus-visible,
-#seedInput:focus {
-  outline:none !important;
-  box-shadow:inset 2px 2px 0 rgba(255,255,255,.14), inset -2px -3px 0 rgba(0,0,0,.3), 0 4px 0 rgba(0,0,0,.62) !important;
-}
-
-/* Hide in-game settings gear on the main menu */
-#mainMenu ~ #settingsButton { display:none !important; }
-body.webminecraft-in-world #settingsButton { display:block !important; }
-
 </style>
-    <style>
-        /* Create World fun polish */
-        #seedMenu{
-          background:
-            radial-gradient(circle at 20% 18%,rgba(255,255,255,.08) 0 2px,transparent 3px),
-            radial-gradient(circle at 78% 28%,rgba(255,255,255,.06) 0 2px,transparent 3px),
-            linear-gradient(180deg,#101714 0%,#171e19 48%,#0e120f 100%);
-          background-size:auto,auto,100% 100%;
-          overflow:hidden;
-        }
-        #seedPanel{
-          align-items:center;
-          padding-top:clamp(70px,10vh,112px);
-          padding-bottom:clamp(34px,7vh,70px);
-          background:
-            radial-gradient(circle at 50% 16%,rgba(151,205,104,.2),transparent 25%),
-            linear-gradient(180deg,rgba(49,61,51,.86),rgba(25,31,26,.98));
-          border:1px solid rgba(255,255,255,.08);
-        }
-        #seedPanel::before{
-          content:"";
-          position:absolute;
-          left:0;right:0;bottom:0;height:22%;
-          background:linear-gradient(180deg,transparent,rgba(0,0,0,.18)),repeating-linear-gradient(90deg,#263326 0 28px,#202a20 28px 56px);
-          opacity:.5;
-          pointer-events:none;
-        }
-        #seedPanel::after{
-          content:"";
-          position:absolute;
-          top:22%; left:-6%; width:112%; height:1px;
-          background:rgba(255,255,255,.08);
-          box-shadow:0 38vh 0 rgba(255,255,255,.035);
-          transform:rotate(-2deg);
-          pointer-events:none;
-        }
-        #seedBackWrap{top:clamp(18px,4vh,42px)}
-        #seedBackWrap .seedButton{
-          min-width:120px;
-          box-shadow:inset 2px 2px 0 rgba(255,255,255,.15),inset -2px -2px 0 rgba(0,0,0,.25),0 4px 0 rgba(0,0,0,.42);
-        }
-        #seedTitle{
-          position:relative;
-          z-index:2;
-          margin-bottom:8px;
-          color:#fff;
-          font-size:clamp(42px,6vw,68px);
-          letter-spacing:-2px;
-          text-shadow:3px 3px 0 #111,6px 6px 0 rgba(0,0,0,.35);
-        }
-        #seedTitle::after{
-          content:"CREATE YOUR ADVENTURE";
-          display:block;
-          margin-top:9px;
-          color:#a6d67a;
-          font-family:Arial,sans-serif;
-          font-size:clamp(10px,1.2vw,13px);
-          font-weight:800;
-          letter-spacing:3px;
-          text-shadow:0 2px 0 #111;
-        }
-        #seedSubtitle{
-          position:relative;
-          z-index:2;
-          max-width:700px;
-          margin:12px auto 22px;
-          color:#d4ddd4;
-          text-shadow:0 2px 0 rgba(0,0,0,.35);
-        }
-        #seedSubtitle strong{color:#a6d67a}
-        #seedInput{
-          position:relative;
-          z-index:2;
-          width:min(720px,92vw);
-          height:68px;
-          padding:12px 20px;
-          background:rgba(12,16,13,.88);
-          border:3px solid #111;
-          border-top-color:#8fa47f;
-          border-left-color:#8fa47f;
-          box-shadow:inset 0 4px 0 rgba(255,255,255,.04),0 8px 0 rgba(0,0,0,.28),0 0 26px rgba(123,171,88,.1);
-          font-family:"MinecraftFont",monospace;
-          font-size:clamp(22px,3vw,34px);
-          letter-spacing:1px;
-        }
-        #seedInput::placeholder{color:#6f786f}
-        #seedInput:focus{
-          border-color:#a6d67a;
-          box-shadow:inset 0 4px 0 rgba(255,255,255,.05),0 8px 0 rgba(0,0,0,.28),0 0 30px rgba(166,214,122,.18);
-        }
-        #seedInput + #seedActions{position:relative;z-index:2}
-        #seedActions{
-          margin-top:18px;
-          width:min(720px,92vw);
-          grid-template-columns:1fr 1fr 1.15fr;
-          gap:10px;
-        }
-        .seedButton{
-          min-height:58px;
-          border-radius:6px;
-          border:2px solid #111;
-          border-top-color:#909790;
-          border-left-color:#909790;
-          box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -2px -3px 0 rgba(0,0,0,.27),0 4px 0 rgba(0,0,0,.4);
-          transition:transform .12s ease,filter .12s ease,box-shadow .12s ease;
-        }
-        .seedButton:hover{
-          transform:translateY(-2px);
-          filter:brightness(1.08);
-          box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.25),0 6px 0 rgba(0,0,0,.36),0 0 18px rgba(166,214,122,.08);
-        }
-        .seedButton:active{transform:translateY(2px)}
-        #copySeedButton::before{content:"◆  ";color:#a6d67a}
-        #copyWorldLinkButton::before{content:"↗  ";color:#a6d67a}
-        #openWorldButton{position:relative;overflow:hidden}
-        #openWorldButton::before{content:"▶  "}
-        #openWorldButton::after{
-          content:"";
-          position:absolute;inset:0;
-          background:linear-gradient(115deg,transparent 0 32%,rgba(255,255,255,.15) 46%,transparent 60%);
-          transform:translateX(-120%);
-          transition:transform .5s ease;
-          pointer-events:none;
-        }
-        #openWorldButton:hover::after{transform:translateX(120%)}
-        #seedLinkStatus{
-          position:relative;
-          z-index:2;
-          min-height:28px;
-          margin-top:14px;
-          padding:6px 14px;
-          border-radius:999px;
-          color:#cde7b6;
-          background:rgba(0,0,0,.22);
-          border:1px solid rgba(166,214,122,.16);
-        }
-        #seedDecoration{
-          position:absolute;
-          top:12%; right:8%;
-          width:110px; height:110px;
-          transform:rotate(-7deg);
-          pointer-events:none;
-          z-index:1;
-          filter:drop-shadow(0 10px 8px rgba(0,0,0,.3));
-        }
-        #seedDecoration::before,
-        #seedDecoration::after{
-          content:"";
-          position:absolute;
-          width:46px;height:46px;
-          border:2px solid #111;
-          box-shadow:inset 3px 3px 0 rgba(255,255,255,.12),inset -4px -5px 0 rgba(0,0,0,.2);
-        }
-        #seedDecoration::before{
-          left:6px;bottom:6px;
-          background:linear-gradient(180deg,#7fb64b 0 30%,#7b5129 30% 100%);
-        }
-        #seedDecoration::after{
-          right:7px;top:2px;
-          background:linear-gradient(180deg,#8bc55a 0 28%,#4b7c38 28% 100%);
-        }
-        #seedSpark{
-          position:absolute;
-          top:19%; left:10%;
-          color:#fff2a8;
-          font-family:"MinecraftFont",monospace;
-          font-size:18px;
-          letter-spacing:8px;
-          text-shadow:2px 2px 0 #222;
-          animation:seedSparkFloat 2.6s ease-in-out infinite;
-          pointer-events:none;
-          z-index:1;
-        }
-        @keyframes seedSparkFloat{
-          0%,100%{transform:translateY(0) rotate(-3deg);opacity:.6}
-          50%{transform:translateY(-8px) rotate(3deg);opacity:1}
-        }
-        @media(max-width:900px){
-          #seedDecoration{width:84px;height:84px;right:3%;top:9%;transform:scale(.8) rotate(-7deg)}
-          #seedSpark{left:5%;top:14%;font-size:14px}
-        }
-        @media(max-width:700px){
-          #seedTitle::after{letter-spacing:2px}
-          #seedActions{grid-template-columns:1fr}
-          #seedInput{height:60px}
-          #seedDecoration{opacity:.34;right:-10px;top:10px}
-          #seedSpark{left:12px;top:86px}
-        }
-
-        /* Create World preview + stronger 3D button depth */
-        #seedPanel{
-          overflow-y:auto;
-          overflow-x:hidden;
-          justify-content:flex-start;
-        }
-        #seedWorldPreview{
-          position:relative;
-          z-index:2;
-          display:block;
-          width:min(780px,92vw);
-          height:min(250px,28vh);
-          min-height:150px;
-          margin:18px auto 0;
-          padding:5px;
-          object-fit:contain;
-          object-position:center;
-          image-rendering:auto;
-          background:#111;
-          border:3px solid #111;
-          border-top-color:#929292;
-          border-left-color:#929292;
-          box-shadow:inset 3px 3px 0 rgba(255,255,255,.1),inset -4px -4px 0 rgba(0,0,0,.35),0 9px 0 rgba(0,0,0,.34),0 16px 26px rgba(0,0,0,.22);
-        }
-        #openWorldButton{
-          position:relative;
-          z-index:2;
-          width:min(780px,92vw);
-          margin:16px auto 0;
-          min-height:62px;
-          transform:none !important;
-          box-shadow:inset 3px 3px 0 rgba(255,255,255,.18),inset -4px -5px 0 rgba(0,0,0,.34),0 6px 0 #111,0 10px 18px rgba(0,0,0,.22) !important;
-          border-top-color:#a4a4a4 !important;
-          border-left-color:#a4a4a4 !important;
-        }
-        #openWorldButton:hover{
-          filter:brightness(1.08);
-        }
-        #openWorldButton:active,
-        #seedMenu .seedButton:active{
-          transform:translateY(3px) !important;
-          box-shadow:inset 3px 3px 0 rgba(0,0,0,.28),inset -2px -2px 0 rgba(255,255,255,.08),0 2px 0 #111 !important;
-        }
-        #seedActions{
-          position:relative;
-          z-index:2;
-          width:min(780px,92vw);
-          grid-template-columns:1fr 1fr;
-          gap:12px;
-          margin-top:14px;
-        }
-        #seedActions .seedButton{
-          box-shadow:inset 3px 3px 0 rgba(255,255,255,.16),inset -4px -5px 0 rgba(0,0,0,.32),0 5px 0 #111,0 8px 14px rgba(0,0,0,.18);
-          border-top-color:#a0a0a0 !important;
-          border-left-color:#a0a0a0 !important;
-        }
-        #seedBackWrap .seedButton{
-          box-shadow:inset 3px 3px 0 rgba(255,255,255,.16),inset -4px -5px 0 rgba(0,0,0,.32),0 5px 0 #111,0 8px 14px rgba(0,0,0,.18) !important;
-        }
-        @media(max-width:700px){
-          #seedWorldPreview{
-            width:min(780px,94vw);
-            height:min(190px,26vh);
-            min-height:120px;
-            margin-top:14px;
-          }
-          #openWorldButton{width:min(780px,94vw);margin-top:14px}
-          #seedActions{grid-template-columns:1fr;width:min(780px,94vw)}
-        }
-    </style>
 </head>
 <body>
-<<<<<<< HEAD
-    <div id="menuUpdates">
-        <h2 id="menuUpdatesTitle">Latest Updates</h2>
-        <div class="menuUpdate"><div class="menuUpdateVersion">v1.1 • World Seeds</div><div class="menuUpdateText">Seed-based world generation</div></div>
-        <div class="menuUpdate"><div class="menuUpdateVersion">v1.1 • Seed Links</div><div class="menuUpdateText">Share worlds with a seed link</div></div>
-        <div class="menuUpdate"><div class="menuUpdateVersion">Latest • World Screen</div><div class="menuUpdateText">Full-screen world setup</div></div>
-        <div class="menuUpdate"><div class="menuUpdateVersion">Latest • Update Details</div><div class="menuUpdateText">Open an update for more info</div></div>
-    </div>
-
-=======
-    <script>
-    (() => {
-        const applyMultiplayerUiGuard = () => {
-            const menus = [...document.querySelectorAll("#multiplayerMenu")];
-            if (!menus.length) return;
-
-            // The server browser is the current multiplayer UI. Older cached
-            // clients can recreate the previous centered/step-based screen.
-            // Force the current Worlds-style server screen whenever that old
-            // structure is detected.
-            for (const menu of menus) {
-                const panel = menu.querySelector("#multiplayerPanel");
-                const serverView = menu.querySelector("#multiplayerServerView");
-                if (!panel || !serverView) continue;
-
-                const roomView = menu.querySelector("#multiplayerRoomView");
-                const roomOpen = roomView && getComputedStyle(roomView).display !== "none";
-
-                if (!roomOpen) {
-                    panel.classList.add("servers-screen");
-                    menu.dataset.webminecraftLegacyUiFixed = "1";
-                }
-
-                // Old clients did not always hide the bottom Join Room bar.
-                // The current server screen keeps only the top-right controls.
-                if (menu.dataset.webminecraftLegacyUiFixed === "1") {
-                    menu.querySelector("#multiplayerJoin")?.style.setProperty("display", "none", "important");
-                }
-            }
-        };
-
-        let queued = false;
-        const schedule = () => {
-            if (queued) return;
-            queued = true;
-            requestAnimationFrame(() => {
-                queued = false;
-                applyMultiplayerUiGuard();
-            });
-        };
-        const observer = new MutationObserver(schedule);
-        observer.observe(document.documentElement, { childList: true, subtree: true });
-        applyMultiplayerUiGuard();
-    })();
-    </script>
->>>>>>> 230c89e8ed1d4d1cf25173e2e4d1a680b101e68c
     <div id="mainMenu">
         <div id="menuPanel">
-            <h1 id="menuTitle">WebMinecraft</h1>
-            <div id="menuSubtitle">A browser-based block world</div>
-            <div id="menuSplash">More blocks. More worlds.</div>
+            <h1 id="menuTitle">MINECRAFT</h1>
+            <div id="menuSubtitle">WEB EDITION</div>
+            <div id="menuSplash">Loading tip...</div>
             <div id="menuButtons">
                 <button id="playButton" class="menuButton">Singleplayer</button>
-                <button id="menuSettingsButton" class="menuButton">Settings</button>
+                <button id="multiplayerButton" class="menuButton">Multiplayer</button>
+                <button id="menuSettingsButton" class="menuButton">Options...</button>
                 <button id="mobileModeButton" class="menuButton">Mobile Mode</button>
             </div>
         </div>
-        <div id="menuFooter">WebMinecraft<br>Build your world.</div>
-        <div id="menuCopyright">© 2026 WebMinecraft</div>
     </div>
 
     <div id="seedMenu" aria-hidden="true">
         <div id="seedPanel">
-<<<<<<< HEAD
-            <div id="seedBackWrap"><button id="backSeedButton" class="seedButton">Back</button></div>
-            <h2 id="seedTitle">Create World</h2>
-            <p id="seedSubtitle">Choose a world seed. The same seed recreates the same world.</p>
-            <input id="seedInput" type="text" autocomplete="off" spellcheck="false">
-            <div id="seedActions">
-                <button id="copySeedButton" class="seedButton">Copy Seed</button>
-                <button id="copyWorldLinkButton" class="seedButton">Copy World Link</button>
-                <button id="openWorldButton" class="seedButton">Open World</button>
-=======
             <div id="seedBackWrap"><button id="backSeedButton" class="seedButton" type="button">← Back</button></div>
-            <div id="seedSpark">✦  ✧  ✦</div>
-            <div id="seedDecoration" aria-hidden="true"></div>
             <h2 id="seedTitle">Create World</h2>
-            <p id="seedSubtitle">Choose a seed, <strong>build anything</strong>, and make this world yours. Copy the seed to recreate it anytime.</p>
-            <input id="seedInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="World seed" placeholder="Enter a world seed...">
-            <img id="seedWorldPreview" src="./wrld%20preview.png" alt="World preview">
-            <button id="openWorldButton" class="seedButton" type="button">Create World</button>
+            <p id="seedSubtitle">Your new world seed is below. Copy it to share the exact same world later.</p>
+            <input id="seedInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="World seed">
             <div id="seedActions">
                 <button id="copySeedButton" class="seedButton" type="button">Copy Seed</button>
                 <button id="copyWorldLinkButton" class="seedButton" type="button">Copy World Link</button>
->>>>>>> 230c89e8ed1d4d1cf25173e2e4d1a680b101e68c
+                <button id="openWorldButton" class="seedButton" type="button">Open World</button>
             </div>
-            <div id="seedLinkStatus"></div>
+            <div id="seedLinkStatus" aria-live="polite"></div>
         </div>
     </div>
 
-<<<<<<< HEAD
-=======
     <aside id="menuUpdates" aria-label="Website updates">
         <h3 id="menuUpdatesTitle">News & Updates</h3>
         <article class="menuUpdate"><div class="menuUpdateVersion">v1.2 • World Seeds</div><div class="menuUpdateText">World generation uses a seed so the same world can be reproduced and shared.</div></article>
@@ -775,52 +223,46 @@ body.webminecraft-in-world #settingsButton { display:block !important; }
     <div id="hotbar"><div class="slot selected">1<br>Grass</div><div class="slot">2<br>Dirt</div><div class="slot">3<br>Stone</div><div class="slot">4<br>Sand</div><div class="slot">5<br>Oak</div><div class="slot">6<br>Leaves</div><div class="slot">7<br>Grass</div><div class="slot">8<br>Dirt</div><div class="slot">9<br>Stone</div></div>
     <button id="settingsButton" aria-label="Settings">⚙</button>
 
->>>>>>> 230c89e8ed1d4d1cf25173e2e4d1a680b101e68c
     <div id="settingsMenu">
         <div id="settingsPanel">
-            <aside id="settingsSidebar">
-                <h1>Settings</h1>
-                <p id="settingsSubtitle">Configure your WebMinecraft experience.</p>
-                <button class="settingsTab active">Game</button>
-                <button class="settingsTab">Controls</button>
-                <button class="settingsTab">Video</button>
-                <div id="settingsVersion">WebMinecraft Settings</div>
-            </aside>
+            <aside id="settingsSidebar"><h1>Settings</h1><p id="settingsSubtitle">Customize how WebMinecraftT looks and runs.</p><div id="settingsTabs"><button class="settingsTab active" type="button">Graphics</button><button class="settingsTab" type="button">Video</button><button class="settingsTab" type="button">Accessibility</button></div><div id="settingsVersion">WebMinecraftT<br>Graphics & Performance</div></aside>
             <section id="settingsContent">
-                <header id="settingsHeader"><h2 id="settingsSectionTitle">Game</h2><button id="settingsCloseTop">×</button></header>
+                <header id="settingsHeader"><h2 id="settingsSectionTitle">Graphics</h2><button id="settingsCloseTop" type="button" aria-label="Close settings">×</button></header>
                 <div id="settingsScroll">
-<<<<<<< HEAD
-                    <div class="settingsGroup"><h3 class="settingsGroupTitle">General</h3><div class="setting"><div><label>Render Distance</label><small>Controls how far chunks are rendered around you.</small></div><div class="settingControl"><input type="range" min="2" max="8" value="6"></div></div></div>
-=======
                     <section class="settingsGroup"><h3 class="settingsGroupTitle">Performance</h3><div class="setting"><div><label for="graphicsQuality">Graphics Quality</label><small>Controls how detailed the world rendering is.</small></div><div class="settingControl"><select id="graphicsQuality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="fancy">Fancy</option></select></div></div><div class="setting"><div><label for="renderDistance">Render Distance</label><small>How far chunks remain visible around you.</small></div><div class="settingControl"><select id="renderDistance"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div></div><div class="setting"><div><label for="renderScale">Render Scale</label><small>Lower values improve performance on slower devices.</small></div><div class="settingControl"><input id="renderScale" type="range" min="0.5" max="1.25" step="0.05" value="1"></div></div></section>
                     <section class="settingsGroup"><h3 class="settingsGroupTitle">Lighting & Shadows</h3><div class="setting"><div><label for="lightingQuality">Lighting Quality</label><small>Choose how smooth and detailed lighting looks.</small></div><div class="settingControl"><select id="lightingQuality"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div></div><div class="setting"><div><label for="shadowQuality">Shadow Quality</label><small>Controls the detail level of dynamic shadows.</small></div><div class="settingControl"><select id="shadowQuality"><option value="off">Off</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div></div><div class="setting"><div><label for="brightness">Brightness</label><small>Adjust overall scene brightness.</small></div><div class="settingControl"><input id="brightness" type="range" min="0.6" max="1.6" step="0.05" value="1"></div></div></section>
                     <section class="settingsGroup"><h3 class="settingsGroupTitle">Interface</h3><div class="setting"><div><label for="showPerformance">Performance HUD</label><small>Display FPS and renderer information while playing.</small></div><div class="settingControl"><input id="showPerformance" type="checkbox"></div></div><div class="setting"><div><label for="showCoordinatesToggle">Show Coordinates</label><small>Display your current X, Y, and Z position while playing.</small></div><div class="settingControl"><input id="showCoordinatesToggle" type="checkbox"></div></div></section>
                     <div id="settingsBottom"><button id="closeSettings" type="button">Done</button></div>
->>>>>>> 230c89e8ed1d4d1cf25173e2e4d1a680b101e68c
                 </div>
-                <div id="settingsBottom"><button id="closeSettings">Done</button></div>
             </section>
         </div>
     </div>
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    <script>
-        const menuTips=["Never dig straight down!","Watch your step around cliffs.","Trees are a great early source of wood.","You can sprint while moving forward.","Caves can hide valuable ores.","Water can save you from a long fall.","Keep some blocks handy for building.","A good shelter is better than no shelter.","Explore different biomes to find new terrain.","You can fly with F.","Leaves make trees look much better with texture.","Sometimes the best view is from a mountain."]; 
-        const menuSplash=document.getElementById("menuSplash"); if(menuSplash) menuSplash.textContent=menuTips[Math.floor(Math.random()*menuTips.length)];
-    </script>
-    <script type="module" src="./src/loadingScreen.js"></script>
-    <script type="module" src="./src/menuUpdates.js"></script>
-=======
-    <div id="crosshair">+</div>
-    <div id="hotbar"></div>
-    <button id="settingsButton" aria-label="Settings">⚙</button>
->>>>>>> 8cf521c0847471e01f70dbe635b93219a24b727e
-=======
     <script type="module" src="./src/firebaseConfig.js"></script>
->>>>>>> 230c89e8ed1d4d1cf25173e2e4d1a680b101e68c
     <script type="module" src="./src/main.js"></script>
     <script type="module" src="./src/menuUpdates.js"></script>
-
+<script>
+/* WebMinecraft opening animation v1 */
+(() => {
+  const start = () => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    if (document.getElementById('webminecraftBootScreen')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'webminecraftBootScreen';
+    overlay.innerHTML = '<div id="wmBootInner"><div id="wmBootLogo">WebMinecraft</div><div id="wmBootTag">Loading your world...</div><div id="wmBootBar"><div id="wmBootFill"></div></div><div id="wmBootTip">Building blocks. One pixel at a time.</div></div>';
+    document.body.appendChild(overlay);
+    const menu = document.getElementById('mainMenu');
+    menu?.classList.add('menu-entering');
+    window.setTimeout(() => {
+      overlay.classList.add('boot-done');
+      menu?.classList.remove('menu-entering');
+      menu?.classList.add('menu-ready');
+      window.setTimeout(() => overlay.remove(), 520);
+    }, 1050);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once:true });
+  else start();
+})();
+</script>
 </body>
 </html>
