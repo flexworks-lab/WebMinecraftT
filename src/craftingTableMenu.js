@@ -532,20 +532,31 @@ function createUI() {
     root.innerHTML = `
       <div id="ctm-panel">
         <header id="ctm-header"><span>Crafting Table</span><button id="ctm-close" type="button" aria-label="Close">×</button></header>
-        <section id="ctm-top">
-          <div id="ctm-craft-box">
-            <div class="ctm-title">Crafting</div>
-            <div class="ctm-craft-row">
-              <div id="ctm-craft-grid"></div>
-              <span class="ctm-arrow">→</span>
-              <button id="ctm-output" type="button" aria-label="Crafting output"></button>
-            </div>
-            <button id="ctm-recipe-book" type="button">Recipe Book</button>
+        <section id="ctm-pages">
+          <div id="ctm-left-page" class="ctm-page">
+            <div class="ctm-page-title">Craftable</div>
+            <div id="ctm-help" aria-label="Craftable recipes"></div>
           </div>
-          <div id="ctm-help" aria-label="Craftable recipes"></div>
+
+          <div id="ctm-right-page" class="ctm-page">
+            <div class="ctm-page-title">Crafting</div>
+            <div class="ctm-craft-box">
+              <div class="ctm-craft-row">
+                <div id="ctm-craft-grid"></div>
+                <span class="ctm-arrow">→</span>
+                <button id="ctm-output" type="button" aria-label="Crafting output"></button>
+              </div>
+            </div>
+            <div id="ctm-storage-section">
+              <div class="ctm-title">Inventory</div>
+              <div id="ctm-storage"></div>
+            </div>
+            <div id="ctm-hotbar-section">
+              <div class="ctm-title">Hotbar</div>
+              <div id="ctm-hotbar"></div>
+            </div>
+          </div>
         </section>
-        <section id="ctm-storage-section"><div class="ctm-title">Inventory</div><div id="ctm-storage"></div></section>
-        <section id="ctm-hotbar-section"><div class="ctm-title">Hotbar</div><div id="ctm-hotbar"></div></section>
         <div id="ctm-actions"><span>Left click: pick up / put down whole stack · Right click: take half / place 1.</span><button id="ctm-delete" type="button">Delete held</button></div>
       </div>
       <div id="ctm-cursor" aria-hidden="true"></div>`;
@@ -558,10 +569,14 @@ function createUI() {
 #ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:10px;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:8px 8px 0 rgba(0,0,0,.28);display:flex;flex-direction:column;gap:8px;overflow:hidden}
 #ctm-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;color:#404040;min-height:28px;text-shadow:1px 1px rgba(255,255,255,.55)}
 #ctm-close{width:30px;height:28px;background:#C6C6C6;color:#404040;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;font-size:20px;line-height:20px;cursor:pointer;padding:0;box-shadow:inset -2px -2px #555}
-#ctm-top{display:grid;grid-template-columns:1.08fr .92fr;gap:8px;min-height:0}
-#ctm-craft-box,#ctm-help,#ctm-storage-section,#ctm-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
-#ctm-craft-box{display:flex;flex-direction:column;align-items:center;justify-content:center}
-#ctm-help{font-size:11px;color:#404040;overflow:hidden;min-height:0}
+#ctm-pages{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0;flex:1}
+.ctm-page{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:10px;box-sizing:border-box;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+#ctm-left-page{overflow:hidden}
+#ctm-right-page{gap:10px}
+.ctm-page-title{font-size:16px;font-weight:800;color:#404040;margin-bottom:8px;text-shadow:1px 1px rgba(255,255,255,.55)}
+#ctm-help{font-size:11px;color:#404040;overflow-y:auto;overflow-x:hidden;min-height:0;flex:1;padding-right:3px}
+.ctm-craft-box{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:12px;box-sizing:border-box}
+#ctm-storage-section,#ctm-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
 .ctm-recipe-tip{font-size:10px;color:#555;margin:-1px 0 7px}
 #ctm-recipe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;align-content:start}
 .ctm-recipe-card{min-width:0;padding:4px;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555}
@@ -581,8 +596,6 @@ function createUI() {
 #ctm-output{position:relative;width:50px;height:50px;background:#8B8B8B;border:2px solid #373737;box-shadow:inset -2px -2px #FFFFFF;padding:0;cursor:pointer;overflow:hidden;contain:layout paint;isolation:isolate}
 #ctm-output.ready{outline:3px solid #FFFFFF;outline-offset:-3px}
 #ctm-output .ctm-item{width:34px;height:34px;max-width:34px;max-height:34px}
-#ctm-recipe-book{margin-top:10px;background:#8B8B8B;color:#404040;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:5px 10px;cursor:pointer;font-weight:800;font-size:11px;box-shadow:inset -1px -1px #555}
-#ctm-recipe-book.active{background:#FFFFFF}
 #ctm-storage,#ctm-hotbar{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:4px}
 #ctm-hotbar-section{min-height:0}
 #ctm-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:#404040}
@@ -594,9 +607,11 @@ function createUI() {
 body.crafting-table-open #hotbar.textured-hotbar{display:none!important}
 body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:.5}
 @media(max-width:720px){
-#ctm-panel{width:min(430px,94vw);max-height:94vh;padding:7px;gap:6px}
-#ctm-top{grid-template-columns:1.12fr .88fr;gap:6px}
-#ctm-craft-box,#ctm-help,#ctm-storage-section,#ctm-hotbar-section{padding:6px}
+#ctm-panel{width:min(760px,96vw);max-height:94vh;padding:7px;gap:6px}
+#ctm-pages{grid-template-columns:1fr 1fr;gap:6px}
+.ctm-page{padding:6px}
+.ctm-page-title{font-size:12px;margin-bottom:4px}
+.ctm-craft-box,#ctm-storage-section,#ctm-hotbar-section{padding:6px}
 #ctm-title,.ctm-title{font-size:11px;margin-bottom:4px}
 #ctm-help{display:block}
 #ctm-recipe-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
