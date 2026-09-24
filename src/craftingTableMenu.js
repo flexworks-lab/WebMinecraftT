@@ -271,11 +271,11 @@ function renderRecipeBrowser() {
                 const item = itemDef(recipe.itemId);
                 if (!item) return "";
                 const texture = item.texture;
-                return \`<button class="ctm-recipe-card" type="button" data-recipe-index="${recipeIndex}" title="${recipe.label}: ${recipe.tip}">
-                    <div class="ctm-recipe-icon">${texture ? \`<img src="${textureUrl(texture)}" alt="" draggable="false">\` : ""}</div>
-                    <div class="ctm-recipe-name">${recipe.label}</div>
-                    <div class="ctm-recipe-count">${recipe.count}× · ${recipe.tip}</div>
-                </button>\`;
+                return "<button class=\"ctm-recipe-card\" type=\"button\" data-recipe-index=\"" + recipeIndex + "\" title=\"" + recipe.label + ": " + recipe.tip + "\">" +
+                    "<div class=\"ctm-recipe-icon\">" + (texture ? "<img src=\"" + textureUrl(texture) + "\" alt=\"\" draggable=\"false\">" : "") + "</div>" +
+                    "<div class=\"ctm-recipe-name\">" + recipe.label + "</div>" +
+                    "<div class=\"ctm-recipe-count\">" + recipe.count + "× · " + recipe.tip + "</div>" +
+                "</button>";
             }).join("")}
         </div>`;
     panel.querySelectorAll("[data-recipe-index]").forEach(button => {
