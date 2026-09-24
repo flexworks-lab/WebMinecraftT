@@ -636,7 +636,7 @@ function createUI() {
 #ctm-close::before,#ctm-close::after{content:"";position:absolute;left:7px;top:12px;width:14px;height:2px;background:#404040}
 #ctm-close::before{transform:rotate(45deg)}
 #ctm-close::after{transform:rotate(-45deg)}
-#ctm-pages{display:grid;grid-template-columns:minmax(0,0.88fr) minmax(0,1.12fr);gap:10px;min-height:0;flex:1}
+#ctm-pages{display:grid;grid-template-columns:minmax(0,0.88fr) minmax(0,1.12fr);gap:18px;min-height:0;flex:1}
 .ctm-page{background:#C6C6C6;border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;padding:10px;box-sizing:border-box;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;image-rendering:pixelated}
 #ctm-left-page{overflow:hidden}
 #ctm-right-page{gap:10px}
@@ -675,7 +675,7 @@ body.crafting-table-open #hotbar.textured-hotbar{display:none!important}
 body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:.5}
 @media(max-width:720px){
 #ctm-panel{width:min(760px,96vw);max-height:94vh;padding:7px;gap:6px}
-#ctm-pages{grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:6px}
+#ctm-pages{grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:12px}
 .ctm-page{padding:6px}
 .ctm-page-title{font-size:12px;margin-bottom:4px}
 .ctm-craft-box,#ctm-storage-section,#ctm-hotbar-section{padding:6px}
