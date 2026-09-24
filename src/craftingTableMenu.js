@@ -237,7 +237,22 @@ function countInventoryItem(itemIds) {
 }
 function recipeDefinitions() {
     const recipes = [
-        { itemId: 13, count: 4, label: "Oak Planks", tip: "1 log", ingredients: [{ ids: [...LOG_IDS], count: 1 }] },
+        // Each wood type uses its own log(s) and produces its matching planks.
+        ...[
+            [13, [5, 161]],
+            [23, [155, 162]],
+            [25, [156, 163]],
+            [27, [157, 164]],
+            [28, [158, 165]],
+            [29, [159, 166]],
+            [30, [160, 167]]
+        ].map(([itemId, logIds]) => ({
+            itemId,
+            count: 4,
+            label: "Planks",
+            tip: "1 matching log",
+            ingredients: [{ ids: logIds, count: 1 }]
+        })),
         { itemId: 185, count: 4, label: "Stick", tip: "2 planks", ingredients: [{ ids: [...PLANK_IDS], count: 2 }] },
         { itemId: 168, count: 1, label: "Crafting Table", tip: "4 planks", ingredients: [{ ids: [...PLANK_IDS], count: 4 }] },
         { itemId: 17, count: 3, label: "Oak Door", tip: "6 oak planks", ingredients: [{ ids: [13], count: 6 }] },
