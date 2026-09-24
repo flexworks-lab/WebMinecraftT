@@ -270,18 +270,22 @@ function renderRecipeBrowser() {
     const blockItems = [...new Set([...BUILD_BLOCK_IDS, 15, 17])]
         .map(id => itemDef(id))
         .filter(Boolean)
-        .filter(item => Number(item.id) !== 185);
+        .filter(item => Number(item.id) !== 185)
+        .map(item => {
+            const recipe = recipeByItemId.get(Number(item.id));
+            const available = recipe
+                ? recipeAvailable(recipe)
+                : countInventoryItem([Number(item.id)]) > 0;
+            return { item, recipe, available };
+        })
+        .sort((a, b) => Number(b.available) - Number(a.available));
 
     panel.innerHTML = `
         <div id="ctm-recipe-grid">
-            ${blockItems.map(item => {
-                const recipe = recipeByItemId.get(Number(item.id));
-                const available = recipe
-                    ? recipeAvailable(recipe)
-                    : countInventoryItem([Number(item.id)]) > 0;
+            ${blockItems.map(({ item, available }) => {
                 const texture = item.texture;
-                const className = "ctm-recipe-card" + (available ? "" : " unavailable");
-                return '<button class="ctm-recipe-card' + (available ? '' : ' unavailable') + '" type="button" data-recipe-item="' + Number(item.id) + '" aria-label="">' +
+                const stateClass = available ? "" : " unavailable";
+                return '<button class="ctm-recipe-card' + stateClass + '" type="button" data-recipe-item="' + Number(item.id) + '" aria-label="">' +
                     '<div class="ctm-recipe-icon"><img src="' + textureUrl(texture) + '" alt="" draggable="false"></div>' +
                 '</button>';
             }).join("")}
@@ -599,8 +603,8 @@ function createUI() {
 .ctm-craft-box{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:12px;box-sizing:border-box}
 #ctm-storage-section,#ctm-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
 .ctm-recipe-tip{font-size:10px;color:#555;margin:-1px 0 7px}
-#ctm-recipe-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;align-content:start}
-.ctm-recipe-card{min-width:0;aspect-ratio:1;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555;padding:3px;cursor:pointer;display:grid;place-items:center}
+#ctm-recipe-grid{display:grid;grid-template-rows:repeat(7,minmax(0,1fr));grid-auto-flow:column;grid-auto-columns:minmax(58px,1fr);gap:6px;align-content:start;overflow-x:auto;overflow-y:hidden;padding:2px 3px 4px 2px;min-height:0;flex:1}
+.ctm-recipe-card{min-width:0;min-height:0;aspect-ratio:1;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555;padding:4px;cursor:pointer;display:grid;place-items:center}
 .ctm-recipe-card.unavailable{cursor:default}
 .ctm-recipe-icon{width:100%;height:100%;background:#707070;border:2px solid #373737;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden}
 .ctm-recipe-icon img{width:80%;height:80%;max-width:80%;max-height:80%;object-fit:contain;image-rendering:pixelated}
@@ -635,10 +639,10 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
 .ctm-craft-box,#ctm-storage-section,#ctm-hotbar-section{padding:6px}
 #ctm-title,.ctm-title{font-size:11px;margin-bottom:4px}
 #ctm-help{display:block}
-#ctm-recipe-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:3px}
-.ctm-recipe-card{padding:2px}
+#ctm-recipe-grid{grid-template-rows:repeat(7,minmax(0,1fr));grid-auto-flow:column;grid-auto-columns:58px;gap:3px}
+.ctm-recipe-card{padding:3px}
 .ctm-recipe-icon{width:100%;height:100%}
-.ctm-recipe-icon img{width:78%;height:78%;max-width:78%;max-height:78%}
+.ctm-recipe-icon img{width:82%;height:82%;max-width:82%;max-height:82%}
 #ctm-craft-grid{grid-template-columns:repeat(3,32px);gap:2px}
 .ctm-slot,.ctm-craft-slot{width:32px;height:32px}
 .ctm-item{width:24px;height:24px;max-width:24px;max-height:24px}
