@@ -478,6 +478,23 @@ function closeSettingsMenu(lockMouse = false) {
     if (!lockMouse && gameStarted && !mobileMode) setTimeout(requestPointerLock, 0);
 }
 function setMobileMode(enabled) { const url = new URL(window.location.href); if (enabled) url.searchParams.set("mobile", "1"); else url.searchParams.delete("mobile"); url.searchParams.delete("mode"); window.location.href = url.toString(); }
+function returnToHomeScreen() {
+    gameStarted = false;
+    document.exitPointerLock?.();
+    window.__webminecraftHideWorldLoading?.();
+    for (const selector of ["#seedMenu","#settingsMenu","#pauseMenu","#inventoryScreen","#survivalInventoryScreen","#craftingTableScreen","#friendsModal","#newsCenter","#accountModal","#devControlsPanel","#multiplayerMenu"]) {
+        const element = document.querySelector(selector);
+        if (!element) continue;
+        element.style.display = "none";
+        if (element.hasAttribute("aria-hidden")) element.setAttribute("aria-hidden","true");
+    }
+    document.body.classList.remove("webminecraft-in-world","webminecraft-survival","webminecraft-creative","webminecraft-visitor");
+    if (mainMenu) {
+        mainMenu.style.display = "";
+        mainMenu.setAttribute("aria-hidden","false");
+    }
+    setMenuUiVisible(true);
+}
 function setMenuUiVisible(visible) {
     const display = visible ? "" : "none";
     if (crosshair) crosshair.style.display = display;
@@ -486,6 +503,8 @@ function setMenuUiVisible(visible) {
     if (menuUpdates) menuUpdates.style.display = visible ? "block" : "none";
     if (performanceHud) performanceHud.style.display = display;
 }
+
+window.addEventListener("webminecraft:return-home", () => { returnToHomeScreen(); });
 
 function isSpawnFloorBlock(type) {
     const types = getBlockTypes();
