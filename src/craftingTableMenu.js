@@ -422,8 +422,9 @@ function createUI() {
         </section>
         <section id="ctm-storage-section"><div class="ctm-title">Inventory</div><div id="ctm-storage"></div></section>
         <section id="ctm-hotbar-section"><div class="ctm-title">Hotbar</div><div id="ctm-hotbar"></div></section>
-        <div id="ctm-actions"><span>Desktop: drag to move stacks · Right click takes half / places one.</span><button id="ctm-delete" type="button">Delete held</button></div>
-      </div>`;
+        <div id="ctm-actions"><span>Drag items with your mouse · Right click takes half / places one.</span><button id="ctm-delete" type="button">Delete held</button></div>
+      </div>
+      <div id="ctm-cursor" aria-hidden="true"></div>`;
     document.body.appendChild(root);
     const style = document.createElement("style");
     style.id = "craftingTableMenuStyles";
@@ -463,8 +464,10 @@ function createUI() {
 #ctm-hotbar-section{min-height:70px}
 #ctm-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:#404040}
 #ctm-delete{border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;background:#8B8B8B;color:#404040;padding:5px 9px;cursor:pointer;font-weight:700;box-shadow:inset -1px -1px #555}
-#ctm-cursor{display:none;position:fixed;width:54px;height:54px;z-index:2147483647;pointer-events:none;background:#8B8B8B;border:2px solid #373737;box-shadow:inset -2px -2px #FFFFFF}
+#ctm-cursor{display:none;position:fixed;width:46px;height:46px;z-index:2147483647;pointer-events:none;background:transparent;border:0;transform:translate(-50%,-50%);filter:drop-shadow(2px 2px 1px rgba(0,0,0,.55))}
 #ctm-cursor.visible{display:block}
+#ctm-cursor .ctm-item{width:40px;height:40px;max-width:40px;max-height:40px;margin:3px}
+#ctm-cursor b{position:absolute;right:0;bottom:0;color:#FFFFFF;font-size:12px;text-shadow:1px 1px #3F3F3F;z-index:2}
 body.crafting-table-open #hotbar.textured-hotbar{display:none!important}
 body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:.5}
 @media(max-width:720px){
@@ -511,8 +514,8 @@ body.crafting-table-open #inventoryButton{pointer-events:none!important;opacity:
         if (!open || !dragged?.slot) return;
         const cursor = root.querySelector("#ctm-cursor");
         if (!cursor) return;
-        cursor.style.left = `${event.clientX + 12}px`;
-        cursor.style.top = `${event.clientY + 12}px`;
+        cursor.style.left = `${event.clientX}px`;
+        cursor.style.top = `${event.clientY}px`;
     });
     document.addEventListener("pointerup", event => {
         if (!open || !dragged?.slot) return;
