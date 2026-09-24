@@ -328,40 +328,60 @@ function useRecipe(recipe) {
     saveInventory();
     render();
 }
-function updateCraftResult() {
-    craftOutput = null;
-
-    // Manual 3x3 crafting-table recipe.
-    // Two planks directly above/below each other make four sticks.
-    const stickPattern = [
-        [0, 3], [1, 4], [2, 5],
-        [3, 6], [4, 7], [5, 8]
+function matchStickRecipe() {
+    // Vanilla Minecraft shaped recipe:
+    // # = any item in the planks tag
+    // [#]
+    // [#]
+    //
+    // It can be shifted anywhere inside the 3x3 crafting grid and produces 4 sticks.
+    const pattern = [
+        ["#"],
+        ["#"]
     ];
 
-    for (const [topIndex, bottomIndex] of stickPattern) {
-        const top = craftGrid[topIndex];
-        const bottom = craftGrid[bottomIndex];
-        const occupied = craftGrid.filter(Boolean);
+    for (let row = 0; row <= 3 - pattern.length; row++) {
+        for (let col = 0; col <= 3 - pattern[0].length; col++) {
+            const used = [];
+            let matches = true;
 
-        if (
-            occupied.length === 2 &&
-            top && bottom &&
-            PLANK_IDS.has(Number(top.itemId)) &&
-            PLANK_IDS.has(Number(bottom.itemId)) &&
-            Number(top.count) >= 1 &&
-            Number(bottom.count) >= 1
-        ) {
-            craftOutput = {
+            for (let py = 0; py < pattern.length && matches; py++) {
+                for (let px = 0; px < pattern[py].length; px++) {
+                    const index = (row + py) * 3 + (col + px);
+                    const slot = craftGrid[index];
+                    if (!slot || !PLANK_IDS.has(Number(slot.itemId)) || Number(slot.count) < 1) {
+                        matches = false;
+                        break;
+                    }
+                    used.push({ index, amount: 1 });
+                }
+            }
+
+            if (!matches) continue;
+
+            // A shaped recipe cannot have anything outside its pattern.
+            const occupied = craftGrid.reduce((count, slot) => count + (slot ? 1 : 0), 0);
+            if (occupied !== used.length) continue;
+
+            return {
                 itemId: 185,
                 count: 4,
                 texture: itemDef(185)?.texture || null,
-                recipe: [
-                    { index: topIndex, amount: 1 },
-                    { index: bottomIndex, amount: 1 }
-                ]
+                recipe: used
             };
-            return;
         }
+    }
+
+    return null;
+}
+
+function updateCraftResult() {
+    craftOutput = null;
+
+    const stickCraft = matchStickRecipe();
+    if (stickCraft) {
+        craftOutput = stickCraft;
+        return;
     }
 
     // A recipe selected from the recipe book is valid when the crafting grid
