@@ -112,12 +112,12 @@ function loadHeldTexture(file) {
 
 const flintSteelTexture = loadHeldTexture("Flint_and_Steel_JE4_BE2.png");
 const swordTextures = {
-    186: loadHeldTexture("tools/wooden_sword.png"),
-    187: loadHeldTexture("tools/stone_sword.png"),
-    188: loadHeldTexture("tools/iron_sword.png"),
-    189: loadHeldTexture("tools/golden_sword.png"),
-    190: loadHeldTexture("tools/diamond_sword.png"),
-    191: loadHeldTexture("tools/netherite_sword.png")
+    186: loadHeldTexture("tools/Wooden_Sword_JE2_BE2.png"),
+    187: loadHeldTexture("tools/Stone_Sword_JE2_BE2.png"),
+    188: loadHeldTexture("tools/Iron_Sword_JE2_BE2.png"),
+    189: loadHeldTexture("tools/Golden_Sword_JE3_BE2.png"),
+    190: loadHeldTexture("tools/Diamond_Sword_JE3_BE3.png"),
+    
 };
 
 function makeHandTexture() {
