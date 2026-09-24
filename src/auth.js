@@ -361,6 +361,7 @@ function createUi() {
                 await window.firebase.firestore().collection("usernames").doc(usernameValue.toLowerCase()).set({
                     uid: createdUser.uid,
                     username: usernameValue,
+                    usernameLower: usernameValue.toLowerCase(),
                     createdAt: new Date()
                 });
                 pendingSignupProfile = { username: usernameValue, nickname: nicknameValue };
