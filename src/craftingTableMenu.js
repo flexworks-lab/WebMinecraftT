@@ -111,7 +111,7 @@ function renderSlot(index, type = "inventory") {
             }
             render();
         });
-    } else if (slot || lastPrimaryPress?.type === type && lastPrimaryPress?.index === index) {
+    } else {
         button.addEventListener("pointerdown", event => {
             if (event.button === 0) {
                 event.preventDefault();
