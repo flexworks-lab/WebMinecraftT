@@ -344,8 +344,11 @@ function createUi() {
             if (!/^[A-Za-z0-9_]{3,16}$/.test(usernameValue)) return setMessage("Username must be 3–16 characters using letters, numbers, or underscores.");
             if (nicknameValue.length < 1 || nicknameValue.length > 20) return setMessage("Nickname must be 1–20 characters.");
             try {
-                const existingUsername = await window.firebase.firestore().collection("usernames").doc(usernameValue.toLowerCase()).get();
-                if (existingUsername.exists) return setMessage("That username is already taken.");
+                const existingUsername = await window.firebase.firestore().collection("publicProfiles")
+                    .where("usernameLower", "==", usernameValue.toLowerCase())
+                    .limit(1)
+                    .get();
+                if (!existingUsername.empty) return setMessage("That username is already taken.");
             } catch {
                 return setMessage("Could not check username availability. Try again.");
             }
@@ -358,12 +361,7 @@ function createUi() {
                 const credential = await auth.createUserWithEmailAndPassword(emailValue, passwordValue);
                 const createdUser = credential?.user || auth.currentUser;
                 if (!createdUser) throw new Error("Account creation failed.");
-                await window.firebase.firestore().collection("usernames").doc(usernameValue.toLowerCase()).set({
-                    uid: createdUser.uid,
-                    username: usernameValue,
-                    usernameLower: usernameValue.toLowerCase(),
-                    createdAt: new Date()
-                });
+
                 pendingSignupProfile = { username: usernameValue, nickname: nicknameValue };
             } else {
                 await auth.signInWithEmailAndPassword(emailValue, passwordValue);
@@ -498,30 +496,26 @@ async function saveAccountSettings() {
         }
 
         if (changingUsername) {
-            await db.runTransaction(async transaction => {
-                const newUsernameRef = db.collection("usernames").doc(newLower);
-                const newUsernameSnap = await transaction.get(newUsernameRef);
-                if (newUsernameSnap.exists && newUsernameSnap.data()?.uid !== currentUser.uid) {
-                    throw new Error("USERNAME_TAKEN");
-                }
-                const now = new Date();
-                const serverNow = window.firebase.firestore.FieldValue.serverTimestamp();
-                if (oldLower && oldLower !== newLower) {
-                    const oldUsernameRef = db.collection("usernames").doc(oldLower);
-                    transaction.delete(oldUsernameRef);
-                }
-                transaction.set(newUsernameRef, { uid: currentUser.uid, username, updatedAt: now }, { merge: true });
-                transaction.set(profileRef, {
+            const existingUsername = await db.collection("publicProfiles")
+                .where("usernameLower", "==", newLower)
+                .limit(1)
+                .get();
+            if (!existingUsername.empty && existingUsername.docs[0].data()?.uid !== currentUser.uid) {
+                throw new Error("USERNAME_TAKEN");
+            }
+            const now = new Date();
+            await Promise.all([
+                profileRef.set({
                     uid: currentUser.uid,
                     email: currentUser.email || "",
                     username,
                     usernameLower: newLower,
                     nickname,
                     displayName: nickname,
-                    usernameChangedAt: serverNow,
-                    updatedAt: serverNow
-                }, { merge: true });
-                transaction.set(publicRef, {
+                    usernameChangedAt: now,
+                    updatedAt: now
+                }, { merge: true }),
+                publicRef.set({
                     uid: currentUser.uid,
                     username,
                     usernameLower: newLower,
@@ -529,9 +523,9 @@ async function saveAccountSettings() {
                     displayName: nickname,
                     photoURL: currentUser.photoURL || "",
                     friendCode: getFriendCode(),
-                    updatedAt: serverNow
-                }, { merge: true });
-            });
+                    updatedAt: now
+                }, { merge: true })
+            ]);
         } else {
             const now = new Date();
             await Promise.all([
