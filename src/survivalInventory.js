@@ -646,17 +646,12 @@ function updateCraftResult() {
     // This is checked before the stick recipe so four planks produce the table.
     const plankIds = new Set([13, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
 
-    let plankCount = 0;
-    const tableRecipe = [];
-    for (const { slot, index } of nonEmpty) {
-        if (!plankIds.has(Number(slot.itemId))) continue;
-        const needed = Math.min(slot.count, 4 - plankCount);
-        if (needed <= 0) continue;
-        tableRecipe.push({ index, amount: needed });
-        plankCount += needed;
-        if (plankCount >= 4) break;
-    }
-    if (plankCount >= 4) {
+    // Crafting Table: all four 2x2 slots must contain planks.
+    const tableRecipe = craftData.length === 4 &&
+        craftData.every(slot => slot && plankIds.has(Number(slot.itemId)) && slot.count >= 1)
+        ? [0, 1, 2, 3].map(index => ({ index, amount: 1 }))
+        : null;
+    if (tableRecipe) {
         craftOutput = {
             itemId: 168,
             count: 1,
@@ -920,7 +915,7 @@ function createUI() {
 #svi-cursor-stack{display:none;position:fixed;width:54px;height:54px;z-index:2147483647;pointer-events:none;background:#989898;border:2px solid #ddd;box-sizing:border-box;border-radius:2px;box-shadow:3px 3px 0 rgba(0,0,0,.3)}
 #svi-cursor-stack.visible{display:block}
 #survivalInventoryScreen{font-family:monospace,monospace;background:rgba(0,0,0,.48);color:#404040;image-rendering:pixelated}
-#svi-panel{width:min(720px,92vw);height:min(72vh,620px);max-height:72vh;box-sizing:border-box;padding:0;background:transparent;border:0;box-shadow:none;display:grid;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);grid-template-rows:auto 1fr auto;gap:18px;overflow:hidden;border-radius:0}
+#svi-panel{width:min(720px,92vw);height:min(72vh,620px);max-height:72vh;box-sizing:border-box;padding:0;background:transparent;border:0;box-shadow:none;display:grid;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);grid-template-rows:auto 1fr auto auto;gap:18px;overflow:hidden;border-radius:0}
 #svi-top{display:contents}
 #svi-header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin:0;padding:8px 12px;background:#C6C6C6;border:3px solid #555;border-top-color:#FFF;border-left-color:#FFF;min-height:30px;font-size:16px;font-weight:800;color:#404040;text-shadow:1px 1px rgba(255,255,255,.55);box-sizing:border-box}
 #svi-close{width:32px;height:28px;background:#8B8B8B;color:#fff;border:3px solid #373737;border-top-color:#FFF;border-left-color:#FFF;border-radius:0;box-shadow:inset -2px -2px #555;font-size:20px;line-height:18px}
