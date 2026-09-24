@@ -225,3 +225,4 @@ setupSeedBackButton();
 createVersionPicker();
 
 if(seedMenu){let cleared=false;const observer=new MutationObserver(()=>{const open=getComputedStyle(seedMenu).display!=="none";if(open&&!cleared){clearWorld();cleared=true;}else if(!open)cleared=false;});observer.observe(seedMenu,{attributes:true,attributeFilter:["style","class"]});}
+// Keep GitHub Pages deployment workflow changes triggerable through normal app pushes.
