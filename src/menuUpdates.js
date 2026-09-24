@@ -185,7 +185,37 @@ function setupPauseMenu(){
     overlay.querySelector("#pauseResume").addEventListener("click",close);
     overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();event.stopPropagation();overlay.classList.remove("pauseOpen");overlay.setAttribute("aria-hidden","true");paused=false;if(settingsMenu){settingsMenu.style.display="flex";document.exitPointerLock?.();}});
     overlay.querySelector("#pauseInviteAll").addEventListener("click",makeInvite);
-    overlay.querySelector("#pauseQuit").addEventListener("click",()=>{const saveAndReturn=async()=>{try{await window.webminecraftSaveCurrentWorld?.({ skipCloud:true, skipPreview:true });}catch{}window.__webminecraftFastQuit=true;window.location.reload();};void saveAndReturn();});
+    overlay.querySelector("#pauseQuit").addEventListener("click",event=>{
+        event.preventDefault();
+        event.stopPropagation();
+        const button = overlay.querySelector("#pauseQuit");
+        if (button?.disabled) return;
+        const online = Boolean(window.__webminecraftMultiplayerActive);
+        const saveAndReturn = async () => {
+            if (button) { button.disabled = true; button.textContent = online ? "Saving Server..." : "Saving..."; }
+            if (online) {
+                try {
+                    const saved = await window.__webminecraftSaveMultiplayerAndQuit?.(6000);
+                    if (!saved) {
+                        if (button) { button.disabled = false; button.textContent = "Save & Quit"; }
+                        const status = overlay.querySelector("#pauseControlStatus");
+                        if (status) status.textContent = "Server save failed. Your game is still running.";
+                        return;
+                    }
+                } catch {
+                    if (button) { button.disabled = false; button.textContent = "Save & Quit"; }
+                    const status = overlay.querySelector("#pauseControlStatus");
+                    if (status) status.textContent = "Could not save the multiplayer world.";
+                    return;
+                }
+            } else {
+                try { await window.webminecraftSaveCurrentWorld?.({ skipCloud: false, skipPreview: false }); } catch {}
+            }
+            window.__webminecraftFastQuit = true;
+            window.location.reload();
+        };
+        void saveAndReturn();
+    });
     const refreshMembers=()=>{if(paused)renderSide();};
     window.addEventListener("webminecraft:multiplayer-player-joined",refreshMembers);window.addEventListener("webminecraft:multiplayer-player-left",refreshMembers);window.addEventListener("webminecraft:multiplayer-player-renamed",refreshMembers);window.addEventListener("webminecraft:multiplayer-state-changed",refreshMembers);
     window.addEventListener("webminecraft:multiplayer-role-changed",refreshMembers);window.addEventListener("webminecraft:multiplayer-player-role-changed",refreshMembers);
