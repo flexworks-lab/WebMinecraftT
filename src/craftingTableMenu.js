@@ -265,11 +265,26 @@ function renderRecipeBrowser() {
     if (!panel) return;
 
     const recipes = recipeDefinitions();
-    const recipeByItemId = new Map(recipes.map(recipe => [Number(recipe.itemId), recipe]));
-    // Only show blocks that have a defined crafting recipe.
-    // Non-craftable/world-generated blocks are completely excluded.
-    const blockItems = recipes
-        .filter(recipe => Number(recipe.itemId) !== 185 && BUILD_BLOCK_IDS.has(Number(recipe.itemId)))
+
+    // Build the catalog from recipe item IDs so the same item can never appear twice.
+    // Sticks are included even though they are not a placeable block.
+    const uniqueRecipes = [];
+    const seenItemIds = new Set();
+
+    for (const recipe of recipes) {
+        const itemId = Number(recipe.itemId);
+        if (seenItemIds.has(itemId)) continue;
+
+        const isStick = itemId === 185;
+        const isCraftableBlock = BUILD_BLOCK_IDS.has(itemId);
+        if (!isStick && !isCraftableBlock) continue;
+
+        seenItemIds.add(itemId);
+        uniqueRecipes.push(recipe);
+    }
+
+    const recipeByItemId = new Map(uniqueRecipes.map(recipe => [Number(recipe.itemId), recipe]));
+    const blockItems = uniqueRecipes
         .map(recipe => ({
             item: itemDef(recipe.itemId),
             recipe,
