@@ -195,7 +195,7 @@ let held3DCamera = null;
 let heldTextureLoader = null;
 let heldTextureCache = new Map();
 
-function textureUrl(texture) { return `${import.meta.env.BASE_URL}textures/${encodeURIComponent(texture)}`; }
+function textureUrl(texture) { const value = String(texture || ""); return value.startsWith("tools/") ? `${import.meta.env.BASE_URL}${value}` : `${import.meta.env.BASE_URL}textures/${encodeURIComponent(value)}`; }
 function getItem(itemId) { return ITEM_TYPES.find(item => item.id === Number(itemId)) || null; }
 export function getInventoryItem(itemId) { return getItem(itemId); }
 function normalizeSlot(slot) {
