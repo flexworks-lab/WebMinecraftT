@@ -236,18 +236,49 @@ function countInventoryItem(itemIds) {
     return inventory.reduce((sum, slot) => ids.has(Number(slot?.itemId)) ? sum + Number(slot.count || 0) : sum, 0);
 }
 function recipeDefinitions() {
-    return [
+    const recipes = [
         { itemId: 13, count: 4, label: "Oak Planks", tip: "1 log", ingredients: [{ ids: [...LOG_IDS], count: 1 }] },
         { itemId: 185, count: 4, label: "Stick", tip: "2 planks", ingredients: [{ ids: [...PLANK_IDS], count: 2 }] },
         { itemId: 168, count: 1, label: "Crafting Table", tip: "4 planks", ingredients: [{ ids: [...PLANK_IDS], count: 4 }] },
         { itemId: 17, count: 3, label: "Oak Door", tip: "6 oak planks", ingredients: [{ ids: [13], count: 6 }] },
-        { itemId: 56, count: 6, label: "Oak Slab", tip: "3 oak planks", ingredients: [{ ids: [13], count: 3 }] },
-        { itemId: 75, count: 4, label: "Oak Stairs", tip: "6 oak planks", ingredients: [{ ids: [13], count: 6 }] },
-        { itemId: 51, count: 6, label: "Stone Slab", tip: "3 stone", ingredients: [{ ids: [3], count: 3 }] },
-        { itemId: 52, count: 6, label: "Cobblestone Slab", tip: "3 cobblestone", ingredients: [{ ids: [7], count: 3 }] },
         { itemId: 19, count: 4, label: "Stone Bricks", tip: "4 stone", ingredients: [{ ids: [3], count: 4 }] },
         { itemId: 50, count: 1, label: "Furnace", tip: "8 cobblestone", ingredients: [{ ids: [7], count: 8 }] }
     ];
+
+    const slabRecipes = [
+        [51, 3], [52, 7], [53, 19], [54, 20], [55, 21],
+        [56, 13], [57, 23], [58, 24], [59, 25], [60, 26],
+        [61, 27], [62, 28], [63, 29], [64, 30], [65, 31],
+        [66, 33], [67, 34], [68, 35], [69, 36], [70, 37],
+        [71, 38], [72, 47], [73, 48], [74, 49]
+    ];
+
+    for (const [itemId, ingredientId] of slabRecipes) {
+        recipes.push({
+            itemId,
+            count: 6,
+            label: "Slab",
+            tip: "3 matching blocks",
+            ingredients: [{ ids: [ingredientId], count: 3 }]
+        });
+    }
+
+    const stairRecipes = [
+        [75, 13], [76, 23], [77, 24], [78, 25], [79, 26],
+        [80, 27], [81, 28], [82, 29], [83, 30], [84, 31]
+    ];
+
+    for (const [itemId, ingredientId] of stairRecipes) {
+        recipes.push({
+            itemId,
+            count: 4,
+            label: "Stairs",
+            tip: "6 matching planks",
+            ingredients: [{ ids: [ingredientId], count: 6 }]
+        });
+    }
+
+    return recipes;
 }
 
 function recipeAvailable(recipe) {
@@ -599,16 +630,16 @@ function createUI() {
     const style = document.createElement("style");
     style.id = "craftingTableMenuStyles";
     style.textContent = `
-#craftingTableScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000001;font-family:Arial,sans-serif;color:#404040;image-rendering:pixelated;touch-action:none}
+#craftingTableScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000001;font-family:monospace,monospace;color:#404040;image-rendering:pixelated;touch-action:none}
 #craftingTableScreen.open{display:flex}
-#ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:10px;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:8px 8px 0 rgba(0,0,0,.28);display:flex;flex-direction:column;gap:8px;overflow:hidden}
+#ctm-panel{width:min(720px,92vw);max-height:94vh;box-sizing:border-box;padding:10px;background:#C6C6C6;border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset -2px -2px 0 #777,inset 2px 2px 0 #EAEAEA;display:flex;flex-direction:column;gap:8px;overflow:hidden}
 #ctm-header{display:flex;align-items:center;justify-content:flex-end;min-height:28px}
 #ctm-close{position:relative;width:30px;height:28px;margin-left:auto;background:#C6C6C6;color:transparent;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;font-size:0;line-height:0;cursor:pointer;padding:0;box-shadow:inset -2px -2px #555}
 #ctm-close::before,#ctm-close::after{content:"";position:absolute;left:7px;top:12px;width:14px;height:2px;background:#404040}
 #ctm-close::before{transform:rotate(45deg)}
 #ctm-close::after{transform:rotate(-45deg)}
 #ctm-pages{display:grid;grid-template-columns:minmax(0,0.88fr) minmax(0,1.12fr);gap:10px;min-height:0;flex:1}
-.ctm-page{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:10px;box-sizing:border-box;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.ctm-page{background:#C6C6C6;border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;padding:10px;box-sizing:border-box;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;image-rendering:pixelated}
 #ctm-left-page{overflow:hidden}
 #ctm-right-page{gap:10px}
 .ctm-page-title{font-size:16px;font-weight:800;color:#404040;margin-bottom:8px;text-shadow:1px 1px rgba(255,255,255,.55)}
@@ -617,9 +648,9 @@ function createUI() {
 #ctm-storage-section,#ctm-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
 .ctm-recipe-tip{font-size:10px;color:#555;margin:-1px 0 7px}
 #ctm-recipe-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(58px,auto);gap:6px;align-content:start;overflow-x:hidden;overflow-y:auto;padding:2px 4px 4px 2px;min-height:0;flex:1}
-.ctm-recipe-card{min-width:0;min-height:0;aspect-ratio:1;background:#8B8B8B;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -1px -1px #555;padding:4px;cursor:pointer;display:grid;place-items:center}
+.ctm-recipe-card{min-width:0;min-height:0;aspect-ratio:1;background:#8B8B8B;border:3px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:inset -2px -2px #555,inset 2px 2px #AAA;padding:4px;cursor:pointer;display:grid;place-items:center;image-rendering:pixelated}
 .ctm-recipe-card.unavailable{cursor:default}
-.ctm-recipe-icon{width:100%;height:100%;background:#707070;border:2px solid #373737;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden}
+.ctm-recipe-icon{width:100%;height:100%;background:#707070;border:2px solid #373737;border-radius:0;box-shadow:inset -1px -1px #FFFFFF;display:grid;place-items:center;overflow:hidden;image-rendering:pixelated}
 .ctm-recipe-icon img{width:80%;height:80%;max-width:80%;max-height:80%;object-fit:contain;image-rendering:pixelated}
 .ctm-recipe-card.unavailable .ctm-recipe-icon img{filter:brightness(.28) saturate(.25);opacity:.75}
 .ctm-title{font-size:13px;font-weight:800;margin-bottom:6px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.45)}
@@ -628,7 +659,7 @@ function createUI() {
 .ctm-arrow::before{content:"";position:absolute;left:2px;top:13px;width:18px;height:2px;background:#555}
 .ctm-arrow::after{content:"";position:absolute;right:2px;top:8px;width:10px;height:10px;border-top:2px solid #555;border-right:2px solid #555;transform:rotate(45deg)}
 #ctm-craft-grid{display:grid;grid-template-columns:repeat(3,42px);gap:4px}
-.ctm-slot{position:relative;width:42px;height:42px;background:#8B8B8B;border:2px solid #373737;box-shadow:inset -2px -2px #FFFFFF;color:#FFFFFF;padding:0;cursor:pointer;overflow:hidden;contain:layout paint;isolation:isolate}
+.ctm-slot{position:relative;width:42px;height:42px;background:#8B8B8B;border:3px solid #373737;border-radius:0;box-shadow:inset -2px -2px #FFFFFF,inset 2px 2px #AAA;color:#FFFFFF;padding:0;cursor:pointer;overflow:hidden;contain:layout paint;isolation:isolate;image-rendering:pixelated}
 .ctm-craft-slot{width:42px;height:42px}
 .ctm-item{position:relative;width:30px;height:30px;max-width:30px;max-height:30px;display:block;margin:auto;object-fit:contain;object-position:center;image-rendering:pixelated;pointer-events:none}
 .ctm-craft-item{width:30px;height:30px;max-width:30px;max-height:30px;object-fit:contain}
