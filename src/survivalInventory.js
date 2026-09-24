@@ -130,7 +130,7 @@ function normalizeSlot(slot) {
     return {
         itemId: Math.floor(Number(slot.itemId)),
         count: Math.max(1, Math.min(MAX_STACK, Math.floor(Number(slot.count)))),
-        texture: slot.texture || item.texture || null
+        texture: item.texture || slot.texture || null
     };
 }
 function cloneSlot(slot) { return slot ? { itemId: slot.itemId, count: slot.count, texture: slot.texture || itemDef(slot.itemId)?.texture || null } : null; }
