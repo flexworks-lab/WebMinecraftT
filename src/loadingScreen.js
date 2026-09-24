@@ -113,6 +113,22 @@ function setStatus(text) {
     if (status) status.textContent = text;
 }
 
+function waitForWorldReady(timeoutMs = 15000) {
+    return new Promise(resolve => {
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            window.removeEventListener("webminecraft:world-ready", onReady);
+            clearTimeout(timer);
+            resolve();
+        };
+        const onReady = () => finish();
+        const timer = setTimeout(finish, timeoutMs);
+        window.addEventListener("webminecraft:world-ready", onReady, { once: true });
+    });
+}
+
 function showLoading() {
     ensureStyles();
     const overlay = ensureOverlay();
@@ -135,6 +151,11 @@ function hideLoading() {
     document.body.style.cursor = "";
 }
 
+window.__webminecraftShowWorldLoading = showLoading;
+window.__webminecraftSetWorldLoadingStatus = setStatus;
+window.__webminecraftHideWorldLoading = hideLoading;
+window.__webminecraftWaitForWorldReady = waitForWorldReady;
+
 function nextFrame() {
     return new Promise(resolve => requestAnimationFrame(() => resolve()));
 }
@@ -148,9 +169,8 @@ async function runWorldStart() {
     setStatus("Building world...");
     openWorldButton.click();
 
-    setStatus("Finding a safe spawn...");
-    await nextFrame();
-    await nextFrame();
+    setStatus("Loading saved world data...");
+    await waitForWorldReady(15000);
     hideLoading();
 }
 
