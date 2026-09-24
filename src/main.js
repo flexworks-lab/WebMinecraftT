@@ -9,6 +9,7 @@ import { setupWorldClouds, setWorldCloudSeed } from "./worldClouds.js";
 import { setupWaterPhysics } from "./waterPhysics.js";
 import { clearHotbar } from "./inventory.js";
 import "./background.js";
+import "./loadingScreen.js";
 import "./auth.js";
 import "./chat.js";
 import { getWorldMode } from "./survivalMode.js";
