@@ -331,6 +331,36 @@ function useRecipe(recipe) {
 function updateCraftResult() {
     craftOutput = null;
 
+    // Manual 3x3 crafting-table recipe: two planks vertically adjacent
+    // anywhere in the table produce four sticks.
+    const stickEntries = craftGrid
+        .map((slot, index) => ({ slot, index }))
+        .filter(entry => entry.slot);
+
+    if (
+        stickEntries.length === 2 &&
+        stickEntries.every(entry => PLANK_IDS.has(Number(entry.slot.itemId))) &&
+        stickEntries.every(entry => Number(entry.slot.count) >= 1)
+    ) {
+        const first = stickEntries[0].index;
+        const second = stickEntries[1].index;
+        const sameColumn = first % 3 === second % 3;
+        const adjacentRows = Math.abs(Math.floor(first / 3) - Math.floor(second / 3)) === 1;
+
+        if (sameColumn && adjacentRows) {
+            craftOutput = {
+                itemId: 185,
+                count: 4,
+                texture: itemDef(185)?.texture || null,
+                recipe: [
+                    { index: first, amount: 1 },
+                    { index: second, amount: 1 }
+                ]
+            };
+            return;
+        }
+    }
+
     // A recipe selected from the recipe book is valid when the crafting grid
     // contains exactly the ingredients required by that recipe.
     if (activeRecipe) {
@@ -375,30 +405,6 @@ function updateCraftResult() {
             recipe: [{ index: entries[0].index, amount: 1 }]
         };
         return;
-    }
-
-    // Two planks stacked vertically in the 3x3 crafting grid make 4 sticks.
-    // Accept the same pattern in any of the three columns.
-    if (entries.length === 2 &&
-        PLANK_IDS.has(Number(entries[0].slot.itemId)) &&
-        PLANK_IDS.has(Number(entries[1].slot.itemId)) &&
-        entries.every(entry => Number(entry.slot.count) >= 1)) {
-        const first = entries[0].index;
-        const second = entries[1].index;
-        const sameColumn = first % 3 === second % 3;
-        const adjacentRows = Math.abs(Math.floor(first / 3) - Math.floor(second / 3)) === 1;
-        if (sameColumn && adjacentRows) {
-            craftOutput = {
-                itemId: 185,
-                count: 4,
-                texture: itemDef(185)?.texture || null,
-                recipe: [
-                    { index: first, amount: 1 },
-                    { index: second, amount: 1 }
-                ]
-            };
-            return;
-        }
     }
 
     let totalPlanks = 0;
