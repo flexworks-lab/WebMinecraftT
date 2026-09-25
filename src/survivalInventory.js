@@ -345,86 +345,27 @@ function slotButton(index, label) {
             event.stopPropagation();
             collectMatching(index);
         });
-    } else if (slot) {
+    } else {
         button.addEventListener("pointerdown", event => {
-            if (!open || event.button !== 2) return;
+            if (!open) return;
+            if (event.button !== 0 && event.button !== 2) return;
             event.preventDefault();
             event.stopPropagation();
-            if (!cursorStack) {
-                const source = data[index];
-                if (!source) return;
-                const amount = Math.ceil(source.count / 2);
-                cursorStack = { ...cloneSlot(source), count: amount };
-                source.count -= amount;
-                if (source.count <= 0) data[index] = null;
+
+            if (event.button === 0) {
+                if (!cursorStack) pickUp(index, 0);
+                else placeInto(index, 0);
             } else {
-                placeInto(index, 2);
+                if (!cursorStack) pickUp(index, 2);
+                else placeInto(index, 2);
             }
             saveData();
-            renderSlots();
-        });
-        button.addEventListener("dragstart", event => {
-            draggedSurvivalInventory = index;
-            draggedSurvivalCraft = null;
             suppressNextSurvivalClick = true;
-            button.classList.add("dragging");
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", `survival-inventory:${index}`);
-        });
-        button.addEventListener("dragend", () => {
-            draggedSurvivalInventory = null;
-            draggedSurvivalCraft = null;
-            button.classList.remove("dragging");
-            suppressNextSurvivalClick = true;
-        });
-        button.addEventListener("click", event => {
-            if (suppressNextSurvivalClick) {
-                suppressNextSurvivalClick = false;
-                event.preventDefault();
-                event.stopPropagation();
-                return;
-            }
-            selectHotbarSlot(index);
-        });
-    }
-
-    if (!mobile && !slot) {
-        button.addEventListener("pointerdown", event => {
-            if (!open || event.button !== 2 || !cursorStack) return;
-            event.preventDefault();
-            event.stopPropagation();
-            placeInto(index, 2);
-            saveData();
             renderSlots();
         });
     }
 
-    button.addEventListener("dragover", event => {
-        if (!mobile) event.preventDefault();
-    });
-    button.addEventListener("drop", event => {
-        if (mobile) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const sourceInventory = draggedSurvivalInventory;
-        const sourceCraft = draggedSurvivalCraft;
-        if (sourceInventory !== null && sourceInventory !== undefined) {
-            if (sourceInventory === index) return;
-            [data[index], data[sourceInventory]] = [data[sourceInventory], data[index]];
-        } else if (sourceCraft !== null && sourceCraft !== undefined) {
-            const oldInventory = data[index];
-            data[index] = craftData[sourceCraft];
-            craftData[sourceCraft] = oldInventory;
-            updateCraftResult();
-        } else {
-            return;
-        }
-        draggedSurvivalInventory = null;
-        draggedSurvivalCraft = null;
-        saveData();
-        suppressNextSurvivalClick = true;
-        renderSlots();
-    });
+
     button.addEventListener("contextmenu", event => event.preventDefault());
     return button;
 }
@@ -580,50 +521,23 @@ function renderCraftSlot(index) {
             event.stopPropagation();
             handleCraftSlot(index, event.button === 2 ? 2 : 0);
         });
-    } else if (slot) {
-        button.addEventListener("dragstart", event => {
-            draggedSurvivalCraft = index;
-            draggedSurvivalInventory = null;
-            button.classList.add("dragging");
-            suppressNextSurvivalClick = true;
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", `survival-craft:${index}`);
-        });
-        button.addEventListener("dragend", () => {
-            draggedSurvivalCraft = null;
-            draggedSurvivalInventory = null;
-            button.classList.remove("dragging");
+    } else {
+        button.addEventListener("pointerdown", event => {
+            if (!open) return;
+            if (event.button !== 0 && event.button !== 2) return;
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (event.button === 0) {
+                handleCraftSlot(index, 0);
+            } else {
+                handleCraftSlot(index, 2);
+            }
             suppressNextSurvivalClick = true;
         });
     }
 
-    button.addEventListener("dragover", event => {
-        if (!mobile) event.preventDefault();
-    });
-    button.addEventListener("drop", event => {
-        if (mobile) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const sourceInventory = draggedSurvivalInventory;
-        const sourceCraft = draggedSurvivalCraft;
-        if (sourceInventory !== null && sourceInventory !== undefined) {
-            const oldCraft = craftData[index];
-            craftData[index] = data[sourceInventory];
-            data[sourceInventory] = oldCraft;
-        } else if (sourceCraft !== null && sourceCraft !== undefined) {
-            if (sourceCraft === index) return;
-            [craftData[index], craftData[sourceCraft]] = [craftData[sourceCraft], craftData[index]];
-        } else {
-            return;
-        }
-        draggedSurvivalInventory = null;
-        draggedSurvivalCraft = null;
-        suppressNextSurvivalClick = true;
-        updateCraftResult();
-        saveData();
-        renderCrafting();
-        renderSlots();
-    });
+
     button.addEventListener("contextmenu", event => event.preventDefault());
     return button;
 }
@@ -1007,6 +921,7 @@ function init() {
     ensureCursorUI();
     document.addEventListener("keydown", event => {
         if (!isInWorld() || !isSurvivalWorld()) return;
+        if (document.body.classList.contains("crafting-table-open")) return;
         if (event.code === "KeyE") {
             event.preventDefault();
             event.stopImmediatePropagation();
