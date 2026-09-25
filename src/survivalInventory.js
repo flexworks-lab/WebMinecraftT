@@ -847,163 +847,119 @@ function createUI() {
     root.id = "survivalInventoryScreen";
     root.innerHTML = `
       <div id="svi-panel">
-        <header id="svi-header"><span>Inventory</span><button id="svi-close" type="button" aria-label="Close inventory">×</button></header>
-        <div id="svi-top">
-          <section id="svi-player-box" aria-label="Character and equipment">
-            <div id="svi-armor"></div>
-            <canvas id="svi-player-preview"></canvas>
-            <div id="svi-offhand" title="Offhand"></div>
-            <span class="svi-box-label">Character</span>
-          </section>
-          <section id="svi-crafting">
-            <div class="svi-section-title">Crafting</div>
-            <div class="svi-craft-row"><div id="svi-craft-grid"></div><span class="svi-arrow">→</span><button id="svi-craft-output" class="svi-craft-output" type="button" aria-label="Crafting output"></button></div>
+        <div id="svi-pages">
+          <section id="svi-left-page" class="svi-page">
+            <header id="svi-header">
+              <span>Inventory</span>
+              <button id="svi-close" type="button" aria-label="Close inventory">×</button>
+            </header>
+            <section id="svi-player-box" aria-label="Character and equipment">
+              <div class="svi-page-title">Character</div>
+              <div class="svi-character-content">
+                <div id="svi-armor"></div>
+                <canvas id="svi-player-preview"></canvas>
+                <div id="svi-offhand" title="Offhand"></div>
+              </div>
+            </section>
             <button id="svi-recipe-book" type="button">Recipe Book</button>
             <div id="svi-recipe-panel" hidden>Basic recipes: Logs → 4 Planks. Four Planks → Crafting Table.</div>
+            <div id="svi-actions">
+              <button id="svi-trash" type="button" title="Delete held item">Delete</button>
+              <span>Left click moves stacks · Right click takes half / places one · Shift click quick-moves.</span>
+            </div>
+          </section>
+
+          <section id="svi-right-page" class="svi-page">
+            <div id="svi-crafting" class="svi-craft-box">
+              <div class="svi-page-title">Crafting</div>
+              <div class="svi-craft-row">
+                <div id="svi-craft-grid"></div>
+                <span class="svi-arrow" aria-hidden="true"></span>
+                <button id="svi-craft-output" class="svi-craft-output" type="button" aria-label="Crafting output"></button>
+              </div>
+            </div>
+            <div id="svi-storage-section">
+              <div class="svi-section-title">Inventory</div>
+              <div id="svi-storage"></div>
+            </div>
+            <div id="svi-hotbar-section">
+              <div class="svi-section-title">Hotbar</div>
+              <div id="svi-hotbar"></div>
+            </div>
           </section>
         </div>
-        <section id="svi-storage-section"><div class="svi-section-title">Inventory</div><div id="svi-storage"></div></section>
-        <section id="svi-hotbar-section"><div class="svi-section-title">Hotbar</div><div id="svi-hotbar"></div></section>
-        <div id="svi-actions"><button id="svi-trash" type="button" title="Delete held item">Delete</button><span>Left click moves stacks · Right click takes half / places one · Shift click quick-moves.</span></div>
-      </div>`
+      </div>`;
     document.body.appendChild(root);
     ensureCursorUI();
 
     const style = document.createElement("style");
     style.id = "survivalInventoryUsableStyles";
     style.textContent = `
-#survivalInventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000000;font-family:Arial,sans-serif;color:#fff;touch-action:none}
+#survivalInventoryScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.48);z-index:1000001;font-family:monospace,monospace;color:#404040;image-rendering:pixelated;touch-action:none}
 #survivalInventoryScreen.open{display:flex}
-#svi-panel{width:min(610px,78vw);height:min(860px,92vh);aspect-ratio:0.71;box-sizing:border-box;padding:10px;background:linear-gradient(#555,#444);border:2px solid #262626;border-top-color:#a8a8a8;border-left-color:#a8a8a8;box-shadow:8px 8px 0 rgba(0,0,0,.28),inset 1px 1px #777;display:flex;flex-direction:column;gap:7px;overflow:auto;border-radius:4px;touch-action:pan-y}
-#svi-header{display:flex;align-items:center;justify-content:space-between;font-size:19px;font-weight:800;text-shadow:2px 2px #111;min-height:30px}
-#svi-close{width:32px;height:30px;background:#888;color:#fff;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;border-radius:3px;font-size:22px;line-height:22px;cursor:pointer;box-shadow:inset -1px -1px #333}
-#svi-top{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:205px}
-.svi-section-title{font-size:13px;font-weight:800;margin-bottom:5px;text-shadow:1px 1px #111}
-.svi-section-title small{color:#aaa;font-size:10px;font-weight:600}
-#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#363636;border:2px solid #222;padding:8px;box-sizing:border-box;border-radius:3px;box-shadow:inset 1px 1px rgba(255,255,255,.05)}
-#svi-player-box{position:relative;display:grid;grid-template-columns:1fr 58px;grid-template-rows:1fr 40px;min-height:205px}
-#svi-player-preview{width:100%;height:100%;min-height:145px;background:radial-gradient(circle,#777 0%,#4a4a4a 70%)}
-#svi-armor{display:flex;flex-direction:column;gap:4px;padding-left:6px;align-items:center;justify-content:center}
-.svi-armor-slot,.svi-craft-slot,.svi-craft-output,#svi-offhand{border:2px solid #555;border-top-color:#1d1d1d;border-left-color:#1d1d1d;background:#969696;box-shadow:inset -1px -1px #414141;display:grid;place-items:center;font-size:20px;color:#ddd;border-radius:2px}
-.svi-armor-slot{width:38px;height:38px}
-#svi-offhand{width:40px;height:40px;grid-column:2;grid-row:2;justify-self:center}
-#svi-crafting{display:flex;flex-direction:column;align-items:center}
-.svi-craft-row{display:flex;align-items:center;justify-content:center;gap:9px;flex:1}
-.svi-arrow{font-size:30px;color:#bbb}
-.svi-craft-output{width:50px;height:50px;padding:0;cursor:pointer}
-.svi-craft-output.ready{outline:2px solid #ddd;filter:brightness(1.08)}
-.svi-craft-slot{width:42px;height:42px;padding:0;cursor:pointer}
-#svi-craft-grid{display:grid;grid-template-columns:repeat(2,42px);gap:4px}
-#svi-recipe-book{margin-top:5px;border:2px solid #315d34;background:#4c8a50;color:#fff;border-radius:4px;padding:5px 9px;cursor:pointer;font-weight:800;font-size:11px}
-#svi-recipe-book.active{background:#6cad6c}
-#svi-recipe-panel{width:100%;margin-top:5px;padding:6px;background:#2d2d2d;border:1px solid #6a6a6a;color:#ddd;font-size:10px;text-align:center;border-radius:2px}
-#svi-storage-section{flex:1;min-height:174px}
-#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(28px,1fr));gap:3px}
-.svi-slot{position:relative;aspect-ratio:1;background:#989898;border:2px solid #575757;border-top-color:#202020;border-left-color:#202020;box-shadow:inset -1px -1px #3c3c3c;color:#fff;padding:0;cursor:pointer;overflow:hidden;border-radius:2px;touch-action:manipulation;user-select:none;-webkit-user-select:none;max-width:44px;justify-self:center;width:100%}
-.svi-slot:hover{filter:brightness(1.12)}
-.svi-slot.selected{border:2px solid #fff;box-shadow:inset 0 0 0 1px #bbb,0 0 0 1px #111}
+#svi-panel{width:min(720px,92vw);height:min(72vh,620px);max-height:72vh;box-sizing:border-box;padding:0;background:transparent;border:0;box-shadow:none;display:flex;flex-direction:column;overflow:hidden}
+#svi-pages{display:grid;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);gap:18px;min-height:0;flex:1}
+.svi-page{position:relative;background:#C6C6C6;border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;padding:10px;box-sizing:border-box;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;image-rendering:pixelated}
+#svi-left-page,#svi-right-page{gap:10px}
+#svi-header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;padding:0 2px;font-size:16px;font-weight:800;color:#404040;text-shadow:1px 1px rgba(255,255,255,.55)}
+#svi-close{width:32px;height:28px;flex:0 0 auto;background:#8B8B8B;color:#fff;border:3px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:inset -2px -2px #555;font-size:20px;line-height:18px;cursor:pointer;padding:0}
+.svi-page-title{font-size:13px;font-weight:800;margin-bottom:5px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.55)}
+#svi-player-box{flex:1;min-height:0;display:flex;flex-direction:column;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
+.svi-character-content{position:relative;display:grid;grid-template-columns:52px 1fr;grid-template-rows:1fr 40px;gap:6px;min-height:0;flex:1}
+#svi-player-preview{width:100%;height:100%;min-height:0;background:#8B8B8B;border:2px solid #555;box-sizing:border-box;image-rendering:pixelated}
+#svi-armor{display:flex;flex-direction:column;gap:5px;padding:2px 0;align-items:center;justify-content:center}
+.svi-equipment-slot,.svi-craft-slot,.svi-craft-output,#svi-offhand{border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;background:#8B8B8B;box-shadow:inset -2px -2px #555;border-radius:0;color:#404040;display:grid;place-items:center}
+.svi-equipment-slot{width:40px;height:40px}
+#svi-offhand{width:40px;height:40px;grid-column:1;grid-row:2;justify-self:center}
+#svi-crafting{display:flex;flex-direction:column;align-items:center;flex:0 0 auto;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
+.svi-craft-row{display:flex;align-items:center;justify-content:center;gap:10px}
+.svi-arrow{position:relative;width:28px;height:28px;flex:0 0 28px}
+.svi-arrow::before{content:"";position:absolute;left:2px;top:13px;width:18px;height:2px;background:#555}
+.svi-arrow::after{content:"";position:absolute;right:2px;top:8px;width:10px;height:10px;border-top:2px solid #555;border-right:2px solid #555;transform:rotate(45deg)}
+#svi-craft-grid{display:grid;grid-template-columns:repeat(2,42px);grid-template-rows:repeat(2,42px);gap:4px}
+.svi-craft-slot{width:42px;height:42px;padding:0;cursor:pointer;position:relative;overflow:hidden;contain:layout paint;isolation:isolate}
+.svi-craft-output{position:relative;width:50px;height:50px;padding:0;cursor:pointer;overflow:hidden;contain:layout paint;isolation:isolate}
+.svi-craft-output.ready{outline:3px solid #FFFFFF;outline-offset:-3px}
+#svi-recipe-book{margin:0;border:3px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;background:#8B8B8B;color:#404040;border-radius:0;padding:6px 10px;cursor:pointer;font-family:monospace;font-weight:800;font-size:10px;box-shadow:inset -2px -2px #555}
+#svi-recipe-book.active{background:#FFFFFF}
+#svi-recipe-panel{margin:0;padding:7px;background:#B8B8B8;border:2px solid #555;color:#404040;border-radius:0;font-size:10px;text-align:center}
+#svi-storage-section,#svi-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;padding:8px;box-sizing:border-box}
+#svi-storage-section{flex:1;min-height:0}
+#svi-hotbar-section{flex:0 0 auto}
+.svi-section-title{font-size:13px;font-weight:800;margin-bottom:5px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.55)}
+#svi-storage,#svi-hotbar{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px}
+.svi-slot{position:relative;width:100%;max-width:44px;aspect-ratio:1;justify-self:center;background:#8B8B8B;border:3px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:inset -2px -2px #555;color:#FFFFFF;padding:0;cursor:pointer;overflow:hidden;border-radius:0;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.svi-slot:hover{filter:brightness(1.1)}
+.svi-slot.selected{border:3px solid #FFFFFF;box-shadow:inset 0 0 0 1px #373737}
 .svi-item{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:cover;object-position:center;image-rendering:pixelated;pointer-events:none}
 .svi-item.stair-item{width:auto;height:auto;overflow:visible}
 .svi-item.stair-item::before,.svi-item.stair-item::after{content:"";position:absolute;display:block;background-image:var(--stair-texture);background-repeat:no-repeat;background-position:center;background-size:100% 100%;image-rendering:pixelated}
 .svi-item.stair-item::before{left:0;right:0;bottom:0;height:58%}
 .svi-item.stair-item::after{right:0;top:0;width:56%;height:46%}
 .svi-item.slab-item{top:44%;bottom:4px;height:auto;object-position:center top;border-top:2px solid rgba(255,255,255,.22);box-shadow:0 -2px 0 rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.1)}
-.svi-color{background:var(--c)}
-.svi-slot b,.svi-craft-slot b,.svi-craft-output b{position:absolute;right:3px;bottom:1px;font-size:12px;text-shadow:2px 2px #111;pointer-events:none}
-#svi-actions{display:flex;align-items:center;gap:10px;font-size:10px;color:#aaa}
-#svi-trash{border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#744;color:#fff;padding:6px 10px;cursor:pointer;border-radius:3px;font-weight:700}
-#svi-cursor-stack{display:none;position:fixed;width:54px;height:54px;z-index:2147483647;pointer-events:none;background:#989898;border:2px solid #ddd;box-sizing:border-box;border-radius:2px;box-shadow:3px 3px 0 rgba(0,0,0,.3)}
+.svi-slot b,.svi-equipment-slot b,.svi-craft-slot b,.svi-craft-output b{position:absolute;right:2px;bottom:0;color:#FFFFFF;font-size:12px;text-shadow:1px 1px #3F3F3F;z-index:2;pointer-events:none}
+#svi-actions{display:flex;flex-direction:column;align-items:flex-start;gap:7px;color:#555;font-size:9px;margin-top:auto}
+#svi-trash{border:3px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;background:#8B8B8B;color:#404040;border-radius:0;padding:6px 10px;cursor:pointer;box-shadow:inset -1px -1px #555}
+#svi-cursor-stack{display:none;position:fixed;width:46px;height:46px;z-index:2147483647;pointer-events:none;background:transparent;border:0;transform:translate(-50%,-50%);filter:drop-shadow(2px 2px 1px rgba(0,0,0,.55))}
 #svi-cursor-stack.visible{display:block}
-#survivalInventoryScreen{font-family:monospace,monospace;background:rgba(0,0,0,.48);color:#404040;image-rendering:pixelated}
-#svi-panel{width:min(720px,92vw);height:min(72vh,620px);max-height:72vh;box-sizing:border-box;padding:0;background:transparent;border:0;box-shadow:none;display:grid;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);grid-template-rows:auto 1fr auto auto;gap:18px;overflow:hidden;border-radius:0}
-#svi-top{display:contents}
-#svi-header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin:0;padding:8px 12px;background:#C6C6C6;border:3px solid #555;border-top-color:#FFF;border-left-color:#FFF;min-height:30px;font-size:16px;font-weight:800;color:#404040;text-shadow:1px 1px rgba(255,255,255,.55);box-sizing:border-box}
-#svi-close{width:32px;height:28px;background:#8B8B8B;color:#fff;border:3px solid #373737;border-top-color:#FFF;border-left-color:#FFF;border-radius:0;box-shadow:inset -2px -2px #555;font-size:20px;line-height:18px}
-#svi-player-box,#svi-crafting{background:#C6C6C6;border:3px solid #555;border-top-color:#FFF;border-left-color:#FFF;border-radius:0;padding:10px;box-shadow:none;box-sizing:border-box;min-height:0;overflow:hidden}
-#svi-player-box{grid-column:1;grid-row:2;position:relative;display:grid;grid-template-columns:1fr 52px;grid-template-rows:1fr 40px}
-#svi-crafting{grid-column:2;grid-row:2;display:flex;flex-direction:column;align-items:center;gap:10px;color:#404040}
-#svi-player-preview{width:100%;height:100%;min-height:0;background:#8B8B8B;border:2px solid #555;box-sizing:border-box}
-#svi-armor{gap:5px;padding-left:6px}
-.svi-section-title{font-size:13px;font-weight:800;margin-bottom:5px;color:#404040;text-shadow:1px 1px rgba(255,255,255,.55)}
-.svi-section-title small{color:#666}
-.svi-armor-slot,.svi-craft-slot,.svi-craft-output,#svi-offhand{border:3px solid #555;border-top-color:#FFF;border-left-color:#FFF;background:#8B8B8B;box-shadow:inset -2px -2px #555;border-radius:0;color:#404040}
-#svi-offhand{width:40px;height:40px}
-.svi-craft-row{gap:12px}
-.svi-arrow{font-size:28px;color:#555}
-#svi-craft-grid{display:grid;grid-template-columns:repeat(2,46px);grid-template-rows:repeat(2,46px);gap:5px}
-.svi-craft-slot{width:46px;height:46px}
-.svi-craft-output{width:54px;height:54px}
-.svi-craft-output.ready{outline:0;filter:brightness(1.04)}
-#svi-recipe-book{margin-top:0;border:3px solid #315d34;border-top-color:#6fa86f;border-left-color:#6fa86f;background:#4c8a50;color:#fff;border-radius:0;padding:6px 10px;font-family:monospace;font-weight:800;font-size:10px;box-shadow:inset -2px -2px #315d34}
-#svi-recipe-panel{margin-top:0;padding:7px;background:#B8B8B8;border:2px solid #555;color:#404040;border-radius:0;font-size:10px}
-#svi-storage-section{grid-column:2;grid-row:3;background:#C6C6C6;border:3px solid #555;border-top-color:#FFF;border-left-color:#FFF;padding:8px;min-height:0;box-shadow:none;border-radius:0}
-#svi-hotbar-section{grid-column:2;grid-row:4;background:#C6C6C6;border:3px solid #555;border-top-color:#FFF;border-left-color:#FFF;padding:8px;min-height:0;box-shadow:none;border-radius:0}
-#svi-actions{grid-column:1;grid-row:3/5;align-self:end;color:#555;font-size:9px;display:flex;flex-direction:column;gap:7px;align-items:flex-start}
-#svi-trash{border:3px solid #373737;border-top-color:#FFF;border-left-color:#FFF;background:#8B8B8B;color:#fff;border-radius:0;padding:6px 10px}
-#svi-storage,#svi-hotbar{grid-template-columns:repeat(9,minmax(24px,1fr));gap:3px}
-.svi-slot{background:#8B8B8B;border:3px solid #555;border-top-color:#FFF;border-left-color:#FFF;box-shadow:inset -2px -2px #555;border-radius:0}
-.svi-item.sword-item{inset:3%;width:94%;height:94%;object-fit:contain;object-position:center;image-rendering:pixelated}
-.svi-item.sword-item + b{z-index:3}
-.svi-craft-item.sword-item{inset:6%;width:88%;height:88%;object-fit:contain}
-#svi-cursor-stack{background:#8B8B8B;border:3px solid #555;border-top-color:#FFF;border-left-color:#FFF;border-radius:0;box-shadow:inset -2px -2px #555}
-
-@media(max-width:720px){
-#svi-panel{width:min(430px,92vw);height:min(760px,92vh);aspect-ratio:0.71;padding:8px;gap:6px}
-#svi-top{grid-template-columns:1fr;min-height:0;gap:6px}
-#svi-player-box{min-height:180px}
-#svi-player-preview{min-height:120px}
-#svi-storage-section{min-height:0}
-#svi-storage,#svi-hotbar{gap:3px}
-.svi-slot{min-width:0}
-.svi-item{inset:3px;width:calc(100% - 6px);height:calc(100% - 6px)}
-#svi-hotbar{grid-template-columns:repeat(9,minmax(26px,40px))}
-#svi-actions span{line-height:1.25}
-}
-`;
-    style.textContent += `
-/* Bedrock-style Survival inventory skin */
-#survivalInventoryScreen{color:#404040;image-rendering:pixelated}
-#svi-panel{width:min(680px,84vw);height:min(960px,92vh);aspect-ratio:.71;background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;box-shadow:8px 8px 0 rgba(0,0,0,.28);border-radius:0;gap:10px}
-#svi-header{color:#404040;text-shadow:1px 1px rgba(255,255,255,.55)}
-#svi-close{width:30px;height:28px;background:#C6C6C6;color:#404040;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:inset -2px -2px #555}
-#svi-top{grid-template-columns:1.08fr .92fr;gap:10px;min-height:265px}
-#svi-player-box,#svi-crafting,#svi-storage-section,#svi-hotbar-section{background:#C6C6C6;border:2px solid #555;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:none}
-#svi-player-box{grid-template-columns:48px 1fr;grid-template-rows:1fr 38px;min-height:265px}
-#svi-player-preview{background:#C6C6C6}
-#svi-armor{gap:5px;padding-right:4px}
-.svi-equipment-slot,.svi-craft-slot,.svi-craft-output{border:2px solid #373737;background:#8B8B8B;box-shadow:inset -2px -2px #FFFFFF;border-radius:0;color:#FFFFFF}
-.svi-equipment-slot{width:40px;height:40px}
-.svi-equipment-glyph{opacity:.65;text-shadow:1px 1px #3F3F3F}
-#svi-offhand{width:40px;height:40px}
-.svi-craft-output.ready{outline:3px solid #FFFFFF;outline-offset:-3px}
-#svi-recipe-book{background:#8B8B8B;color:#404040;border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;border-radius:0;box-shadow:inset -1px -1px #555}
-#svi-recipe-book.active{background:#FFFFFF}
-#svi-recipe-panel{background:#100010;border:1px solid #25015B;color:#FFFFFF;border-radius:0}
-#svi-storage,#svi-hotbar{grid-template-columns:repeat(9,minmax(38px,1fr));gap:4px}
-.svi-slot{background:#8B8B8B;border:2px solid #373737;border-top-color:#373737;border-left-color:#373737;box-shadow:inset -2px -2px #FFFFFF;border-radius:0}
-.svi-slot::after,.svi-equipment-slot::after,.svi-craft-slot::after,.svi-craft-output::after{background:rgba(255,255,255,0)}
-.svi-slot:hover::after,.svi-equipment-slot:hover::after,.svi-craft-slot:hover::after,.svi-craft-output:hover::after{background:rgba(255,255,255,.35)}
-.svi-slot.selected{border:3px solid #FFFFFF;box-shadow:inset 0 0 0 1px #373737}
-.svi-slot b,.svi-equipment-slot b,.svi-craft-slot b,.svi-craft-output b{color:#FFFFFF;text-shadow:1px 1px #3F3F3F}
-#svi-actions{color:#404040}
-#svi-trash{border:2px solid #373737;border-top-color:#FFFFFF;border-left-color:#FFFFFF;background:#8B8B8B;color:#404040;border-radius:0;box-shadow:inset -1px -1px #555}
-#svi-cursor-stack{background:#8B8B8B;border:2px solid #373737;box-shadow:inset -2px -2px #FFFFFF;border-radius:0}
-@media(max-width:720px){
-#svi-panel{width:min(430px,92vw);height:min(760px,92vh);aspect-ratio:.71;padding:8px;gap:7px}
-#svi-storage,#svi-hotbar{grid-template-columns:repeat(9,minmax(28px,1fr));gap:3px}
-}
-`;
-    style.textContent += `
-/* Creative-style native drag/drop for Survival + contained 2x2 craft icons */
-.svi-slot,.svi-craft-slot{user-select:none;-webkit-user-select:none}
-.svi-slot.dragging,.svi-craft-slot.dragging{opacity:.45}
-.svi-craft-slot{position:relative;overflow:hidden;contain:layout paint;isolation:isolate}
+#svi-cursor-stack .svi-item{inset:3px;width:40px;height:40px;max-width:40px;max-height:40px}
 .svi-craft-item{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;inset:auto !important;width:30px !important;height:30px !important;max-width:30px !important;max-height:30px !important;object-fit:contain !important;object-position:center !important;display:block !important;margin:auto !important;transform:none !important;overflow:hidden !important;z-index:1}
-.svi-craft-slot .svi-craft-item,.svi-craft-output .svi-craft-item{pointer-events:none}
-.svi-craft-output{position:relative;overflow:hidden;contain:layout paint;isolation:isolate}
-.svi-craft-output .svi-craft-item{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;inset:auto !important;width:34px !important;height:34px !important;max-width:34px !important;max-height:34px !important;object-fit:contain !important;object-position:center !important;display:block !important;margin:auto !important;transform:none !important;z-index:1}
-.svi-craft-slot b{z-index:2}
+.svi-craft-output .svi-craft-item{width:34px !important;height:34px !important;max-width:34px !important;max-height:34px !important}
+.svi-slot.dragging,.svi-craft-slot.dragging{opacity:.45}
+@media(max-width:720px){
+  #svi-panel{width:min(760px,96vw);height:min(74vh,560px);max-height:74vh}
+  #svi-pages{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:12px}
+  .svi-page{padding:6px}
+  #svi-craft-grid{grid-template-columns:repeat(2,32px);grid-template-rows:repeat(2,32px);gap:2px}
+  .svi-craft-slot{width:32px;height:32px}
+  .svi-craft-item{width:24px !important;height:24px !important;max-width:24px !important;max-height:24px !important}
+  .svi-craft-output{width:40px;height:40px}
+  .svi-craft-output .svi-craft-item{width:28px !important;height:28px !important;max-width:28px !important;max-height:28px !important}
+  #svi-storage,#svi-hotbar{gap:2px}
+  .svi-slot{max-width:none}
+}
 `;
+
     document.head.appendChild(style);
 
     root.querySelector("#svi-close").addEventListener("click", close);
@@ -1017,13 +973,9 @@ function createUI() {
     root.querySelector("#svi-craft-output").addEventListener("contextmenu", event => event.preventDefault());
     root.addEventListener("contextmenu", event => event.preventDefault());
     root.addEventListener("pointerdown", event => {
-        if (event.target === root) {
-            event.preventDefault();
-        }
+        if (event.target === root) event.preventDefault();
     });
-}
-
-function close() {
+}function close() {
     if (!open) return;
     if (!depositCraftAndCursor()) return;
     open = false;
