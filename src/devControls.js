@@ -341,6 +341,11 @@ function createUi() {
             <div id="devMessageList"><div class="devHint">Open the panel to load messages.</div></div>
         </section>
         <section class="devSection">
+            <h3>Admin</h3>
+            <p class="devHint">Open the full Admin Controls window directly from Developer Controls.</p>
+            <button id="devOpenAdmin" class="devButton good" type="button">Open Admin Controls</button>
+        </section>
+        <section class="devSection">
             <h3>Quick actions</h3>
             <p class="devHint">Useful owner tools for keeping the site under control.</p>
             <div class="devGrid"><button id="devReload" class="devButton" type="button">Reload Website</button><button id="devChangePin" class="devButton" type="button">Change PIN</button><button id="devLogout" class="devButton danger" type="button">Sign Out</button></div>
@@ -360,6 +365,13 @@ function createUi() {
     panel.querySelector("#devDeleteChat").addEventListener("click", () => deleteChannel("chat"));
     panel.querySelector("#devDeleteBugs").addEventListener("click", () => deleteChannel("bugs"));
     panel.querySelector("#devDeleteAll").addEventListener("click", deleteEverything);
+    panel.querySelector("#devOpenAdmin").addEventListener("click", async () => {
+        if (typeof window.WebMinecraftTAdminControls?.open !== "function") {
+            setStatus("Admin Controls is still loading. Try again in a moment.", true);
+            return;
+        }
+        await window.WebMinecraftTAdminControls.open();
+    });
     panel.querySelector("#devReload").addEventListener("click", () => location.reload());
     panel.querySelector("#devChangePin").addEventListener("click", async () => {
         if (!activeDevUid) return setStatus("Developer access denied.", true);
