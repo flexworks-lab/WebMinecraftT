@@ -408,6 +408,7 @@ async function openDiscussions() {
 function closeDiscussions() {
     if (!modal) return;
     modal.style.display = "none";
+    discussionModalOpen = false;
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
 }
 
