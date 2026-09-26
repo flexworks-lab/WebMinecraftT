@@ -48,7 +48,10 @@ let blockTouchStartX = 0;
 let blockTouchStartY = 0;
 let lastJumpTapTime = 0;
 
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }\nfunction isTextEntryTarget(target) {
+    if (!(target instanceof Element)) return false;
+    return Boolean(target.closest("input,textarea,select,[contenteditable=\"true\"],[role=\"textbox\"]"));
+}
 function toNdcX(clientX) { return (clientX / Math.max(window.innerWidth, 1)) * 2 - 1; }
 function toNdcY(clientY) { return 1 - (clientY / Math.max(window.innerHeight, 1)) * 2; }
 
@@ -338,6 +341,7 @@ html,body,.mobile-mode,canvas{touch-action:none;overscroll-behavior:none}
 
 export function setupControls() {
     window.addEventListener("keydown", event => {
+        if (isTextEntryTarget(event.target)) return;
         if (document.body.classList.contains("mobile-mode")) {
             for (const code of Object.keys(keys)) keys[code] = false;
             return;
@@ -350,6 +354,7 @@ export function setupControls() {
         if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
     });
     window.addEventListener("keyup", event => {
+        if (isTextEntryTarget(event.target)) return;
         if (document.body.classList.contains("mobile-mode")) {
             keys[event.code] = false;
             return;
