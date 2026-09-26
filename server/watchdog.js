@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 
 const MAX_DELAY_MS = 15000;
+const MAX_OLD_SPACE_MB = Math.max(512, Number(process.env.NODE_MAX_OLD_SPACE_MB) || 1536);
 let restartDelay = 1000;
 let stopping = false;
 let child = null;
@@ -9,7 +10,7 @@ function startServer() {
     if (stopping) return;
 
     console.log(`[watchdog] Starting multiplayer server (restart delay: ${restartDelay}ms)`);
-    child = spawn(process.execPath, ["start.js"], {
+    child = spawn(process.execPath, [`--max-old-space-size=${MAX_OLD_SPACE_MB}`, "production.js"], {
         cwd: new URL(".", import.meta.url),
         stdio: "inherit",
         env: process.env
