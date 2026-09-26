@@ -268,6 +268,9 @@ function makeStyle() {
         #multiplayerPanel.servers-screen #multiplayerHero,
         #multiplayerPanel.servers-screen #multiplayerSteps{display:none}
         #multiplayerPanel.servers-screen #multiplayerContent{padding:0}
+        #multiplayerRoomCreateButton:disabled,#multiplayerCreateAndJoin:disabled{opacity:.55!important;cursor:not-allowed!important;filter:grayscale(.5)}
+        #multiplayerRoomCreateButton:disabled{background:linear-gradient(#4c514d,#3b3f3c)!important}
+        #multiplayerCreateAndJoin:disabled{background:linear-gradient(#4c514d,#3b3f3c)!important}
         #multiplayerPanel.servers-screen #multiplayerButtons{position:absolute;top:14px;right:22px;z-index:3;padding:0;background:transparent;border:0;display:flex;gap:8px}
         #multiplayerPanel.servers-screen #multiplayerJoin{display:none}
         #multiplayerPanel.create-server-screen{position:fixed;inset:0;width:100vw;height:100vh;max-width:none;max-height:none;overflow:auto;padding:0;border:0;box-shadow:none;border-radius:0;background:linear-gradient(180deg,#252b26,#171b18)}
@@ -496,6 +499,8 @@ function ensureMenu() {
     const serverView = overlay.querySelector("#multiplayerServerView"), roomView = overlay.querySelector("#multiplayerRoomView"), serverList = overlay.querySelector("#multiplayerServerList"), serverDetails = overlay.querySelector("#multiplayerServerDetails"), roomCreateButton = overlay.querySelector("#multiplayerRoomCreateButton"), roomList = overlay.querySelector("#multiplayerRoomList"), selectedInfo = overlay.querySelector("#multiplayerSelected"), identityFields = overlay.querySelector("#multiplayerAccountIdentity"), accountUsernameLabel = overlay.querySelector("#multiplayerAccountUsername"), accountNicknameLabel = overlay.querySelector("#multiplayerAccountNickname"), guestIdentity = overlay.querySelector("#multiplayerGuestIdentity"), guestNameLabel = overlay.querySelector("#multiplayerGuestName"), roomInput = overlay.querySelector("#multiplayerRoom"), serverInput = overlay.querySelector("#multiplayerServer"), publicButton = overlay.querySelector("#multiplayerPublic"), privateButton = overlay.querySelector("#multiplayerPrivate"), privateCodeWrap = overlay.querySelector("#multiplayerPrivateCode"), privateCodeInput = overlay.querySelector("#multiplayerPrivateCodeInput"), keepOpen24hButton = overlay.querySelector("#multiplayerKeepOpen24h"), status = overlay.querySelector("#multiplayerStatus"), joinButton = overlay.querySelector("#multiplayerJoin"), backButton = overlay.querySelector("#multiplayerBack"), stepServer = overlay.querySelector("#multiplayerStepServer"), stepRoom = overlay.querySelector("#multiplayerStepRoom");
     let selectedServer = null, serverData = [], selectedPrivate = false, keepOpen24h = false;
     let serverRefreshTimer = null;
+    let maintenanceEnabled = false;
+    let maintenanceUnsubscribe = null;
     let serverLoadInFlight = false;
     let generatedGuestName = "";
 
@@ -536,8 +541,56 @@ function ensureMenu() {
     const setStatus = (text, error = false) => { status.textContent = text; status.style.color = error ? "#ef9a8e" : "#a8ca8e"; status.style.borderLeftColor = error ? "#b96a60" : "#6f8e58"; };
     const setKeepOpen24h = enabled => { keepOpen24h = Boolean(enabled); keepOpen24hButton.classList.toggle("selected", keepOpen24h); keepOpen24hButton.setAttribute("aria-pressed", String(keepOpen24h)); keepOpen24hButton.querySelector(".multiplayerToggleBox").textContent = keepOpen24h ? "✓" : ""; };
     setKeepOpen24h(false);
+
+    const applyMaintenanceUi = enabled => {
+        maintenanceEnabled = Boolean(enabled);
+        const createButton = overlay.querySelector("#multiplayerRoomCreateButton");
+        const createAndJoinButton = overlay.querySelector("#multiplayerCreateAndJoin");
+        if (createButton) {
+            createButton.disabled = maintenanceEnabled;
+            createButton.textContent = maintenanceEnabled ? "⛔ Server creation disabled" : "+ Create Server";
+            createButton.title = maintenanceEnabled ? "Developer maintenance is enabled. New servers cannot be created." : "Create a new server";
+            createButton.setAttribute("aria-disabled", String(maintenanceEnabled));
+        }
+        if (createAndJoinButton) {
+            createAndJoinButton.disabled = maintenanceEnabled;
+            createAndJoinButton.textContent = maintenanceEnabled ? "Server Creation Disabled" : "Create Server";
+        }
+        if (maintenanceEnabled && roomView.classList.contains("create-open")) {
+            roomView.classList.remove("create-open");
+            overlay.querySelector("#multiplayerPanel")?.classList.remove("create-server-screen");
+            roomCreateButton.textContent = "⛔ Server creation disabled";
+            const createTitle = roomView.querySelector(".multiplayerSectionTitle");
+            const createHint = roomView.querySelector(".multiplayerSectionHint");
+            if (createTitle) createTitle.textContent = "Rooms";
+            if (createHint) createHint.textContent = "New server creation is temporarily disabled by the developer";
+            identityFields.classList.remove("visible");
+            guestIdentity.classList.remove("visible");
+        }
+    };
+
+    const watchMaintenance = () => {
+        try {
+            const db = window.firebase?.firestore?.();
+            if (!db) return;
+            if (maintenanceUnsubscribe) maintenanceUnsubscribe();
+            maintenanceUnsubscribe = db.collection("serverControl").doc("main").onSnapshot(snapshot => {
+                applyMaintenanceUi(Boolean(snapshot.data()?.maintenance));
+            }, error => {
+                console.warn("Could not read multiplayer maintenance state:", error);
+                applyMaintenanceUi(false);
+            });
+        } catch (error) {
+            console.warn("Could not start multiplayer maintenance watcher:", error);
+            applyMaintenanceUi(false);
+        }
+    };
     const setServerType = isPrivate => { selectedPrivate = Boolean(isPrivate); publicButton.classList.toggle("selected", !selectedPrivate); privateButton.classList.toggle("selected", selectedPrivate); privateCodeWrap.classList.toggle("visible", selectedPrivate); if (!selectedPrivate) privateCodeInput.value = ""; };
     roomCreateButton.addEventListener("click", () => {
+        if (maintenanceEnabled) {
+            setStatus("New server creation is temporarily disabled by the developer.", true);
+            return;
+        }
         const open = roomView.classList.toggle("create-open");
         const panel = overlay.querySelector("#multiplayerPanel");
         const createTitle = roomView.querySelector(".multiplayerSectionTitle");
@@ -565,6 +618,10 @@ function ensureMenu() {
     keepOpen24hButton.addEventListener("click", () => setKeepOpen24h(!keepOpen24h));
     const createAndJoinButton = overlay.querySelector("#multiplayerCreateAndJoin");
     createAndJoinButton.addEventListener("click", () => {
+        if (maintenanceEnabled) {
+            setStatus("New server creation is temporarily disabled by the developer.", true);
+            return;
+        }
         const roomName = (roomInput.value.trim() || "").slice(0,32);
         if (!roomName) { roomInput.focus(); setStatus("Enter a room name first.", true); return; }
         if (roomName.toLowerCase() === "player") { roomInput.focus(); setStatus("The room name \"player\" is reserved. Choose another room name.", true); return; }
@@ -699,6 +756,7 @@ function ensureMenu() {
     overlay.addEventListener("click", event => { if (event.target === overlay) showServerView(); });
     startServerAutoRefresh();
     loadServers();
+    watchMaintenance();
 }
 
 function escapeHtml(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#039;"); }
