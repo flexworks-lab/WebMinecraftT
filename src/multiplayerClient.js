@@ -164,12 +164,12 @@ function ensureChatUI() {
     document.body.appendChild(chat);
     const feed = chat.querySelector("#multiplayerChatFeed");
     const input = chat.querySelector("#multiplayerChatInput");
-    window.__webminecraftChatAdd = (text, system = false, name = "", isAdmin = false) => {
+    window.__webminecraftChatAdd = (text, system = false, name = "", isAdmin = false, verifiedRole = "") => {
         const line = document.createElement("div");
         line.className = `multiplayerChatLine${system ? " multiplayerChatSystem" : ""}`;
         if (system) line.textContent = text;
         else {
-            const verifiedRole = String(arguments[4] || "").toLowerCase();
+            verifiedRole = String(verifiedRole || "").toLowerCase();
             const admin = Boolean(isAdmin) || verifiedRole === "admin" || verifiedRole === "main" || verifiedRole === "developer" || String(name).toLowerCase() === "admin";
             const label = document.createElement("span");
             label.className = `multiplayerChatName${admin ? " multiplayerChatAdmin" : ""}`;
