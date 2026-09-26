@@ -491,6 +491,7 @@ async function sendMessage() {
 
 function selectChannel(channel) {
     if (!CHANNELS[channel]) return;
+    clearReplyTarget();
     activeChannel = channel;
     modal.querySelectorAll(".discussionTab").forEach(tab => tab.classList.toggle("active", tab.dataset.channel === channel));
     modal.querySelector("#discussionSubtitle").textContent = CHANNELS[channel].subtitle;
@@ -526,6 +527,7 @@ async function openDiscussions() {
 
 function closeDiscussions() {
     if (!modal) return;
+    clearReplyTarget();
     modal.style.display = "none";
     discussionModalOpen = false;
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
