@@ -779,8 +779,8 @@ button[aria-label*="close" i]:hover{
   opacity:0;
   pointer-events:none;
 }
-#wmtBrandSplash{animation:wmtBrandSequence 2.5s cubic-bezier(.2,.85,.2,1) both;}
-#wmtDisclaimerSplash{animation:wmtDisclaimerSequence 4.3s .95s cubic-bezier(.2,.8,.2,1) both;}
+#wmtBrandSplash{animation:wmtBrandSequence 4s cubic-bezier(.2,.85,.2,1) both;}
+#wmtDisclaimerSplash{animation:wmtDisclaimerSequence 6.2s 2.2s cubic-bezier(.2,.8,.2,1) both;}
 #wmtBrand{
   font-family:"MinecraftFont",monospace;
   font-size:clamp(58px,11vw,118px);
@@ -905,7 +905,7 @@ button[aria-label*="close" i]:hover{
 }
 #wmtBrand{animation:wmtBrandIn 1.15s .08s cubic-bezier(.15,.85,.2,1) both}
 #wmtBrandSub{animation:wmtBrandSubIn 1.05s .35s ease both}
-#wmtDisclaimerCard{animation:wmtDisclaimerIn 1.05s 1.15s cubic-bezier(.15,.8,.2,1) both}
+#wmtDisclaimerCard{animation:wmtDisclaimerIn 1.35s 2.35s cubic-bezier(.15,.8,.2,1) both}
 @media(max-width:600px){
   #wmtStartupGrid{background-size:30px 30px}
   #wmtDisclaimerCard{padding:26px 20px 24px;border-radius:10px}
@@ -1069,7 +1069,7 @@ button[aria-label*="close" i]:hover{
   };
 
   // Brand reveal first, then the disclaimer, then hand control to the game.
-  window.setTimeout(finishStartup, 5700);
+  window.setTimeout(finishStartup, 8900);
 
   // Keep the animation from blocking interaction longer than necessary if
   // the page is restored from the browser's back/forward cache.
