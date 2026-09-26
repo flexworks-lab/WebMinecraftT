@@ -89,7 +89,6 @@ function addBadgeStyles() {
     const style = document.createElement("style");
     style.id = "newsUnreadBadgeStyles";
     style.textContent = `
-#newsButton{position:relative!important}
 #newsButton .newsUnreadBadge{
     position:absolute;
     top:-7px;
