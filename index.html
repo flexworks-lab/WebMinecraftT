@@ -711,8 +711,243 @@ button[aria-label*="close" i]:hover{
 }
 
 </style>
+
+<style>
+/* Flexworks startup + attribution sequence */
+#wmtStartupSequence{
+  position:fixed;
+  inset:0;
+  z-index:2147483647;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(126,174,90,.18), transparent 30%),
+    radial-gradient(circle at 50% 52%, rgba(255,255,255,.055), transparent 42%),
+    linear-gradient(180deg,#070907 0%,#101510 52%,#060806 100%);
+  color:#fff;
+  font-family:Arial,sans-serif;
+  opacity:1;
+  visibility:visible;
+  transition:opacity .8s ease, visibility .8s ease;
+}
+#wmtStartupSequence.wmt-done{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+#wmtStartupGlow{
+  position:absolute;
+  width:min(52vw,620px);
+  aspect-ratio:1;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(146,205,102,.16),rgba(146,205,102,0) 70%);
+  filter:blur(10px);
+  animation:wmtGlowPulse 2.8s ease-in-out infinite;
+}
+#wmtStartupGrid{
+  position:absolute;
+  inset:0;
+  opacity:.16;
+  background-image:
+    linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);
+  background-size:42px 42px;
+  transform:perspective(500px) rotateX(64deg) scale(1.7) translateY(18%);
+  transform-origin:center bottom;
+  mask-image:linear-gradient(to bottom,transparent 4%,#000 52%,#000);
+}
+#wmtStartupStage{
+  position:relative;
+  width:min(900px,92vw);
+  min-height:260px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  z-index:2;
+}
+#wmtBrandSplash,
+#wmtDisclaimerSplash{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  pointer-events:none;
+}
+#wmtBrandSplash{animation:wmtBrandSequence 2.5s cubic-bezier(.2,.85,.2,1) both;}
+#wmtDisclaimerSplash{animation:wmtDisclaimerSequence 4.3s .95s cubic-bezier(.2,.8,.2,1) both;}
+#wmtBrand{
+  font-family:"MinecraftFont",monospace;
+  font-size:clamp(58px,11vw,118px);
+  line-height:.82;
+  letter-spacing:.06em;
+  color:#fff;
+  -webkit-text-stroke:2px #101510;
+  text-shadow:
+    0 3px 0 #dce7d7,
+    0 7px 0 #9caf98,
+    0 11px 0 #5f715b,
+    0 16px 0 #273225,
+    0 23px 26px rgba(0,0,0,.72);
+  transform:translateY(26px) scale(.88);
+}
+#wmtBrandSub{
+  margin-top:22px;
+  font-family:"MinecraftFont",monospace;
+  font-size:clamp(11px,1.6vw,16px);
+  letter-spacing:.28em;
+  color:#b8cbb3;
+  opacity:0;
+  transform:translateY(12px);
+}
+#wmtBrandSub::before,
+#wmtBrandSub::after{
+  content:"";
+  display:inline-block;
+  width:clamp(24px,8vw,72px);
+  height:2px;
+  margin:0 14px 4px;
+  background:linear-gradient(90deg,transparent,#8fb27e);
+  vertical-align:middle;
+}
+#wmtBrandSub::after{background:linear-gradient(90deg,#8fb27e,transparent)}
+#wmtDisclaimerCard{
+  width:min(740px,88vw);
+  padding:34px 34px 30px;
+  border:1px solid rgba(197,215,191,.18);
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(31,40,31,.88),rgba(13,18,14,.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 24px 70px rgba(0,0,0,.4);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  transform:translateY(22px) scale(.97);
+}
+#wmtDisclaimerLabel{
+  font-family:"MinecraftFont",monospace;
+  font-size:clamp(12px,1.7vw,17px);
+  letter-spacing:.18em;
+  color:#a7c59b;
+  margin-bottom:16px;
+}
+#wmtDisclaimerText{
+  margin:0 auto;
+  max-width:650px;
+  font-size:clamp(16px,2.15vw,23px);
+  line-height:1.55;
+  color:#fff;
+  text-wrap:balance;
+}
+#wmtDisclaimerText strong{
+  color:#d5f0ca;
+}
+#wmtDisclaimerNote{
+  margin-top:18px;
+  font-size:clamp(11px,1.3vw,14px);
+  line-height:1.5;
+  color:#aeb8ad;
+}
+#wmtDisclaimerBar{
+  position:relative;
+  width:min(430px,72vw);
+  height:3px;
+  margin:22px auto 0;
+  overflow:hidden;
+  background:rgba(255,255,255,.08);
+}
+#wmtDisclaimerBar::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg,transparent,#a9d69a,transparent);
+  transform:translateX(-100%);
+  animation:wmtBarSweep 2.1s .95s ease-in-out infinite;
+}
+@keyframes wmtGlowPulse{
+  0%,100%{transform:scale(.88);opacity:.55}
+  50%{transform:scale(1.08);opacity:1}
+}
+@keyframes wmtBrandSequence{
+  0%{opacity:0}
+  12%{opacity:1}
+  20%{opacity:1}
+  58%{opacity:1}
+  78%{opacity:1}
+  100%{opacity:0}
+}
+@keyframes wmtBrandIn{
+  0%{opacity:0;transform:translateY(26px) scale(.88)}
+  55%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes wmtBrandSubIn{
+  0%,28%{opacity:0;transform:translateY(12px)}
+  55%,100%{opacity:1;transform:translateY(0)}
+}
+@keyframes wmtDisclaimerSequence{
+  0%,16%{opacity:0}
+  26%,78%{opacity:1}
+  100%{opacity:0}
+}
+@keyframes wmtDisclaimerIn{
+  0%{opacity:0;transform:translateY(22px) scale(.97)}
+  35%,100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes wmtBarSweep{
+  0%{transform:translateX(-100%)}
+  55%,100%{transform:translateX(100%)}
+}
+#wmtBrand{animation:wmtBrandIn 1.15s .08s cubic-bezier(.15,.85,.2,1) both}
+#wmtBrandSub{animation:wmtBrandSubIn 1.05s .35s ease both}
+#wmtDisclaimerCard{animation:wmtDisclaimerIn 1.05s 1.15s cubic-bezier(.15,.8,.2,1) both}
+@media(max-width:600px){
+  #wmtStartupGrid{background-size:30px 30px}
+  #wmtDisclaimerCard{padding:26px 20px 24px;border-radius:10px}
+  #wmtBrandSub::before,#wmtBrandSub::after{margin-inline:7px;width:28px}
+}
+@media(prefers-reduced-motion:reduce){
+  #wmtStartupSequence *,
+  #wmtStartupSequence *::before,
+  #wmtStartupSequence *::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+  }
+}
+</style>
+
 </head>
 <body>
+
+    <div id="wmtStartupSequence" aria-label="WebMinecraftT startup">
+        <div id="wmtStartupGlow"></div>
+        <div id="wmtStartupGrid"></div>
+        <div id="wmtStartupStage">
+            <section id="wmtBrandSplash" aria-hidden="true">
+                <div id="wmtBrand">flexworks</div>
+                <div id="wmtBrandSub">PRESENTS WEBMINECRAFTT</div>
+            </section>
+            <section id="wmtDisclaimerSplash" aria-hidden="true">
+                <div id="wmtDisclaimerCard">
+                    <div id="wmtDisclaimerLabel">PROJECT DISCLAIMER</div>
+                    <p id="wmtDisclaimerText">
+                        <strong>WebMinecraftT is an independent project.</strong><br>
+                        It is not affiliated with, endorsed by, or sponsored by Mojang Studios or Microsoft,
+                        and no profit is made from this project.
+                    </p>
+                    <div id="wmtDisclaimerNote">All trademarks and related rights belong to their respective owners.</div>
+                    <div id="wmtDisclaimerBar" aria-hidden="true"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
     <script>
     (() => {
         const applyMultiplayerUiGuard = () => {
@@ -821,6 +1056,31 @@ button[aria-label*="close" i]:hover{
     <script type="module" src="./src/firebaseConfig.js"></script>
     <script type="module" src="./src/main.js"></script>
     <script type="module" src="./src/menuUpdates.js"></script>
+
+
+<script>
+(() => {
+  const startup = document.getElementById("wmtStartupSequence");
+  if (!startup) return;
+
+  const finishStartup = () => {
+    startup.classList.add("wmt-done");
+    setTimeout(() => startup.remove(), 900);
+  };
+
+  // Brand reveal first, then the disclaimer, then hand control to the game.
+  window.setTimeout(finishStartup, 5700);
+
+  // Keep the animation from blocking interaction longer than necessary if
+  // the page is restored from the browser's back/forward cache.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+      startup.classList.remove("wmt-done");
+      window.setTimeout(finishStartup, 120);
+    }
+  }, { once: true });
+})();
+</script>
 
 </body>
 </html>
