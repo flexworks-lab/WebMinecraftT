@@ -31,6 +31,7 @@ let observer = null;
 let blockChangeHandler = null;
 let removedGrass = new Set();
 let grassOutline = null;
+const surfaceYCache = new Map();
 const fallingGravel = new Map();
 
 function hash2D(x, z, seed, salt = 0) {
@@ -97,13 +98,19 @@ function ensureGrassOutline() {
     root.add(grassOutline);
 }
 
-function findSurfaceY(x, z, cameraY) {
-    const top = Math.min(127, Math.floor(cameraY + 20));
-    const bottom = Math.max(-32, Math.floor(cameraY - 32));
-    for (let y = top; y >= bottom; y--) {
+function findSurfaceY(x, z) {
+    const key = `${x},${z}`;
+    if (surfaceYCache.has(key)) return surfaceYCache.get(key);
+    const types = getBlockTypes();
+    for (let y = 127; y >= -32; y--) {
         const type = getBlockAt(x, y, z);
-        if (type !== 0) return { y, type };
+        if (type !== types.AIR) {
+            const result = { y, type };
+            surfaceYCache.set(key, result);
+            return result;
+        }
     }
+    surfaceYCache.set(key, null);
     return null;
 }
 
@@ -200,9 +207,9 @@ function scan() {
     const movedEnough = !Number.isFinite(lastScanX) || !Number.isFinite(lastScanZ)
         || !Number.isFinite(playerX) || !Number.isFinite(playerZ)
         || Math.hypot(playerX - lastScanX, playerZ - lastScanZ) >= MOVE_SCAN_DISTANCE;
-    if (seed !== lastSeed) { lastSeed = seed; lastScan = 0; lastScanX = NaN; lastScanZ = NaN; removedGrass.clear(); }
+    if (seed !== lastSeed) { lastSeed = seed; lastScan = 0; lastScanX = NaN; lastScanZ = NaN; removedGrass.clear(); surfaceYCache.clear(); }
     const types = getBlockTypes();
-    const cx = Math.floor(playerX), cz = Math.floor(playerZ), cameraY = Number(cameraRef.position.y) || 0;
+    const cx = Math.floor(playerX), cz = Math.floor(playerZ);
     const matrix = new THREE.Matrix4(), scaleVector = new THREE.Vector3();
     let count = 0;
     for (let dz = -SCAN_RADIUS; dz <= SCAN_RADIUS && count < MAX_GRASS; dz++) {
@@ -210,7 +217,7 @@ function scan() {
             if (dx * dx + dz * dz > SCAN_RADIUS * SCAN_RADIUS) continue;
             const x = cx + dx, z = cz + dz;
             if (hash2D(x, z, seed, 31) > 0.16) continue;
-            const surface = findSurfaceY(x, z, cameraY);
+            const surface = findSurfaceY(x, z);
             if (!surface || surface.type !== types.GRASS) continue;
             const key = `${x},${surface.y},${z}`;
             if (removedGrass.has(key) || getBlockAt(x, surface.y + 1, z) !== types.AIR) continue;
@@ -238,7 +245,7 @@ function getGrassHit(ndcX = 0, ndcY = 0) {
     const position = new THREE.Vector3().setFromMatrixPosition(matrix);
     const x = Math.floor(position.x), z = Math.floor(position.z);
     const types = getBlockTypes();
-    const surface = findSurfaceY(x, z, cameraRef.position.y);
+    const surface = findSurfaceY(x, z);
     if (!surface || surface.type !== types.GRASS || getBlockAt(x, surface.y + 1, z) !== types.AIR) return null;
     return { x, y: surface.y, z };
 }
@@ -311,6 +318,7 @@ export function initShortGrass(scene, camera) {
             const d = event.detail || {};
             // A block placed in the grass block's upper cell hides the vegetation.
             if (Number.isFinite(d.x) && Number.isFinite(d.y) && Number.isFinite(d.z)) {
+                surfaceYCache.delete(`${Math.floor(d.x)},${Math.floor(d.z)}`);
                 if (d.type !== 0) removedGrass.delete(`${d.x},${d.y - 1},${d.z}`);
                 else removedGrass.delete(`${d.x},${d.y},${d.z}`);
             }
