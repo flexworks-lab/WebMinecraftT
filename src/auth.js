@@ -374,7 +374,20 @@ function createUi() {
             submit.disabled = false;
         }
     });
-    modal.querySelector("#accountGoogle").addEventListener("click", async () => { if (!(await ensureReady())) return; try { await auth.signInWithPopup(new window.firebase.auth.GoogleAuthProvider()); } catch (error) { setMessage(error); } });
+    modal.querySelector("#accountGoogle").addEventListener("click", async () => {
+        if (!(await ensureReady())) return;
+        try {
+            const provider = new window.firebase.auth.GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: "select_account" });
+            if (!firebaseConfig.authDomain) {
+                throw Object.assign(new Error("Firebase authDomain is missing."), { code: "auth/configuration-not-found" });
+            }
+            await auth.signInWithPopup(provider);
+        } catch (error) {
+            console.error("Google sign-in failed:", error?.code || "unknown", error?.message || error);
+            setMessage(error);
+        }
+    });
     modal.querySelector("#accountYahoo").addEventListener("click", () => signInWithOAuth("yahoo.com", "Yahoo"));
     modal.querySelector("#accountGithub").addEventListener("click", () => signInWithOAuth("github.com", "GitHub"));
     modal.querySelector("#accountPlayGames").addEventListener("click", () => setMessage("Google Play Games sign-in is available for Android/Unity, not this web version."));
@@ -388,18 +401,21 @@ async function signInWithOAuth(providerId, providerName) {
         if (providerId === "yahoo.com") { provider.addScope("openid"); provider.addScope("profile"); provider.addScope("email"); }
         await auth.signInWithPopup(provider);
     } catch (error) {
-        if (error?.code === "auth/popup-closed-by-user") return setMessage(`${providerName} sign-in was closed.`);
-        if (error?.code === "auth/operation-not-allowed") return setMessage(`${providerName} sign-in is not enabled in Firebase yet.`);
+        if (error?.code === "auth/popup-closed-by-user") return setMessage(providerName + " sign-in was closed.");
+        if (error?.code === "auth/popup-blocked") return setMessage("Your browser blocked the sign-in popup. Allow popups for flexworks-lab.github.io and try again.");
+        if (error?.code === "auth/popup-domain-unsupported") return setMessage("Firebase rejected this site's sign-in popup domain. Check Firebase Authentication → Authorized domains.");
+        if (error?.code === "auth/unauthorized-domain") return setMessage("Firebase rejected this website. Make sure flexworks-lab.github.io is an Authorized domain.");
+        if (error?.code === "auth/operation-not-allowed") return setMessage(providerName + " sign-in is not enabled in Firebase yet.");
+        if (error?.code === "auth/invalid-oauth-client-id") return setMessage("Google OAuth is misconfigured in Firebase. The Google provider's Web client ID must match the Google Cloud OAuth Web client.");
         if (error?.code === "auth/account-exists-with-different-credential") return setMessage("An account already exists with a different sign-in method.");
         setMessage(error);
-    }
 }
 
 function setMessage(value) {
     const el = document.getElementById("accountMessage"); if (!el) return;
     if (!value) { el.textContent = ""; return; }
     if (typeof value === "string") { el.textContent = value; return; }
-    const messages = { "auth/invalid-email":"That email address is not valid.", "auth/user-not-found":"No account was found with that email.", "auth/wrong-password":"That password is incorrect.", "auth/invalid-credential":"The email or password is incorrect.", "auth/email-already-in-use":"That email is already in use.", "auth/weak-password":"Use a stronger password.", "auth/popup-closed-by-user":"Sign-in was closed.", "auth/operation-not-allowed":"This sign-in method is not enabled yet.","auth/network-request-failed":"Network error. Check your connection and try again." };
+    const messages = { "auth/invalid-email":"That email address is not valid.", "auth/user-not-found":"No account was found with that email.", "auth/wrong-password":"That password is incorrect.", "auth/invalid-credential":"The email or password is incorrect.", "auth/email-already-in-use":"That email is already in use.", "auth/weak-password":"Use a stronger password.", "auth/popup-closed-by-user":"Sign-in was closed.", "auth/popup-blocked":"Your browser blocked the sign-in popup. Allow popups for flexworks-lab.github.io and try again.", "auth/popup-domain-unsupported":"Firebase rejected this site's sign-in popup domain. Check Authorized domains.", "auth/unauthorized-domain":"Firebase rejected this website. Add flexworks-lab.github.io to Firebase Authentication → Authorized domains.", "auth/invalid-oauth-client-id":"Google OAuth is misconfigured. Check the Web OAuth client configured for the Google provider.", "auth/operation-not-allowed":"This sign-in method is not enabled yet.","auth/network-request-failed":"Network error. Check your connection and try again.", "auth/web-storage-unsupported":"Browser storage is unavailable. Enable cookies/site storage and try again.", "auth/cancelled-popup-request":"Another sign-in popup is already open.", "auth/configuration-not-found":"Firebase Authentication configuration is missing." };
     el.textContent = messages[value?.code] || value?.message || "Something went wrong. Please try again.";
 }
 
