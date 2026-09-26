@@ -685,6 +685,31 @@ input[type="checkbox"]{width:25px;height:25px;accent-color:#82a65f}
 #closeSettings{min-width:190px;min-height:50px;border:2px solid #101410;border-top-color:#929b93;border-left-color:#929b93;border-radius:5px;background:linear-gradient(180deg,#69736b,#505951);box-shadow:0 4px 0 #111;font-size:14px}
 #closeSettings:hover{filter:brightness(1.1);transform:translateY(-2px)}
 @media(max-width:900px){#settingsPanel{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}#settingsSidebar{padding:18px 12px 10px;border-right:0;border-bottom:3px solid #0b0e0b}#settingsPanel h1{font-size:25px}#settingsSubtitle{margin-bottom:14px}#settingsTabs{gap:6px}.settingsTab{min-height:44px;padding:9px 12px}#settingsHeader{height:70px;flex-basis:70px;padding:0 16px}#settingsScroll{padding:18px 12px 28px}.setting{padding:13px;min-height:72px}.settingControl{padding-left:0}#settingsScroll select,input[type=range]{width:100%}#settingsBottom{width:100%}#closeSettings{width:100%}}
+
+/* Flat 2D close buttons */
+#settingsCloseTop,
+#settingsMenu button[aria-label*="Close"],
+#seedBackWrap .close,
+button[id*="Close"],
+button[aria-label*="close" i]{
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  text-shadow:none !important;
+  color:#fff !important;
+  border-radius:0 !important;
+}
+#settingsCloseTop:hover,
+#settingsMenu button[aria-label*="Close"]:hover,
+#seedBackWrap .close:hover,
+button[id*="Close"]:hover,
+button[aria-label*="close" i]:hover{
+  background:transparent !important;
+  box-shadow:none !important;
+  transform:none !important;
+  filter:none !important;
+}
+
 </style>
 </head>
 <body>
