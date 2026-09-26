@@ -133,8 +133,8 @@ export function censorUserText(value) {
 
 export function normalizeSafeName(value, fallback = "") {
     const censored = censorUserText(value)
-        .replace(/[\\r\\n\\t]+/g, " ")
-        .replace(/\\s+/g, " ")
+        .replace(/[\r\n\t]+/g, " ")
+        .replace(/\s+/g, " ")
         .trim()
         .slice(0, 40);
     return censored || fallback;
