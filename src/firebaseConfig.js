@@ -123,15 +123,39 @@ export function isFirebaseConfigured() {
                     const ref = db?.collection("serverControl").doc("main");
                     if (!ref?.onSnapshot) return;
                     window.__webMinecraftGlobalLogoutUnsubscribe?.();
-                    window.__webMinecraftGlobalLogoutUnsubscribe = ref.onSnapshot(snapshot => {
-                        const forceLogoutAt = Number(snapshot.data()?.forceLogoutAt || 0);
+                    let latestForceLogoutAt = 0;
+                    let logoutCheckInProgress = false;
+
+                    const checkGlobalLogout = async () => {
                         const user = auth.currentUser;
-                        if (!forceLogoutAt || !user) return;
-                        const signedInAt = Date.parse(user.metadata?.lastSignInTime || "") || 0;
-                        if (signedInAt > 0 && forceLogoutAt > signedInAt) {
-                            auth.signOut().catch(() => {});
+                        const forceLogoutAt = latestForceLogoutAt;
+                        if (!forceLogoutAt || !user || logoutCheckInProgress) return;
+
+                        logoutCheckInProgress = true;
+                        try {
+                            // Use Firebase's server-issued auth_time instead of the browser's
+                            // local lastSignInTime string. This avoids clock/time-zone and
+                            // persistence races when a player signs out and immediately signs in again.
+                            const tokenResult = await user.getIdTokenResult();
+                            const authTimeMs = Number(tokenResult?.claims?.auth_time || 0) * 1000;
+                            if (authTimeMs > 0 && forceLogoutAt > authTimeMs) {
+                                await auth.signOut();
+                            }
+                        } catch (error) {
+                            console.warn("Global logout check failed:", error);
+                        } finally {
+                            logoutCheckInProgress = false;
                         }
+                    };
+
+                    window.__webMinecraftGlobalLogoutUnsubscribe = ref.onSnapshot(snapshot => {
+                        latestForceLogoutAt = Number(snapshot.data()?.forceLogoutAt || 0);
+                        checkGlobalLogout();
                     }, error => console.warn("Global logout listener failed:", error));
+
+                    auth.onAuthStateChanged(() => {
+                        checkGlobalLogout();
+                    });
                 } catch (error) {
                     console.warn("Global logout setup failed:", error);
                 }
