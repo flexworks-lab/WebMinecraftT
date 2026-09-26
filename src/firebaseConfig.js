@@ -2,6 +2,7 @@
 // This config is safe to include in the browser. Firebase Authentication and
 // your Firebase security rules control access to your project's data.
 import "./browserWorldFallback.js";
+import "./moderation.js";
 import "./multiplayerServerMode.js";
 import "./multiplayerSurvivalBridge.js";
 import "./multiplayerGameplayStateFix.js";
