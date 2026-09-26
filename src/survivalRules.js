@@ -102,7 +102,11 @@ function init() {
     window.addEventListener("webminecraft-modechange", () => {
         requestAnimationFrame(positionHealthHud);
     });
-    document.addEventListener("keydown", event => { if (!isSurvivalWorld() || event.code !== "KeyF") return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
+    document.addEventListener("keydown", event => {
+        if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable=\"true\"],[role=\"textbox\"]")) return;
+        if (!isSurvivalWorld() || event.code !== "KeyF") return;
+        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+    }, true);
     document.addEventListener("pointerdown", event => { if (!isSurvivalWorld()) return; const flyButton = event.target.closest?.("#touchFly"); if (!flyButton) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
     document.addEventListener("click", event => { if (!isSurvivalWorld()) return; const flyButton = event.target.closest?.("#touchFly"); if (!flyButton) return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }, true);
 }
