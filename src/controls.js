@@ -48,7 +48,9 @@ let blockTouchStartX = 0;
 let blockTouchStartY = 0;
 let lastJumpTapTime = 0;
 
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }\nfunction isTextEntryTarget(target) {
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+function isTextEntryTarget(target) {
     if (!(target instanceof Element)) return false;
     return Boolean(target.closest("input,textarea,select,[contenteditable=\"true\"],[role=\"textbox\"]"));
 }
