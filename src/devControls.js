@@ -349,7 +349,7 @@ function createUi() {
         <section class="devSection">
             <h3>Quick actions</h3>
             <p class="devHint">Useful owner tools for keeping the site under control.</p>
-            <div class="devGrid"><button id="devReload" class="devButton" type="button">Reload Website</button><button id="devChangePin" class="devButton" type="button">Change PIN</button><button id="devLogout" class="devButton danger" type="button">Sign Out</button></div>
+            <div class="devGrid"><button id="devReload" class="devButton" type="button">Reload Website</button><button id="devChangePin" class="devButton" type="button">Change PIN</button><button id="devLogoutAll" class="devButton danger" type="button">Log Out All Accounts</button><button id="devLogout" class="devButton danger" type="button">Sign Out</button></div>
         </section>
         <div id="devControlsStatus"></div>
     </div>
@@ -374,6 +374,7 @@ function createUi() {
         await window.WebMinecraftTAdminControls.open();
     });
     panel.querySelector("#devReload").addEventListener("click", () => location.reload());
+    panel.querySelector("#devLogoutAll").addEventListener("click", logoutAllAccounts);
     panel.querySelector("#devChangePin").addEventListener("click", async () => {
         if (!activeDevUid) return setStatus("Developer access denied.", true);
         const ok = await changeDevPin();
@@ -409,6 +410,29 @@ async function loadMaintenanceState() {
             }
         }, () => {});
     } catch {}
+}
+
+async function logoutAllAccounts() {
+    const { firebase, user } = await getDevUser();
+    if (!user) return setStatus("Developer access denied.", true);
+    const db = dbFor(firebase);
+    if (!db) return setStatus("Firebase is not ready.", true);
+    if (!confirm("Log out every currently signed-in WebMinecraftT account? They will be signed out on all active browsers.")) return;
+    try {
+        await db.collection("serverControl").doc("main").set({
+            forceLogoutAt: Date.now(),
+            updatedAt: new Date(),
+            updatedBy: user.email,
+        }, { merge: true });
+        setStatus("Global logout sent. All active accounts will be signed out.");
+        setDevPinSession(activeDevUid, false);
+        devPinUnlocked = false;
+        await firebase.auth().signOut().catch(() => {});
+        closePanel();
+    } catch (error) {
+        console.error(error);
+        setStatus("Could not log out all accounts.", true);
+    }
 }
 
 async function toggleMaintenance() {
