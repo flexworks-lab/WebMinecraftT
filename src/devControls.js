@@ -331,7 +331,7 @@ function createUi() {
     <div id="devControlsBody">
         <section class="devSection">
             <h3>Server</h3>
-            <p class="devHint">Maintenance mode closes multiplayer for everyone. It does not expose a Render/API secret in the browser.</p>
+            <p class="devHint">Maintenance mode blocks players from creating new multiplayer servers. Existing server joining remains available. It does not expose a Render/API secret in the browser.</p>
             <div class="devToggleRow"><div class="devToggleText"><strong>Multiplayer maintenance</strong><span>Disconnect players and block new joins on the website.</span></div><button id="devMaintenance" class="devButton danger" type="button">Enable</button></div>
         </section>
         <section class="devSection">
