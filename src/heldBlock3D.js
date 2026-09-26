@@ -303,11 +303,7 @@ function init() {
     camera.position.set(0, 0, 3);
     camera.lookAt(0, 0, 0);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 2.8));
-    const key = new THREE.DirectionalLight(0xffffff, 3.5);
-    key.position.set(-2, 3, 4); scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 1.5);
-    fill.position.set(3, 1, 2); scene.add(fill);
+    // Use a physically lit hand so it darkens with the world lighting instead of staying full-bright.\n    // The light levels are updated each frame from the game renderer when available.\n    const ambient = new THREE.AmbientLight(0xffffff, 0.9);\n    scene.add(ambient);\n    const key = new THREE.DirectionalLight(0xffffff, 1.2);\n    key.position.set(-2, 3, 4); scene.add(key);\n    const fill = new THREE.DirectionalLight(0xffffff, 0.25);\n    fill.position.set(3, 1, 2); scene.add(fill);
 
     heldRoot = new THREE.Group();
     heldRoot.position.copy(BASE_POS);
@@ -317,7 +313,7 @@ function init() {
 
     hand = new THREE.Mesh(
         new THREE.BoxGeometry(0.30, 0.76, 0.30),
-        new THREE.MeshBasicMaterial({ map: makeHandTexture() })
+        new THREE.MeshLambertMaterial({ map: makeHandTexture() })
     );
     hand.position.set(0.22, -0.29, 0.08);
     hand.rotation.x = -0.22;
@@ -390,7 +386,7 @@ function init() {
 
         heldRoot.position.set(BASE_POS.x + sway + actionPX, BASE_POS.y + bob - Math.abs(actionPX) * 0.2, BASE_POS.z + actionPZ);
         heldRoot.rotation.set(BASE_ROT.x + actionX, BASE_ROT.y, BASE_ROT.z + actionY + sway * 0.5);
-        renderer.render(scene, camera);
+        // Sample the active world lighting if the game exposes it. This keeps the\n        // first-person hand consistent with caves, shade, and night.\n        const lightLevel = Number(window.webminecraftLightLevel ?? window.worldLightLevel);\n        if (Number.isFinite(lightLevel)) {\n            const l = THREE.MathUtils.clamp(lightLevel, 0, 1);\n            ambient.intensity = 0.12 + l * 0.95;\n            key.intensity = 0.15 + l * 1.05;\n            fill.intensity = 0.03 + l * 0.22;\n        }\n        renderer.render(scene, camera);
     }
     render();
 }
