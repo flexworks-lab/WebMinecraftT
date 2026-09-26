@@ -219,3 +219,7 @@ async function openAdminControls() { if (!(await isAdminUser())) return alert("A
 function closeAdminControls() { if (adminModal) adminModal.style.display = "none"; clearInterval(adminPoll); adminPoll = null; }
 function watch() { addStyles(); installButton(); const observer = new MutationObserver(installButton); observer.observe(document.body,{childList:true,subtree:true}); setInterval(installButton,1500); }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",watch,{once:true}); else watch();
+
+
+// Expose the existing admin window to Developer Controls without duplicating the UI.
+window.WebMinecraftTAdminControls = { open: openAdminControls, close: closeAdminControls };
