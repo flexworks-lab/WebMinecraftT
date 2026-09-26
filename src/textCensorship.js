@@ -39,8 +39,8 @@ const LEET = {
 function cleanTerm(term) {
     return String(term ?? "")
         .toLowerCase()
-        .replace(/[\\r\\n\\t]+/g, " ")
-        .replace(/\\s+/g, " ")
+        .replace(/[\r\n\t]+/g, " ")
+        .replace(/\s+/g, " ")
         .trim()
         .slice(0, 80);
 }
@@ -90,7 +90,7 @@ function rebuildRegexes() {
 }
 
 function mask(match) {
-    return match.replace(/[^\\s]/g, "█");
+    return match.replace(/[^\s]/g, "█");
 }
 
 export function learnCensorTerm(term) {
