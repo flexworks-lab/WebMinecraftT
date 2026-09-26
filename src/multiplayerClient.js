@@ -287,6 +287,8 @@ function makeStyle() {
         .multiplayerGuestIdentity.visible{display:block}
         .multiplayerGuestIdentity strong{color:#fff;font-family:"MinecraftFont",monospace}
         .multiplayerIdentityNotice{margin:0 0 10px;padding:9px 10px;background:#20261f;border-left:3px solid #7a9b5d;color:#b8c8af;font-size:10px;line-height:1.45}
+        .multiplayerIdentityReadOnly{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:7px 0;padding:10px 11px;background:#20261f;border:1px solid #465047;color:#9ca69d;font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+        .multiplayerIdentityReadOnly strong{color:#fff;font:13px MinecraftFont,monospace;text-transform:none;letter-spacing:0}
         @media(max-width:700px){#multiplayerPanel.create-server-screen #multiplayerRoomView{padding:22px 14px}#multiplayerPanel.create-server-screen .multiplayerAdvanced{padding:16px}}
 
         #multiplayerPanel.servers-screen #multiplayerBack{min-width:0;min-height:38px;padding:8px 14px}
@@ -461,9 +463,9 @@ function ensureMenu() {
                     <div id="multiplayerRoomList"></div>
                     <div class="multiplayerAdvanced">
                         <div id="multiplayerAccountIdentity" class="multiplayerIdentityFields">
-                            <div class="multiplayerIdentityNotice">Signed-in players must provide their account username and an in-game nickname.</div>
-                            <div class="multiplayerField"><label for="multiplayerUsername">Username</label><input id="multiplayerUsername" maxlength="16" autocomplete="username" spellcheck="false" placeholder="Username"></div>
-                            <div class="multiplayerField"><label for="multiplayerNickname">Nickname</label><input id="multiplayerNickname" maxlength="20" autocomplete="nickname" placeholder="Nickname"></div>
+                            <div class="multiplayerIdentityNotice">Your account username and nickname are taken from your Account profile. They cannot be changed here.</div>
+                            <div class="multiplayerIdentityReadOnly"><span>Username</span><strong id="multiplayerAccountUsername">—</strong></div>
+                            <div class="multiplayerIdentityReadOnly"><span>Nickname</span><strong id="multiplayerAccountNickname">—</strong></div>
                         </div>
                         <div id="multiplayerGuestIdentity" class="multiplayerGuestIdentity">Guest name: <strong id="multiplayerGuestName">Loading…</strong></div>
                         <div class="multiplayerField"><label for="multiplayerRoom">Room Name</label><input id="multiplayerRoom" maxlength="32" autocomplete="off" placeholder="MyWorld"></div>
@@ -491,7 +493,7 @@ function ensureMenu() {
         });
         window.__webminecraftMultiplayerMenuGuard.observe(document.body, { childList: true, subtree: true });
     }
-    const serverView = overlay.querySelector("#multiplayerServerView"), roomView = overlay.querySelector("#multiplayerRoomView"), serverList = overlay.querySelector("#multiplayerServerList"), serverDetails = overlay.querySelector("#multiplayerServerDetails"), roomCreateButton = overlay.querySelector("#multiplayerRoomCreateButton"), roomList = overlay.querySelector("#multiplayerRoomList"), selectedInfo = overlay.querySelector("#multiplayerSelected"), usernameInput = overlay.querySelector("#multiplayerUsername"), nicknameInput = overlay.querySelector("#multiplayerNickname"), identityFields = overlay.querySelector("#multiplayerAccountIdentity"), guestIdentity = overlay.querySelector("#multiplayerGuestIdentity"), guestNameLabel = overlay.querySelector("#multiplayerGuestName"), roomInput = overlay.querySelector("#multiplayerRoom"), serverInput = overlay.querySelector("#multiplayerServer"), publicButton = overlay.querySelector("#multiplayerPublic"), privateButton = overlay.querySelector("#multiplayerPrivate"), privateCodeWrap = overlay.querySelector("#multiplayerPrivateCode"), privateCodeInput = overlay.querySelector("#multiplayerPrivateCodeInput"), keepOpen24hButton = overlay.querySelector("#multiplayerKeepOpen24h"), status = overlay.querySelector("#multiplayerStatus"), joinButton = overlay.querySelector("#multiplayerJoin"), backButton = overlay.querySelector("#multiplayerBack"), stepServer = overlay.querySelector("#multiplayerStepServer"), stepRoom = overlay.querySelector("#multiplayerStepRoom");
+    const serverView = overlay.querySelector("#multiplayerServerView"), roomView = overlay.querySelector("#multiplayerRoomView"), serverList = overlay.querySelector("#multiplayerServerList"), serverDetails = overlay.querySelector("#multiplayerServerDetails"), roomCreateButton = overlay.querySelector("#multiplayerRoomCreateButton"), roomList = overlay.querySelector("#multiplayerRoomList"), selectedInfo = overlay.querySelector("#multiplayerSelected"), identityFields = overlay.querySelector("#multiplayerAccountIdentity"), accountUsernameLabel = overlay.querySelector("#multiplayerAccountUsername"), accountNicknameLabel = overlay.querySelector("#multiplayerAccountNickname"), guestIdentity = overlay.querySelector("#multiplayerGuestIdentity"), guestNameLabel = overlay.querySelector("#multiplayerGuestName"), roomInput = overlay.querySelector("#multiplayerRoom"), serverInput = overlay.querySelector("#multiplayerServer"), publicButton = overlay.querySelector("#multiplayerPublic"), privateButton = overlay.querySelector("#multiplayerPrivate"), privateCodeWrap = overlay.querySelector("#multiplayerPrivateCode"), privateCodeInput = overlay.querySelector("#multiplayerPrivateCodeInput"), keepOpen24hButton = overlay.querySelector("#multiplayerKeepOpen24h"), status = overlay.querySelector("#multiplayerStatus"), joinButton = overlay.querySelector("#multiplayerJoin"), backButton = overlay.querySelector("#multiplayerBack"), stepServer = overlay.querySelector("#multiplayerStepServer"), stepRoom = overlay.querySelector("#multiplayerStepRoom");
     let selectedServer = null, serverData = [], selectedPrivate = false, keepOpen24h = false;
     let serverRefreshTimer = null;
     let serverLoadInFlight = false;
@@ -518,8 +520,8 @@ function ensureMenu() {
         if (identity.loggedIn) {
             identityFields.classList.add("visible");
             guestIdentity.classList.remove("visible");
-            usernameInput.value = identity.username;
-            nicknameInput.value = identity.nickname;
+            accountUsernameLabel.textContent = identity.username || "Not set";
+            accountNicknameLabel.textContent = identity.nickname || "Not set";
         } else {
             identityFields.classList.remove("visible");
             guestIdentity.classList.add("visible");
@@ -551,8 +553,7 @@ function ensureMenu() {
             refreshCreateIdentityUi();
             joinButton.disabled = false;
             requestAnimationFrame(() => {
-                const identity = getMultiplayerIdentity();
-                (identity.loggedIn ? usernameInput : roomInput)?.focus();
+                roomInput.focus();
             });
         } else {
             roomInput.value = "";
@@ -568,14 +569,9 @@ function ensureMenu() {
         if (!roomName) { roomInput.focus(); setStatus("Enter a room name first.", true); return; }
         if (roomName.toLowerCase() === "player") { roomInput.focus(); setStatus("The room name \"player\" is reserved. Choose another room name.", true); return; }
         const identity = getMultiplayerIdentity();
-        if (identity.loggedIn) {
-            const username = String(usernameInput.value || "").trim().slice(0,16);
-            const nickname = String(nicknameInput.value || "").trim().slice(0,20);
-            if (!username) { usernameInput.focus(); setStatus("Enter your username.", true); return; }
-            if (!/^[A-Za-z0-9_]{3,16}$/.test(username)) { usernameInput.focus(); setStatus("Username must be 3–16 characters using letters, numbers, or underscores.", true); return; }
-            if (!nickname) { nicknameInput.focus(); setStatus("Enter your nickname.", true); return; }
-            localStorage.setItem("webminecraft-account-username", username);
-            localStorage.setItem("webminecraft-account-nickname", nickname);
+        if (identity.loggedIn && (!identity.username || !identity.nickname)) {
+            setStatus("Set your username and nickname in Account before creating a server.", true);
+            return;
         }
         joinButton.disabled = false;
         joinButton.click();
@@ -644,14 +640,17 @@ function ensureMenu() {
         let nickname = "";
 
         if (identity.loggedIn) {
-            username = String(usernameInput.value || identity.username || "").trim().slice(0,16);
-            nickname = String(nicknameInput.value || identity.nickname || "").trim().slice(0,20);
-            if (!username) { setStatus("Enter your username.", true); usernameInput?.focus(); return; }
-            if (!/^[A-Za-z0-9_]{3,16}$/.test(username)) { setStatus("Username must be 3–16 characters using letters, numbers, or underscores.", true); usernameInput?.focus(); return; }
-            if (!nickname) { setStatus("Enter your nickname.", true); nicknameInput?.focus(); return; }
+            username = identity.username;
+            nickname = identity.nickname;
+            if (!username || !nickname) {
+                setStatus("Set your username and nickname in Account before joining this server.", true);
+                return;
+            }
+            if (!/^[A-Za-z0-9_]{3,16}$/.test(username)) {
+                setStatus("Your saved account username is invalid. Fix it in Account.", true);
+                return;
+            }
             name = nickname;
-            localStorage.setItem("webminecraft-account-username", username);
-            localStorage.setItem("webminecraft-account-nickname", nickname);
         } else {
             generatedGuestName = sessionStorage.getItem("webminecraft-guest-name") || generatedGuestName || makeGuestName();
             sessionStorage.setItem("webminecraft-guest-name", generatedGuestName);
