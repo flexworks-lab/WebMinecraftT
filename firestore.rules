@@ -148,7 +148,9 @@ service cloud.firestore {
     }
 
     match /serverControl/{controlId} {
-      allow read: if request.auth != null;
+      // The client needs to read maintenance state even before login so guests
+      // also cannot open the Create Server flow while maintenance is enabled.
+      allow read: if true;
       allow create, update, delete: if isDeveloper();
     }
 
