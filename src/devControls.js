@@ -12,6 +12,8 @@ let devPinUnlocked = false;
 let devPinPrompt = null;
 let devPinResolve = null;
 let activeDevUid = null;
+let discussionUnsubscribers = [];
+let liveDiscussionDocs = new Map();
 
 const DEV_PIN_HASH_KEY = "webminecraft-dev-pin-hash-v1";
 const DEV_PIN_SALT_KEY = "webminecraft-dev-pin-salt-v1";
@@ -415,40 +417,82 @@ async function toggleMaintenance() {
     }
 }
 
+function discussionDate(data) {
+    const value = data?.createdAt?.toDate?.() || (data?.createdAt ? new Date(data.createdAt) : null);
+    return value && !Number.isNaN(value.getTime()) ? value : new Date(0);
+}
+
+function stopDiscussionListeners() {
+    discussionUnsubscribers.forEach(unsubscribe => {
+        try { unsubscribe?.(); } catch {}
+    });
+    discussionUnsubscribers = [];
+    liveDiscussionDocs.clear();
+}
+
+function renderLiveDiscussionMessages() {
+    if (!messageList) return;
+    const results = [];
+    for (const [key, item] of liveDiscussionDocs) {
+        results.push(item);
+    }
+    results.sort((a, b) => discussionDate(b.data).getTime() - discussionDate(a.data).getTime());
+
+    messageList.innerHTML = "";
+    if (!results.length) {
+        messageList.innerHTML = '<div class="devHint">No messages found.</div>';
+        return;
+    }
+
+    for (const item of results) {
+        const data = item.data || {};
+        const row = document.createElement("div");
+        row.className = "devMessage";
+        const date = discussionDate(data);
+        row.innerHTML = `<div class="devMessageTop"><span class="devMessageChannel">${item.channel === "bugs" ? "BUG" : "CHAT"}</span><span class="devMessageName">${escapeHtml(data.name || "Player")}</span><span class="devMessageTime">${date.getTime() ? escapeHtml(date.toLocaleString()) : ""}</span></div><div class="devMessageText">${escapeHtml(data.text || "")}</div><button class="devMessageDelete" type="button">Delete Message</button>`;
+        row.querySelector(".devMessageDelete").addEventListener("click", () => deleteMessage(item.channel, item.id, row));
+        messageList.appendChild(row);
+    }
+}
+
 async function loadMessages() {
     const { firebase, user } = await getDevUser();
     if (!user) return setStatus("Developer access denied.", true);
     const db = dbFor(firebase);
     if (!db || !messageList) return;
-    messageList.innerHTML = '<div class="devHint">Loading...</div>';
+
+    stopDiscussionListeners();
+    messageList.innerHTML = '<div class="devHint">Connecting to live discussions...</div>';
+
     try {
-        const results = [];
         for (const channel of CHANNELS) {
-            const snapshot = await db.collection(DISCUSSION_COLLECTION).doc(channel).collection("messages").orderBy("createdAt", "desc").limit(100).get();
-            snapshot.docs.forEach(doc => results.push({ channel, doc }));
+            const ref = db.collection(DISCUSSION_COLLECTION).doc(channel).collection("messages").limit(200);
+            const unsubscribe = ref.onSnapshot(snapshot => {
+                for (const change of snapshot.docChanges()) {
+                    const key = `${channel}:${change.doc.id}`;
+                    if (change.type === "removed") {
+                        liveDiscussionDocs.delete(key);
+                    } else {
+                        liveDiscussionDocs.set(key, {
+                            channel,
+                            id: change.doc.id,
+                            data: change.doc.data() || {}
+                        });
+                    }
+                }
+                renderLiveDiscussionMessages();
+            }, error => {
+                console.error(`Live ${channel} discussion load failed:`, error);
+                setStatus(`Live ${channel === "bugs" ? "bug reports" : "chat"} could not be loaded.`, true);
+            });
+            discussionUnsubscribers.push(unsubscribe);
         }
-        results.sort((a, b) => {
-            const at = a.doc.data()?.createdAt?.toDate?.()?.getTime?.() || 0;
-            const bt = b.doc.data()?.createdAt?.toDate?.()?.getTime?.() || 0;
-            return bt - at;
-        });
-        messageList.innerHTML = "";
-        if (!results.length) {
-            messageList.innerHTML = '<div class="devHint">No messages found.</div>';
-            return;
-        }
-        for (const item of results) {
-            const data = item.doc.data() || {};
-            const row = document.createElement("div");
-            row.className = "devMessage";
-            const date = data.createdAt?.toDate?.();
-            row.innerHTML = `<div class="devMessageTop"><span class="devMessageChannel">${item.channel === "bugs" ? "BUG" : "CHAT"}</span><span class="devMessageName">${escapeHtml(data.name || "Player")}</span><span class="devMessageTime">${date ? escapeHtml(date.toLocaleString()) : ""}</span></div><div class="devMessageText">${escapeHtml(data.text || "")}</div><button class="devMessageDelete" type="button">Delete Message</button>`;
-            row.querySelector(".devMessageDelete").addEventListener("click", () => deleteMessage(item.channel, item.doc.id, row));
-            messageList.appendChild(row);
-        }
+        renderLiveDiscussionMessages();
+        setStatus("Discussions are live. New messages update automatically.");
     } catch (error) {
-        console.error("Developer message load failed:", error);
-        messageList.innerHTML = '<div class="devHint">Could not load messages. Check Firestore rules.</div>';
+        console.error("Developer live discussion setup failed:", error);
+        messageList.innerHTML = '<div class="devHint">Could not connect to live discussions.</div>';
+        setStatus("Could not connect to live discussions.", true);
     }
 }
 
@@ -493,8 +537,7 @@ async function deleteChannel(channel) {
             total += snapshot.size;
             if (snapshot.size < 400) break;
         }
-        setStatus(`Deleted ${total} messages from ${channel}.`);
-        await loadMessages();
+        setStatus(`Deleted ${total} messages from ${channel}. Live list updated automatically.`);
     } catch (error) {
         console.error(error);
         setStatus("Could not delete the channel messages.", true);
@@ -521,8 +564,7 @@ async function deleteEverything() {
             return setStatus("Could not finish deleting everything.", true);
         }
     }
-    setStatus("All discussion messages deleted.");
-    await loadMessages();
+    setStatus("All discussion messages deleted. Live list updated automatically.");
 }
 
 async function openPanel() {
