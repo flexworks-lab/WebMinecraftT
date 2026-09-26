@@ -1,7 +1,7 @@
 const DEV_EMAIL = "worthmarcus19@gmail.com";
 const COLLECTION = "discussions";
 const CHANNELS = ["bugs", "chat"];
-const NOTICE_TEXT = "dev:flexworks deleted this message";
+const NOTICE_TEXT = "Message deleted";
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 
 let firebaseReady = null;
@@ -55,12 +55,20 @@ async function announceDeletedMessage(firebase, channel, doc) {
 
     const noticeId = `moderation_${channel}_${doc.id}`;
     const expiresAt = new Date(Date.now() + TWO_DAYS_MS);
+    const deletedByName = String(data.deletedByName || "an administrator").trim().slice(0, 40);
+    const deletedByRole = String(data.deletedByRole || "admin").toLowerCase();
+    const roleLabel = deletedByRole === "developer"
+        ? "Developer"
+        : deletedByRole === "main"
+            ? "Main Admin"
+            : "Admin";
+    const targetName = String(data.name || "Player").trim().slice(0, 40);
 
     try {
         await db.collection(COLLECTION).doc("chat").collection("messages").doc(noticeId).set({
             uid: devUser.uid,
-            name: "dev:flexworks",
-            text: NOTICE_TEXT,
+            name: "Moderation",
+            text: targetName + "'s message was deleted by " + deletedByName + " (" + roleLabel + ").",
             moderation: true,
             targetUid,
             deletedChannel: channel,
