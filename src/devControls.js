@@ -344,6 +344,7 @@ function createUi() {
             <h3>Admin</h3>
             <p class="devHint">Open the full Admin Controls window directly from Developer Controls.</p>
             <button id="devOpenAdmin" class="devButton good" type="button">Open Admin Controls</button>
+            <div id="devAdminMakerMount"></div>
         </section>
         <section class="devSection">
             <h3>Quick actions</h3>
