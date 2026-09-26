@@ -131,9 +131,9 @@ function createNewsSection() {
     <input id="devNewsTitle" maxlength="100" placeholder="Example: New TNT Optimization">
     <label for="devNewsMessage">News content</label>
     <textarea id="devNewsMessage" maxlength="6000" placeholder="Write the full news post here..."></textarea>
-    <div class="devGrid"><button id="devCreateNews" class="devButton good" type="button">Create News Tab</button><button id="devCancelNews" class="devButton" type="button" style="display:none">Cancel Edit</button></div>
+    <div class="devGrid"><button id="devCreateNews" class="devButton good" type="button">Save News Tab</button><button id="devCancelNews" class="devButton" type="button" style="display:none">Cancel Edit</button></div>
     <div id="devNewsStatus"></div>
-    <div id="devNewsList"><div class="devHint">Open Developer Controls to load news tabs.</div></div>
+    <div id="devNewsList"><div class="devHint">Existing news entries load automatically here.</div></div>
 </div>`;
     const announcement = body.querySelector("#devAnnouncementPanel")?.closest("section");
     body.insertBefore(section, announcement?.nextSibling || body.querySelector("#devControlsStatus") || null);
@@ -186,31 +186,59 @@ async function saveNewsTab() {
     }
 }
 
+function newsDate(data) {
+    const value = data?.updatedAt?.toDate?.() || data?.createdAt?.toDate?.() || (data?.updatedAt ? new Date(data.updatedAt) : null) || (data?.createdAt ? new Date(data.createdAt) : null);
+    return value && !Number.isNaN(value.getTime()) ? value : new Date(0);
+}
+
+function renderNewsTabs(snapshot) {
+    if (!newsPanel) return;
+    const list = newsPanel.querySelector("#devNewsList");
+    if (!list) return;
+
+    const docs = [...snapshot.docs].sort((a, b) => newsDate(b.data()).getTime() - newsDate(a.data()).getTime());
+    list.innerHTML = "";
+    if (!docs.length) {
+        list.innerHTML = '<div class="devHint">No past news entries found.</div>';
+        return;
+    }
+
+    docs.forEach(doc => {
+        const data = doc.data() || {};
+        const row = document.createElement("div");
+        row.className = "devNewsItem";
+        row.innerHTML = `<div class="devNewsInfo"><div class="devNewsItemVersion">${escapeHtml(data.version || "NEWS")}</div><div class="devNewsItemTitle">${escapeHtml(data.title || "Untitled")}</div><div class="devNewsItemPreview">${escapeHtml(String(data.body || "").replace(/\\s+/g, " "))}</div></div><button class="devNewsEdit" type="button">Edit</button><button class="devNewsDelete" type="button">Delete</button>`;
+        row.querySelector(".devNewsEdit").addEventListener("click", () => editNewsTab(doc.id, data));
+        row.querySelector(".devNewsDelete").addEventListener("click", () => deleteNewsTab(doc.id, data.title || "this news tab"));
+        list.appendChild(row);
+    });
+}
+
 async function loadNewsTabs() {
     const { firebase, user } = await getDevUser();
     if (!user || !newsPanel) return;
     const db = firebase?.firestore?.();
     const list = newsPanel.querySelector("#devNewsList");
     if (!db || !list) return;
+
     try {
-        const snapshot = await db.collection(NEWS_COLLECTION).orderBy("updatedAt", "desc").get();
-        list.innerHTML = "";
-        if (snapshot.empty) {
-            list.innerHTML = '<div class="devHint">No custom news tabs yet.</div>';
-            return;
+        if (newsUnsubscribe) {
+            newsUnsubscribe();
+            newsUnsubscribe = null;
         }
-        snapshot.docs.forEach(doc => {
-            const data = doc.data() || {};
-            const row = document.createElement("div");
-            row.className = "devNewsItem";
-            row.innerHTML = `<div class="devNewsInfo"><div class="devNewsItemVersion">${escapeHtml(data.version || "NEWS")}</div><div class="devNewsItemTitle">${escapeHtml(data.title || "Untitled")}</div><div class="devNewsItemPreview">${escapeHtml(String(data.body || "").replace(/\s+/g, " "))}</div></div><button class="devNewsEdit" type="button">Edit</button><button class="devNewsDelete" type="button">Delete</button>`;
-            row.querySelector(".devNewsEdit").addEventListener("click", () => editNewsTab(doc.id, data));
-            row.querySelector(".devNewsDelete").addEventListener("click", () => deleteNewsTab(doc.id, data.title || "this news tab"));
-            list.appendChild(row);
+        list.innerHTML = '<div class="devHint">Loading past news entries...</div>';
+        newsUnsubscribe = db.collection(NEWS_COLLECTION).onSnapshot(snapshot => {
+            renderNewsTabs(snapshot);
+            setNewsStatus(`${snapshot.size} past news entr${snapshot.size === 1 ? "y" : "ies"} loaded. Changes update automatically.`);
+        }, error => {
+            console.error("News tab live load failed:", error);
+            list.innerHTML = '<div class="devHint">Could not load past news entries. Check Firestore rules.</div>';
+            setNewsStatus("Could not load past news entries.", true);
         });
     } catch (error) {
-        console.error("News tab load failed:", error);
-        list.innerHTML = '<div class="devHint">Could not load news tabs. Check Firestore rules.</div>';
+        console.error("News tab live setup failed:", error);
+        list.innerHTML = '<div class="devHint">Could not load past news entries.</div>';
+        setNewsStatus("Could not load past news entries.", true);
     }
 }
 
