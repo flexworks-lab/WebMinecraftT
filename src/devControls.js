@@ -146,6 +146,14 @@ function closeDevPinPrompt(result = false) {
     if (resolve) resolve(result);
 }
 
+async function changeDevPin() {
+    if (!hasDevPin()) return showDevPinPrompt("setup");
+    const currentPin = await showDevPinPrompt("unlock");
+    if (!currentPin) return false;
+    const setup = await showDevPinPrompt("setup");
+    return setup;
+}
+
 function showDevPinPrompt(mode = "unlock") {
     closeDevPinPrompt(false);
     return new Promise(resolve => {
@@ -353,11 +361,13 @@ function createUi() {
     panel.querySelector("#devReload").addEventListener("click", () => location.reload());
     panel.querySelector("#devChangePin").addEventListener("click", async () => {
         if (!activeDevUid) return setStatus("Developer access denied.", true);
-        const ok = await showDevPinPrompt("setup");
+        const ok = await changeDevPin();
         if (ok) setStatus("Developer PIN changed.");
     });
     panel.querySelector("#devLogout").addEventListener("click", async () => {
         const firebase = await waitForFirebase();
+        setDevPinSession(activeDevUid, false);
+        devPinUnlocked = false;
         try { await firebase?.auth?.()?.signOut?.(); } catch {}
         closePanel();
     });
@@ -542,6 +552,8 @@ async function init() {
         const user = firebase?.auth?.()?.currentUser || null;
         const button = document.getElementById("devControlsButton");
         const allowed = String(user?.email || "").toLowerCase() === DEV_EMAIL;
+        const previousUid = activeDevUid;
+        if (!allowed && previousUid) setDevPinSession(previousUid, false);
         activeDevUid = allowed ? user.uid : null;
         devPinUnlocked = allowed && isDevPinSessionUnlocked(user.uid);
         if (button) button.style.display = allowed ? "block" : "none";
