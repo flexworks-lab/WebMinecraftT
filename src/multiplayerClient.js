@@ -491,11 +491,44 @@ function ensureMenu() {
         });
         window.__webminecraftMultiplayerMenuGuard.observe(document.body, { childList: true, subtree: true });
     }
-    const serverView = overlay.querySelector("#multiplayerServerView"), roomView = overlay.querySelector("#multiplayerRoomView"), serverList = overlay.querySelector("#multiplayerServerList"), serverDetails = overlay.querySelector("#multiplayerServerDetails"), roomCreateButton = overlay.querySelector("#multiplayerRoomCreateButton"), roomList = overlay.querySelector("#multiplayerRoomList"), selectedInfo = overlay.querySelector("#multiplayerSelected"), nameInput = overlay.querySelector("#multiplayerName"), roomInput = overlay.querySelector("#multiplayerRoom"), serverInput = overlay.querySelector("#multiplayerServer"), publicButton = overlay.querySelector("#multiplayerPublic"), privateButton = overlay.querySelector("#multiplayerPrivate"), privateCodeWrap = overlay.querySelector("#multiplayerPrivateCode"), privateCodeInput = overlay.querySelector("#multiplayerPrivateCodeInput"), keepOpen24hButton = overlay.querySelector("#multiplayerKeepOpen24h"), status = overlay.querySelector("#multiplayerStatus"), joinButton = overlay.querySelector("#multiplayerJoin"), backButton = overlay.querySelector("#multiplayerBack"), stepServer = overlay.querySelector("#multiplayerStepServer"), stepRoom = overlay.querySelector("#multiplayerStepRoom");
+    const serverView = overlay.querySelector("#multiplayerServerView"), roomView = overlay.querySelector("#multiplayerRoomView"), serverList = overlay.querySelector("#multiplayerServerList"), serverDetails = overlay.querySelector("#multiplayerServerDetails"), roomCreateButton = overlay.querySelector("#multiplayerRoomCreateButton"), roomList = overlay.querySelector("#multiplayerRoomList"), selectedInfo = overlay.querySelector("#multiplayerSelected"), usernameInput = overlay.querySelector("#multiplayerUsername"), nicknameInput = overlay.querySelector("#multiplayerNickname"), identityFields = overlay.querySelector("#multiplayerAccountIdentity"), guestIdentity = overlay.querySelector("#multiplayerGuestIdentity"), guestNameLabel = overlay.querySelector("#multiplayerGuestName"), roomInput = overlay.querySelector("#multiplayerRoom"), serverInput = overlay.querySelector("#multiplayerServer"), publicButton = overlay.querySelector("#multiplayerPublic"), privateButton = overlay.querySelector("#multiplayerPrivate"), privateCodeWrap = overlay.querySelector("#multiplayerPrivateCode"), privateCodeInput = overlay.querySelector("#multiplayerPrivateCodeInput"), keepOpen24hButton = overlay.querySelector("#multiplayerKeepOpen24h"), status = overlay.querySelector("#multiplayerStatus"), joinButton = overlay.querySelector("#multiplayerJoin"), backButton = overlay.querySelector("#multiplayerBack"), stepServer = overlay.querySelector("#multiplayerStepServer"), stepRoom = overlay.querySelector("#multiplayerStepRoom");
     let selectedServer = null, serverData = [], selectedPrivate = false, keepOpen24h = false;
     let serverRefreshTimer = null;
     let serverLoadInFlight = false;
-    nameInput.value = localStorage.getItem("webminecraft-player-name") || "Player";
+    let generatedGuestName = "";
+
+    const makeGuestName = () => {
+        const adjectives = ["Pixel","Block","Creeper","Stone","Craft","Redstone","Sky","Oak","Ender","Moss"];
+        const animals = ["Fox","Wolf","Bee","Bear","Cat","Otter","Panda","Raven","Goat","Frog"];
+        const wordA = adjectives[Math.floor(Math.random() * adjectives.length)];
+        const wordB = animals[Math.floor(Math.random() * animals.length)];
+        const number = Math.floor(100 + Math.random() * 900);
+        return `${wordA}${wordB}${number}`.slice(0, 20);
+    };
+
+    const getMultiplayerIdentity = () => {
+        const user = window.firebase?.auth?.().currentUser || null;
+        const username = String(localStorage.getItem("webminecraft-account-username") || "").trim().slice(0, 16);
+        const nickname = String(user?.displayName || localStorage.getItem("webminecraft-account-nickname") || "").trim().slice(0, 20);
+        return { loggedIn: Boolean(user?.uid), username, nickname };
+    };
+
+    const refreshCreateIdentityUi = () => {
+        const identity = getMultiplayerIdentity();
+        if (identity.loggedIn) {
+            identityFields.classList.add("visible");
+            guestIdentity.classList.remove("visible");
+            usernameInput.value = identity.username;
+            nicknameInput.value = identity.nickname;
+        } else {
+            identityFields.classList.remove("visible");
+            guestIdentity.classList.add("visible");
+            generatedGuestName = sessionStorage.getItem("webminecraft-guest-name") || generatedGuestName || makeGuestName();
+            sessionStorage.setItem("webminecraft-guest-name", generatedGuestName);
+            guestNameLabel.textContent = generatedGuestName;
+        }
+    };
+
     roomInput.value = localStorage.getItem("webminecraft-room") || "default";
     serverInput.value = defaultServerUrl();
     const setStatus = (text, error = false) => { status.textContent = text; status.style.color = error ? "#ef9a8e" : "#a8ca8e"; status.style.borderLeftColor = error ? "#b96a60" : "#6f8e58"; };
