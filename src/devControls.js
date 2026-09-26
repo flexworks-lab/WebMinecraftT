@@ -8,6 +8,14 @@ let statusEl = null;
 let messageList = null;
 let maintenanceEnabled = false;
 let maintenanceUnsubscribe = null;
+let devPinUnlocked = false;
+let devPinPrompt = null;
+let devPinResolve = null;
+let activeDevUid = null;
+
+const DEV_PIN_HASH_KEY = "webminecraft-dev-pin-hash-v1";
+const DEV_PIN_SALT_KEY = "webminecraft-dev-pin-salt-v1";
+const DEV_PIN_SESSION_KEY = "webminecraft-dev-pin-session-v1";
 
 function waitForFirebase(timeout = 15000) {
     if (firebaseReady) return firebaseReady;
@@ -49,6 +57,199 @@ function setStatus(text, error = false) {
     statusEl.style.color = error ? "#e38a7b" : "#9fce72";
 }
 
+
+function pinStorageAvailable() {
+    try {
+        return typeof localStorage !== "undefined";
+    } catch {
+        return false;
+    }
+}
+
+function sessionStorageAvailable() {
+    try {
+        return typeof sessionStorage !== "undefined";
+    } catch {
+        return false;
+    }
+}
+
+function bytesToHex(buffer) {
+    return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashDevPin(pin, saltHex) {
+    if (!window.crypto?.subtle) throw new Error("Secure PIN hashing is not available in this browser.");
+    const encoder = new TextEncoder();
+    const salt = saltHex
+        ? Uint8Array.from((saltHex.match(/../g) || []).map(hex => parseInt(hex, 16)))
+        : crypto.getRandomValues(new Uint8Array(16));
+    const baseKey = await crypto.subtle.importKey("raw", encoder.encode(pin), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits(
+        { name: "PBKDF2", salt, iterations: 120000, hash: "SHA-256" },
+        baseKey,
+        256
+    );
+    return { hash: bytesToHex(bits), salt: saltHex || bytesToHex(salt) };
+}
+
+function hasDevPin() {
+    if (!pinStorageAvailable()) return false;
+    try {
+        return Boolean(localStorage.getItem(DEV_PIN_HASH_KEY) && localStorage.getItem(DEV_PIN_SALT_KEY));
+    } catch {
+        return false;
+    }
+}
+
+function isDevPinSessionUnlocked(uid) {
+    if (!sessionStorageAvailable() || !uid) return false;
+    try {
+        return sessionStorage.getItem(DEV_PIN_SESSION_KEY) === uid;
+    } catch {
+        return false;
+    }
+}
+
+function setDevPinSession(uid, unlocked) {
+    if (!sessionStorageAvailable()) return;
+    try {
+        if (unlocked) sessionStorage.setItem(DEV_PIN_SESSION_KEY, uid);
+        else sessionStorage.removeItem(DEV_PIN_SESSION_KEY);
+    } catch {}
+}
+
+async function saveNewDevPin(pin) {
+    const value = String(pin || "");
+    if (!/^[0-9]{4,12}$/.test(value)) {
+        throw new Error("PIN must be 4 to 12 digits.");
+    }
+    const result = await hashDevPin(value);
+    localStorage.setItem(DEV_PIN_HASH_KEY, result.hash);
+    localStorage.setItem(DEV_PIN_SALT_KEY, result.salt);
+}
+
+async function verifyDevPin(pin) {
+    if (!hasDevPin()) return false;
+    const expectedHash = localStorage.getItem(DEV_PIN_HASH_KEY);
+    const salt = localStorage.getItem(DEV_PIN_SALT_KEY);
+    const result = await hashDevPin(String(pin || ""), salt);
+    return result.hash === expectedHash;
+}
+
+function closeDevPinPrompt(result = false) {
+    if (!devPinPrompt) return;
+    devPinPrompt.remove();
+    devPinPrompt = null;
+    const resolve = devPinResolve;
+    devPinResolve = null;
+    if (resolve) resolve(result);
+}
+
+function showDevPinPrompt(mode = "unlock") {
+    closeDevPinPrompt(false);
+    return new Promise(resolve => {
+        devPinResolve = resolve;
+        const overlay = document.createElement("div");
+        overlay.id = "devPinPrompt";
+        overlay.innerHTML = `
+<div id="devPinCard" role="dialog" aria-modal="true" aria-labelledby="devPinTitle">
+    <div class="devPinEyebrow">WEBMINECRAFTT • DEVELOPER</div>
+    <h2 id="devPinTitle">${mode === "setup" ? "Set Developer PIN" : "Developer PIN Required"}</h2>
+    <p id="devPinDescription">${mode === "setup" ? "Create the PIN that protects Developer Controls on this browser." : "Enter the developer PIN to unlock Developer Controls for this login."}</p>
+    <input id="devPinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="one-time-code" placeholder="PIN">
+    ${mode === "setup" ? '<input id="devPinConfirm" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="one-time-code" placeholder="Confirm PIN">' : ""}
+    <div id="devPinStatus"></div>
+    <div class="devPinActions">
+        <button id="devPinCancel" class="devButton" type="button">Cancel</button>
+        <button id="devPinSubmit" class="devButton good" type="button">${mode === "setup" ? "Save PIN" : "Unlock"}</button>
+    </div>
+</div>`;
+        document.body.appendChild(overlay);
+        devPinPrompt = overlay;
+        const input = overlay.querySelector("#devPinInput");
+        const confirm = overlay.querySelector("#devPinConfirm");
+        const status = overlay.querySelector("#devPinStatus");
+        const submit = overlay.querySelector("#devPinSubmit");
+        const cancel = overlay.querySelector("#devPinCancel");
+
+        const setPinStatus = (message, error = true) => {
+            status.textContent = message || "";
+            status.style.color = error ? "#e38a7b" : "#9fce72";
+        };
+
+        const submitPin = async () => {
+            const pin = input.value.trim();
+            if (!/^[0-9]{4,12}$/.test(pin)) {
+                setPinStatus("Use 4 to 12 digits.");
+                input.focus();
+                return;
+            }
+            if (mode === "setup") {
+                if (confirm.value.trim() !== pin) {
+                    setPinStatus("The PINs do not match.");
+                    confirm.focus();
+                    return;
+                }
+                try {
+                    submit.disabled = true;
+                    await saveNewDevPin(pin);
+                    setDevPinSession(activeDevUid, true);
+                    devPinUnlocked = true;
+                    closeDevPinPrompt(true);
+                } catch (error) {
+                    submit.disabled = false;
+                    setPinStatus(error?.message || "Could not save the PIN.");
+                }
+                return;
+            }
+            try {
+                submit.disabled = true;
+                const valid = await verifyDevPin(pin);
+                if (!valid) {
+                    submit.disabled = false;
+                    setPinStatus("Incorrect PIN.");
+                    input.select();
+                    return;
+                }
+                setDevPinSession(activeDevUid, true);
+                devPinUnlocked = true;
+                closeDevPinPrompt(true);
+            } catch (error) {
+                submit.disabled = false;
+                setPinStatus(error?.message || "Could not verify the PIN.");
+            }
+        };
+
+        submit.addEventListener("click", submitPin);
+        cancel.addEventListener("click", () => closeDevPinPrompt(false));
+        overlay.addEventListener("click", event => {
+            if (event.target === overlay) closeDevPinPrompt(false);
+        });
+        overlay.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                submitPin();
+            } else if (event.key === "Escape") {
+                event.preventDefault();
+                closeDevPinPrompt(false);
+            }
+            event.stopPropagation();
+        });
+        setTimeout(() => input.focus(), 0);
+    });
+}
+
+async function ensureDevPinUnlocked() {
+    if (!activeDevUid) return false;
+    if (devPinUnlocked || isDevPinSessionUnlocked(activeDevUid)) {
+        devPinUnlocked = true;
+        return true;
+    }
+    const mode = hasDevPin() ? "unlock" : "setup";
+    return showDevPinPrompt(mode);
+}
+
 function addStyles() {
     if (document.getElementById("devControlsStyles")) return;
     const style = document.createElement("style");
@@ -56,24 +257,26 @@ function addStyles() {
     style.textContent = `
 #devControlsButton{position:fixed;right:28px;bottom:82px;z-index:98;display:none;min-height:48px;padding:0 16px;border:2px solid #111;border-top-color:#888;border-left-color:#888;border-radius:3px;background:linear-gradient(#75504d,#5d3f3c);color:#fff;font-family:MinecraftFont,monospace;font-size:12px;cursor:pointer;text-shadow:2px 2px 0 #222;box-shadow:0 3px 0 #111}
 #devControlsButton:hover{filter:brightness(1.1)}
-#devControlsModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.78);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:500;padding:20px;box-sizing:border-box}
-#devControlsPanel{width:min(900px,96vw);height:min(760px,92vh);display:flex;flex-direction:column;background:linear-gradient(#292929,#181818);border:2px solid #111;border-top-color:#777;border-left-color:#777;box-shadow:9px 9px 0 rgba(0,0,0,.5);color:#fff;font-family:Arial,sans-serif;box-sizing:border-box}
-#devControlsHeader{display:flex;align-items:center;gap:14px;padding:16px 18px;border-bottom:2px solid #0d0d0d;background:#3b2928}
-#devControlsTitle{margin:0;font-family:MinecraftFont,monospace;font-size:23px;text-shadow:2px 2px 0 #000}
-#devControlsClose{margin-left:auto;width:42px;height:40px;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:#4c4c4c;color:#fff;font-size:20px;cursor:pointer}
-#devControlsBody{flex:1;min-height:0;overflow:auto;padding:18px}
-.devSection{margin-bottom:18px;padding:14px;background:#222;border:1px solid #414141}
-.devSection h3{margin:0 0 10px;font-family:MinecraftFont,monospace;font-size:15px}
-.devHint{color:#999;font-size:11px;line-height:1.45;margin:0 0 11px}
-.devGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.devButton{min-height:42px;padding:9px 12px;border:2px solid #111;border-top-color:#888;border-left-color:#888;background:linear-gradient(#666,#4e4e4e);color:#fff;font-family:MinecraftFont,monospace;font-size:11px;cursor:pointer;text-shadow:2px 2px 0 #222}
-.devButton:hover{filter:brightness(1.1)}
-.devButton.danger{background:linear-gradient(#7b4c48,#603b38)}
-.devButton.good{background:linear-gradient(#657f4b,#4f683b)}
+#devControlsModal{position:fixed;inset:0;display:none;align-items:stretch;justify-content:stretch;background:#101313;z-index:500;box-sizing:border-box}
+#devControlsPanel{width:100vw;height:100vh;display:flex;flex-direction:column;background:linear-gradient(180deg,#1c211e,#111513);color:#fff;font-family:Arial,sans-serif;box-sizing:border-box}
+#devControlsHeader{display:flex;align-items:center;gap:16px;padding:18px 24px;border-bottom:2px solid #0a0c0b;background:linear-gradient(180deg,#27302a,#1b211e);min-height:74px;box-sizing:border-box}
+#devControlsTitle{margin:0;font-family:MinecraftFont,monospace;font-size:24px;letter-spacing:.5px;text-shadow:2px 2px 0 #000}
+#devControlsHeader::after{content:"DEVELOPER MODE";font-family:MinecraftFont,monospace;font-size:10px;color:#93b36e;margin-left:4px;opacity:.9}
+#devControlsClose{margin-left:auto;width:44px;height:44px;border:0;background:transparent;color:#fff;font-size:30px;line-height:1;cursor:pointer;box-shadow:none}
+#devControlsClose:hover{background:rgba(255,255,255,.06);transform:none}
+#devControlsBody{flex:1;min-height:0;overflow:auto;padding:22px 24px 30px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;align-content:start}
+.devSection{margin:0;padding:18px;background:linear-gradient(180deg,#202722,#1a201c);border:1px solid #344139;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.devSection h3{margin:0 0 10px;font-family:MinecraftFont,monospace;font-size:15px;color:#e8f0e5}
+.devHint{color:#94a097;font-size:11px;line-height:1.5;margin:0 0 12px}
+.devGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.devButton{min-height:44px;padding:9px 12px;border:2px solid #101311;border-top-color:#777f79;border-left-color:#777f79;background:linear-gradient(#656b67,#505653);color:#fff;font-family:MinecraftFont,monospace;font-size:11px;cursor:pointer;text-shadow:2px 2px 0 #222}
+.devButton:hover{filter:brightness(1.08)}
+.devButton.danger{background:linear-gradient(#7a4d48,#603b37)}
+.devButton.good{background:linear-gradient(#657f4b,#50683d)}
 .devButton:disabled{opacity:.5;cursor:default}
-#devControlsStatus{min-height:18px;color:#999;font-size:11px;margin-top:8px}
-#devMessageList{display:flex;flex-direction:column;gap:7px;max-height:310px;overflow:auto}
-.devMessage{padding:9px;background:#171717;border:1px solid #3b3b3b}
+#devControlsStatus{grid-column:1/-1;min-height:22px;padding:7px 2px;color:#9fce72;font-size:11px}
+#devMessageList{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 390px);overflow:auto;margin-top:12px;padding-right:3px}
+.devMessage{padding:10px;background:#121714;border:1px solid #313b34}
 .devMessageTop{display:flex;gap:8px;align-items:center;margin-bottom:5px;font-size:11px}
 .devMessageChannel{font-weight:700;color:#d4a58f}
 .devMessageName{font-weight:700;color:#b8dc95;word-break:break-word}
@@ -81,10 +284,20 @@ function addStyles() {
 .devMessageText{font-size:12px;line-height:1.4;color:#eee;white-space:pre-wrap;word-break:break-word;margin-bottom:7px}
 .devMessageDelete{min-height:30px;padding:5px 9px;border:1px solid #111;background:#633f3b;color:#fff;cursor:pointer;font-size:10px}
 .devMessageDelete:hover{background:#7b4c48}
-.devToggleRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px;background:#171717;border:1px solid #3b3b3b}
+.devToggleRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:#121714;border:1px solid #313b34}
 .devToggleText strong{display:block;font-size:12px;margin-bottom:3px}.devToggleText span{color:#888;font-size:10px}
 .devState{font-family:MinecraftFont,monospace;font-size:10px;color:#9fce72}
-@media(max-width:650px){#devControlsButton{right:14px;bottom:82px}.devGrid{grid-template-columns:1fr}.devMessageTime{display:none}}
+#devPinPrompt{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.84);padding:20px;box-sizing:border-box}
+#devPinCard{width:min(430px,92vw);padding:24px;background:linear-gradient(#202722,#151a17);border:2px solid #0c0f0d;border-top-color:#68736a;border-left-color:#68736a;box-shadow:0 10px 32px rgba(0,0,0,.55);box-sizing:border-box}
+.devPinEyebrow{font-family:MinecraftFont,monospace;font-size:9px;color:#8eab70;margin-bottom:10px}
+#devPinTitle{margin:0 0 8px;font-family:MinecraftFont,monospace;font-size:18px;text-shadow:2px 2px 0 #000}
+#devPinDescription{margin:0 0 16px;color:#a7b0aa;font-size:12px;line-height:1.5}
+#devPinInput,#devPinConfirm{display:block;width:100%;box-sizing:border-box;margin-top:9px;padding:12px;background:#0e1210;color:#fff;border:2px solid #0a0c0b;border-top-color:#657068;border-left-color:#657068;outline:none;font-size:18px;letter-spacing:5px;text-align:center}
+#devPinInput:focus,#devPinConfirm:focus{border-color:#7fa05f}
+#devPinStatus{min-height:20px;margin-top:9px;font-size:11px}
+.devPinActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+@media(max-width:900px){#devControlsBody{grid-template-columns:1fr}.devGrid{grid-template-columns:1fr}#devMessageList{max-height:420px}}
+@media(max-width:650px){#devControlsButton{right:14px;bottom:82px}#devControlsHeader{padding:15px 16px}#devControlsBody{padding:15px 16px 24px}.devSection{padding:14px}#devControlsTitle{font-size:19px}#devControlsHeader::after{display:none}.devMessageTime{display:none}}
 `;
     document.head.appendChild(style);
 }
@@ -120,7 +333,7 @@ function createUi() {
         <section class="devSection">
             <h3>Quick actions</h3>
             <p class="devHint">Useful owner tools for keeping the site under control.</p>
-            <div class="devGrid"><button id="devReload" class="devButton" type="button">Reload Website</button><button id="devLogout" class="devButton" type="button">Sign Out</button></div>
+            <div class="devGrid"><button id="devReload" class="devButton" type="button">Reload Website</button><button id="devChangePin" class="devButton" type="button">Change PIN</button><button id="devLogout" class="devButton danger" type="button">Sign Out</button></div>
         </section>
         <div id="devControlsStatus"></div>
     </div>
@@ -138,6 +351,11 @@ function createUi() {
     panel.querySelector("#devDeleteBugs").addEventListener("click", () => deleteChannel("bugs"));
     panel.querySelector("#devDeleteAll").addEventListener("click", deleteEverything);
     panel.querySelector("#devReload").addEventListener("click", () => location.reload());
+    panel.querySelector("#devChangePin").addEventListener("click", async () => {
+        if (!activeDevUid) return setStatus("Developer access denied.", true);
+        const ok = await showDevPinPrompt("setup");
+        if (ok) setStatus("Developer PIN changed.");
+    });
     panel.querySelector("#devLogout").addEventListener("click", async () => {
         const firebase = await waitForFirebase();
         try { await firebase?.auth?.()?.signOut?.(); } catch {}
@@ -301,6 +519,9 @@ async function openPanel() {
     createUi();
     const { user } = await getDevUser();
     if (!user) return alert("Developer access denied.");
+    activeDevUid = user.uid;
+    const unlocked = await ensureDevPinUnlocked();
+    if (!unlocked) return;
     panel.dataset.devVisible = "1";
     panel.style.display = "flex";
     document.exitPointerLock?.();
@@ -317,18 +538,23 @@ function closePanel() {
 async function init() {
     createUi();
     const firebase = await waitForFirebase();
-    const syncButton = () => {
+    const syncButton = async () => {
         const user = firebase?.auth?.()?.currentUser || null;
         const button = document.getElementById("devControlsButton");
         const allowed = String(user?.email || "").toLowerCase() === DEV_EMAIL;
+        activeDevUid = allowed ? user.uid : null;
+        devPinUnlocked = allowed && isDevPinSessionUnlocked(user.uid);
         if (button) button.style.display = allowed ? "block" : "none";
+        if (!allowed) {
+            closePanel();
+            closeDevPinPrompt(false);
+        } else if (user && !devPinUnlocked) {
+            await ensureDevPinUnlocked();
+        }
     };
-    syncButton();
-    firebase?.auth?.()?.onAuthStateChanged?.(user => {
-        const button = document.getElementById("devControlsButton");
-        const allowed = String(user?.email || "").toLowerCase() === DEV_EMAIL;
-        if (button) button.style.display = allowed ? "block" : "none";
-        if (!allowed) closePanel();
+    await syncButton();
+    firebase?.auth?.()?.onAuthStateChanged?.(async user => {
+        await syncButton();
     });
 }
 
