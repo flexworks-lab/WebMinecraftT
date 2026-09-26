@@ -60,6 +60,26 @@ function canViewBugReports(user) {
     return isDeveloper(user);
 }
 
+function getVerifiedChatRole(user) {
+    if (!user) return "";
+    if (isDeveloper(user)) return "developer";
+    return "";
+}
+
+async function getMyVerifiedChatRole(firebase, user) {
+    if (!user?.uid || !firebase?.firestore) return "";
+    if (isDeveloper(user)) return "developer";
+    try {
+        const snap = await firebase.firestore().collection("admins").doc(user.uid).get();
+        const data = snap.data() || {};
+        if (snap.exists && data.enabled === true) {
+            return String(data.role || "admin").toLowerCase() === "main" ? "main" : "admin";
+        }
+    } catch {}
+    return "";
+}
+
+
 function channelRef(firebase, channel) {
     const db = firestore(firebase);
     return db?.collection(COLLECTION).doc(channel).collection("messages") || null;
@@ -103,6 +123,10 @@ body.webminecraft-in-world #discussionModal{display:none !important}
 .discussionMessage{padding:10px 12px;background:#222;border:1px solid #3f3f3f;border-radius:4px}
 .discussionMessageHead{display:flex;align-items:center;gap:9px;margin-bottom:5px}
 .discussionMessageName{font-weight:700;color:#b8dc95;word-break:break-word}
+.discussionVerifiedBadge{display:inline-flex;align-items:center;gap:3px;margin-left:-3px;padding:2px 5px;border-radius:999px;font:900 9px/1 Arial,sans-serif;white-space:nowrap;text-shadow:1px 1px 0 rgba(0,0,0,.35);vertical-align:1px}
+.discussionVerifiedDeveloper{background:#7d2020;border:1px solid #ff6b5f;color:#fff0ed}
+.discussionVerifiedMain{background:#6f5217;border:1px solid #d8ae48;color:#fff3bd}
+.discussionVerifiedAdmin{background:#245a96;border:1px solid #5ea9ff;color:#eaf5ff}
 .discussionMessageTime{font-size:10px;color:#777;margin-left:auto;white-space:nowrap}
 .discussionMessageText{font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word;color:#eee}
 #discussionEmpty{text-align:center;color:#777;padding:50px 20px;font-size:13px}
@@ -289,7 +313,15 @@ function renderMessage(doc) {
     const date = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
     const validDate = date && !Number.isNaN(date.getTime()) ? date : null;
     const time = validDate ? validDate.toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) : "";
-    wrapper.innerHTML = `<div class="discussionMessageHead"><span class="discussionMessageName">${escapeHtml(data.name || "Player")}</span><span class="discussionMessageTime">${escapeHtml(time)}</span></div><div class="discussionMessageText">${escapeHtml(censorUserText(data.text || ""))}</div>`;
+    const verifiedRole = String(data.verifiedRole || "").toLowerCase();
+    const badge = verifiedRole === "developer"
+        ? `<span class="discussionVerifiedBadge discussionVerifiedDeveloper">✓ Developer</span>`
+        : verifiedRole === "main"
+            ? `<span class="discussionVerifiedBadge discussionVerifiedMain">★ Main Admin</span>`
+            : verifiedRole === "admin"
+                ? `<span class="discussionVerifiedBadge discussionVerifiedAdmin">✓ Verified Admin</span>`
+                : "";
+    wrapper.innerHTML = `<div class="discussionMessageHead"><span class="discussionMessageName">${escapeHtml(data.name || "Player")}</span>${badge}<span class="discussionMessageTime">${escapeHtml(time)}</span></div><div class="discussionMessageText">${escapeHtml(censorUserText(data.text || ""))}</div>`;
     return wrapper;
 }
 
@@ -379,12 +411,14 @@ async function sendMessage() {
         setStatus("Sending...");
         const createdAt = new Date();
         const expiresAt = new Date(Date.now() + TWO_DAYS_MS);
+        const verifiedRole = await getMyVerifiedChatRole(firebase, user);
         const ref = channelRef(firebase, activeChannel);
         if (!ref) throw new Error("Firestore is not available.");
         await ref.add({
             uid: user.uid,
             name: currentDisplayName(user),
             text,
+            verifiedRole,
             createdAt,
             expiresAt
         });
