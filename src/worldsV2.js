@@ -1,4 +1,5 @@
 import { clearHotbar } from "./inventory.js";
+import { normalizeSafeName } from "./textCensorship.js";
 
 const INDEX_KEY = "webminecraft_saved_world_index_v2";
 const DELETED_KEY = "webminecraft_deleted_worlds";
@@ -59,7 +60,7 @@ function normalize(world, fallbackIndex = 0) {
     const createdAt = world?.createdAt || new Date().toISOString();
     return {
         seed,
-        name: String(world?.name || `World ${fallbackIndex + 1}`).trim().slice(0, MAX_NAME) || `World ${fallbackIndex + 1}`,
+        name: normalizeSafeName(world?.name || `World ${fallbackIndex + 1}`, `World ${fallbackIndex + 1}`),
         createdAt,
         updatedAt: world?.updatedAt || createdAt,
         lastPlayedAt: world?.lastPlayedAt || world?.updatedAt || createdAt,
@@ -516,7 +517,7 @@ async function createWorld() {
     const message = modal.querySelector("[data-create-message]");
     const button = modal.querySelector('[data-act="create"]');
     let seed = seedOf(pendingSeed) ?? randomSeed();
-    const name = input.value.trim().slice(0, MAX_NAME) || `World ${worldsCache.length + 1}`;
+    const name = normalizeSafeName(input.value, `World ${worldsCache.length + 1}`);
     button.disabled = true;
     message.textContent = "Creating world...";
     try {
