@@ -275,6 +275,7 @@ function createUi() {
     <div id="discussionWarning">⚠ Please be respectful. Do not post bad, hateful, threatening, or inappropriate content. Keep the chat friendly for everyone.</div>
     <div id="discussionMessages"><div id="discussionEmpty">Loading…</div></div>
     <div id="discussionComposer">
+        <div id="discussionReplyBar"><span id="discussionReplyBarText"></span><button id="discussionReplyCancel" type="button" aria-label="Cancel reply">×</button></div>
         <textarea id="discussionInput" maxlength="1000" placeholder="Write a message..."></textarea>
         <div id="discussionComposerBottom"><div id="discussionStatus"></div><button id="discussionSend" type="button">Send</button></div>
     </div>
