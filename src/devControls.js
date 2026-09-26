@@ -18,6 +18,7 @@ let liveDiscussionDocs = new Map();
 const DEV_PIN_HASH_KEY = "webminecraft-dev-pin-hash-v1";
 const DEV_PIN_SALT_KEY = "webminecraft-dev-pin-salt-v1";
 const DEV_PIN_SESSION_KEY = "webminecraft-dev-pin-session-v1";
+const DEV_PIN_DOC_PATH = ["developerSecurity", "pin"];
 
 function waitForFirebase(timeout = 15000) {
     if (firebaseReady) return firebaseReady;
@@ -95,13 +96,51 @@ async function hashDevPin(pin, saltHex) {
     return { hash: bytesToHex(bits), salt: saltHex || bytesToHex(salt) };
 }
 
-function hasDevPin() {
+function hasLocalDevPin() {
     if (!pinStorageAvailable()) return false;
     try {
         return Boolean(localStorage.getItem(DEV_PIN_HASH_KEY) && localStorage.getItem(DEV_PIN_SALT_KEY));
     } catch {
         return false;
     }
+}
+
+function cacheDevPin(result) {
+    if (!pinStorageAvailable() || !result?.hash || !result?.salt) return;
+    try {
+        localStorage.setItem(DEV_PIN_HASH_KEY, result.hash);
+        localStorage.setItem(DEV_PIN_SALT_KEY, result.salt);
+    } catch {}
+}
+
+async function loadPersistentDevPin(firebase) {
+    const db = dbFor(firebase);
+    if (!db) return false;
+    try {
+        const ref = db.collection(DEV_PIN_DOC_PATH[0]).doc(DEV_PIN_DOC_PATH[1]);
+        const snapshot = await ref.get();
+        const data = snapshot.data() || {};
+        if (data.hash && data.salt) {
+            cacheDevPin({ hash: data.hash, salt: data.salt });
+            return true;
+        }
+        if (hasLocalDevPin()) {
+            await ref.set({
+                hash: localStorage.getItem(DEV_PIN_HASH_KEY),
+                salt: localStorage.getItem(DEV_PIN_SALT_KEY),
+                updatedAt: new Date(),
+                updatedBy: DEV_EMAIL
+            }, { merge: true });
+            return true;
+        }
+    } catch (error) {
+        console.error("Persistent developer PIN load failed:", error);
+    }
+    return false;
+}
+
+function hasDevPin() {
+    return hasLocalDevPin();
 }
 
 function isDevPinSessionUnlocked(uid) {
@@ -127,8 +166,39 @@ async function saveNewDevPin(pin) {
         throw new Error("PIN must be 4 to 12 digits.");
     }
     const result = await hashDevPin(value);
-    localStorage.setItem(DEV_PIN_HASH_KEY, result.hash);
-    localStorage.setItem(DEV_PIN_SALT_KEY, result.salt);
+    cacheDevPin(result);
+
+    const firebase = await waitForFirebase();
+    const db = dbFor(firebase);
+    const user = firebase?.auth?.()?.currentUser;
+    if (!db || !user || String(user.email || "").toLowerCase() !== DEV_EMAIL) {
+        throw new Error("Developer account is not ready.");
+    }
+    await db.collection(DEV_PIN_DOC_PATH[0]).doc(DEV_PIN_DOC_PATH[1]).set({
+        hash: result.hash,
+        salt: result.salt,
+        updatedAt: new Date(),
+        updatedBy: DEV_EMAIL
+    }, { merge: true });
+}
+
+async function verifyPersistentDevPin(pin) {
+    const firebase = await waitForFirebase();
+    const db = dbFor(firebase);
+    if (db) {
+        try {
+            const snapshot = await db.collection(DEV_PIN_DOC_PATH[0]).doc(DEV_PIN_DOC_PATH[1]).get();
+            const data = snapshot.data() || {};
+            if (data.hash && data.salt) {
+                cacheDevPin({ hash: data.hash, salt: data.salt });
+                const result = await hashDevPin(String(pin || ""), data.salt);
+                return result.hash === data.hash;
+            }
+        } catch (error) {
+            console.error("Persistent developer PIN verification failed:", error);
+        }
+    }
+    return verifyDevPin(pin);
 }
 
 async function verifyDevPin(pin) {
@@ -149,6 +219,7 @@ function closeDevPinPrompt(result = false) {
 }
 
 async function changeDevPin() {
+    await loadPersistentDevPin(await waitForFirebase());
     if (!hasDevPin()) return showDevPinPrompt("setup");
     const currentPin = await showDevPinPrompt("unlock");
     if (!currentPin) return false;
@@ -166,7 +237,7 @@ function showDevPinPrompt(mode = "unlock") {
 <div id="devPinCard" role="dialog" aria-modal="true" aria-labelledby="devPinTitle">
     <div class="devPinEyebrow">WEBMINECRAFTT • DEVELOPER</div>
     <h2 id="devPinTitle">${mode === "setup" ? "Set Developer PIN" : "Developer PIN Required"}</h2>
-    <p id="devPinDescription">${mode === "setup" ? "Create the PIN that protects Developer Controls on this browser." : "Enter the developer PIN to unlock Developer Controls for this login."}</p>
+    <p id="devPinDescription">${mode === "setup" ? "Create the PIN that protects Developer Controls. It is saved to your developer account and stays the same when you sign in again." : "Enter the developer PIN to unlock Developer Controls for this login."}</p>
     <input id="devPinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="one-time-code" placeholder="PIN">
     ${mode === "setup" ? '<input id="devPinConfirm" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="one-time-code" placeholder="Confirm PIN">' : ""}
     <div id="devPinStatus"></div>
@@ -215,7 +286,7 @@ function showDevPinPrompt(mode = "unlock") {
             }
             try {
                 submit.disabled = true;
-                const valid = await verifyDevPin(pin);
+                const valid = await verifyPersistentDevPin(pin);
                 if (!valid) {
                     submit.disabled = false;
                     setPinStatus("Incorrect PIN.");
@@ -252,6 +323,7 @@ function showDevPinPrompt(mode = "unlock") {
 
 async function ensureDevPinUnlocked() {
     if (!activeDevUid) return false;
+    await loadPersistentDevPin(await waitForFirebase());
     if (devPinUnlocked || isDevPinSessionUnlocked(activeDevUid)) {
         devPinUnlocked = true;
         return true;
