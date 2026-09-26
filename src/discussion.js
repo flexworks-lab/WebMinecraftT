@@ -7,6 +7,7 @@ const CHANNELS = {
 const MAX_TEXT = 1000;
 const MAX_NAME = 40;
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+const DEV_EMAIL = "worthmarcus19@gmail.com";
 const DISCUSSION_SEEN_KEY = "webminecraft-discussions-seen-v1";
 let unreadUnsubscribers = [];
 let discussionUnreadCount = 0;
@@ -49,6 +50,14 @@ function waitForFirebase(timeout = 15000) {
 
 function firestore(firebase) {
     try { return firebase?.firestore?.(); } catch { return null; }
+}
+
+function isDeveloper(user) {
+    return String(user?.email || "").trim().toLowerCase() === DEV_EMAIL.toLowerCase();
+}
+
+function canViewBugReports(user) {
+    return isDeveloper(user);
 }
 
 function channelRef(firebase, channel) {
@@ -163,7 +172,8 @@ function startUnreadListeners(firebase, user) {
     const seen = getSeenDiscussionIds();
     const channelReady = new Map();
 
-    for (const channel of Object.keys(CHANNELS)) {
+    const channels = isDeveloper(user) ? Object.keys(CHANNELS) : ["chat"];
+    for (const channel of channels) {
         const ref = channelRef(firebase, channel);
         if (!ref) continue;
         try {
@@ -173,7 +183,7 @@ function startUnreadListeners(firebase, user) {
                     for (const doc of docs) seen.add(String(doc.id));
                     saveSeenDiscussionIds(seen);
                     channelReady.set(channel, true);
-                    if (Object.keys(CHANNELS).every(name => channelReady.get(name))) discussionUnreadReady = true;
+                    if (channels.every(name => channelReady.get(name))) discussionUnreadReady = true;
                     if (discussionModalOpen) setDiscussionUnreadCount(0);
                     return;
                 }
@@ -194,6 +204,16 @@ function startUnreadListeners(firebase, user) {
         } catch (error) {
             console.warn("Could not start discussion unread listener:", error);
         }
+    }
+}
+
+function updateBugReportsVisibility(user = null) {
+    if (!modal) return;
+    const bugTab = modal.querySelector('.discussionTab[data-channel="bugs"]');
+    const showBugs = isDeveloper(user);
+    if (bugTab) bugTab.style.display = showBugs ? "" : "none";
+    if (!showBugs && activeChannel === "bugs") {
+        selectChannel("chat");
     }
 }
 
@@ -295,6 +315,12 @@ async function subscribe() {
         return;
     }
     try {
+        const user = firebase?.auth?.()?.currentUser || null;
+        if (activeChannel === "bugs" && !canViewBugReports(user)) {
+            if (list) list.innerHTML = '<div id="discussionEmpty">Bug reports are private.</div>';
+            setStatus("Only the developer can view bug reports.", true);
+            return;
+        }
         const ref = channelRef(firebase, activeChannel);
         const db = firestore(firebase);
         if (!ref || !db) throw new Error("Firestore is not available.");
@@ -397,6 +423,8 @@ async function openDiscussions() {
         return;
     }
 
+    updateBugReportsVisibility(user);
+    if (!canViewBugReports(user) && activeChannel === "bugs") activeChannel = "chat";
     modal.style.display = "flex";
     document.exitPointerLock?.();
     modal.querySelector("#discussionSubtitle").textContent = CHANNELS[activeChannel].subtitle;
@@ -420,6 +448,7 @@ async function init() {
     if (firebase?.auth) {
         firebase.auth().onAuthStateChanged(user => {
             stopUnreadListeners();
+            updateBugReportsVisibility(user);
             if (user) startUnreadListeners(firebase, user);
             else setDiscussionUnreadCount(0);
         });
