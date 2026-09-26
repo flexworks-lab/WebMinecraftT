@@ -13,6 +13,7 @@ let unreadUnsubscribers = [];
 let discussionUnreadCount = 0;
 let discussionUnreadReady = false;
 let discussionModalOpen = false;
+let activeReply = null;
 
 let authReady = null;
 let modal = null;
@@ -129,6 +130,15 @@ body.webminecraft-in-world #discussionModal{display:none !important}
 .discussionVerifiedAdmin{background:#245a96;border:1px solid #5ea9ff;color:#eaf5ff}
 .discussionMessageTime{font-size:10px;color:#777;margin-left:auto;white-space:nowrap}
 .discussionMessageText{font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word;color:#eee}
+.discussionReplyQuote{margin:0 0 8px;padding:7px 9px;border-left:3px solid #6f914f;background:#171717;color:#aaa;font-size:11px;line-height:1.35}
+.discussionReplyQuote strong{color:#cfe7b7}
+.discussionMessageActions{display:flex;justify-content:flex-end;margin-top:8px}
+.discussionReplyButton{min-height:28px;padding:4px 9px;background:#303530;border:1px solid #4b564a;color:#cfe7b7;border-radius:5px;font:700 10px Arial,sans-serif;cursor:pointer}
+.discussionReplyButton:hover{background:#3a423a}
+#discussionReplyBar{display:none;align-items:center;gap:8px;margin:0 18px 8px;padding:8px 10px;background:#20261f;border:1px solid #4a6140;color:#cfe7b7;font-size:11px}
+#discussionReplyBar.open{display:flex}
+#discussionReplyBarText{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#discussionReplyCancel{border:0;background:transparent;color:#aaa;cursor:pointer;font-size:16px}
 #discussionEmpty{text-align:center;color:#777;padding:50px 20px;font-size:13px}
 #discussionComposer{padding:12px 18px;border-top:2px solid #0d0d0d;background:#292929}
 #discussionInput{width:100%;min-height:78px;resize:none;padding:10px 12px;box-sizing:border-box;background:#111;color:#fff;border:2px solid #0a0a0a;border-top-color:#666;border-left-color:#666;outline:none;font:13px Arial,sans-serif}
@@ -279,6 +289,7 @@ function createUi() {
     modal.addEventListener("click", event => { if (event.target === modal) closeDiscussions(); });
     modal.querySelectorAll(".discussionTab").forEach(tab => tab.addEventListener("click", () => selectChannel(tab.dataset.channel)));
     sendButton.addEventListener("click", sendMessage);
+    modal.querySelector("#discussionReplyCancel").addEventListener("click", clearReplyTarget);
     input.addEventListener("keydown", event => {
         event.stopPropagation();
         if (event.key === "Enter" && !event.shiftKey) {
@@ -306,6 +317,32 @@ function setStatus(text, error = false) {
     status.style.color = error ? "#d99a9a" : "#999";
 }
 
+function clearReplyTarget() {
+    activeReply = null;
+    const bar = document.getElementById("discussionReplyBar");
+    if (!bar) return;
+    bar.classList.remove("open");
+    const text = document.getElementById("discussionReplyBarText");
+    if (text) text.textContent = "";
+}
+
+function setReplyTarget(data, id) {
+    const name = String(data?.name || "Player").trim();
+    const messageText = String(data?.text || "").replace(/\s+/g, " ").trim();
+    activeReply = {
+        id: String(id || ""),
+        name: name.slice(0, MAX_NAME),
+        text: messageText.slice(0, 180)
+    };
+    const bar = document.getElementById("discussionReplyBar");
+    const text = document.getElementById("discussionReplyBarText");
+    if (bar && text) {
+        text.textContent = "Replying to " + activeReply.name + ": " + activeReply.text;
+        bar.classList.add("open");
+    }
+    input?.focus();
+}
+
 function renderMessage(doc) {
     const data = doc.data() || {};
     const wrapper = document.createElement("article");
@@ -321,7 +358,20 @@ function renderMessage(doc) {
             : verifiedRole === "admin"
                 ? `<span class="discussionVerifiedBadge discussionVerifiedAdmin">✓ Verified Admin</span>`
                 : "";
-    wrapper.innerHTML = `<div class="discussionMessageHead"><span class="discussionMessageName">${escapeHtml(data.name || "Player")}</span>${badge}<span class="discussionMessageTime">${escapeHtml(time)}</span></div><div class="discussionMessageText">${escapeHtml(censorUserText(data.text || ""))}</div>`;
+    const reply = data.replyTo && typeof data.replyTo === "object" ? data.replyTo : null;
+    const replyQuote = reply?.name
+        ? '<div class="discussionReplyQuote"><strong>Reply to ' + escapeHtml(reply.name) + '</strong><br>' + escapeHtml(String(reply.text || "").slice(0, 180)) + '</div>'
+        : "";
+    wrapper.dataset.messageId = String(doc.id);
+    wrapper.innerHTML = '<div class="discussionMessageHead"><span class="discussionMessageName">' + escapeHtml(data.name || "Player") + '</span>' + badge + '<span class="discussionMessageTime">' + escapeHtml(time) + '</span></div>' +
+        replyQuote +
+        '<div class="discussionMessageText">' + escapeHtml(censorUserText(data.text || "")) + '</div>' +
+        '<div class="discussionMessageActions"><button class="discussionReplyButton" type="button">Reply</button></div>';
+    wrapper.querySelector(".discussionReplyButton")?.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        setReplyTarget(data, doc.id);
+    });
     return wrapper;
 }
 
@@ -419,10 +469,16 @@ async function sendMessage() {
             name: currentDisplayName(user),
             text,
             verifiedRole,
+            replyTo: activeReply ? {
+                id: activeReply.id,
+                name: activeReply.name,
+                text: activeReply.text
+            } : null,
             createdAt,
             expiresAt
         });
         input.value = "";
+        clearReplyTarget();
         setStatus("Sent!");
     } catch (error) {
         console.error("Discussion send failed:", error);
