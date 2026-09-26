@@ -11,14 +11,12 @@ service cloud.firestore {
 
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email_verified == true
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled == true;
     }
 
     function isMainAdmin() {
       return request.auth != null
-        && request.auth.token.email_verified == true
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled == true
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'main';
@@ -27,7 +25,6 @@ service cloud.firestore {
     match /admins/{uid} {
       allow get: if isDeveloper()
         || (request.auth != null
-          && request.auth.token.email_verified == true
           && request.auth.uid == uid);
       allow list: if isDeveloper();
       allow create, update, delete: if isDeveloper();
