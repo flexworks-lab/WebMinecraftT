@@ -7,6 +7,11 @@ const CHANNELS = {
 const MAX_TEXT = 1000;
 const MAX_NAME = 40;
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+const DISCUSSION_SEEN_KEY = "webminecraft-discussions-seen-v1";
+let unreadUnsubscribers = [];
+let discussionUnreadCount = 0;
+let discussionUnreadReady = false;
+let discussionModalOpen = false;
 
 let authReady = null;
 let modal = null;
@@ -67,6 +72,12 @@ function addStyles() {
     style.textContent = `
 #discussionButton{position:fixed;left:28px;bottom:82px;width:118px;min-height:48px;z-index:97;border:2px solid #1b1b1b;border-top-color:#a4a4a4;border-left-color:#a4a4a4;border-radius:0;background:linear-gradient(#737373,#565656);color:#fff;font-family:MinecraftFont,monospace;font-size:12px;cursor:pointer;text-shadow:2px 2px 0 #333;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62);outline:none;transition:none}
 #discussionButton:hover,#discussionButton:active{filter:none;transform:none}
+#discussionButton .discussionUnreadBadge{
+position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;
+display:flex;align-items:center;justify-content:center;border-radius:999px;background:#d93636;
+border:2px solid #151515;color:#fff;font:900 10px/1 Arial,sans-serif;text-shadow:1px 1px 0 #5b1010;
+box-shadow:0 2px 5px rgba(0,0,0,.45);pointer-events:none;z-index:5
+}
 body.webminecraft-in-world #discussionButton{display:none !important}
 body.webminecraft-in-world #discussionModal{display:none !important}
 #discussionModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:260;padding:20px;box-sizing:border-box}
@@ -96,6 +107,94 @@ body.webminecraft-in-world #discussionModal{display:none !important}
 @media(max-width:600px){#discussionButton{left:14px;bottom:82px;width:112px}#discussionPanel{height:94vh;width:98vw}#discussionTitle{font-size:19px}.discussionMessageTime{display:none}}
 `;
     document.head.appendChild(style);
+}
+
+function getSeenDiscussionIds() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(DISCUSSION_SEEN_KEY) || "[]");
+        return new Set(Array.isArray(raw) ? raw.map(String) : []);
+    } catch {
+        return new Set();
+    }
+}
+
+function saveSeenDiscussionIds(ids) {
+    try {
+        localStorage.setItem(DISCUSSION_SEEN_KEY, JSON.stringify([...ids].slice(-1000)));
+    } catch {}
+}
+
+function setDiscussionUnreadCount(count) {
+    const button = document.getElementById("discussionButton");
+    if (!button) return;
+    button.querySelector(".discussionUnreadBadge")?.remove();
+    const total = Math.max(0, Number(count) || 0);
+    discussionUnreadCount = total;
+    if (!total) return;
+    const badge = document.createElement("span");
+    badge.className = "discussionUnreadBadge";
+    badge.textContent = total > 9 ? "9+" : String(total);
+    button.appendChild(badge);
+}
+
+function markDiscussionsRead() {
+    const seen = getSeenDiscussionIds();
+    saveSeenDiscussionIds(seen);
+    setDiscussionUnreadCount(0);
+}
+
+function stopUnreadListeners() {
+    for (const unsubscribe of unreadUnsubscribers) {
+        try { unsubscribe?.(); } catch {}
+    }
+    unreadUnsubscribers = [];
+    discussionUnreadReady = false;
+}
+
+function startUnreadListeners(firebase, user) {
+    stopUnreadListeners();
+    if (!firebase || !user) {
+        setDiscussionUnreadCount(0);
+        return;
+    }
+    const db = firestore(firebase);
+    if (!db) return;
+
+    const seen = getSeenDiscussionIds();
+    const channelReady = new Map();
+
+    for (const channel of Object.keys(CHANNELS)) {
+        const ref = channelRef(firebase, channel);
+        if (!ref) continue;
+        try {
+            const unsub = ref.orderBy("createdAt", "desc").limit(100).onSnapshot(snapshot => {
+                const docs = snapshot.docs;
+                if (!discussionUnreadReady) {
+                    for (const doc of docs) seen.add(String(doc.id));
+                    saveSeenDiscussionIds(seen);
+                    channelReady.set(channel, true);
+                    if (Object.keys(CHANNELS).every(name => channelReady.get(name))) discussionUnreadReady = true;
+                    if (discussionModalOpen) setDiscussionUnreadCount(0);
+                    return;
+                }
+
+                let added = 0;
+                for (const change of snapshot.docChanges()) {
+                    if (change.type !== "added") continue;
+                    const id = String(change.doc.id);
+                    if (seen.has(id)) continue;
+                    seen.add(id);
+                    const data = change.doc.data() || {};
+                    if (String(data.uid || "") !== String(user.uid || "")) added++;
+                }
+                if (added) saveSeenDiscussionIds(seen);
+                if (!discussionModalOpen && added) setDiscussionUnreadCount(discussionUnreadCount + added);
+            }, error => console.warn("Discussion unread listener failed:", error));
+            unreadUnsubscribers.push(unsub);
+        } catch (error) {
+            console.warn("Could not start discussion unread listener:", error);
+        }
+    }
 }
 
 function createUi() {
@@ -285,6 +384,9 @@ function selectChannel(channel) {
 
 async function openDiscussions() {
     createUi();
+    discussionModalOpen = true;
+    setDiscussionUnreadCount(0);
+    markDiscussionsRead();
     const firebase = await waitForFirebase();
     const user = firebase?.auth?.()?.currentUser || null;
 
@@ -313,6 +415,14 @@ async function init() {
     if (initialized) return;
     initialized = true;
     createUi();
+    const firebase = await waitForFirebase();
+    if (firebase?.auth) {
+        firebase.auth().onAuthStateChanged(user => {
+            stopUnreadListeners();
+            if (user) startUnreadListeners(firebase, user);
+            else setDiscussionUnreadCount(0);
+        });
+    }
     await cleanupExpired();
     clearInterval(cleanupTimer);
     cleanupTimer = setInterval(cleanupExpired, 10 * 60 * 1000);
