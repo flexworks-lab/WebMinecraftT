@@ -652,7 +652,40 @@ body.webminecraft-in-world #settingsButton { display:block !important; }
           #openWorldButton{width:min(780px,94vw);margin-top:14px}
           #seedActions{grid-template-columns:1fr;width:min(780px,94vw)}
         }
-    </style>
+    
+/* Settings UI redesign */
+#settingsMenu{background:rgba(5,8,6,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#settingsPanel{grid-template-columns:290px minmax(0,1fr);background:#171b18;box-shadow:0 0 60px rgba(0,0,0,.55)}
+#settingsSidebar{padding:34px 20px 22px;background:linear-gradient(180deg,#293129 0%,#1b211c 48%,#151a16 100%);border-right:3px solid #0b0e0b;box-shadow:inset -1px 0 rgba(255,255,255,.06)}
+#settingsPanel h1{margin:0 12px 5px;font-size:34px;letter-spacing:-1px;text-shadow:3px 3px 0 #080a08}
+#settingsSubtitle{margin:0 12px 30px;color:#aeb8ae;font-size:12px;line-height:1.5}
+#settingsTabs{display:flex;flex-direction:column;gap:7px}
+.settingsTab{position:relative;min-height:52px;margin:0;padding:12px 15px;border:2px solid #101410;border-top-color:#687268;border-left-color:#687268;border-radius:5px;background:linear-gradient(180deg,#3e463f,#303730);color:#ddd;font-size:14px;box-shadow:0 3px 0 #0e120f,inset 1px 1px rgba(255,255,255,.07);transition:transform .12s,filter .12s,background .12s}
+.settingsTab:hover{transform:translateX(3px);filter:brightness(1.08);background:linear-gradient(180deg,#4a534b,#363d37)}
+.settingsTab.active{background:linear-gradient(180deg,#78965d,#597443);color:#fff;box-shadow:0 3px 0 #182116,inset 2px 2px rgba(255,255,255,.12)}
+#settingsVersion{color:#69736b;font-size:11px;line-height:1.5}
+#settingsContent{background:linear-gradient(180deg,#252b26,#1d221e)}
+#settingsHeader{height:92px;flex-basis:92px;padding:0 34px;background:linear-gradient(180deg,#323a33,#292f2a);border-bottom:3px solid #101310;box-shadow:0 3px 12px rgba(0,0,0,.18)}
+#settingsSectionTitle{font-size:23px;text-shadow:3px 3px 0 #111}
+#settingsCloseTop{width:46px;height:46px;border:2px solid #101410;border-top-color:#8b938c;border-left-color:#8b938c;border-radius:5px;background:linear-gradient(180deg,#5f6861,#474f49);box-shadow:0 3px 0 #111;font-size:24px;transition:transform .12s,filter .12s}
+#settingsCloseTop:hover{transform:translateY(-2px);filter:brightness(1.1);background:linear-gradient(180deg,#6f7971,#515b53)}
+#settingsScroll{padding:30px 34px 38px}
+.settingsGroup{max-width:1050px;margin:0 auto 30px}
+.settingsGroupTitle{margin:0 0 12px;padding:0 0 10px 2px;border-bottom:2px solid #111;font-size:15px;color:#e4e9e4;letter-spacing:.3px}
+.setting{min-height:78px;margin:9px 0;padding:15px 18px;border:2px solid #111;border-top-color:#535d55;border-left-color:#535d55;border-radius:6px;background:linear-gradient(180deg,#353c36,#2b312c);box-shadow:0 3px 0 #111,inset 1px 1px rgba(255,255,255,.045);transition:transform .12s,filter .12s}
+.setting:hover{transform:translateX(2px);filter:brightness(1.04)}
+.setting label{margin-bottom:5px;color:#fff;font-size:15px}
+.setting small{color:#a4ada5;font-size:12px}
+.settingControl{padding-left:10px}
+#settingsScroll select{width:220px;min-height:44px;border:2px solid #101310;border-top-color:#727a73;border-left-color:#727a73;border-radius:5px;background:linear-gradient(180deg,#242a25,#1b201c);color:#fff;padding:8px 11px;box-shadow:inset 1px 1px rgba(255,255,255,.05);font-family:Arial,sans-serif;font-weight:600}
+#settingsScroll select:focus{outline:2px solid #86a969;outline-offset:1px}
+input[type="range"]{width:220px;height:7px;accent-color:#82a65f}
+input[type="checkbox"]{width:25px;height:25px;accent-color:#82a65f}
+#settingsBottom{max-width:1050px;margin:8px auto 0}
+#closeSettings{min-width:190px;min-height:50px;border:2px solid #101410;border-top-color:#929b93;border-left-color:#929b93;border-radius:5px;background:linear-gradient(180deg,#69736b,#505951);box-shadow:0 4px 0 #111;font-size:14px}
+#closeSettings:hover{filter:brightness(1.1);transform:translateY(-2px)}
+@media(max-width:900px){#settingsPanel{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}#settingsSidebar{padding:18px 12px 10px;border-right:0;border-bottom:3px solid #0b0e0b}#settingsPanel h1{font-size:25px}#settingsSubtitle{margin-bottom:14px}#settingsTabs{gap:6px}.settingsTab{min-height:44px;padding:9px 12px}#settingsHeader{height:70px;flex-basis:70px;padding:0 16px}#settingsScroll{padding:18px 12px 28px}.setting{padding:13px;min-height:72px}.settingControl{padding-left:0}#settingsScroll select,input[type=range]{width:100%}#settingsBottom{width:100%}#closeSettings{width:100%}}
+</style>
 </head>
 <body>
     <script>
