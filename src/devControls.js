@@ -711,8 +711,6 @@ async function init() {
         if (!allowed) {
             closePanel();
             closeDevPinPrompt(false);
-        } else if (user && !devPinUnlocked) {
-            await ensureDevPinUnlocked();
         }
     };
     await syncButton();
