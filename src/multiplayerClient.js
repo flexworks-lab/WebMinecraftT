@@ -270,6 +270,25 @@ function makeStyle() {
         #multiplayerPanel.servers-screen #multiplayerContent{padding:0}
         #multiplayerPanel.servers-screen #multiplayerButtons{position:absolute;top:14px;right:22px;z-index:3;padding:0;background:transparent;border:0;display:flex;gap:8px}
         #multiplayerPanel.servers-screen #multiplayerJoin{display:none}
+        #multiplayerPanel.create-server-screen{position:fixed;inset:0;width:100vw;height:100vh;max-width:none;max-height:none;overflow:auto;padding:0;border:0;box-shadow:none;border-radius:0;background:linear-gradient(180deg,#252b26,#171b18)}
+        #multiplayerPanel.create-server-screen::before{display:none}
+        #multiplayerPanel.create-server-screen #multiplayerHero,#multiplayerPanel.create-server-screen #multiplayerSteps{display:none}
+        #multiplayerPanel.create-server-screen #multiplayerContent{min-height:100vh;padding:0}
+        #multiplayerPanel.create-server-screen #multiplayerRoomView{min-height:100vh;padding:clamp(28px,6vh,72px) clamp(18px,7vw,110px);box-sizing:border-box;display:flex!important;flex-direction:column;justify-content:center}
+        #multiplayerPanel.create-server-screen #multiplayerRoomView > .multiplayerSectionHead{margin:0 auto 22px;width:min(760px,100%)}
+        #multiplayerPanel.create-server-screen .multiplayerAdvanced{width:min(760px,100%);margin:0 auto;padding:22px;border-radius:8px;background:linear-gradient(180deg,#303730,#252b26);border:2px solid #111;border-top-color:#687268;border-left-color:#687268;box-shadow:0 5px 0 #0f120f,0 18px 40px rgba(0,0,0,.25)}
+        #multiplayerPanel.create-server-screen #multiplayerButtons{position:static;width:min(760px,100%);margin:16px auto 0;padding:0;background:transparent;border:0}
+        #multiplayerPanel.create-server-screen #multiplayerBack{display:none}
+        #multiplayerPanel.create-server-screen #multiplayerJoin{width:100%;display:block;min-height:54px}
+        #multiplayerPanel.create-server-screen .multiplayerHint{width:min(760px,100%);margin:12px auto 0;text-align:center}
+        .multiplayerIdentityFields{display:none}
+        .multiplayerIdentityFields.visible{display:block}
+        .multiplayerGuestIdentity{display:none;margin:0 0 12px;padding:11px 12px;background:#20261f;border:1px solid #485447;color:#b9c3b9;font-size:11px}
+        .multiplayerGuestIdentity.visible{display:block}
+        .multiplayerGuestIdentity strong{color:#fff;font-family:"MinecraftFont",monospace}
+        .multiplayerIdentityNotice{margin:0 0 10px;padding:9px 10px;background:#20261f;border-left:3px solid #7a9b5d;color:#b8c8af;font-size:10px;line-height:1.45}
+        @media(max-width:700px){#multiplayerPanel.create-server-screen #multiplayerRoomView{padding:22px 14px}#multiplayerPanel.create-server-screen .multiplayerAdvanced{padding:16px}}
+
         #multiplayerPanel.servers-screen #multiplayerBack{min-width:0;min-height:38px;padding:8px 14px}
         
         /* Worlds-style server browser */
@@ -441,7 +460,12 @@ function ensureMenu() {
                     <div id="multiplayerRoomCreate"><button id="multiplayerRoomCreateButton" type="button">+ Create Room</button></div>
                     <div id="multiplayerRoomList"></div>
                     <div class="multiplayerAdvanced">
-                        <div class="multiplayerField"><label for="multiplayerName">Your Player Name</label><input id="multiplayerName" maxlength="16" autocomplete="nickname" placeholder="Player"></div>
+                        <div id="multiplayerAccountIdentity" class="multiplayerIdentityFields">
+                            <div class="multiplayerIdentityNotice">Signed-in players must provide their account username and an in-game nickname.</div>
+                            <div class="multiplayerField"><label for="multiplayerUsername">Username</label><input id="multiplayerUsername" maxlength="16" autocomplete="username" spellcheck="false" placeholder="Username"></div>
+                            <div class="multiplayerField"><label for="multiplayerNickname">Nickname</label><input id="multiplayerNickname" maxlength="20" autocomplete="nickname" placeholder="Nickname"></div>
+                        </div>
+                        <div id="multiplayerGuestIdentity" class="multiplayerGuestIdentity">Guest name: <strong id="multiplayerGuestName">Loading…</strong></div>
                         <div class="multiplayerField"><label for="multiplayerRoom">Room Name</label><input id="multiplayerRoom" maxlength="32" autocomplete="off" placeholder="MyWorld"></div>
                         <div id="multiplayerServerType" role="group" aria-label="Server type"><button id="multiplayerPublic" class="multiplayerTypeButton selected" type="button">PUBLIC</button><button id="multiplayerPrivate" class="multiplayerTypeButton" type="button">PRIVATE</button></div>
                         <div id="multiplayerPrivateCode" class="multiplayerField"><label for="multiplayerPrivateCodeInput">Private Code</label><input id="multiplayerPrivateCodeInput" maxlength="16" autocomplete="off" placeholder="Enter code or leave blank to create"></div>
