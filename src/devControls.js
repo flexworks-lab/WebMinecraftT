@@ -620,7 +620,16 @@ async function deleteMessage(channel, id, row) {
     if (!confirm("Delete this message?")) return;
     try {
         const db = dbFor(firebase);
-        await db.collection(DISCUSSION_COLLECTION).doc(channel).collection("messages").doc(id).delete();
+        const ref = db.collection(DISCUSSION_COLLECTION).doc(channel).collection("messages").doc(id);
+        const actorName = String(user.displayName || user.email || "Developer").trim().slice(0, 40);
+        await ref.update({
+            deleted: true,
+            deletedByUid: user.uid,
+            deletedByName: actorName,
+            deletedByRole: "developer",
+            deletedAt: new Date()
+        });
+        await ref.delete();
         row?.remove();
         setStatus("Message deleted.");
     } catch (error) {
