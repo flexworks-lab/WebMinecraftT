@@ -1,5 +1,6 @@
 const NEWS_COLLECTION = "news";
 const NEWS_SEEN_KEY = "webminecraft-news-seen-live-v2";
+const NEWS_SEEN_IDS_KEY = "webminecraft-news-seen-ids-v1";
 const PREVIEW_LENGTH = 110;
 const TITLE_IMAGE_PATH = "./WEBMINECRAFT-9-12-2026.png";
 
@@ -83,9 +84,71 @@ function setSeenSignature(value) {
     } catch {}
 }
 
-function setRedDot(show) {
+function addBadgeStyles() {
+    if (document.getElementById("newsUnreadBadgeStyles")) return;
+    const style = document.createElement("style");
+    style.id = "newsUnreadBadgeStyles";
+    style.textContent = `
+#newsButton{position:relative!important}
+#newsButton .newsUnreadBadge{
+    position:absolute;
+    top:-7px;
+    right:-7px;
+    min-width:20px;
+    height:20px;
+    padding:0 5px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:#d93636;
+    border:2px solid #151515;
+    color:#fff;
+    font:900 10px/1 Arial,sans-serif;
+    text-shadow:1px 1px 0 #5b1010;
+    box-shadow:0 2px 5px rgba(0,0,0,.45);
+    pointer-events:none;
+    z-index:5;
+}
+`;
+    document.head.appendChild(style);
+}
+
+function getSeenIds() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(NEWS_SEEN_IDS_KEY) || "[]");
+        return new Set(Array.isArray(raw) ? raw.map(String) : []);
+    } catch {
+        return new Set();
+    }
+}
+
+function saveSeenIds(ids) {
+    try {
+        const values = [...ids].slice(-500);
+        localStorage.setItem(NEWS_SEEN_IDS_KEY, JSON.stringify(values));
+    } catch {}
+}
+
+function setUnreadCount(count) {
     const button = document.getElementById("newsButton");
-    if (button) button.dataset.newsNew = show ? "true" : "false";
+    if (!button) return;
+    addBadgeStyles();
+    button.querySelector(".newsUnreadBadge")?.remove();
+    const total = Math.max(0, Number(count) || 0);
+    button.dataset.newsNew = total > 0 ? "true" : "false";
+    if (!total) return;
+    const badge = document.createElement("span");
+    badge.className = "newsUnreadBadge";
+    badge.textContent = total > 9 ? "9+" : String(total);
+    button.appendChild(badge);
+}
+
+function markNewsRead() {
+    const ids = new Set(latestDocs.map(doc => String(doc.id)));
+    if (ids.size) saveSeenIds(ids);
+    setSeenSignature(latestSignatureValue);
+    setUnreadCount(0);
 }
 
 function getSortedDocs(snapshot) {
@@ -160,10 +223,8 @@ function bindNewsButton() {
     const button = document.getElementById("newsButton");
     if (!button || button.dataset.liveNewsClickBound === "1") return;
     button.dataset.liveNewsClickBound = "1";
-    button.addEventListener("click", () => {
-        setSeenSignature(latestSignatureValue);
-        setRedDot(false);
-    }, true);
+    addBadgeStyles();
+    button.addEventListener("click", markNewsRead, true);
 }
 
 function installLiveNews() {
@@ -186,10 +247,13 @@ function installLiveNews() {
                 appendOrRefreshLiveNews(latestDocs);
                 bindNewsButton();
 
-                if (latestSignatureValue) {
-                    setRedDot(getSeenSignature() !== latestSignatureValue);
+                const seenIds = getSeenIds();
+                const unread = latestDocs.filter(doc => !seenIds.has(String(doc.id))).length;
+                if (seenIds.size === 0 && latestDocs.length) {
+                    saveSeenIds(new Set(latestDocs.map(doc => String(doc.id))));
+                    setUnreadCount(0);
                 } else {
-                    setRedDot(false);
+                    setUnreadCount(unread);
                 }
             }, error => {
                 console.warn("Live news load failed:", error);
@@ -235,6 +299,7 @@ function installGameTitleImage() {
 
 function watchNewsUi() {
     installGameTitleImage();
+    addBadgeStyles();
     installLiveNews();
     if (attached) return;
 
