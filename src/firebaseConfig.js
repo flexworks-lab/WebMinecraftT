@@ -114,7 +114,29 @@ export function isFirebaseConfigured() {
             if (!window.firebase?.auth) throw new Error("Firebase Auth did not load.");
             const auth = window.firebase.auth();
             const persistence = window.firebase.auth.Auth?.Persistence?.LOCAL;
-            return persistence ? auth.setPersistence(persistence).catch(error => console.warn("Could not enable saved login persistence:", error)) : null;
+            const persistenceReady = persistence
+                ? auth.setPersistence(persistence).catch(error => console.warn("Could not enable saved login persistence:", error))
+                : Promise.resolve();
+            persistenceReady.then(() => {
+                try {
+                    const db = window.firebase?.firestore?.();
+                    const ref = db?.collection("serverControl").doc("main");
+                    if (!ref?.onSnapshot) return;
+                    window.__webMinecraftGlobalLogoutUnsubscribe?.();
+                    window.__webMinecraftGlobalLogoutUnsubscribe = ref.onSnapshot(snapshot => {
+                        const forceLogoutAt = Number(snapshot.data()?.forceLogoutAt || 0);
+                        const user = auth.currentUser;
+                        if (!forceLogoutAt || !user) return;
+                        const signedInAt = Date.parse(user.metadata?.lastSignInTime || "") || 0;
+                        if (signedInAt > 0 && forceLogoutAt > signedInAt) {
+                            auth.signOut().catch(() => {});
+                        }
+                    }, error => console.warn("Global logout listener failed:", error));
+                } catch (error) {
+                    console.warn("Global logout setup failed:", error);
+                }
+            });
+            return persistenceReady;
         })
         .catch(error => {
             window.__webMinecraftStartupFirebase = null;
