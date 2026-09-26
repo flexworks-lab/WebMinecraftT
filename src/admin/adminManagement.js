@@ -12,7 +12,7 @@ function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt
 function styles(){
  if(document.getElementById("adminManagementStyles"))return;
  const s=document.createElement("style");s.id="adminManagementStyles";s.textContent=`
-#adminManagementSection{position:relative;display:block!important;margin:0 0 18px;padding:0;overflow:hidden;background:linear-gradient(145deg,#242529,#17181b);border:1px solid #41434a;border-radius:14px;color:#fff;box-shadow:0 8px 25px rgba(0,0,0,.24)}
+#adminManagementSection{position:relative;display:block!important;grid-column:1/-1!important;width:100%!important;box-sizing:border-box;margin:0 0 18px;padding:0;overflow:hidden;background:linear-gradient(145deg,#242529,#17181b);border:1px solid #41434a;border-radius:14px;color:#fff;box-shadow:0 8px 25px rgba(0,0,0,.24)}
 #adminManagementSection:before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:3px;background:linear-gradient(90deg,#83b85b,#a8d878,#638e42);opacity:.9}
 .adminManageHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 18px 14px;border-bottom:1px solid #36383e;background:rgba(255,255,255,.02)}
 .adminManageTitleWrap{min-width:0}.adminManageTitle{margin:0;font-family:MinecraftFont,monospace;font-size:17px;line-height:1.2;text-shadow:2px 2px 0 #000}.adminManageSubtitle{margin:6px 0 0;color:#9b9da5;font-size:11px;line-height:1.5;max-width:620px}.adminManageBadge{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;padding:6px 9px;border-radius:999px;background:#20311d;border:1px solid #3f6632;color:#a7d67d;font-size:10px;font-weight:700;white-space:nowrap}
