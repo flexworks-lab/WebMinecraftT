@@ -147,6 +147,10 @@ service cloud.firestore {
           && resource.data.expiresAt <= request.time);
     }
 
+    match /developerSecurity/{documentId} {
+      allow read, create, update, delete: if isDeveloper();
+    }
+
     match /serverControl/{controlId} {
       // The client needs to read maintenance state even before login so guests
       // also cannot open the Create Server flow while maintenance is enabled.
