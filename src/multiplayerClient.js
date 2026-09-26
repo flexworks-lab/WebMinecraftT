@@ -538,8 +538,12 @@ function ensureMenu() {
     roomCreateButton.addEventListener("click", () => {
         const open = roomView.classList.toggle("create-open");
         const panel = overlay.querySelector("#multiplayerPanel");
+        const createTitle = roomView.querySelector(".multiplayerSectionTitle");
+        const createHint = roomView.querySelector(".multiplayerSectionHint");
         panel?.classList.toggle("create-server-screen", open);
-        roomCreateButton.textContent = open ? "× Cancel" : "+ Create Room";
+        roomCreateButton.textContent = open ? "× Cancel" : "+ Create Server";
+        if (createTitle) createTitle.textContent = open ? "Create Server" : "Rooms";
+        if (createHint) createHint.textContent = open ? "Set up your multiplayer server" : "Choose a room on this live server";
         if (open) {
             roomInput.value = "";
             setServerType(false);
