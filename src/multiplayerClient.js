@@ -72,9 +72,9 @@ function showConnectionLostUI() {
 window.addEventListener("webminecraft:account-username-changed", event => {
     const username = String(event.detail?.username || "").trim().slice(0, 16);
     if (!username) return;
-    localStorage.setItem("webminecraft-player-name", username);
-    const nameInput = document.getElementById("multiplayerName");
-    if (nameInput) nameInput.value = username;
+    localStorage.setItem("webminecraft-account-username", username);
+    const usernameInput = document.getElementById("multiplayerUsername");
+    if (usernameInput) usernameInput.value = username;
     if (socket && socket.readyState === WebSocket.OPEN && window.__webminecraftMultiplayerActive) {
         try { socket.send(JSON.stringify({ type: "player_name", name: username })); } catch {}
     }
