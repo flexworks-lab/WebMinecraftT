@@ -816,10 +816,11 @@ setMenuUiVisible(true);
 window.addEventListener("resize", () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
 const menuLook = { x: 0, y: 0, targetX: 0, targetY: 0 };
-window.addEventListener("pointermove", event => {
+// Main-menu camera is fully automated; mouse movement does not steer it.
+window.addEventListener("pointermove", () => {
     if (gameStarted || !mainMenu || mainMenu.style.display === "none") return;
-    menuLook.targetX = THREE.MathUtils.clamp((event.clientX / Math.max(window.innerWidth, 1) - 0.5) * 2, -1, 1);
-    menuLook.targetY = THREE.MathUtils.clamp((event.clientY / Math.max(window.innerHeight, 1) - 0.5) * 2, -1, 1);
+    menuLook.targetX = 0;
+    menuLook.targetY = 0;
 });
 window.addEventListener("pointerleave", () => { menuLook.targetX = 0; menuLook.targetY = 0; });
 
