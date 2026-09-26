@@ -1,11 +1,26 @@
-const CENSOR_TERMS = [
-    "fuck","fucker","fucking","motherfucker","shit","shitting","bullshit",
-    "bitch","bitches","bitching","cunt","asshole","assholes","dumbass","jackass",
-    "dick","dicks","dickhead","pussy","pussies","whore","whores","slut","sluts",
-    "bastard","crap","damn","hell","idiot","moron","stupid","retard","retarded",
-    "nazi","nigger","faggot","fag","dyke","spic","chink","kike","gook","tranny",
-    "porn","porno","pornography","rape","rapist","molest","molester"
+const BASE_CENSOR_TERMS = [
+    // Common profanity and insults.
+    "arsehole","asshat","asshole","assmunch","bastard","bitch","bloody","blowjob","bollocks",
+    "brainfuck","bugger","bullshit","chicken shit","ching chong","clusterfuck","cock","cocksucker",
+    "coonass","cornhole","cracker","crap","cunt","damn","dick","dickhead","dumbass","enshittification",
+    "faggot","feck","fuck","fuck her right in the pussy","fuck joe biden","fuckery","gay pejorative",
+    "grab em by the pussy","healslut","hell","hori","horseshit","if you see kay",
+    "jesus fucking christ","kike","motherfucker","nigga","nigger","niggerhead","pajeet","paki",
+    "polaco","poof","poofter","prick","pussy","queer pejorative","ratfucking","retard","russian warship go fuck yourself",
+    "serving cunt","shit","shit happens","shithouse","shitposting","shitter","shut the fuck up",
+    "shut the hell up","slut","son of a bitch","spic","taking the piss","twat","unclefucker","wanker",
+    "wetback","whore",
+
+    // Existing stronger safety terms.
+    "idiot","moron","stupid","retarded","nazi","fag","dyke","chink","gook","tranny",
+    "porn","porno","pornography","rape","rapist","molest","molester",
+
+    // Sexual phrases from the supplied dictionary.
+    "big black cock","fuck marry kill"
 ];
+
+const LEARNED_STORAGE_KEY = "webminecraft-learned-censor-terms";
+const MAX_LEARNED_TERMS = 500;
 
 const LEET = {
     a: "[a4@]",
@@ -21,20 +36,91 @@ const LEET = {
     z: "[z2]"
 };
 
+function cleanTerm(term) {
+    return String(term ?? "")
+        .toLowerCase()
+        .replace(/[\\r\\n\\t]+/g, " ")
+        .replace(/\\s+/g, " ")
+        .trim()
+        .slice(0, 80);
+}
+
+function readLearnedTerms() {
+    try {
+        const raw = localStorage.getItem(LEARNED_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map(cleanTerm).filter(Boolean).slice(0, MAX_LEARNED_TERMS);
+    } catch {
+        return [];
+    }
+}
+
+function writeLearnedTerms(terms) {
+    try {
+        localStorage.setItem(LEARNED_STORAGE_KEY, JSON.stringify(terms.slice(0, MAX_LEARNED_TERMS)));
+    } catch {}
+}
+
+function allTerms() {
+    return [...new Set([...BASE_CENSOR_TERMS, ...readLearnedTerms()].map(cleanTerm).filter(Boolean))];
+}
+
 function termPattern(term) {
-    return [...term.toLowerCase()].map(char => {
+    return [...cleanTerm(term)].map(char => {
         if (char === " ") return "[\\s\\W_]+";
-        const escaped = char.replace(/[-[\]{}()*+?.\\^$|]/g, "\\$&");
+        const escaped = char.replace(/[-[\\]{}()*+?.\\^$|]/g, "\\$&");
         return (LEET[char] || escaped) + "[^A-Za-z0-9]*";
     }).join("");
 }
 
-const TERM_REGEXES = CENSOR_TERMS
-    .sort((a, b) => b.length - a.length)
-    .map(term => new RegExp("(^|[^A-Za-z0-9])(" + termPattern(term) + ")(?=$|[^A-Za-z0-9])", "giu"));
+function buildRegexes() {
+    return allTerms()
+        .sort((a, b) => b.length - a.length)
+        .map(term => new RegExp(
+            "(^|[^A-Za-z0-9])(" + termPattern(term) + ")(?=$|[^A-Za-z0-9])",
+            "giu"
+        ));
+}
+
+let TERM_REGEXES = buildRegexes();
+
+function rebuildRegexes() {
+    TERM_REGEXES = buildRegexes();
+}
 
 function mask(match) {
-    return match.replace(/[^\s]/g, "█");
+    return match.replace(/[^\\s]/g, "█");
+}
+
+export function learnCensorTerm(term) {
+    const cleaned = cleanTerm(term);
+    if (!cleaned || cleaned.length < 2 || BASE_CENSOR_TERMS.includes(cleaned)) return false;
+
+    const learned = readLearnedTerms();
+    if (learned.includes(cleaned)) return false;
+
+    learned.push(cleaned);
+    writeLearnedTerms(learned);
+    rebuildRegexes();
+    return true;
+}
+
+export function learnCensorTerms(terms) {
+    let added = 0;
+    for (const term of Array.isArray(terms) ? terms : [terms]) {
+        if (learnCensorTerm(term)) added += 1;
+    }
+    return added;
+}
+
+export function getLearnedCensorTerms() {
+    return readLearnedTerms();
+}
+
+export function clearLearnedCensorTerms() {
+    try { localStorage.removeItem(LEARNED_STORAGE_KEY); } catch {}
+    rebuildRegexes();
 }
 
 export function censorUserText(value) {
@@ -47,8 +133,8 @@ export function censorUserText(value) {
 
 export function normalizeSafeName(value, fallback = "") {
     const censored = censorUserText(value)
-        .replace(/[\r\n\t]+/g, " ")
-        .replace(/\s+/g, " ")
+        .replace(/[\\r\\n\\t]+/g, " ")
+        .replace(/\\s+/g, " ")
         .trim()
         .slice(0, 40);
     return censored || fallback;
