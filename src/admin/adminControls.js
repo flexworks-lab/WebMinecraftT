@@ -166,7 +166,23 @@ async function loadAdminDiscussions() {
         content.querySelector(".adminRefresh").addEventListener("click", loadAdminDiscussions);
         const list = content.querySelector("#adminDiscussionList");
         if (!results.length) { list.innerHTML = '<div class="adminEmpty">No discussion messages.</div>'; return; }
-        results.forEach(item => { const card = document.createElement("article"); card.className = "adminDiscussionCard"; const date = item.data.createdAt?.toDate?.(); card.innerHTML = `<div class="adminDiscussionTop"><span class="adminDiscussionChannel">${esc(item.channel === "bugs" ? "Report Bugs" : "Universal Chat")}</span><span class="adminDiscussionUser">${esc(item.data.name || "Player")}</span><span class="adminDiscussionTime">${date ? esc(date.toLocaleString()) : ""}</span></div><div class="adminDiscussionText">${esc(item.data.text || "")}</div><button class="adminDeleteDiscussion" type="button">Delete Message</button>`; card.querySelector("button").addEventListener("click", async () => { if (!confirm("Delete this discussion message?")) return; try { await item.ref.delete(); card.remove(); } catch(e) { alert(e.message); } }); list.appendChild(card); });
+        results.forEach(item => { const card = document.createElement("article"); card.className = "adminDiscussionCard"; const date = item.data.createdAt?.toDate?.(); card.innerHTML = `<div class="adminDiscussionTop"><span class="adminDiscussionChannel">${esc(item.channel === "bugs" ? "Report Bugs" : "Universal Chat")}</span><span class="adminDiscussionUser">${esc(item.data.name || "Player")}</span><span class="adminDiscussionTime">${date ? esc(date.toLocaleString()) : ""}</span></div><div class="adminDiscussionText">${esc(item.data.text || "")}</div><button class="adminDeleteDiscussion" type="button">Delete Message</button>`; card.querySelector("button").addEventListener("click", async () => {
+            if (!confirm("Delete this discussion message?")) return;
+            try {
+                const user = firebaseUser();
+                const actorName = String(user?.displayName || user?.email || "Admin").trim().slice(0, 40);
+                const actorRole = currentAdminRole === "developer" ? "developer" : currentAdminRole === "main" ? "main" : "admin";
+                await item.ref.update({
+                    deleted: true,
+                    deletedByUid: user?.uid || "",
+                    deletedByName: actorName,
+                    deletedByRole: actorRole,
+                    deletedAt: new Date()
+                });
+                await item.ref.delete();
+                card.remove();
+            } catch(e) { alert(e.message); }
+        }); list.appendChild(card); });
     } catch(error) { content.innerHTML = `<div class="adminEmpty">${esc(error.message)}</div>`; }
 }
 
