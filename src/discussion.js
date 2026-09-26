@@ -1,3 +1,4 @@
+import { censorUserText } from "./textCensorship.js";
 const COLLECTION = "discussions";
 const CHANNELS = {
     bugs: { title: "Report Bugs", subtitle: "Tell us about a problem you found." },
@@ -169,7 +170,7 @@ function renderMessage(doc) {
     const date = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
     const validDate = date && !Number.isNaN(date.getTime()) ? date : null;
     const time = validDate ? validDate.toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) : "";
-    wrapper.innerHTML = `<div class="discussionMessageHead"><span class="discussionMessageName">${escapeHtml(data.name || "Player")}</span><span class="discussionMessageTime">${escapeHtml(time)}</span></div><div class="discussionMessageText">${escapeHtml(data.text || "")}</div>`;
+    wrapper.innerHTML = `<div class="discussionMessageHead"><span class="discussionMessageName">${escapeHtml(data.name || "Player")}</span><span class="discussionMessageTime">${escapeHtml(time)}</span></div><div class="discussionMessageText">${escapeHtml(censorUserText(data.text || ""))}</div>`;
     return wrapper;
 }
 
@@ -236,7 +237,7 @@ async function cleanupExpired() {
 
 async function sendMessage() {
     const rawText = input?.value || "";
-    const text = rawText.trim();
+    const text = censorUserText(rawText).trim();
     if (!text) return setStatus("Write a message first.", true);
     if (rawText.length > MAX_TEXT) return setStatus(`Messages are limited to ${MAX_TEXT} characters.`, true);
 
@@ -258,7 +259,7 @@ async function sendMessage() {
         await ref.add({
             uid: user.uid,
             name: currentDisplayName(user),
-            text: rawText,
+            text,
             createdAt,
             expiresAt
         });
