@@ -69,7 +69,7 @@ function allTerms() {
 function termPattern(term) {
     return [...cleanTerm(term)].map(char => {
         if (char === " ") return "[\\s\\W_]+";
-        const escaped = char.replace(/[-[\\]{}()*+?.\\^$|]/g, "\\$&");
+        const escaped = char.replace(/[.*+?^${}()|[\\]\\]/g, "\\const escaped = char.replace(/[-[\\]{}()*+?.\\^$|]/g, "\\$&");");
         return (LEET[char] || escaped) + "[^A-Za-z0-9]*";
     }).join("");
 }
