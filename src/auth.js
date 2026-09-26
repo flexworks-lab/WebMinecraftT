@@ -14,6 +14,7 @@ let friendNotificationCount = 0;
 let startupAuthStateResolved = false;
 let startupPlayerSyncUserId = null;
 let pendingSignupProfile = null;
+let activeOAuthPopup = null;
 const USERNAME_CHANGE_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000;
 
 function loadFirebaseScript(src) {
@@ -374,41 +375,47 @@ function createUi() {
             submit.disabled = false;
         }
     });
-    modal.querySelector("#accountGoogle").addEventListener("click", async () => {
-        if (!(await ensureReady())) return;
-        try {
-            const provider = new window.firebase.auth.GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: "select_account" });
-            if (!firebaseConfig.authDomain) {
-                throw Object.assign(new Error("Firebase authDomain is missing."), { code: "auth/configuration-not-found" });
-            }
-            await auth.signInWithPopup(provider);
-        } catch (error) {
-            console.error("Google sign-in failed:", error?.code || "unknown", error?.message || error);
-            setMessage(error);
-        }
-    });
+    modal.querySelector("#accountGoogle").addEventListener("click", () => signInWithGoogle());
     modal.querySelector("#accountYahoo").addEventListener("click", () => signInWithOAuth("yahoo.com", "Yahoo"));
     modal.querySelector("#accountGithub").addEventListener("click", () => signInWithOAuth("github.com", "GitHub"));
     modal.querySelector("#accountPlayGames").addEventListener("click", () => setMessage("Google Play Games sign-in is available for Android/Unity, not this web version."));
     modal.querySelector("#accountForgot").addEventListener("click", async () => { if (!(await ensureReady())) return; const emailValue = email.value.trim(); if (!emailValue) return setMessage("Enter your email first."); try { await auth.sendPasswordResetEmail(emailValue); setMessage("Password reset email sent."); } catch (error) { setMessage(error); } });
 }
 
-async function signInWithOAuth(providerId, providerName) {
+async function signInWithGoogle() {
+    if (activeOAuthPopup) return setMessage("Google sign-in is already opening. Please wait.");
     if (!(await ensureReady())) return;
-    try {
-        const provider = new window.firebase.auth.OAuthProvider(providerId);
-        if (providerId === "yahoo.com") { provider.addScope("openid"); provider.addScope("profile"); provider.addScope("email"); }
-        await auth.signInWithPopup(provider);
-    } catch (error) {
-        if (error?.code === "auth/popup-closed-by-user") return setMessage(providerName + " sign-in was closed.");
-        if (error?.code === "auth/popup-blocked") return setMessage("Your browser blocked the sign-in popup. Allow popups for flexworks-lab.github.io and try again.");
-        if (error?.code === "auth/popup-domain-unsupported") return setMessage("Firebase rejected this site's sign-in popup domain. Check Firebase Authentication → Authorized domains.");
-        if (error?.code === "auth/unauthorized-domain") return setMessage("Firebase rejected this website. Make sure flexworks-lab.github.io is an Authorized domain.");
-        if (error?.code === "auth/operation-not-allowed") return setMessage(providerName + " sign-in is not enabled in Firebase yet.");
-        if (error?.code === "auth/invalid-oauth-client-id") return setMessage("Google OAuth is misconfigured in Firebase. The Google provider's Web client ID must match the Google Cloud OAuth Web client.");
-        if (error?.code === "auth/account-exists-with-different-credential") return setMessage("An account already exists with a different sign-in method.");
-        setMessage(error);
+    activeOAuthPopup = (async () => {
+        try {
+            const provider = new window.firebase.auth.GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: "select_account" });
+            await auth.signInWithPopup(provider);
+        } catch (error) {
+            console.error("Google sign-in failed:", error?.code || "unknown", error?.message || error);
+            setMessage(error);
+        } finally {
+            activeOAuthPopup = null;
+        }
+    })();
+    await activeOAuthPopup;
+}
+
+async function signInWithOAuth(providerId, providerName) {
+    if (activeOAuthPopup) return setMessage("A sign-in popup is already opening. Please wait.");
+    if (!(await ensureReady())) return;
+    activeOAuthPopup = (async () => {
+        try {
+            const provider = new window.firebase.auth.OAuthProvider(providerId);
+            if (providerId === "yahoo.com") { provider.addScope("openid"); provider.addScope("profile"); provider.addScope("email"); }
+            await auth.signInWithPopup(provider);
+        } catch (error) {
+            console.error(providerName + " sign-in failed:", error?.code || "unknown", error?.message || error);
+            setMessage(error);
+        } finally {
+            activeOAuthPopup = null;
+        }
+    })();
+    await activeOAuthPopup;
 }
 
 function setMessage(value) {
