@@ -220,6 +220,11 @@ function sanitizeChat(value) {
         .slice(0, MAX_CHAT_LENGTH);
 }
 
+function normalizeVerifiedChatRole(value) {
+    const role = String(value || "").toLowerCase();
+    return ["developer", "main", "admin"].includes(role) ? role : "";
+}
+
 function numberOr(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -235,6 +240,7 @@ function publicPlayer(player) {
         sneaking: Boolean(player.sneaking),
         action: String(player.action || "idle"),
         role: getPlayerRole(rooms.get(player?.room), player),
+        verifiedRole: normalizeVerifiedChatRole(player?.verifiedRole),
     };
 }
 
@@ -427,6 +433,7 @@ function handleMessage(ws, raw, state) {
             heldItemId: 0,
             sneaking: false,
             action: "idle",
+            verifiedRole: normalizeVerifiedChatRole(message.verifiedRole),
             lastUpdate: 0,
         };
         room.players.set(player.id, player);
@@ -586,7 +593,7 @@ function handleMessage(ws, raw, state) {
         if (!room) return;
         const text = sanitizeChat(message.text);
         if (!text) return;
-        broadcast(room, { type: "chat_message", playerId: player.id, name: player.name, text });
+        broadcast(room, { type: "chat_message", playerId: player.id, name: player.name, text, verifiedRole: normalizeVerifiedChatRole(player.verifiedRole) });
         return;
     }
     if (message.type === "save_and_quit") {
