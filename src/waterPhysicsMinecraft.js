@@ -12,8 +12,8 @@ import { waterTexture } from "./blocks.js";
 
 const SOURCE_LEVEL = 0;
 const MAX_LEVEL = 7;
-const FLOW_INTERVAL = 75;
-const MAX_CELLS_PER_TICK = 6000;
+const FLOW_INTERVAL = 25;
+const MAX_CELLS_PER_TICK = 20000;
 const MAX_CHUNK_REBUILDS_PER_TICK = 8;
 const MAX_WATER_CELLS = 90000;
 const ACTIVE_QUEUE_LIMIT = 120000;
