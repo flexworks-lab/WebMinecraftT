@@ -672,8 +672,16 @@ function buildChunk(ck) {
         ];
 
         for (const [dx, dz, normal] of neighborDirections) {
-            const neighbor = getWater(x + dx, y, z + dz);
+            const nx = x + dx;
+            const nz = z + dz;
+            const neighbor = getWater(nx, y, nz);
+            const neighborBlock = getBlockAt(nx, y, nz);
             const nh = waterHeight(neighbor);
+
+            // A water side is only exposed when the neighboring block is air.
+            // Do not draw transparent water faces through terrain or another
+            // full-height water cell.
+            if (neighborBlock !== BLOCK.AIR) continue;
             if (neighbor && nh >= h - 0.0001) continue;
 
             const edgeA = dx !== 0 ? [
