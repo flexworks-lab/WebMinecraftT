@@ -15,8 +15,8 @@ const MAX_LEVEL = 7;
 const FLOW_INTERVAL = 25;
 const MAX_CELLS_PER_TICK = 20000;
 const MAX_CHUNK_REBUILDS_PER_TICK = 8;
-const MAX_WATER_CELLS = 90000;
-const ACTIVE_QUEUE_LIMIT = 120000;
+const MAX_WATER_CELLS = 600000;
+const ACTIVE_QUEUE_LIMIT = 750000;
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const BLOCK = getBlockTypes();
