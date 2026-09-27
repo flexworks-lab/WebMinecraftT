@@ -512,6 +512,8 @@ function evaluateCell(x, y, z, proposals) {
         if (isAir(x, y - 1, z) && !getWater(x, y - 1, z)) {
             propose(proposals, k, makeState(SOURCE_LEVEL, true));
             propose(proposals, key(x, y - 1, z), makeState(SOURCE_LEVEL, true));
+            // Falling water can still spill sideways from its current cell.
+            spreadHorizontal(x, y, z, 1, proposals);
             return;
         }
 
@@ -534,6 +536,9 @@ function evaluateCell(x, y, z, proposals) {
     if (isAir(x, y - 1, z) && !getWater(x, y - 1, z)) {
         propose(proposals, k, current);
         propose(proposals, key(x, y - 1, z), makeState(SOURCE_LEVEL, true));
+        // Do not stop horizontal propagation just because there is also
+        // an open path downward.
+        spreadHorizontal(x, y, z, current.level + 1, proposals);
         return;
     }
 
