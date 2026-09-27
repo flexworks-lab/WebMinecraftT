@@ -497,13 +497,13 @@ function evaluateCell(x, y, z, proposals) {
             propose(proposals, k, makeState(Math.min(MAX_LEVEL, best + 1)));
         } else {
             propose(proposals, k, makeState(SOURCE_LEVEL, false, true, current.generatedSource));
+            // A full source can flow downward and sideways at the same time.
+            // This prevents waterfalls or open channels from starving the
+            // horizontal flow path while the downward path is active.
             if (isAir(x, y - 1, z) && !getWater(x, y - 1, z)) {
                 propose(proposals, key(x, y - 1, z), makeState(SOURCE_LEVEL, true));
-            } else {
-                // A full source block must keep pushing water sideways even when
-                // the support block is temporarily outside the physics cache.
-                spreadHorizontal(x, y, z, 1, proposals);
             }
+            spreadHorizontal(x, y, z, 1, proposals);
         }
         return;
     }
