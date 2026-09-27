@@ -48,7 +48,7 @@ const fluidMaterial = new THREE.MeshBasicMaterial({
     color: 0x164f7c,
     transparent: true,
     opacity: 0.82,
-    depthWrite: false,
+    depthWrite: true,
     depthTest: true,
     side: THREE.DoubleSide
 });
