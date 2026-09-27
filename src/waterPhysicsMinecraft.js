@@ -50,7 +50,7 @@ const fluidMaterial = new THREE.MeshBasicMaterial({
     opacity: 0.82,
     depthWrite: true,
     depthTest: true,
-    side: THREE.FrontSide
+    side: THREE.DoubleSide
 });
 
 const key = (x, y, z) => Math.floor(x) + "," + Math.floor(y) + "," + Math.floor(z);
