@@ -449,7 +449,9 @@ function evaluateCell(x, y, z, proposals) {
             propose(proposals, k, makeState(SOURCE_LEVEL, false, true, current.generatedSource));
             if (isAir(x, y - 1, z) && !getWater(x, y - 1, z)) {
                 propose(proposals, key(x, y - 1, z), makeState(SOURCE_LEVEL, true));
-            } else if (isSupported(x, y, z)) {
+            } else {
+                // A full source block must keep pushing water sideways even when
+                // the support block is temporarily outside the physics cache.
                 spreadHorizontal(x, y, z, 1, proposals);
             }
         }
@@ -470,7 +472,7 @@ function evaluateCell(x, y, z, proposals) {
             propose(proposals, k, makeState(1));
         }
 
-        if (isSupported(x, y, z)) spreadHorizontal(x, y, z, 1, proposals);
+        spreadHorizontal(x, y, z, 1, proposals);
         return;
     }
 
@@ -494,7 +496,7 @@ function evaluateCell(x, y, z, proposals) {
     const desired = Math.min(MAX_LEVEL, best + 1);
     propose(proposals, k, desired <= MAX_LEVEL ? makeState(desired) : null);
 
-    if (current.level < MAX_LEVEL && isSupported(x, y, z)) {
+    if (current.level < MAX_LEVEL) {
         spreadHorizontal(x, y, z, current.level + 1, proposals);
     }
 }
