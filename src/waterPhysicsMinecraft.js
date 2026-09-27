@@ -255,9 +255,24 @@ function scheduleChunkPrune(ck) {
         pendingChunkPrunes.delete(ck);
         if (loadedChunks.has(ck)) return;
 
+        const removedBoundaryCells = [];
         const cells = chunkCells.get(ck);
+
         if (cells) {
-            for (const k of cells) water.delete(k);
+            for (const k of cells) {
+                const [x, y, z] = parseKey(k);
+                const cx = Math.floor(x / CHUNK_SIZE);
+                const cz = Math.floor(z / CHUNK_SIZE);
+                const lx = x - cx * CHUNK_SIZE;
+                const lz = z - cz * CHUNK_SIZE;
+
+                if (lx === 0 || lx === CHUNK_SIZE - 1 || lz === 0 || lz === CHUNK_SIZE - 1) {
+                    removedBoundaryCells.push([x, y, z]);
+                }
+
+                water.delete(k);
+                activeSet.delete(k);
+            }
             chunkCells.delete(ck);
         }
 
@@ -270,14 +285,48 @@ function scheduleChunkPrune(ck) {
 
         dirtyChunks.delete(ck);
 
-        for (const boundaryKey of [...water.keys()]) {
-            const [x, y, z] = parseKey(boundaryKey);
-            if (chunkKey(x, z) !== ck) continue;
-            enqueue(x, y, z);
+        // Water in still-loaded neighboring chunks must wake up after an
+        // adjacent chunk is pruned so streams can continue or recalculate.
+        for (const [x, y, z] of removedBoundaryCells) {
             activateNeighbors(x, y, z);
         }
     }, 0);
     pendingChunkPrunes.set(ck, timer);
+}
+
+function wakeChunkBoundary(chunkX, chunkZ) {
+    const startX = chunkX * CHUNK_SIZE;
+    const startZ = chunkZ * CHUNK_SIZE;
+
+    const neighbors = [
+        [chunkX - 1, chunkZ, "east"],
+        [chunkX + 1, chunkZ, "west"],
+        [chunkX, chunkZ - 1, "south"],
+        [chunkX, chunkZ + 1, "north"]
+    ];
+
+    for (const [nx, nz, side] of neighbors) {
+        const ck = nx + "," + nz;
+        if (!loadedChunks.has(ck)) continue;
+
+        const cells = chunkCells.get(ck);
+        if (!cells?.size) continue;
+
+        for (const cellKey of cells) {
+            const [x, y, z] = parseKey(cellKey);
+
+            const onBoundary =
+                (side === "east" && x === startX - 1) ||
+                (side === "west" && x === startX + CHUNK_SIZE) ||
+                (side === "south" && z === startZ - 1) ||
+                (side === "north" && z === startZ + CHUNK_SIZE);
+
+            if (!onBoundary) continue;
+
+            enqueue(x, y, z);
+            activateNeighbors(x, y, z);
+        }
+    }
 }
 
 function registerChunk(object) {
@@ -303,6 +352,7 @@ function registerChunk(object) {
     if (loadedChunks.has(ck)) return;
     loadedChunks.add(ck);
     seedOceanChunk(ck);
+    wakeChunkBoundary(chunkX, chunkZ);
     markChunkDirty(chunkX * CHUNK_SIZE, chunkZ * CHUNK_SIZE);
 }
 
@@ -799,6 +849,11 @@ export function setupWaterPhysics(sceneRef) {
     for (const ck of loadedChunks) {
         seedOceanChunk(ck);
         dirtyChunks.add(ck);
+    }
+
+    for (const ck of loadedChunks) {
+        const [chunkX, chunkZ] = ck.split(",").map(Number);
+        wakeChunkBoundary(chunkX, chunkZ);
     }
 
     rebuildDirtyChunks(64);
