@@ -455,7 +455,7 @@ function getUnderwaterBlock(x,y,z,surfaceY){
     const blockRoll=hash3D(x,y,z,1707);
 
     // Underwater sand also follows the same connected 2D patches.
-    if(patch>.84){
+    if(patch>.80){
         if(depth<=2)return BLOCK.SAND;
         if(depth<=4)return BLOCK.SANDSTONE;
     }
@@ -488,8 +488,8 @@ function getSurfaceBlock(biome,y,surfaceY,x,z){
     if(submerged)return getUnderwaterBlock(x,y,z,surfaceY);
 
     const sandPatch=getSandPatchStrength(x,z);
-    const largeSandPatch=sandPatch>.82;
-    const desertSandPatch=sandPatch>.60;
+    const largeSandPatch=sandPatch>.78;
+    const desertSandPatch=sandPatch>.57;
 
     // Sand is a connected terrain region, not a random edge block.
     // When a sand patch exists, the whole top layer is sand with sandstone
