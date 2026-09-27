@@ -50,7 +50,7 @@ const fluidMaterial = new THREE.MeshBasicMaterial({
     opacity: 0.82,
     depthWrite: true,
     depthTest: true,
-    side: THREE.DoubleSide
+    side: THREE.FrontSide
 });
 
 const key = (x, y, z) => Math.floor(x) + "," + Math.floor(y) + "," + Math.floor(z);
@@ -656,10 +656,10 @@ function buildChunk(ck) {
                 0, 1, 0
             );
             uvs.push(
-                0, 0,
-                1, 0,
-                1, 1,
-                0, 1
+                ...uv0,
+                ...uv1,
+                ...uv2,
+                ...uv3
             );
             addQuad(indices, topStart, topStart + 1, topStart + 2, topStart + 3);
         }
