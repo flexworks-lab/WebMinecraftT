@@ -197,6 +197,13 @@ function octave2D(x,z,octaves,scale,persistence,salt){let value=0,amplitude=1,fr
 function octave3D(x,y,z,octaves,scale,persistence,salt){let value=0,amplitude=1,frequency=1,total=0;for(let i=0;i<octaves;i++){value+=valueNoise3D(x,y,z,scale/frequency,salt+i*83)*amplitude;total+=amplitude;amplitude*=persistence;frequency*=2;}return value/total;}
 function getClimate(x,z){return{temperature:octave2D(x+900,z-1200,3,420,.55,11),humidity:octave2D(x-1700,z+600,3,360,.58,29)};}
 function getBiome(x,z){if(isFlatWorld())return "plains";const{temperature,humidity}=getClimate(x,z),weirdness=octave2D(x+300,z+700,2,220,.55,47);if(temperature<.24)return humidity>.45?"snow":"tundra";if(temperature>.86&&humidity<.24)return weirdness>.72?"badlands":"desert";if(humidity>.79)return"forest";if(humidity<.12)return"plains";if(weirdness>.88&&temperature>.58)return"desert";return humidity>.54?"forest":"plains";}
+function getSandPatchStrength(x,z){
+    // 2D-only noise keeps sand patches connected across the whole surface
+    // instead of making isolated one-block sand spots.
+    const broad=octave2D(x-3100,z+1700,3,58,.58,251);
+    const medium=octave2D(x+800,z-2600,2,24,.56,257);
+    return broad*.72+medium*.28;
+}
 function getRiverStrength(x,z){
     const ridgeA=Math.abs(octave2D(x+1800,z-1200,2,420,.57,211)-.5);
     const ridgeB=Math.abs(octave2D(x-2600,z+900,2,270,.56,223)-.5);
@@ -441,8 +448,79 @@ export function generateWorldPreviewSnapshot(seed, width = 520, height = 180, wo
 function shouldCarveCave(x,y,z,surfaceY){if(isFlatWorld())return false;if(y>surfaceY-6||y>42||y<MIN_Y+3)return false;const depth=surfaceY-y,giant=octave3D(x,y,z,3,44,.55,121),spaghetti=octave3D(x,y,z,2,24,.53,157);if(depth>22&&giant>.67&&giant<.78)return true;if(depth>9&&Math.abs(spaghetti-.5)<.032)return true;return false;}
 function oreChance(x,y,z,salt,scale){return octave3D(x,y,z,2,scale,.55,salt);}
 function chooseStoneVariant(x,y,z,surfaceY){if(isFlatWorld())return BLOCK.STONE;const variation=hash3D(x,y,z,911),gravel=octave3D(x,y,z,2,13,.55,313);if(y<surfaceY-3){if(y<=18&&oreChance(x,y,z,211,22)>.765)return BLOCK.IRON_ORE;if(y>-8&&oreChance(x+73,y-19,z-51,239,16)>.79)return BLOCK.COAL_ORE;if(variation>.93&&gravel>.57)return BLOCK.COBBLESTONE;if(gravel<.2)return BLOCK.GRAVEL;}return BLOCK.STONE;}
-function getUnderwaterBlock(x,y,z,surfaceY){const depth=surfaceY-y,surfaceRoll=hash3D(x,y,z,1701),blockRoll=hash3D(x,y,z,1707);if(depth<=0){if(surfaceRoll<.60)return BLOCK.DIRT;if(surfaceRoll<.67)return BLOCK.SAND;if(surfaceRoll<.94)return BLOCK.GRAVEL;return BLOCK.STONE;}if(depth<=4){if(blockRoll<.62)return BLOCK.DIRT;if(blockRoll<.67)return BLOCK.SAND;if(blockRoll<.91)return BLOCK.GRAVEL;return BLOCK.STONE;}if(blockRoll<.40)return BLOCK.DIRT;if(blockRoll<.44)return BLOCK.SAND;if(blockRoll<.82)return BLOCK.GRAVEL;return chooseStoneVariant(x,y,z,surfaceY);}
-function getSurfaceBlock(biome,y,surfaceY,x,z){if(isFlatWorld()){if(y===surfaceY)return BLOCK.GRASS;if(y>=surfaceY-3)return BLOCK.DIRT;return BLOCK.STONE;}const submerged=surfaceY<SEA_LEVEL,beach=!submerged&&surfaceY<=SEA_LEVEL+1,sandRoll=hash2D(x,z,1709);if(submerged)return getUnderwaterBlock(x,y,z,surfaceY);if(biome==="desert"){if(sandRoll<.28&&y>=surfaceY-1)return BLOCK.SAND;if(sandRoll<.28&&y>=surfaceY-4)return BLOCK.SANDSTONE;if(y===surfaceY)return BLOCK.GRASS;if(y>=surfaceY-3)return BLOCK.DIRT;return chooseStoneVariant(x,y,z,surfaceY);}if(biome==="badlands"){if(sandRoll<.20&&y===surfaceY)return BLOCK.SAND;if(y>=surfaceY-5)return BLOCK.SANDSTONE;return chooseStoneVariant(x,y,z,surfaceY);}if(biome==="snow"||biome==="tundra"){if(y===surfaceY)return BLOCK.SNOW;if(y>=surfaceY-4)return BLOCK.DIRT;return chooseStoneVariant(x,y,z,surfaceY);}if(beach&&sandRoll<.32){if(y>=surfaceY-1)return BLOCK.SAND;if(y===surfaceY-2)return BLOCK.SANDSTONE;}if(y===surfaceY)return BLOCK.GRASS;if(y>=surfaceY-3)return BLOCK.DIRT;return chooseStoneVariant(x,y,z,surfaceY);}
+function getUnderwaterBlock(x,y,z,surfaceY){
+    const depth=surfaceY-y;
+    const patch=getSandPatchStrength(x,z);
+    const surfaceRoll=hash3D(x,y,z,1701);
+    const blockRoll=hash3D(x,y,z,1707);
+
+    // Underwater sand also follows the same connected 2D patches.
+    if(patch>.84){
+        if(depth<=2)return BLOCK.SAND;
+        if(depth<=4)return BLOCK.SANDSTONE;
+    }
+
+    if(depth<=0){
+        if(surfaceRoll<.62)return BLOCK.DIRT;
+        if(surfaceRoll<.68)return BLOCK.SAND;
+        if(surfaceRoll<.94)return BLOCK.GRAVEL;
+        return BLOCK.STONE;
+    }
+    if(depth<=4){
+        if(blockRoll<.64)return BLOCK.DIRT;
+        if(blockRoll<.68)return BLOCK.SAND;
+        if(blockRoll<.91)return BLOCK.GRAVEL;
+        return BLOCK.STONE;
+    }
+    if(blockRoll<.40)return BLOCK.DIRT;
+    if(blockRoll<.44)return BLOCK.SAND;
+    if(blockRoll<.82)return BLOCK.GRAVEL;
+    return chooseStoneVariant(x,y,z,surfaceY);
+}
+function getSurfaceBlock(biome,y,surfaceY,x,z){
+    if(isFlatWorld()){
+        if(y===surfaceY)return BLOCK.GRASS;
+        if(y>=surfaceY-3)return BLOCK.DIRT;
+        return BLOCK.STONE;
+    }
+
+    const submerged=surfaceY<SEA_LEVEL;
+    if(submerged)return getUnderwaterBlock(x,y,z,surfaceY);
+
+    const sandPatch=getSandPatchStrength(x,z);
+    const largeSandPatch=sandPatch>.82;
+    const desertSandPatch=sandPatch>.60;
+
+    // Sand is a connected terrain region, not a random edge block.
+    // When a sand patch exists, the whole top layer is sand with sandstone
+    // underneath, so you do not get grass/sand checkerboarding.
+    if(biome==="desert" && desertSandPatch){
+        if(y>=surfaceY-2)return BLOCK.SAND;
+        if(y>=surfaceY-4)return BLOCK.SANDSTONE;
+        return chooseStoneVariant(x,y,z,surfaceY);
+    }
+
+    if((biome==="plains"||biome==="forest"||biome==="badlands") && largeSandPatch){
+        if(y>=surfaceY-2)return BLOCK.SAND;
+        if(y>=surfaceY-3)return BLOCK.SANDSTONE;
+    }
+
+    if(biome==="badlands"){
+        if(y>=surfaceY-1 && sandPatch>.72)return BLOCK.SAND;
+        if(y>=surfaceY-5)return BLOCK.SANDSTONE;
+        return chooseStoneVariant(x,y,z,surfaceY);
+    }
+
+    if(biome==="snow"||biome==="tundra"){
+        if(y===surfaceY)return BLOCK.SNOW;
+        if(y>=surfaceY-4)return BLOCK.DIRT;
+        return chooseStoneVariant(x,y,z,surfaceY);
+    }
+
+    if(y===surfaceY)return BLOCK.GRASS;
+    if(y>=surfaceY-3)return BLOCK.DIRT;
+    return chooseStoneVariant(x,y,z,surfaceY);
+}
 function setBlockData(x,y,z,type){if(y<MIN_Y||y>WORLD_TOP)return false;const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk)return false;chunk.blocks[blockIndex(localX,y,localZ)]=type;return true;}
 function getBlockType(x,y,z){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);if(y<MIN_Y||y>WORLD_TOP)return BLOCK.AIR;const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk)return BLOCK.AIR;return chunk.blocks[blockIndex(localX,y,localZ)]||BLOCK.AIR;}
 export function getBlockAt(x,y,z){return getBlockType(x,y,z);}
