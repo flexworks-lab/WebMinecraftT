@@ -1485,6 +1485,217 @@ button[aria-label*="close" i]:hover{
       }
     </style>
 
+
+    <style id="minecraft-ui-completion-tweaks">
+      /* Preserve the intentionally near-transparent world settings workspace. */
+      #createWorldSettingsRoot {
+        background: rgba(58,58,58,.04) !important;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+      #createWorldSettingsRoot #createWorldSettingsContent {
+        background: rgba(58,58,58,.04) !important;
+      }
+      #createWorldSettingsRoot #createWorldSettingsClose {
+        width: 36px !important;
+        height: 36px !important;
+        border: 2px solid #555 !important;
+        border-top-color: #f1f1f1 !important;
+        border-left-color: #f1f1f1 !important;
+        background: linear-gradient(#c6c6c6,#b5b5b5) !important;
+        color: #fff !important;
+        text-shadow: 2px 2px #555 !important;
+        box-shadow: 0 2px 0 #171717 !important;
+      }
+      #settingsMenu #settingsCloseTop,
+      #settingsMenu #closeSettings {
+        border: 2px solid #555 !important;
+        border-top-color: #f1f1f1 !important;
+        border-left-color: #f1f1f1 !important;
+        background: linear-gradient(#c6c6c6,#b5b5b5) !important;
+        color: #fff !important;
+        text-shadow: 2px 2px #555 !important;
+        box-shadow: 0 2px 0 #171717 !important;
+      }
+
+      /* Account, friends, admin, discussion and welcome are dynamic screens too. */
+      #accountModal,
+      #friendsModal,
+      #adminControlsModal,
+      #discussionModal,
+      #welcomeScreen,
+      #siteAnnouncementOverlay {
+        background: rgba(0,0,0,.72) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+      #accountModal #accountPanel,
+      #friendsModal #friendsPage,
+      #adminControlsModal #adminControlsPanel,
+      #discussionModal #discussionPanel,
+      #welcomeScreen #welcomeCard,
+      #siteAnnouncementOverlay #siteAnnouncement {
+        background: #3b3b3b !important;
+        color: #ffffff !important;
+        border: 2px solid #171717 !important;
+        border-top-color: #777777 !important;
+        border-left-color: #777777 !important;
+        border-radius: 0 !important;
+        box-shadow: 4px 4px 0 rgba(0,0,0,.52) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+      #accountModal #accountTitle,
+      #friendsModal #friendsTop,
+      #friendsModal #friendsHeading,
+      #adminControlsModal #adminControlsHeader,
+      #discussionModal #discussionHeader,
+      #welcomeScreen #welcomeHeader,
+      #siteAnnouncementOverlay #siteAnnouncementHeader,
+      #accountModal #accountSettingsTitle {
+        background: #595959 !important;
+        color: #ffffff !important;
+        border-radius: 0 !important;
+        border-bottom: 2px solid #171717 !important;
+        text-shadow: 2px 2px #222 !important;
+      }
+      #accountModal #accountSubtitle,
+      #accountModal #accountMessage,
+      #accountModal #accountSettingsSubtitle,
+      #friendsModal #friendsSubheading,
+      #friendsModal #friendsStatus,
+      #adminControlsModal .adminHint,
+      #discussionModal #discussionSubtitle,
+      #discussionModal #discussionWarning,
+      #discussionModal #discussionStatus,
+      #welcomeScreen #welcomeSubtitle {
+        color: #e2e2e2 !important;
+      }
+      #accountModal .accountField,
+      #accountModal .accountField:focus,
+      #friendsModal .friendsInput,
+      #friendsModal .friendsInput:focus,
+      #discussionModal #discussionInput,
+      #discussionModal #discussionInput:focus {
+        background: #202020 !important;
+        color: #ffffff !important;
+        border: 2px solid #171717 !important;
+        border-top-color: #777777 !important;
+        border-left-color: #777777 !important;
+        border-radius: 0 !important;
+      }
+      #accountModal .accountAction,
+      #accountModal .accountPrimary,
+      #accountModal .googleAction,
+      #accountModal .oauthAction,
+      #accountModal .yahooAction,
+      #accountModal .githubAction,
+      #accountModal .playGamesAction,
+      #accountModal #accountSwitch button,
+      #accountModal #accountForgot,
+      #accountModal #accountClose,
+      #accountModal #friendCopy,
+      #friendsModal .friendsAction,
+      #friendsModal #friendsClose,
+      #discussionModal .discussionTab,
+      #discussionModal .discussionReplyButton,
+      #discussionModal #discussionReplyCancel,
+      #discussionModal #discussionSend,
+      #adminControlsModal .adminControlsClose,
+      #welcomeScreen .welcomeTab,
+      #welcomeScreen #welcomeOk,
+      #siteAnnouncementOverlay #siteAnnouncementClose,
+      #friendsButton,
+      #discussionButton,
+      #accountButton {
+        border: 2px solid #555555 !important;
+        border-top-color: #f1f1f1 !important;
+        border-left-color: #f1f1f1 !important;
+        border-right-color: #414141 !important;
+        border-bottom-color: #414141 !important;
+        border-radius: 0 !important;
+        background: linear-gradient(#c6c6c6,#b5b5b5) !important;
+        color: #ffffff !important;
+        font-family: "MinecraftFont", monospace !important;
+        text-shadow: 2px 2px #555 !important;
+        box-shadow: inset 2px 2px 0 rgba(255,255,255,.2), 0 2px 0 #171717 !important;
+      }
+      #accountModal .accountAction:hover,
+      #accountModal .accountPrimary:hover,
+      #accountModal .oauthAction:hover,
+      #friendsModal .friendsAction:hover,
+      #discussionModal .discussionTab:hover,
+      #discussionModal .discussionTab.active,
+      #discussionModal .discussionReplyButton:hover,
+      #discussionModal #discussionSend:hover,
+      #welcomeScreen .welcomeTab.active,
+      #welcomeScreen #welcomeOk:hover,
+      #friendsButton:hover,
+      #discussionButton:hover,
+      #accountButton:hover {
+        background: linear-gradient(#dedede,#c6c6c6) !important;
+      }
+      #friendsModal .friendsCard,
+      #friendsModal #friendsCodeCard,
+      #accountModal .friendSection,
+      #adminControlsModal .adminOverview,
+      #adminControlsModal .adminServerGrid,
+      #adminControlsModal .adminChat,
+      #adminControlsModal .adminDiscussionCard,
+      #discussionModal .discussionMessage {
+        background: #464646 !important;
+        color: #ffffff !important;
+        border: 2px solid #171717 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      #friendsModal .friendsCard h3,
+      #friendsModal .friendFullName,
+      #friendsModal .friendsCodeValue,
+      #accountModal #accountName,
+      #accountModal #accountEmail,
+      #accountModal #friendCodeValue,
+      #accountModal .friendSectionTitle,
+      #discussionModal .discussionMessageName,
+      #discussionModal .discussionMessageText,
+      #adminControlsModal .adminControlsHeadText {
+        color: #ffffff !important;
+      }
+      #accountModal #accountLoading,
+      #friendsModal #friendsStatus,
+      #discussionModal #discussionEmpty { color: #eeeeee !important; }
+
+      /* Stronger slot overrides prevent generic button skins from tinting item cells. */
+      #inventoryScreen #inventoryPanel .inventorySlot,
+      #inventoryScreen #inventoryPanel .destroySlot,
+      #inventoryScreen #inventoryPanel .offhandSlot,
+      #inventoryScreen #inventoryPanel .catalogSlot,
+      #inventoryScreen #inventoryPanel .slot,
+      #craftingTableScreen #ctm-panel .ctm-slot,
+      #craftingTableScreen #ctm-panel .ctm-craft-slot,
+      #craftingTableScreen #ctm-panel #ctm-output,
+      #survivalInventoryScreen #svi-panel .svi-slot,
+      #survivalInventoryScreen #svi-panel .svi-equipment-slot,
+      #survivalInventoryScreen #svi-panel .svi-craft-slot,
+      #survivalInventoryScreen #svi-panel .svi-craft-output {
+        background: #292929 !important;
+        border: 2px solid #171717 !important;
+        border-top-color: #747474 !important;
+        border-left-color: #747474 !important;
+        border-radius: 0 !important;
+        box-shadow: inset 2px 2px 0 rgba(0,0,0,.3) !important;
+      }
+      #inventoryScreen #inventoryPanel .slot.selected,
+      #inventoryScreen #inventoryPanel .inventorySlot.selected,
+      #inventoryScreen #inventoryPanel .catalogSlot.selected,
+      #craftingTableScreen #ctm-panel .ctm-slot.selected,
+      #craftingTableScreen #ctm-panel .ctm-craft-slot.selected,
+      #survivalInventoryScreen #svi-panel .svi-slot.selected {
+        background: #5a5a5a !important;
+        border: 2px solid #ffffff !important;
+      }
+    </style>
+
 </head>
 <body>
 
