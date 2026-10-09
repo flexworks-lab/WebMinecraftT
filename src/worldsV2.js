@@ -505,21 +505,11 @@ function openCreate() {
     modal.querySelector("[data-new-seed]").textContent = pendingSeed;
     modal.querySelector("[data-name]").value = "";
     modal.querySelector("[data-create-message]").textContent = "";
-
-    // Make the Create World screen exclusive: hide the worlds list, main-menu
-    // controls, HUD, and any other open panels immediately as it opens.
-    document.body.classList.add("webminecraft-creating-world");
-    overlay?.setAttribute("data-create-open", "1");
     modal.style.display = "flex";
     modal.querySelector("[data-name]").focus();
 }
 
-function closeCreate() {
-    if (createModal) createModal.style.display = "none";
-    document.body.classList.remove("webminecraft-creating-world");
-    overlay?.removeAttribute("data-create-open");
-    pendingSeed = null;
-}
+function closeCreate() { if (createModal) createModal.style.display = "none"; pendingSeed = null; }
 
 async function createWorld() {
     const modal = createModal;
