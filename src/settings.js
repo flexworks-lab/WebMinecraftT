@@ -41,13 +41,17 @@ function readSettings() {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
         if (saved && typeof saved === "object") result = { ...defaults, ...saved };
     } catch {}
-    // Start touch devices conservatively after older installs saved desktop values.
+    // On the first touch-device migration, replace the old desktop default
+    // with a lightweight distance. After that, preserve the user's own choice.
     if (IS_TOUCH_DEVICE) {
         result.shadows = false;
         result.shadowQuality = Math.min(Number(result.shadowQuality) || 512, 512);
         result.pixelRatio = Math.min(Number(result.pixelRatio) || 1, 1);
-        result.renderDistance = Math.min(Number(result.renderDistance) || 60, 60);
+        if (result.deviceProfile !== "touch") result.renderDistance = 60;
         if (result.lightingQuality === "high") result.lightingQuality = "balanced";
+        result.deviceProfile = "touch";
+    } else {
+        result.deviceProfile = "desktop";
     }
     return result;
 }
@@ -305,7 +309,7 @@ function build() {
 
     document.getElementById("resetSettings")?.addEventListener("click", () => {
         if (document.fullscreenElement) applyFullscreen(false);
-        settings = { ...defaults };
+        settings = { ...defaults, deviceProfile: IS_TOUCH_DEVICE ? "touch" : "desktop" };
         resetKeybinds();
         save();
         menu.dataset.redone = "";
