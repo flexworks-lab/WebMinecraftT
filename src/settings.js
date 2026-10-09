@@ -183,9 +183,28 @@ const panels = {
         </div>`
 };
 
-function applyFullscreen(enabled) {
-    if (enabled) document.documentElement.requestFullscreen?.().catch(() => {});
-    else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+async function applyFullscreen(enabled) {
+    const toggle = document.getElementById("sFullscreen");
+    try {
+        if (enabled && !document.fullscreenElement) {
+            if (typeof document.documentElement.requestFullscreen !== "function") throw new Error("Fullscreen is not supported here.");
+            await document.documentElement.requestFullscreen();
+        } else if (!enabled && document.fullscreenElement) {
+            if (typeof document.exitFullscreen !== "function") throw new Error("Fullscreen exit is not supported here.");
+            await document.exitFullscreen();
+        }
+    } catch {
+        settings.fullscreen = Boolean(document.fullscreenElement);
+        if (toggle) toggle.checked = settings.fullscreen;
+        save();
+        toast(settings.fullscreen ? "Fullscreen remains active." : "Fullscreen isn't supported by this browser.");
+    }
+}
+document.addEventListener("fullscreenchange", () => {
+    settings.fullscreen = Boolean(document.fullscreenElement);
+    const toggle = document.getElementById("sFullscreen");
+    if (toggle) toggle.checked = settings.fullscreen;
+    save();
 }
 
 function build() {
@@ -279,6 +298,7 @@ function build() {
     });
 
     document.getElementById("resetSettings")?.addEventListener("click", () => {
+        if (document.fullscreenElement) applyFullscreen(false);
         settings = { ...defaults };
         resetKeybinds();
         save();
@@ -447,7 +467,8 @@ body:not(.settings-device-touch) .settings-touch-only{display:none!important}
 .settings-colorblind #crosshair{filter:hue-rotate(150deg) saturate(1.3)}
 .settings-reduced-motion *,body.settings-reduced-motion *::before,body.settings-reduced-motion *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 .settings-pixelated #hotbar,.settings-pixelated #hotbar img,.settings-pixelated #hotbar canvas{image-rendering:pixelated!important}
-body #hotbar{opacity:var(--ui-opacity,1)}
+body #hotbar,body #crosshair,body #performanceHud,body #coordinatesHud{opacity:var(--ui-opacity,1)}
+.settings-pixelated canvas,.settings-pixelated #hotbar img,.settings-pixelated #hotbar canvas{image-rendering:pixelated!important}
 #touchControls{opacity:var(--touch-control-opacity,.9)}
 #touchMovePad{transform:scale(var(--touch-control-scale,1));transform-origin:bottom left}
 #touchActions{transform:scale(var(--touch-control-scale,1));transform-origin:bottom right}
