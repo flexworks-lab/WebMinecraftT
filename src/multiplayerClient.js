@@ -1000,7 +1000,7 @@ const getMultiplayerIdentity = () => {
             const pending = pendingSaveAndQuit;
             pendingSaveAndQuit = null;
             pending?.resolve(Boolean(message.ok));
-        } else if (message.type === "error") { if (pendingRoomExportAction) { setRoomOwnerStatus(message.message || "The room owner action failed.", true); pendingRoomExportAction = ""; setRoomOwnerBusy(false); } playerDataSyncActive = false; hidePlayerDataSync(); setStatus(message.message || "Server error.", true); joinButton.disabled = false; joinButton.textContent = "Join Room"; if (message.code === "private_code_required") { setServerType(true); privateCodeInput.value = ""; requestAnimationFrame(() => privateCodeInput.focus()); } } });
+        } else if (message.type === "error") { if (pendingRoomExportAction || window.__webminecraftMultiplayerIsHost) setRoomOwnerStatus(message.message || "The room owner action failed.", true); pendingRoomExportAction = ""; setRoomOwnerBusy(false); playerDataSyncActive = false; hidePlayerDataSync(); setStatus(message.message || "Server error.", true); joinButton.disabled = false; joinButton.textContent = "Join Room"; if (message.code === "private_code_required") { setServerType(true); privateCodeInput.value = ""; requestAnimationFrame(() => privateCodeInput.focus()); } } });
         socket.addEventListener("close", () => {
             const lostConnection = Boolean(window.__webminecraftMultiplayerActive) && !intentionalDisconnect;
             if (pendingSaveAndQuit) {
