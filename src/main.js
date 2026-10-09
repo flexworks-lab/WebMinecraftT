@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { IS_TOUCH_DEVICE } from "./performance.js";
 import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, SEA_LEVEL } from "./world.js";
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
@@ -31,13 +32,13 @@ camera.position.set(0, 7, 5);
 camera.up.set(0, 1, 0);
 camera.rotation.order = "YXZ";
 
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", preserveDrawingBuffer: true });
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", preserveDrawingBuffer: false });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = !IS_TOUCH_DEVICE;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.appendChild(renderer.domElement);
 window.__webminecraftRenderer = renderer;
@@ -51,7 +52,7 @@ scene.add(ambientLight);
 
 const sun = new THREE.DirectionalLight(sunColor, 3.0);
 sun.position.set(45, 85, 30);
-sun.castShadow = true;
+sun.castShadow = !IS_TOUCH_DEVICE;
 sun.shadow.mapSize.width = 1024;
 sun.shadow.mapSize.height = 1024;
 sun.shadow.camera.left = -76;
@@ -100,7 +101,7 @@ const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobil
 if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
-const defaults = { shadows: true, shadowQuality: 1024, pixelRatio: 1, lightingQuality: "high", brightness: 1 };
+const defaults = { shadows: !IS_TOUCH_DEVICE, shadowQuality: IS_TOUCH_DEVICE ? 512 : 1024, pixelRatio: 1, lightingQuality: IS_TOUCH_DEVICE ? "balanced" : "high", brightness: 1 };
 let settings;
 try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
 catch { settings = { ...defaults }; }
@@ -115,13 +116,15 @@ function getLightingProfile() {
     return { sun: 3.05, sky: 1.16, ambient: 0.10, fill: 0.21 };
 }
 function applySettings() {
-    renderer.shadowMap.enabled = settings.shadows;
-    sun.castShadow = settings.shadows;
-    sun.shadow.mapSize.width = settings.shadowQuality;
-    sun.shadow.mapSize.height = settings.shadowQuality;
-    renderer.setPixelRatio(Math.min(settings.pixelRatio, 1.5));
+    const shadowsEnabled = Boolean(settings.shadows) && !IS_TOUCH_DEVICE;
+    renderer.shadowMap.enabled = shadowsEnabled;
+    sun.castShadow = shadowsEnabled;
+    const effectiveShadowQuality = IS_TOUCH_DEVICE ? Math.min(settings.shadowQuality, 512) : settings.shadowQuality;
+    sun.shadow.mapSize.width = effectiveShadowQuality;
+    sun.shadow.mapSize.height = effectiveShadowQuality;
+    renderer.setPixelRatio(Math.min(settings.pixelRatio, IS_TOUCH_DEVICE ? 1 : 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = IS_TOUCH_DEVICE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     renderer.toneMappingExposure = 0.98 + settings.brightness * 0.30;
 
     const profile = getLightingProfile();
@@ -132,12 +135,12 @@ function applySettings() {
     for (const object of scene.children) {
         if (!object.isMesh) continue;
         if (object.userData?.isChunk) {
-            object.castShadow = settings.shadows;
-            object.receiveShadow = settings.shadows;
+            object.castShadow = shadowsEnabled;
+            object.receiveShadow = shadowsEnabled;
             continue;
         }
-        object.castShadow = settings.shadows;
-        object.receiveShadow = settings.shadows;
+        object.castShadow = shadowsEnabled;
+        object.receiveShadow = shadowsEnabled;
     }
     updateDepthLighting();
 }
@@ -155,24 +158,33 @@ function measureSkyVisibility(x, y, z) {
     // Measure how much of the upper hemisphere is actually open to the sky.
     // Unlike the old depth-based system, this makes a shallow enclosed hole
     // dark while a cave with a large opening stays close to daylight.
-    const directions = [
-        [0, 1, 0, 1.00],
-        [0.29, 0.96, 0, 0.90],
-        [-0.29, 0.96, 0, 0.90],
-        [0, 0.96, 0.29, 0.90],
-        [0, 0.96, -0.29, 0.90],
-        [0.43, 0.90, 0.18, 0.82],
-        [-0.43, 0.90, 0.18, 0.82],
-        [0.18, 0.90, -0.43, 0.82],
-        [0.18, 0.90, 0.43, 0.82],
-        [-0.43, 0.70, 0.52, 0.62],
-        [0.43, 0.70, 0.52, 0.62],
-        [-0.52, 0.70, -0.43, 0.62],
-        [0.52, 0.70, -0.43, 0.62]
-    ];
+    const directions = IS_TOUCH_DEVICE
+        ? [
+            [0, 1, 0, 1.00],
+            [0.35, 0.94, 0, 0.80],
+            [-0.35, 0.94, 0, 0.80],
+            [0, 0.94, 0.35, 0.80],
+            [0, 0.94, -0.35, 0.80]
+        ]
+        : [
+            [0, 1, 0, 1.00],
+            [0.29, 0.96, 0, 0.90],
+            [-0.29, 0.96, 0, 0.90],
+            [0, 0.96, 0.29, 0.90],
+            [0, 0.96, -0.29, 0.90],
+            [0.43, 0.90, 0.18, 0.82],
+            [-0.43, 0.90, 0.18, 0.82],
+            [0.18, 0.90, -0.43, 0.82],
+            [0.18, 0.90, 0.43, 0.82],
+            [-0.43, 0.70, 0.52, 0.62],
+            [0.43, 0.70, 0.52, 0.62],
+            [-0.52, 0.70, -0.43, 0.62],
+            [0.52, 0.70, -0.43, 0.62]
+        ];
 
-    const maxDistance = 24;
-    const step = 0.9;
+    const maxDistance = IS_TOUCH_DEVICE ? 14 : 24;
+    const step = IS_TOUCH_DEVICE ? 1.75 : 0.9;
+
     let weightedOpen = 0;
     let totalWeight = 0;
 
@@ -203,6 +215,7 @@ let cachedWaterY = NaN;
 let cachedWaterZ = NaN;
 let cachedWaterFloor = 0;
 let cachedWaterSurface = 0;
+let cachedTerrainProfile = null;
 let cachedUnderwater = false;
 let cachedSkyVisibility = 1;
 let cachedLightingSampleX = NaN;
@@ -233,9 +246,10 @@ function updateDepthLighting() {
         if (document.body.classList.contains("webminecraft-flat")) {
             cachedWaterFloor = -Infinity;
             cachedWaterSurface = -Infinity;
+            cachedTerrainProfile = null;
         } else {
-            const profile = getTerrainProfile(x, z);
-            cachedWaterFloor = profile.height + 0.5;
+            cachedTerrainProfile = getTerrainProfile(x, z);
+            cachedWaterFloor = cachedTerrainProfile.height + 0.5;
             cachedWaterSurface = SEA_LEVEL + 0.42;
         }
     }
@@ -251,7 +265,7 @@ function updateDepthLighting() {
             sampleX - cachedLightingSampleX,
             sampleY - cachedLightingSampleY,
             sampleZ - cachedLightingSampleZ
-        ) >= 0.35;
+        ) >= (IS_TOUCH_DEVICE ? 1.25 : 0.35);
 
     if (movedForLighting) {
         cachedLightingSampleX = sampleX;
@@ -269,7 +283,7 @@ function updateDepthLighting() {
 
     let undergroundDepth = 0;
     if (!document.body.classList.contains("webminecraft-flat")) {
-        const terrain = getTerrainProfile(x, z);
+        const terrain = cachedTerrainProfile || getTerrainProfile(x, z);
         const playerFeetY = y - 1.8;
         const surfaceY = Number(terrain?.height);
         if (Number.isFinite(surfaceY)) {
@@ -883,6 +897,7 @@ function updateSunPosition() {
 }
 function animate() {
     requestAnimationFrame(animate);
+    if (document.hidden) return;
     const currentTime = performance.now();
     const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
     lastTime = currentTime;
