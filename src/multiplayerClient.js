@@ -574,6 +574,7 @@ const getMultiplayerIdentity = () => {
     const setKeepOpen24h = enabled => { keepOpen24h = Boolean(enabled); if (keepOpen24h) keepOpenForever = false; syncRoomRetentionUi(); };
     const setKeepOpenForever = enabled => { keepOpenForever = Boolean(enabled); if (keepOpenForever) keepOpen24h = false; syncRoomRetentionUi(); };
     setKeepOpen24h(false);
+            setKeepOpenForever(false);
 
     const applyMaintenanceUi = enabled => {
         maintenanceEnabled = Boolean(enabled);
@@ -636,6 +637,7 @@ const getMultiplayerIdentity = () => {
             roomInput.value = "";
             setServerType(false);
             setKeepOpen24h(false);
+            setKeepOpenForever(false);
             refreshCreateIdentityUi();
             joinButton.disabled = false;
             requestAnimationFrame(() => {
@@ -644,6 +646,7 @@ const getMultiplayerIdentity = () => {
         } else {
             roomInput.value = "";
             setKeepOpen24h(false);
+            setKeepOpenForever(false);
             identityFields.classList.remove("visible");
             guestIdentity.classList.remove("visible");
         }
@@ -672,7 +675,7 @@ const getMultiplayerIdentity = () => {
     const closeServerDetails = () => { selectedServer = null; serverDetails?.classList.remove("open"); serverDetails?.setAttribute("aria-hidden","true"); };
     const showServerView = () => showRoomView(selectedServer || fallbackServer());
     const renderRoomList = server => { roomList.innerHTML = ""; const rooms = [...(server.rooms || [])].sort((a, b) => String(a.id).localeCompare(String(b.id))); if (!rooms.length) { roomList.innerHTML = '<div class="multiplayerEmpty">No rooms are listed yet. Create one below.</div>'; return; } for (const room of rooms) { const button = document.createElement("button"); button.type = "button"; button.className = "multiplayerCard"; const count = Number(room.players) || 0, max = Number(room.maxPlayers) || 0; const roomIsPrivate = Boolean(room.private || room.isPrivate); const forever = Boolean(room.keepOpenForever); const keep24h = Boolean(room.keepOpen24h); const privacyLabel = roomIsPrivate ? "Private room • code required" : "Public room"; const retentionLabel = forever ? " · ♾ FOREVER" : keep24h ? " · 24H" : ""; button.innerHTML = `<div class="multiplayerRoomPreview" aria-hidden="true"></div><div class="multiplayerCardBody"><div class="multiplayerCardTop"><span class="multiplayerCardName">${escapeHtml(room.name || room.id || "Room")}</span><span class="${roomIsPrivate ? "multiplayerOffline" : "multiplayerOnline"}">${roomIsPrivate ? "🔒 PRIVATE" : forever ? "♾ FOREVER" : keep24h ? "◷ 24H" : "● ONLINE"}</span></div><div class="multiplayerMeta">${privacyLabel}<br>${count}${max ? `/${max}` : ""} players online${retentionLabel}${room.owner ? " · Owner: " + escapeHtml(room.owner) : ""}</div></div><span class="multiplayerCardAction">${roomIsPrivate ? "Select" : "Join"}</span>`; button.addEventListener("click", event => { event.stopPropagation(); roomInput.value = String(room.id || room.name || "default").slice(0, 32); setServerType(roomIsPrivate); joinButton.disabled = false; if (roomIsPrivate) { const code = window.prompt("Enter the private code for this room:"); if (code === null) return; privateCodeInput.value = String(code).trim().slice(0, 16); } joinButton.click(); }); roomList.appendChild(button); } };
-    const showRoomView = server => { selectedServer = server || fallbackServer(); closeServerDetails(); overlay.querySelector("#multiplayerPanel")?.classList.remove("servers-screen","create-server-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("rooms-screen"); roomView.classList.add("roomsStyle"); roomView.classList.remove("create-open"); identityFields.classList.remove("visible"); guestIdentity.classList.remove("visible"); serverView.style.display = "none"; roomView.style.display = "block"; stepServer.classList.remove("active"); stepRoom.classList.add("active"); serverInput.value = selectedServer.websocket || defaultServerUrl(); selectedInfo.innerHTML = `<strong>${escapeHtml(selectedServer.name || "Server")}</strong> · ${escapeHtml(selectedServer.description || "Multiplayer server")}`; renderRoomList(selectedServer); joinButton.disabled = false; setStatus(""); backButton.textContent = "Home"; };
+    const showRoomView = server => { closeServerDetails(); selectedServer = server || fallbackServer(); overlay.querySelector("#multiplayerPanel")?.classList.remove("servers-screen","create-server-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("rooms-screen"); roomView.classList.add("roomsStyle"); roomView.classList.remove("create-open"); identityFields.classList.remove("visible"); guestIdentity.classList.remove("visible"); serverView.style.display = "none"; roomView.style.display = "block"; stepServer.classList.remove("active"); stepRoom.classList.add("active"); serverInput.value = selectedServer.websocket || defaultServerUrl(); selectedInfo.innerHTML = `<strong>${escapeHtml(selectedServer.name || "Server")}</strong> · ${escapeHtml(selectedServer.description || "Multiplayer server")}`; renderRoomList(selectedServer); joinButton.disabled = false; setStatus(""); backButton.textContent = "Home"; };
     const openServerDetails = server => {
         if (!server || !serverDetails) return;
         selectedServer = server;
