@@ -116,7 +116,9 @@ try {
     if (saved && typeof saved === "object") extendedSettings = { ...extendedDefaults, ...saved };
 } catch {}
 if (IS_TOUCH_DEVICE) {
-    extendedSettings.renderDistance = Math.min(Number(extendedSettings.renderDistance) || 60, 60);
+    if (extendedSettings.deviceProfile !== "touch") {
+        extendedSettings.renderDistance = 60;
+    }
     if (extendedSettings.lightingQuality === "high") extendedSettings.lightingQuality = "balanced";
 }
 settings.shadows = IS_TOUCH_DEVICE ? false : (extendedSettings.shadows ?? settings.shadows);
