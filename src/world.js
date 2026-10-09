@@ -20,8 +20,22 @@ export const CHUNK_HEIGHT = 128;
 export const MIN_Y = -32;
 export const SEA_LEVEL = 16;
 export const WORLD_TOP = MIN_Y + CHUNK_HEIGHT - 1;
-export const RENDER_DISTANCE = IS_TOUCH_DEVICE ? 3 : 6;
-export const UNLOAD_DISTANCE = RENDER_DISTANCE + (IS_TOUCH_DEVICE ? 1 : 2);
+export let RENDER_DISTANCE = IS_TOUCH_DEVICE ? 3 : 6;
+export let UNLOAD_DISTANCE = RENDER_DISTANCE + (IS_TOUCH_DEVICE ? 1 : 2);
+
+export function setRenderDistance(blockDistance) {
+    const value = Number(blockDistance);
+    if (!Number.isFinite(value)) return RENDER_DISTANCE;
+    const next = Math.max(2, Math.min(10, Math.round(value / CHUNK_SIZE)));
+    if (next === RENDER_DISTANCE) return RENDER_DISTANCE;
+    RENDER_DISTANCE = next;
+    UNLOAD_DISTANCE = next + (IS_TOUCH_DEVICE ? 1 : 2);
+    generationQueue.length = 0;
+    queuedKeys.clear();
+    lastPlayerChunkX = Infinity;
+    lastPlayerChunkZ = Infinity;
+    return RENDER_DISTANCE;
+}
 
 const BLOCK = {
     AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, SAND: 4,

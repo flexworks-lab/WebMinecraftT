@@ -1,15 +1,16 @@
 import { getKeybinds, setKeybind, resetKeybinds, formatKeyCode, keybindLabels } from "./keybinds.js";
+import { IS_TOUCH_DEVICE } from "./performance.js";
 
 const STORAGE_KEY = "webminecraft-settings-v2";
 
 const defaults = {
-    shadows: true,
-    shadowQuality: 1024,
+    shadows: !IS_TOUCH_DEVICE,
+    shadowQuality: IS_TOUCH_DEVICE ? 512 : 1024,
     pixelRatio: 1,
-    lightingQuality: "high",
+    lightingQuality: IS_TOUCH_DEVICE ? "balanced" : "high",
     brightness: 1,
     fov: 75,
-    renderDistance: 120,
+    renderDistance: IS_TOUCH_DEVICE ? 60 : 120,
     fog: true,
     waterEffects: true,
     crosshair: true,
@@ -17,6 +18,10 @@ const defaults = {
     performanceHud: false,
     mouseSensitivity: 1,
     touchSensitivity: 1,
+    touchControlSize: 1,
+    touchControlOpacity: 0.9,
+    showTouchControls: true,
+    leftHandedControls: false,
     invertY: false,
     reducedMotion: false,
     largeUi: false,
@@ -31,13 +36,28 @@ const defaults = {
 };
 
 function readSettings() {
+    let result = { ...defaults };
     try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-        return { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) };
-    } catch { return { ...defaults }; }
+        if (saved && typeof saved === "object") result = { ...defaults, ...saved };
+    } catch {}
+    // On the first touch-device migration, replace the old desktop default
+    // with a lightweight distance. After that, preserve the user's own choice.
+    if (IS_TOUCH_DEVICE) {
+        result.shadows = false;
+        result.shadowQuality = Math.min(Number(result.shadowQuality) || 512, 512);
+        result.pixelRatio = Math.min(Number(result.pixelRatio) || 1, 1);
+        if (result.deviceProfile !== "touch") result.renderDistance = 60;
+        if (result.lightingQuality === "high") result.lightingQuality = "balanced";
+        result.deviceProfile = "touch";
+    } else {
+        result.deviceProfile = "desktop";
+    }
+    return result;
 }
 
 let settings = readSettings();
+settings.fullscreen = Boolean(document.fullscreenElement);
 
 function save() {
     try {
@@ -62,12 +82,25 @@ function emit(name) {
 }
 
 function applyUi() {
+    document.body.classList.toggle("settings-device-touch", IS_TOUCH_DEVICE);
     document.documentElement.style.setProperty("--ui-opacity", String(settings.uiOpacity));
+    document.documentElement.style.setProperty("--touch-control-scale", String(settings.touchControlSize));
+    document.documentElement.style.setProperty("--touch-control-opacity", String(settings.touchControlOpacity));
     document.body.classList.toggle("settings-large-ui", settings.largeUi);
     document.body.classList.toggle("settings-high-contrast", settings.highContrast);
     document.body.classList.toggle("settings-colorblind", settings.colorblind);
     document.body.classList.toggle("settings-reduced-motion", settings.reducedMotion);
     document.body.classList.toggle("settings-pixelated", settings.pixelated);
+    document.body.classList.toggle("settings-touch-controls-hidden", !settings.showTouchControls);
+    document.body.classList.toggle("settings-left-handed", settings.leftHandedControls);
+    window.__webminecraftAudioSettings = {
+        masterVolume: Math.max(0, Math.min(1, Number(settings.masterVolume) || 0)),
+        soundEffects: settings.soundEffects !== false,
+        music: settings.music !== false
+    };
+    document.dispatchEvent(new CustomEvent("webminecraft-audio-settings-changed", {
+        detail: { ...window.__webminecraftAudioSettings }
+    }));
     const crosshair = document.getElementById("crosshair");
     const hotbar = document.getElementById("hotbar");
     if (crosshair) crosshair.style.visibility = settings.crosshair ? "visible" : "hidden";
@@ -112,12 +145,20 @@ const panels = {
         ${control("sPixelated", "Pixelated Mode", "Give the interface a crisp pixel presentation.", "checkbox")}
         </div>`,
     Controls: `
-        <div class="settingsGroup"><h3>Mouse & Touch</h3>
-        ${control("sMouseSensitivity", "Mouse Sensitivity", "Camera turn speed on desktop.", "range", [0.35,2,0.05])}
-        ${control("sTouchSensitivity", "Touch Sensitivity", "Camera turn speed on phones and tablets.", "range", [0.5,2,0.05])}
+        <div class="settingsGroup settings-desktop-only"><h3>Mouse</h3>
+        ${control("sMouseSensitivity", "Mouse Sensitivity", "Camera turn speed with a mouse.", "range", [0.35,2,0.05])}
+        </div>
+        <div class="settingsGroup settings-touch-only"><h3>Touch Controls</h3>
+        ${control("sTouchSensitivity", "Look Sensitivity", "How quickly the camera turns when you drag to look.", "range", [0.5,2,0.05])}
+        ${control("sTouchControlSize", "Control Size", "Resize the on-screen movement and action controls.", "range", [0.7,1.35,0.05])}
+        ${control("sTouchControlOpacity", "Control Opacity", "Make the on-screen controls more or less visible.", "range", [0.3,1,0.05])}
+        ${control("sShowTouchControls", "Show Touch Buttons", "Hide or show movement and action buttons. Touch-look still works.", "checkbox")}
+        ${control("sLeftHandedControls", "Left-Handed Layout", "Move action buttons to the left and movement buttons to the right.", "checkbox")}
+        </div>
+        <div class="settingsGroup"><h3>Camera</h3>
         ${control("sInvertY", "Invert Y Axis", "Reverse vertical camera movement.", "checkbox")}
         </div>
-        <div class="settingsGroup"><h3>Keybinds</h3>
+        <div class="settingsGroup settings-desktop-only"><h3>Keyboard Keybinds</h3>
             <div id="settingsKeybinds"></div>
             <div class="setting settingInfo"><div><label>Reset Keybinds</label><small>Restore movement and gameplay keys to their defaults.</small></div><div class="settingControl"><button id="resetKeybinds" type="button">Reset</button></div></div>
         </div>`,
@@ -125,7 +166,7 @@ const panels = {
         <div class="settingsGroup"><h3>Sound</h3>
         ${control("sMasterVolume", "Master Volume", "Overall volume level.", "range", [0,1,0.05])}
         ${control("sSoundEffects", "Sound Effects", "Enable gameplay sound effects.", "checkbox")}
-        ${control("sMusic", "Music", "Enable menu and gameplay music.", "checkbox")}
+        <div class="setting settingInfo"><div><label>Music</label><small>No music track is currently loaded in the game, so there is nothing to toggle yet.</small></div></div>
         </div>`,
     Accessibility: `
         <div class="settingsGroup"><h3>Interface</h3>
@@ -147,9 +188,28 @@ const panels = {
         </div>`
 };
 
-function applyFullscreen(enabled) {
-    if (enabled) document.documentElement.requestFullscreen?.().catch(() => {});
-    else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+async function applyFullscreen(enabled) {
+    const toggle = document.getElementById("sFullscreen");
+    try {
+        if (enabled && !document.fullscreenElement) {
+            if (typeof document.documentElement.requestFullscreen !== "function") throw new Error("Fullscreen is not supported here.");
+            await document.documentElement.requestFullscreen();
+        } else if (!enabled && document.fullscreenElement) {
+            if (typeof document.exitFullscreen !== "function") throw new Error("Fullscreen exit is not supported here.");
+            await document.exitFullscreen();
+        }
+    } catch {
+        settings.fullscreen = Boolean(document.fullscreenElement);
+        if (toggle) toggle.checked = settings.fullscreen;
+        save();
+        toast(settings.fullscreen ? "Fullscreen remains active." : "Fullscreen isn't supported by this browser.");
+    }
+}
+document.addEventListener("fullscreenchange", () => {
+    settings.fullscreen = Boolean(document.fullscreenElement);
+    const toggle = document.getElementById("sFullscreen");
+    if (toggle) toggle.checked = settings.fullscreen;
+    save();
 }
 
 function build() {
@@ -205,10 +265,13 @@ function build() {
     bind("sPixelated", "pixelated", "checkbox");
     bind("sMouseSensitivity", "mouseSensitivity", "range");
     bind("sTouchSensitivity", "touchSensitivity", "range");
+    bind("sTouchControlSize", "touchControlSize", "range");
+    bind("sTouchControlOpacity", "touchControlOpacity", "range");
+    bind("sShowTouchControls", "showTouchControls", "checkbox");
+    bind("sLeftHandedControls", "leftHandedControls", "checkbox");
     bind("sInvertY", "invertY", "checkbox");
     bind("sMasterVolume", "masterVolume", "range");
     bind("sSoundEffects", "soundEffects", "checkbox");
-    bind("sMusic", "music", "checkbox");
     bind("sLargeUi", "largeUi", "checkbox");
     bind("sHighContrast", "highContrast", "checkbox");
     bind("sColorblind", "colorblind", "checkbox");
@@ -218,7 +281,26 @@ function build() {
     bind("sHotbar", "hotbar", "checkbox");
     bind("sPerformanceHud", "performanceHud", "checkbox");
     bind("sFullscreen", "fullscreen", "checkbox", applyFullscreen);
-    setupKeybindControls();
+    if (!IS_TOUCH_DEVICE) setupKeybindControls();
+    if (IS_TOUCH_DEVICE) {
+        for (const id of ["sShadows", "sShadowQuality"]) {
+            const input = document.getElementById(id);
+            if (input) input.disabled = true;
+        }
+        const quality = document.getElementById("sPixelRatio");
+        if (quality) for (const option of quality.options) {
+            if (Number(option.value) > 1) option.disabled = true;
+        }
+        const lighting = document.getElementById("sLighting");
+        if (lighting) {
+            const high = [...lighting.options].find(option => option.value === "high");
+            if (high) high.disabled = true;
+        }
+        const shadowHint = document.querySelector('label[for="sShadows"]')?.parentElement?.querySelector("small");
+        if (shadowHint) shadowHint.textContent = "Dynamic shadows are disabled on touch devices to protect frame rate.";
+        const qualityHint = document.querySelector('label[for="sPixelRatio"]')?.parentElement?.querySelector("small");
+        if (qualityHint) qualityHint.textContent = "Higher render scales are disabled on touch devices for smoother gameplay.";
+    }
     document.getElementById("resetKeybinds")?.addEventListener("click", () => {
         resetKeybinds();
         refreshKeybindControls();
@@ -226,7 +308,8 @@ function build() {
     });
 
     document.getElementById("resetSettings")?.addEventListener("click", () => {
-        settings = { ...defaults };
+        if (document.fullscreenElement) applyFullscreen(false);
+        settings = { ...defaults, deviceProfile: IS_TOUCH_DEVICE ? "touch" : "desktop" };
         resetKeybinds();
         save();
         menu.dataset.redone = "";
@@ -244,9 +327,11 @@ function build() {
     });
 
 
+    ensureSettingsStyles();
     applyUi();
     show("Graphics");
     save();
+    window.dispatchEvent(new CustomEvent("webminecraft-settings-ready", { detail: { settings: { ...settings } } }));
 }
 
 let keybindRefresh = null;
@@ -373,6 +458,36 @@ function show(name) {
     if (title) title.textContent = name;
     const scroll = document.getElementById("settingsScroll");
     if (scroll) scroll.scrollTop = 0;
+}
+
+function ensureSettingsStyles() {
+    if (document.getElementById("webminecraftSettingsBehaviorStyles")) return;
+    const style = document.createElement("style");
+    style.id = "webminecraftSettingsBehaviorStyles";
+    style.textContent = `
+.settings-device-touch .settings-desktop-only{display:none!important}
+body:not(.settings-device-touch) .settings-touch-only{display:none!important}
+.settings-large-ui .setting label{font-size:18px!important}
+.settings-large-ui .setting small{font-size:14px!important}
+.settings-large-ui .settingsKeybindButton,.settings-large-ui .settingsTab{font-size:14px!important}
+.settings-high-contrast .setting{border-color:#eee!important;background:#171717!important}
+.settings-high-contrast .setting label,.settings-high-contrast .setting small{color:#fff!important}
+.settings-high-contrast .settingsTab{border-color:#fff!important;color:#fff!important}
+.settings-colorblind .settingsTab.active{background:linear-gradient(#416d9e,#244f7c)!important}
+.settings-colorblind #crosshair{filter:hue-rotate(150deg) saturate(1.3)}
+.settings-reduced-motion *,body.settings-reduced-motion *::before,body.settings-reduced-motion *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+.settings-pixelated #hotbar,.settings-pixelated #hotbar img,.settings-pixelated #hotbar canvas{image-rendering:pixelated!important}
+body #hotbar,body #crosshair,body #performanceHud,body #coordinatesHud{opacity:var(--ui-opacity,1)}
+.settings-pixelated canvas,.settings-pixelated #hotbar img,.settings-pixelated #hotbar canvas{image-rendering:pixelated!important}
+#touchControls{opacity:var(--touch-control-opacity,.9)}
+#touchMovePad{transform:scale(var(--touch-control-scale,1));transform-origin:bottom left}
+#touchActions{transform:scale(var(--touch-control-scale,1));transform-origin:bottom right}
+.settings-touch-controls-hidden #touchMovePad,.settings-touch-controls-hidden #touchActions,.settings-touch-controls-hidden #touchHint{display:none!important}
+.settings-left-handed #touchMovePad{left:auto!important;right:max(12px,env(safe-area-inset-right))!important;transform-origin:bottom right!important}
+.settings-left-handed #touchActions{right:auto!important;left:max(12px,env(safe-area-inset-left))!important;transform-origin:bottom left!important}
+.settings-left-handed #touchLookArea{left:0!important;right:31%!important}
+`;
+    document.head.appendChild(style);
 }
 
 function init() { build(); }

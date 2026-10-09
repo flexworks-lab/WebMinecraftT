@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { IS_TOUCH_DEVICE } from "./performance.js";
-import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, SEA_LEVEL } from "./world.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "./world.js";
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
 import { setupInteraction } from "./interaction.js";
@@ -105,6 +105,36 @@ const defaults = { shadows: !IS_TOUCH_DEVICE, shadowQuality: IS_TOUCH_DEVICE ? 5
 let settings;
 try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
 catch { settings = { ...defaults }; }
+
+const extendedDefaults = {
+    fov: 75, renderDistance: IS_TOUCH_DEVICE ? 60 : 120, fog: true, waterEffects: true,
+    masterVolume: 1, soundEffects: true, music: true
+};
+let extendedSettings = { ...extendedDefaults };
+try {
+    const saved = JSON.parse(localStorage.getItem("webminecraft-settings-v2") || "null");
+    if (saved && typeof saved === "object") extendedSettings = { ...extendedDefaults, ...saved };
+} catch {}
+if (IS_TOUCH_DEVICE) {
+    if (extendedSettings.deviceProfile !== "touch") {
+        extendedSettings.renderDistance = 60;
+    }
+    if (extendedSettings.lightingQuality === "high") extendedSettings.lightingQuality = "balanced";
+}
+settings.shadows = IS_TOUCH_DEVICE ? false : (extendedSettings.shadows ?? settings.shadows);
+settings.shadowQuality = IS_TOUCH_DEVICE ? Math.min(Number(extendedSettings.shadowQuality) || 512, 512) : (extendedSettings.shadowQuality ?? settings.shadowQuality);
+settings.pixelRatio = IS_TOUCH_DEVICE ? Math.min(Number(extendedSettings.pixelRatio) || 1, 1) : (extendedSettings.pixelRatio ?? settings.pixelRatio);
+settings.lightingQuality = extendedSettings.lightingQuality ?? settings.lightingQuality;
+settings.brightness = Number(extendedSettings.brightness ?? settings.brightness);
+camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
+camera.updateProjectionMatrix();
+setRenderDistance(extendedSettings.renderDistance);
+window.__webminecraftAudioSettings = {
+    masterVolume: Number(extendedSettings.masterVolume ?? 1),
+    soundEffects: extendedSettings.soundEffects !== false,
+    music: extendedSettings.music !== false
+};
+
 function saveSettings() { try { localStorage.setItem("webminecraft-settings", JSON.stringify(settings)); } catch {} }
 function getLightingProfile() {
     if (settings.lightingQuality === "performance") {
@@ -255,6 +285,7 @@ function updateDepthLighting() {
     }
 
     cachedUnderwater = y < cachedWaterSurface - 0.02 && y > cachedWaterFloor + 0.05;
+    const underwaterVisuals = cachedUnderwater && extendedSettings.waterEffects !== false;
 
     const sampleX = camera.position.x;
     const sampleY = camera.position.y;
@@ -304,10 +335,10 @@ function updateDepthLighting() {
     const ambientOpeningFactor = THREE.MathUtils.lerp(0.20, 1, openingLight);
     const fillOpeningFactor = THREE.MathUtils.lerp(0.12, 1, openingLight);
 
-    const waterSunFactor = cachedUnderwater ? 0.22 : 1;
-    const waterSkyFactor = cachedUnderwater ? 0.34 : 1;
-    const waterAmbientFactor = cachedUnderwater ? 0.50 : 1;
-    const waterFillFactor = cachedUnderwater ? 0.18 : 1;
+    const waterSunFactor = underwaterVisuals ? 0.22 : 1;
+    const waterSkyFactor = underwaterVisuals ? 0.34 : 1;
+    const waterAmbientFactor = underwaterVisuals ? 0.50 : 1;
+    const waterFillFactor = underwaterVisuals ? 0.18 : 1;
 
     const targetSun = profile.sun * sunOpeningFactor * depthSunFactor * waterSunFactor;
     const targetSky = profile.sky * skyOpeningFactor * depthSkyFactor * waterSkyFactor;
@@ -317,7 +348,7 @@ function updateDepthLighting() {
     const exposureBase = 0.98 + settings.brightness * 0.30;
     const caveExposure = THREE.MathUtils.lerp(0.58, 1, openingLight);
     const depthExposure = THREE.MathUtils.lerp(0.72, 1, 1 - depthT);
-    const underwaterExposure = cachedUnderwater ? 0.66 : 1;
+    const underwaterExposure = underwaterVisuals ? 0.66 : 1;
     const targetExposure = exposureBase * caveExposure * depthExposure * underwaterExposure;
 
     const lightingKey = [
@@ -330,7 +361,9 @@ function updateDepthLighting() {
         Math.round(cachedSkyVisibility * 100),
         Math.round(undergroundDepth * 10),
         Math.round(depthT * 100),
-        cachedUnderwater
+        underwaterVisuals,
+        extendedSettings.fog !== false,
+        extendedSettings.waterEffects !== false
     ].join("|");
 
     if (lightingKey === cachedLightingKey) return;
@@ -340,27 +373,27 @@ function updateDepthLighting() {
     skyLight.intensity = targetSky;
     ambientLight.intensity = targetAmbient;
     fillLight.intensity = targetFill;
-    depthLight.intensity = cachedUnderwater ? 0.16 : 0;
+    depthLight.intensity = underwaterVisuals ? 0.16 : 0;
     depthLight.position.set(camera.position.x, camera.position.y - 1.2, camera.position.z);
     renderer.toneMappingExposure = targetExposure;
 
-    if (cachedUnderwater) {
+    if (underwaterVisuals) {
         scene.background.lerpColors(skyColor, underwaterColor, 0.98);
         scene.fog.color.lerpColors(skyColor, underwaterColor, 0.98);
-        scene.fog.near = 1.8;
-        scene.fog.far = 26;
+        scene.fog.near = extendedSettings.fog === false ? 1000000 : 1.8;
+        scene.fog.far = extendedSettings.fog === false ? 1000001 : 26;
     } else if (openingLight < 0.92 || depthT > 0.02) {
         const caveAmount = 1 - openingLight;
         const depthFog = depthT;
         scene.background.copy(skyColor);
-        scene.fog.color.copy(caveFogColor);
-        scene.fog.near = THREE.MathUtils.lerp(55, 8, Math.max(caveAmount, depthFog * 0.65));
-        scene.fog.far = THREE.MathUtils.lerp(175, 44, Math.max(caveAmount, depthFog * 0.65));
+        scene.fog.color.copy(extendedSettings.fog === false ? skyColor : caveFogColor);
+        scene.fog.near = extendedSettings.fog === false ? 1000000 : THREE.MathUtils.lerp(55, 8, Math.max(caveAmount, depthFog * 0.65));
+        scene.fog.far = extendedSettings.fog === false ? 1000001 : THREE.MathUtils.lerp(175, 44, Math.max(caveAmount, depthFog * 0.65));
     } else {
         scene.background.copy(skyColor);
         scene.fog.color.copy(skyColor);
-        scene.fog.near = 55;
-        scene.fog.far = 175;
+        scene.fog.near = extendedSettings.fog === false ? 1000000 : 55;
+        scene.fog.far = extendedSettings.fog === false ? 1000001 : 175;
     }
 
     skyLight.color.copy(skyLightColor);
@@ -369,6 +402,39 @@ function updateDepthLighting() {
     fillLight.color.copy(fillColor);
 }
 
+
+function applyExtendedSettings(next = {}) {
+    if (!next || typeof next !== "object") return;
+    extendedSettings = { ...extendedSettings, ...next };
+    settings.shadows = IS_TOUCH_DEVICE ? false : Boolean(extendedSettings.shadows);
+    settings.shadowQuality = IS_TOUCH_DEVICE ? Math.min(Number(extendedSettings.shadowQuality) || 512, 512) : Number(extendedSettings.shadowQuality) || 1024;
+    settings.pixelRatio = IS_TOUCH_DEVICE ? Math.min(Number(extendedSettings.pixelRatio) || 1, 1) : Number(extendedSettings.pixelRatio) || 1;
+    settings.lightingQuality = extendedSettings.lightingQuality || "high";
+    settings.brightness = Number.isFinite(Number(extendedSettings.brightness)) ? Number(extendedSettings.brightness) : 1;
+    camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
+    camera.updateProjectionMatrix();
+    setRenderDistance(extendedSettings.renderDistance);
+    window.__webminecraftAudioSettings = {
+        masterVolume: Math.max(0, Math.min(1, Number(extendedSettings.masterVolume ?? 1))),
+        soundEffects: extendedSettings.soundEffects !== false,
+        music: extendedSettings.music !== false
+    };
+    cachedLightingKey = "";
+    applySettings();
+}
+window.addEventListener("webminecraft-setting-changed", event => {
+    const prefs = event.detail?.settings || (event.detail?.name ? { [event.detail.name]: event.detail.value } : null);
+    if (prefs) applyExtendedSettings(prefs);
+});
+window.addEventListener("webminecraft-settings-ready", event => {
+    if (event.detail?.settings) applyExtendedSettings(event.detail.settings);
+});
+window.addEventListener("webminecraft-settings-reset", () => {
+    try {
+        const saved = JSON.parse(localStorage.getItem("webminecraft-settings-v2") || "null");
+        if (saved && typeof saved === "object") applyExtendedSettings(saved);
+    } catch {}
+});
 
 applySettings();
 

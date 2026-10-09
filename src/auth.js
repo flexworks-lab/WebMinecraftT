@@ -741,12 +741,15 @@ function hideFriendRequestToast(toast = document.getElementById("friendRequestTo
 
 function playFriendRequestSound() {
     try {
+        const preferences = window.__webminecraftAudioSettings || { masterVolume: 1, soundEffects: true };
+        const volume = Math.max(0, Math.min(1, Number(preferences.masterVolume ?? 1)));
+        if (preferences.soundEffects === false || volume <= 0) return;
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) return;
         const ctx = new AudioContextClass();
         const gain = ctx.createGain(); const osc = ctx.createOscillator();
         osc.type = "square"; osc.frequency.setValueAtTime(660, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.11);
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.045, ctx.currentTime + 0.012); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.045 * volume, ctx.currentTime + 0.012); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
         osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.2);
         setTimeout(() => ctx.close?.(), 350);
     } catch {}
