@@ -255,11 +255,69 @@ function injectStyle() {
 }
 #createWorldSettingsCreate:hover{background:linear-gradient(#91dc77,#5ebd45)!important;filter:none!important;transform:none!important}
 #createWorldSettingsCancel{background:linear-gradient(#d4d4d4,#bcbcbc)!important;color:#292929!important}
-.createWorldSettingsRange{accent-color:#62a947!important}
+.createWorldSettingsRange{accent-color:#888!important}
+
+/* Final neutral-gray override: no green, blue, red or yellow UI accents. */
+#savedWorlds[data-create-open="1"]{
+    position:fixed!important;inset:0!important;z-index:2147482000!important;
+    background:#e5e5e5!important;opacity:1!important;visibility:visible!important;
+}
+#savedWorlds[data-create-open="1"] .sw2-wrap{
+    position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+    background:#e5e5e5!important;opacity:1!important;visibility:visible!important;
+}
+#savedWorlds[data-create-open="1"] .sw2-wrap > :not(.sw2-modal){
+    display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;
+}
+#savedWorlds[data-create-open="1"] .sw2-modal{
+    position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+    display:flex!important;align-items:stretch!important;justify-content:stretch!important;
+    padding:0!important;margin:0!important;background:#e5e5e5!important;
+    opacity:1!important;visibility:visible!important;z-index:2147483647!important;
+}
+#createWorldSettingsRoot{
+    position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+    min-height:100vh!important;overflow:hidden!important;background:#e5e5e5!important;
+    color:#292929!important;border:0!important;box-shadow:none!important;
+}
+#createWorldSettingsSidebar,#createWorldSettingsSidebarFooter{background:#d5d5d5!important;border-color:#999!important}
+#createWorldSettingsContent,#createWorldSettingsScroll{background:#e5e5e5!important}
+#createWorldSettingsHeader{background:#cecece!important;border-color:#999!important;box-shadow:none!important}
+#createWorldSettingsSectionTitle,#createWorldSettingsSub,#createWorldSettingsSidebarFooter,
+.createWorldSettingsGroupTitle,.createWorldSettingsRow label,.createWorldSettingsRow small,
+.createWorldSettingsStatic,.createWorldSettingsPackName,.createWorldSettingsPackState,
+#createWorldSettingsMessage{color:#292929!important;text-shadow:none!important}
+.createWorldSettingsGroupTitle{border-bottom-color:#aaa!important}
+.createWorldSettingsRow,.createWorldSettingsChoice,.createWorldSettingsStatic,.createWorldSettingsPack{
+    background:#fafafa!important;color:#292929!important;border-color:#b0b0b0!important;
+    box-shadow:0 1px 0 rgba(0,0,0,.1)!important;
+}
+.createWorldSettingsInput{background:#fff!important;color:#292929!important;border-color:#999!important}
+.createWorldSettingsTab,.createWorldSettingsMode button,.createWorldSettingsDifficulty button,
+.createWorldSettingsAction,#createWorldSettingsClose{
+    background:linear-gradient(#d8d8d8,#bdbdbd)!important;color:#292929!important;
+    border-color:#858585!important;border-top-color:#fff!important;border-left-color:#fff!important;
+    text-shadow:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.14)!important;
+}
+.createWorldSettingsTab:hover,.createWorldSettingsTab.active,
+.createWorldSettingsChoice.active,.createWorldSettingsMode button.active,
+.createWorldSettingsDifficulty button.active{
+    background:linear-gradient(#eeeeee,#d5d5d5)!important;color:#292929!important;
+    border-color:#777!important;box-shadow:inset 3px 0 0 #aaa,0 2px 0 rgba(0,0,0,.14)!important;
+}
+.createWorldSettingsTabIcon{background:#bdbdbd!important;color:#292929!important;border-color:#888!important}
+#createWorldSettingsCreate,#createWorldSettingsCreate:hover,#createWorldSettingsCreate:active{
+    background:linear-gradient(#d8d8d8,#bdbdbd)!important;color:#292929!important;
+    text-shadow:none!important;border-color:#858585!important;border-top-color:#fff!important;
+    border-left-color:#fff!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.14)!important;
+    filter:none!important;transform:none!important;
+}
+#createWorldSettingsCancel{background:linear-gradient(#d8d8d8,#bdbdbd)!important;color:#292929!important}
+.createWorldSettingsRange{accent-color:#888!important}
 @media(max-width:760px){
-    #createWorldSettingsSidebar{background:#eeeeee!important;border-bottom:2px solid #aaa!important}
+    #createWorldSettingsSidebar{background:#d5d5d5!important;border-bottom:2px solid #999!important}
     #createWorldSettingsRoot{height:100dvh!important;min-height:100vh!important}
-    #createWorldSettingsHeader{background:#cfcfcf!important}
+    #createWorldSettingsHeader{background:#cecece!important}
 }
     `;
     document.head.appendChild(style);
