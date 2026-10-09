@@ -1696,6 +1696,392 @@ button[aria-label*="close" i]:hover{
       }
     </style>
 
+
+    <style id="minecraft-ui-bright-theme">
+      /* Bright stone-and-grass palette: light surfaces, readable ink, restrained accents. */
+      :root {
+        --mc-ui-page: #eeeeee;
+        --mc-ui-panel: #e3e3e3;
+        --mc-ui-panel-soft: #f5f5f5;
+        --mc-ui-panel-mid: #d2d2d2;
+        --mc-ui-border: #777777;
+        --mc-ui-ink: #292929;
+        --mc-ui-muted: #555555;
+        --mc-ui-green: #58a83d;
+        --mc-ui-blue: #4c91d2;
+      }
+
+      #mainMenu { background: rgba(0,0,0,.08) !important; }
+      #mainMenu::before { background: linear-gradient(to bottom,rgba(0,0,0,.02),rgba(0,0,0,.18)) !important; }
+      #menuTitle { text-shadow: 2px 2px 0 #555,4px 4px 0 #303030,6px 6px 0 #171717 !important; }
+      #menuSubtitle { color: #ffffff !important; }
+      #menuUpdates {
+        background: rgba(238,238,238,.97) !important;
+        color: #292929 !important;
+        border-color: #777 !important;
+        border-top-color: #fff !important;
+        border-left-color: #fff !important;
+        box-shadow: 3px 3px 0 rgba(0,0,0,.28) !important;
+      }
+      #menuUpdatesTitle { color: #292929 !important; text-shadow: none !important; border-bottom-color: #aaa !important; }
+      .menuUpdate { background: #f7f7f7 !important; color: #292929 !important; border-color: #aaa !important; }
+      .menuUpdateVersion { color: #3e7c2f !important; text-shadow: none !important; }
+      .menuUpdateText { color: #4a4a4a !important; }
+      #menuFooter, #menuCopyright { color: #fff !important; text-shadow: 1px 1px 2px #111 !important; }
+
+      /* Default button: classic Minecraft bevel, but with a lighter stone face. */
+      button,
+      input[type="button"],
+      input[type="submit"],
+      input[type="reset"],
+      [role="button"] {
+        background: linear-gradient(#cfcfcf,#b7b7b7) !important;
+        color: #242424 !important;
+        border-color: #777 !important;
+        border-top-color: #fff !important;
+        border-left-color: #fff !important;
+        border-right-color: #666 !important;
+        border-bottom-color: #666 !important;
+        text-shadow: 1px 1px 0 rgba(255,255,255,.18) !important;
+        box-shadow: inset 2px 2px 0 rgba(255,255,255,.3), inset -2px -2px 0 rgba(0,0,0,.09), 0 2px 0 rgba(0,0,0,.25) !important;
+      }
+      button:hover:not(:disabled),
+      input[type="button"]:hover:not(:disabled),
+      input[type="submit"]:hover:not(:disabled),
+      input[type="reset"]:hover:not(:disabled),
+      [role="button"]:hover {
+        background: linear-gradient(#e5e5e5,#cfcfcf) !important;
+        color: #202020 !important;
+        filter: none !important;
+      }
+      button:active:not(:disabled),
+      input[type="button"]:active:not(:disabled),
+      input[type="submit"]:active:not(:disabled),
+      input[type="reset"]:active:not(:disabled) {
+        background: linear-gradient(#a9a9a9,#c0c0c0) !important;
+        box-shadow: inset 2px 2px 0 rgba(0,0,0,.1) !important;
+      }
+      input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+      select, textarea {
+        background: #ffffff !important;
+        color: #292929 !important;
+        border-color: #999 !important;
+        border-top-color: #666 !important;
+        border-left-color: #666 !important;
+        box-shadow: inset 2px 2px 0 rgba(0,0,0,.06) !important;
+      }
+      input::placeholder, textarea::placeholder { color: #777 !important; }
+      option { background: #ffffff; color: #292929; }
+
+      /* Lighter full-screen menus and content panels. */
+      #settingsMenu, #seedMenu, #multiplayerMenu, #inventoryScreen,
+      #craftingTableScreen, #discussionModal, #welcomeScreen,
+      #accountModal, #friendsModal, #adminControlsModal,
+      #siteAnnouncementOverlay, #playerDataSyncOverlay {
+        background: rgba(20,25,20,.28) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+      #settingsPanel, #seedPanel, #multiplayerPanel, #inventoryPanel,
+      #ctm-panel, #svi-panel, #discussionPanel, #welcomeCard,
+      #accountPanel, #friendsPage, #adminControlsPanel, #siteAnnouncement,
+      #playerDataSyncPanel {
+        background: #e4e4e4 !important;
+        color: #292929 !important;
+        border-color: #858585 !important;
+        border-top-color: #fff !important;
+        border-left-color: #fff !important;
+        box-shadow: 4px 4px 0 rgba(0,0,0,.24) !important;
+      }
+      #settingsSidebar, #createWorldSettingsSidebar {
+        background: #d3d3d3 !important;
+        border-color: #9a9a9a !important;
+        box-shadow: none !important;
+      }
+      #settingsContent, #multiplayerContent, #ctm-craft-box,
+      #ctm-storage-section, #ctm-hotbar-section, #catalogPanel,
+      #survivalPanel, #svi-player-box, #svi-crafting,
+      #svi-storage-section, #svi-hotbar-section, #svi-recipe-panel,
+      #welcomeContent, #discussionPanel main, #siteAnnouncementMessage {
+        background: #eeeeee !important;
+        color: #292929 !important;
+      }
+      #settingsHeader, #inventoryTopBar, #inventoryBottom,
+      #catalogToolbar, #ctm-pages, #ctm-left-page, #ctm-right-page,
+      #svi-header, #svi-top, #multiplayerHero, #multiplayerHeroMain,
+      #multiplayerSteps, #createWorldSettingsHeader, #welcomeHeader,
+      #discussionHeader, #siteAnnouncementHeader, #playerDataSyncTitle {
+        background: #cfcfcf !important;
+        color: #292929 !important;
+        border-color: #999 !important;
+        box-shadow: none !important;
+      }
+      #settingsPanel h1, #settingsSectionTitle, #seedTitle,
+      #multiplayerTitle, #inventoryTitle, #ctm-title, .ctm-title,
+      #svi-header, #discussionTitle, #welcomeTitle,
+      #siteAnnouncementHeader, #playerDataSyncTitle,
+      #createWorldSettingsSectionTitle, .settingsGroupTitle,
+      .multiplayerSectionTitle, #savedWorlds .sw2-title,
+      #savedWorlds .sw2-panel-head h2 {
+        color: #292929 !important;
+        text-shadow: 1px 1px 0 rgba(255,255,255,.55) !important;
+      }
+      #settingsSubtitle, #settingsVersion, .setting small,
+      #seedSubtitle, .settingsGroupTitle, .multiplayerSectionHint,
+      .multiplayerHint, #multiplayerSubtitle, #accountSubtitle,
+      #friendsSubheading, #discussionSubtitle, #discussionWarning,
+      #welcomeSubtitle, #createWorldSettingsSub {
+        color: #555555 !important;
+        text-shadow: none !important;
+      }
+      .setting {
+        background: #fafafa !important;
+        color: #292929 !important;
+        border-color: #aaa !important;
+        border-top-color: #fff !important;
+        border-left-color: #fff !important;
+        box-shadow: 0 2px 0 rgba(0,0,0,.12) !important;
+      }
+      .setting label { color: #292929 !important; }
+      .settingsTab {
+        background: linear-gradient(#cfcfcf,#b7b7b7) !important;
+        color: #292929 !important;
+        text-shadow: none !important;
+        border-color: #888 !important;
+        border-top-color: #fff !important;
+        border-left-color: #fff !important;
+        box-shadow: inset 2px 2px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.18) !important;
+      }
+      .settingsTab:hover, .settingsTab.active {
+        background: linear-gradient(#e8e8e8,#d3d3d3) !important;
+        color: #242424 !important;
+      }
+      #settingsCloseTop, #closeSettings {
+        background: linear-gradient(#bdbdbd,#a2a2a2) !important;
+        color: #292929 !important;
+        text-shadow: none !important;
+      }
+      #menuButtons .menuButton, #menuButtons .menuButton:hover {
+        background: linear-gradient(#bdbdbd,#9f9f9f) !important;
+        color: #ffffff !important;
+        text-shadow: 2px 2px 0 #484848 !important;
+        border-color: #777 !important;
+        border-top-color: #f4f4f4 !important;
+        border-left-color: #f4f4f4 !important;
+      }
+      #menuButtons #playButton {
+        background: linear-gradient(#72c75a,#4a9d35) !important;
+        color: #ffffff !important;
+        text-shadow: 2px 2px 0 #2d6121 !important;
+      }
+      #menuButtons #multiplayerButton {
+        background: linear-gradient(#76b9f0,#4386c7) !important;
+        color: #ffffff !important;
+        text-shadow: 2px 2px 0 #28557d !important;
+      }
+      #seedPanel {
+        background: #ededed !important;
+        color: #292929 !important;
+        border-color: #999 !important;
+      }
+      #seedTitle, #seedSubtitle { color: #292929 !important; }
+      #seedInput { background: #ffffff !important; color: #222 !important; border-color: #999 !important; }
+      #seedLinkStatus { background: #dff0d5 !important; color: #2e6423 !important; border-color: #9fc68c !important; }
+      #openWorldButton, #createWorldSettingsCreate, #savedWorlds .sw2-create,
+      #savedWorlds .sw2-green, #welcomeOk, #closeSettings {
+        background: linear-gradient(#78c95e,#4ca235) !important;
+        color: #ffffff !important;
+        text-shadow: 1px 1px 0 #316b24 !important;
+        border-color: #3b7e2b !important;
+        border-top-color: #c7f3b9 !important;
+        border-left-color: #c7f3b9 !important;
+      }
+
+      /* Saved worlds become bright, with clear white cards. */
+      #savedWorlds {
+        z-index: 2147482000 !important;
+        background: #e5e5e5 !important;
+        color: #292929 !important;
+      }
+      #savedWorlds .sw2-wrap { background: #eeeeee !important; }
+      #savedWorlds .sw2-head, #savedWorlds .sw2-panel-head {
+        background: #d0d0d0 !important;
+        color: #292929 !important;
+        border-color: #999 !important;
+      }
+      #savedWorlds .sw2-title, #savedWorlds .sw2-count,
+      #savedWorlds .sw2-name, #savedWorlds .sw2-mode,
+      #savedWorlds .sw2-details, #savedWorlds .sw2-label {
+        color: #292929 !important;
+        text-shadow: none !important;
+      }
+      #savedWorlds .sw2-card, #savedWorlds .sw2-panel,
+      #savedWorlds .sw2-modal-card {
+        background: #fafafa !important;
+        color: #292929 !important;
+        border-color: #999 !important;
+        border-top-color: #fff !important;
+        border-left-color: #fff !important;
+        box-shadow: 2px 2px 0 rgba(0,0,0,.15) !important;
+      }
+      #savedWorlds .sw2-help { color: #555 !important; }
+      #savedWorlds .sw2-seed { background: #eeeeee !important; color: #292929 !important; border-color: #aaa !important; }
+
+      /* Brighter inventory, recipe book and item slots without touching world pixels. */
+      #ctm-page-title, .ctm-page-title, #ctm-help, .ctm-recipe-tip,
+      #catalogSectionName, .catalogGroupLabel, #svi-player-box .svi-box-label,
+      .ctm-page-title, #inventoryTitle, .catalogName, .catalogFallback,
+      #multiplayerSelected, #multiplayerSelected strong,
+      .multiplayerCardName, .multiplayerMeta, .welcomeInfo,
+      #discussionModal .discussionMessageText, #accountName,
+      #accountEmail, #friendCodeValue, .friendSectionTitle {
+        color: #292929 !important;
+        text-shadow: none !important;
+      }
+      .ctm-slot, .ctm-craft-slot, #ctm-output, .svi-slot,
+      .svi-equipment-slot, .svi-craft-slot, .svi-craft-output,
+      .inventorySlot, .destroySlot, .offhandSlot, .catalogSlot, .slot,
+      #hotbar .slot {
+        background-color: #bdbdbd !important;
+        border-color: #777 !important;
+        border-top-color: #f7f7f7 !important;
+        border-left-color: #f7f7f7 !important;
+        box-shadow: inset 2px 2px 0 rgba(255,255,255,.15) !important;
+      }
+      #hotbar {
+        background: rgba(235,235,235,.92) !important;
+        border-color: #777 !important;
+        box-shadow: 0 2px 0 rgba(0,0,0,.16) !important;
+      }
+      #hotbar .slot { color: #292929 !important; text-shadow: none !important; }
+      .slot.selected, .svi-slot.selected, .inventorySlot.selected,
+      .ctm-slot.selected, .catalogSlot.selected {
+        background-color: #e7e7e7 !important;
+        border: 2px solid #ffffff !important;
+        outline: 2px solid #666 !important;
+      }
+
+      /* While creating a world, only the full-screen world editor stays visible. */
+      body.webminecraft-creating-world #mainMenu,
+      body.webminecraft-creating-world #menuUpdates,
+      body.webminecraft-creating-world #menuFooter,
+      body.webminecraft-creating-world #menuCopyright,
+      body.webminecraft-creating-world #settingsButton,
+      body.webminecraft-creating-world #settingsMenu,
+      body.webminecraft-creating-world #seedMenu,
+      body.webminecraft-creating-world #multiplayerMenu,
+      body.webminecraft-creating-world #crosshair,
+      body.webminecraft-creating-world #hotbar,
+      body.webminecraft-creating-world #mobilePauseButton,
+      body.webminecraft-creating-world #inventoryScreen,
+      body.webminecraft-creating-world #craftingTableScreen,
+      body.webminecraft-creating-world #survivalInventoryScreen,
+      body.webminecraft-creating-world #accountModal,
+      body.webminecraft-creating-world #friendsModal,
+      body.webminecraft-creating-world #discussionModal,
+      body.webminecraft-creating-world #adminControlsModal,
+      body.webminecraft-creating-world #welcomeScreen,
+      body.webminecraft-creating-world #siteAnnouncementOverlay,
+      body.webminecraft-creating-world #playerDataSyncOverlay,
+      body.webminecraft-creating-world #globalPlayerPanel {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      body.webminecraft-creating-world #savedWorlds .sw2-wrap > :not(.sw2-modal) {
+        display: none !important;
+        visibility: hidden !important;
+      }
+      body.webminecraft-creating-world #savedWorlds .sw2-modal {
+        position: fixed !important;
+        inset: 0 !important;
+        display: flex !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+        padding: 0 !important;
+        z-index: 2147483647 !important;
+        background: #dedede !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+      body.webminecraft-creating-world #createWorldSettingsRoot {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100dvh !important;
+        min-height: 100vh !important;
+        background: #e5e5e5 !important;
+        color: #292929 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+      body.webminecraft-creating-world #createWorldSettingsSidebar { background: #eeeeee !important; }
+      body.webminecraft-creating-world #createWorldSettingsContent { background: #e2e2e2 !important; }
+      body.webminecraft-creating-world #createWorldSettingsHeader { background: #c8c8c8 !important; }
+      body.webminecraft-creating-world #createWorldSettingsSectionTitle,
+      body.webminecraft-creating-world #createWorldSettingsSub,
+      body.webminecraft-creating-world #createWorldSettingsSidebarFooter,
+      body.webminecraft-creating-world .createWorldSettingsGroupTitle,
+      body.webminecraft-creating-world .createWorldSettingsRow label,
+      body.webminecraft-creating-world .createWorldSettingsRow small,
+      body.webminecraft-creating-world .createWorldSettingsStatic,
+      body.webminecraft-creating-world .createWorldSettingsPackName,
+      body.webminecraft-creating-world .createWorldSettingsPackState,
+      body.webminecraft-creating-world #createWorldSettingsMessage {
+        color: #292929 !important;
+        text-shadow: none !important;
+      }
+      body.webminecraft-creating-world .createWorldSettingsRow,
+      body.webminecraft-creating-world .createWorldSettingsChoice,
+      body.webminecraft-creating-world .createWorldSettingsStatic,
+      body.webminecraft-creating-world .createWorldSettingsPack {
+        background: #fafafa !important;
+        color: #292929 !important;
+        border-color: #b0b0b0 !important;
+        box-shadow: 0 1px 0 rgba(0,0,0,.12) !important;
+      }
+      body.webminecraft-creating-world .createWorldSettingsTab {
+        background: linear-gradient(#d5d5d5,#bdbdbd) !important;
+        color: #292929 !important;
+        text-shadow: none !important;
+      }
+      body.webminecraft-creating-world .createWorldSettingsTab.active,
+      body.webminecraft-creating-world .createWorldSettingsChoice.active {
+        background: linear-gradient(#dff0d5,#b9dfa7) !important;
+        color: #23421b !important;
+        border-color: #69a653 !important;
+      }
+      body.webminecraft-creating-world .createWorldSettingsInput,
+      body.webminecraft-creating-world .createWorldSettingsMode button,
+      body.webminecraft-creating-world .createWorldSettingsDifficulty button {
+        background: #ffffff !important;
+        color: #292929 !important;
+        border-color: #999 !important;
+        text-shadow: none !important;
+      }
+      body.webminecraft-creating-world #createWorldSettingsCreate {
+        background: linear-gradient(#78c95e,#4ca235) !important;
+        color: #ffffff !important;
+        text-shadow: 1px 1px 0 #316b24 !important;
+        border-color: #3b7e2b !important;
+        border-top-color: #c7f3b9 !important;
+        border-left-color: #c7f3b9 !important;
+      }
+
+      @media (max-width: 900px) {
+        #settingsPanel, #seedPanel, #multiplayerPanel { border-radius: 0 !important; }
+        #settingsSidebar { border-right: 0 !important; border-bottom: 2px solid #999 !important; }
+        .settingsTab, .createWorldSettingsTab, .multiplayerButton,
+        .multiplayerTypeButton, .seedButton, .menuButton { min-height: 44px; }
+      }
+      @media (max-width: 600px) {
+        #seedPanel { padding-left: 12px !important; padding-right: 12px !important; }
+        #settingsScroll { padding-left: 12px !important; padding-right: 12px !important; }
+        .setting { grid-template-columns: minmax(0,1fr) !important; }
+        #hotbar .slot { width: 38px; height: 38px; flex-basis: 38px; }
+      }
+    </style>
+
 </head>
 <body>
 
