@@ -2329,6 +2329,64 @@ button[aria-label*="close" i]:hover{
       }
     </style>
 
+
+    <style id="minecraft-ui-gray-finishing-pass">
+      /* Outrank legacy ID-specific accent colors left in older UI styles. */
+      #openWorldButton,
+      #seedActions .seedButton,
+      #seedBackWrap .seedButton,
+      #settingsMenu #closeSettings,
+      #settingsMenu #settingsCloseTop,
+      #multiplayerJoin,
+      #multiplayerBack,
+      #multiplayerRoomCreateButton,
+      #multiplayerCreateAndJoin,
+      #friendsButton,
+      #discussionButton,
+      #accountButton,
+      #mobilePauseButton,
+      #inventoryMobileButton {
+        background:linear-gradient(#d8d8d8,#bdbdbd)!important;
+        color:#292929!important;
+        border-color:#858585!important;border-top-color:#fff!important;border-left-color:#fff!important;
+        text-shadow:1px 1px 0 rgba(255,255,255,.35)!important;
+        box-shadow:inset 2px 2px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.14)!important;
+      }
+      #openWorldButton:hover,#seedActions .seedButton:hover,#seedBackWrap .seedButton:hover,
+      #multiplayerJoin:hover,#multiplayerRoomCreateButton:hover,#multiplayerCreateAndJoin:hover {
+        background:linear-gradient(#eeeeee,#d6d6d6)!important;color:#292929!important;
+      }
+      #seedTitle::after { color:#555!important;text-shadow:none!important; }
+      #seedSpark { color:#777!important;text-shadow:1px 1px 0 #fff!important; }
+      #seedDecoration::before { background:linear-gradient(#cfcfcf 0 30%,#a8a8a8 30% 100%)!important; }
+      #seedDecoration::after { background:linear-gradient(#d8d8d8 0 28%,#aaa 28% 100%)!important; }
+      #createWorldSettingsPreviewLabel { background:rgba(50,50,50,.78)!important;color:#fff!important; }
+      #menuButtons #playButton,#menuButtons #multiplayerButton,
+      #menuButtons #menuSettingsButton,#menuButtons #mobileModeButton { background:linear-gradient(#d3d3d3,#b8b8b8)!important;color:#292929!important;text-shadow:1px 1px #fff!important; }
+      #menuButtons .menuButton:hover { background:linear-gradient(#ededed,#d5d5d5)!important; }
+      #settingsButton { background:linear-gradient(#d8d8d8,#bdbdbd)!important;color:#292929!important; }
+      #multiplayerLiveDot { background:#a0a0a0!important;box-shadow:none!important; }
+      #multiplayerPanel .multiplayerOnline,
+      #multiplayerPanel .multiplayerOffline { color:#555!important;background:#e2e2e2!important;border-color:#aaa!important; }
+      #playerDataSyncProgress { background:#bdbdbd!important; }
+      #crosshair { filter:grayscale(1)!important; }
+      /* Fully opaque, neutral backdrop makes the creation editor hide the UI behind it. */
+      body.webminecraft-creating-world #savedWorlds,
+      body.webminecraft-creating-world #savedWorlds .sw2-wrap,
+      body.webminecraft-creating-world #savedWorlds .sw2-modal,
+      body.webminecraft-creating-world #createWorldSettingsRoot {
+        background:#e5e5e5!important;opacity:1!important;visibility:visible!important;
+      }
+      body.webminecraft-creating-world #savedWorlds .sw2-modal {
+        position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+        border:0!important;padding:0!important;z-index:2147483647!important;
+      }
+      body.webminecraft-creating-world #createWorldSettingsRoot {
+        position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+        min-height:100vh!important;border:0!important;box-shadow:none!important;
+      }
+    </style>
+
 </head>
 <body>
 
