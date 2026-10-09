@@ -210,7 +210,7 @@ document.addEventListener("fullscreenchange", () => {
     const toggle = document.getElementById("sFullscreen");
     if (toggle) toggle.checked = settings.fullscreen;
     save();
-}
+});
 
 function build() {
     const menu = document.getElementById("settingsMenu");
