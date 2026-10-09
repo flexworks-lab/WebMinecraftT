@@ -300,12 +300,6 @@ function makeStyle() {
 
         #multiplayerPanel.servers-screen #multiplayerBack{min-width:0;min-height:38px;padding:8px 14px}
         
-        /* Rooms-first UI: automatically use the official backend, with no server-picking screen. */
-        #multiplayerSteps,#multiplayerServerView{display:none!important}
-        #multiplayerRoomView{display:block!important}
-        #multiplayerSelected{display:none!important}
-        .multiplayerForeverToggle.selected{border-color:#91c9db;background:linear-gradient(#366a79,#285261);box-shadow:0 2px 0 #152a30}
-
         /* Worlds-style server browser */
         #multiplayerServerView.serversStyle{display:block;background:transparent}
         #multiplayerServerView.serversStyle .multiplayerSectionHead{padding:14px 22px;background:#b7b7b7;color:#1b1b1b;border-bottom:2px solid #111;align-items:center}
@@ -391,6 +385,11 @@ function makeStyle() {
         }
 
         #multiplayerRoomView{background:rgba(18,18,18,.18)}
+        /* Rooms-first navigation; keep the existing multiplayer panel styling. */
+        #multiplayerSteps,#multiplayerServerView{display:none!important}
+        #multiplayerRoomView{display:block!important}
+        #multiplayerSelected{display:none!important}
+        #multiplayerRoomView .multiplayerAdvanced .multiplayerField:has(#multiplayerServer){display:none!important}
         @media(max-width:700px){#multiplayerServerView.serversStyle .multiplayerSectionHead{padding:12px 14px}#multiplayerServerView.serversStyle #multiplayerServerList{padding:12px 14px 6px}#multiplayerServerView.serversStyle .multiplayerCard{grid-template-columns:96px minmax(0,1fr);gap:10px;min-height:96px;padding:8px}#multiplayerServerView.serversStyle .multiplayerCardPreview{min-height:78px}#multiplayerServerView.serversStyle .multiplayerCardAction{grid-column:2;justify-self:start;min-width:84px}#multiplayerServerView.serversStyle .multiplayerEmpty{margin:12px 14px}#multiplayerServerView.serversStyle .multiplayerHint{padding:0 14px 14px}}
         @media(max-width:480px){#multiplayerTitle{font-size:26px}#multiplayerSubtitle{font-size:11px}.multiplayerStep{font-size:9px}.multiplayerStepNum{width:18px;height:18px}.multiplayerSectionTitle{font-size:16px}}
     `;
@@ -454,9 +453,9 @@ function ensureMenu() {
                 <div id="multiplayerHeroMain">
                     <div id="multiplayerEyebrow">WebMinecraft • Online</div>
                     <h2 id="multiplayerTitle">Multiplayer</h2>
-                    <p id="multiplayerSubtitle">Choose a room, build together, and keep a world forever if you want.</p>
+                    <p id="multiplayerSubtitle">Join a room or create your own world with other players.</p>
                 </div>
-                <div id="multiplayerLivePill"><span id="multiplayerLiveDot"></span>Live servers</div>
+                <div id="multiplayerLivePill"><span id="multiplayerLiveDot"></span>Live rooms</div>
             </div>
             <div id="multiplayerSteps">
                 <div id="multiplayerStepServer" class="multiplayerStep active"><span class="multiplayerStepNum">1</span><span>Choose a server</span></div>
@@ -470,7 +469,7 @@ function ensureMenu() {
                     <aside id="multiplayerServerDetails" aria-hidden="true"></aside>
                 </section>
                 <section id="multiplayerRoomView" style="display:none">
-                    <div class="multiplayerSectionHead"><div><h3 class="multiplayerSectionTitle">Rooms</h3><div class="multiplayerSectionHint">Join a room or create a world of your own</div></div></div>
+                    <div class="multiplayerSectionHead"><div><h3 class="multiplayerSectionTitle">Rooms</h3><div class="multiplayerSectionHint">Choose a room on this live server</div></div></div>
                     <div id="multiplayerSelected"></div>
                     <div id="multiplayerRoomCreate"><button id="multiplayerRoomCreateButton" type="button">+ Create Room</button></div>
                     <div id="multiplayerRoomList"></div>
@@ -482,18 +481,18 @@ function ensureMenu() {
                         </div>
                         <div id="multiplayerGuestIdentity" class="multiplayerGuestIdentity">Guest name: <strong id="multiplayerGuestName">Loading…</strong></div>
                         <div class="multiplayerField"><label for="multiplayerRoom">Room Name</label><input id="multiplayerRoom" maxlength="32" autocomplete="off" placeholder="MyWorld"></div>
-                        <div id="multiplayerServerType" role="group" aria-label="Room privacy"><button id="multiplayerPublic" class="multiplayerTypeButton selected" type="button">PUBLIC ROOM</button><button id="multiplayerPrivate" class="multiplayerTypeButton" type="button">PRIVATE ROOM</button></div>
+                        <div id="multiplayerServerType" role="group" aria-label="Server type"><button id="multiplayerPublic" class="multiplayerTypeButton selected" type="button">PUBLIC</button><button id="multiplayerPrivate" class="multiplayerTypeButton" type="button">PRIVATE</button></div>
                         <div id="multiplayerPrivateCode" class="multiplayerField"><label for="multiplayerPrivateCodeInput">Private Code</label><input id="multiplayerPrivateCodeInput" maxlength="16" autocomplete="off" placeholder="Enter code or leave blank to create"></div>
-                        <button id="multiplayerKeepOpen24h" class="multiplayerToggle" type="button" aria-pressed="false"><span class="multiplayerToggleBox"></span><span><span class="multiplayerToggleTitle">Keep room for 24 hours</span><span class="multiplayerToggleHint">Save this room and its blocks for 24 hours after everyone leaves.</span></span></button>
-                        <button id="multiplayerKeepOpenForever" class="multiplayerToggle multiplayerForeverToggle" type="button" aria-pressed="false"><span class="multiplayerToggleBox"></span><span><span class="multiplayerToggleTitle">Keep this room forever</span><span class="multiplayerToggleHint">Keep the room in the list and save its blocks until it is deleted, even when empty.</span></span></button>
-                        <div class="multiplayerField" style="display:none"><label for="multiplayerServer">Server Address</label><input id="multiplayerServer" autocomplete="off" placeholder="ws://localhost:2567"></div>
+                        <button id="multiplayerKeepOpen24h" class="multiplayerToggle" type="button" aria-pressed="false"><span class="multiplayerToggleBox"></span><span><span class="multiplayerToggleTitle">Keep room open for 24 hours</span><span class="multiplayerToggleHint">When everyone leaves, keep this room and its blocks available for 24 hours.</span></span></button>
+                        <button id="multiplayerKeepOpenForever" class="multiplayerToggle" type="button" aria-pressed="false"><span class="multiplayerToggleBox"></span><span><span class="multiplayerToggleTitle">Keep this room forever</span><span class="multiplayerToggleHint">Keep this room and its saved blocks available even when everyone leaves.</span></span></button>
+                        <div class="multiplayerField"><label for="multiplayerServer">Server Address</label><input id="multiplayerServer" autocomplete="off" placeholder="ws://localhost:2567"></div>
                         <button id="multiplayerCreateAndJoin" class="multiplayerButton" type="button">Create & Join</button>
                     </div>
                     <div class="multiplayerHint">Public and private servers both work. Private rooms require the correct code.</div>
                     <div id="multiplayerStatus" aria-live="polite"></div>
                 </section>
             </div>
-            <div id="multiplayerButtons"><button id="multiplayerJoin" class="multiplayerButton" type="button" disabled>Join Room</button><button id="multiplayerBack" class="multiplayerButton" type="button">Home</button></div>
+            <div id="multiplayerButtons"><button id="multiplayerJoin" class="multiplayerButton" type="button" disabled>Join Room</button><button id="multiplayerBack" class="multiplayerButton" type="button">Back</button></div>
         </div>`;
     overlay.dataset.webminecraftMenuVersion = "rooms-v4";
     document.body.appendChild(overlay);
@@ -564,7 +563,7 @@ const getMultiplayerIdentity = () => {
     roomInput.value = localStorage.getItem("webminecraft-room") || "default";
     serverInput.value = defaultServerUrl();
     const setStatus = (text, error = false) => { status.textContent = text; status.style.color = error ? "#ef9a8e" : "#a8ca8e"; status.style.borderLeftColor = error ? "#b96a60" : "#6f8e58"; };
-    const syncRoomRetentionButtons = () => {
+    const syncRoomRetentionUi = () => {
         keepOpen24hButton.classList.toggle("selected", keepOpen24h);
         keepOpen24hButton.setAttribute("aria-pressed", String(keepOpen24h));
         keepOpen24hButton.querySelector(".multiplayerToggleBox").textContent = keepOpen24h ? "✓" : "";
@@ -572,8 +571,8 @@ const getMultiplayerIdentity = () => {
         keepOpenForeverButton.setAttribute("aria-pressed", String(keepOpenForever));
         keepOpenForeverButton.querySelector(".multiplayerToggleBox").textContent = keepOpenForever ? "✓" : "";
     };
-    const setKeepOpen24h = enabled => { keepOpen24h = Boolean(enabled); if (keepOpen24h) keepOpenForever = false; syncRoomRetentionButtons(); };
-    const setKeepOpenForever = enabled => { keepOpenForever = Boolean(enabled); if (keepOpenForever) keepOpen24h = false; syncRoomRetentionButtons(); };
+    const setKeepOpen24h = enabled => { keepOpen24h = Boolean(enabled); if (keepOpen24h) keepOpenForever = false; syncRoomRetentionUi(); };
+    const setKeepOpenForever = enabled => { keepOpenForever = Boolean(enabled); if (keepOpenForever) keepOpen24h = false; syncRoomRetentionUi(); };
     setKeepOpen24h(false);
 
     const applyMaintenanceUi = enabled => {
@@ -632,7 +631,7 @@ const getMultiplayerIdentity = () => {
         panel?.classList.toggle("create-server-screen", open);
         roomCreateButton.textContent = open ? "× Cancel" : "+ Create Room";
         if (createTitle) createTitle.textContent = open ? "Create Room" : "Rooms";
-        if (createHint) createHint.textContent = open ? "Set up your multiplayer room" : "Join a room or create a world of your own";
+        if (createHint) createHint.textContent = open ? "Set up your multiplayer room" : "Join a room or create your own world";
         if (open) {
             roomInput.value = "";
             setServerType(false);
@@ -672,8 +671,8 @@ const getMultiplayerIdentity = () => {
     privateButton.addEventListener("click", () => setServerType(true));
     const closeServerDetails = () => { selectedServer = null; serverDetails?.classList.remove("open"); serverDetails?.setAttribute("aria-hidden","true"); };
     const showServerView = () => showRoomView(selectedServer || fallbackServer());
-    const renderRoomList = server => { roomList.innerHTML = ""; const rooms = [...(server.rooms || [])].sort((a, b) => String(a.id).localeCompare(String(b.id))); if (!rooms.length) { roomList.innerHTML = '<div class="multiplayerEmpty">No rooms yet. Create a room below and choose whether it should stay forever.</div>'; return; } for (const room of rooms) { const button = document.createElement("button"); button.type = "button"; button.className = "multiplayerCard"; const count = Number(room.players) || 0, max = Number(room.maxPlayers) || 0; const roomIsPrivate = Boolean(room.private || room.isPrivate); const forever = Boolean(room.keepOpenForever); const keep24h = Boolean(room.keepOpen24h); const badge = forever ? "♾ FOREVER" : keep24h ? "◷ 24H" : roomIsPrivate ? "🔒 PRIVATE" : "● ONLINE"; const badgeClass = (forever || keep24h || !roomIsPrivate) ? "multiplayerOnline" : "multiplayerOffline"; const roomState = forever ? "Permanent world · saved when empty" : keep24h ? "Saved for 24 hours when empty" : "Removed when everyone leaves"; const visibility = roomIsPrivate ? "Private room • code required" : "Public room"; button.innerHTML = `<div class="multiplayerRoomPreview" aria-hidden="true"></div><div class="multiplayerCardBody"><div class="multiplayerCardTop"><span class="multiplayerCardName">${escapeHtml(room.name || room.id || "Room")}</span><span class="${badgeClass}">${badge}</span></div><div class="multiplayerMeta">${visibility}<br>${count}${max ? `/${max}` : ""} players online · ${roomState}${room.owner ? " · Owner: " + escapeHtml(room.owner) : ""}</div></div><span class="multiplayerCardAction">${roomIsPrivate ? "Select" : "Join"}</span>`; button.addEventListener("click", event => { event.stopPropagation(); roomInput.value = String(room.id || room.name || "default").slice(0, 32); setServerType(roomIsPrivate); joinButton.disabled = false; if (roomIsPrivate) { const code = window.prompt("Enter the private code for this room:"); if (code === null) return; privateCodeInput.value = String(code).trim().slice(0, 16); } joinButton.click(); }); roomList.appendChild(button); } };
-    const showRoomView = server => { selectedServer = server || fallbackServer(); closeServerDetails(); overlay.querySelector("#multiplayerPanel")?.classList.remove("servers-screen","create-server-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("rooms-screen"); roomView.classList.add("roomsStyle"); roomView.classList.remove("create-open"); identityFields.classList.remove("visible"); guestIdentity.classList.remove("visible"); serverView.style.display = "none"; roomView.style.display = "block"; stepServer.classList.remove("active"); stepRoom.classList.add("active"); if (serverInput) serverInput.value = selectedServer.websocket || defaultServerUrl(); selectedInfo.textContent = "Join an existing room or create one. Forever rooms keep their worlds saved when empty."; roomCreateButton.textContent = "+ Create Room"; const createTitle = roomView.querySelector(".multiplayerSectionTitle"); const createHint = roomView.querySelector(".multiplayerSectionHint"); if (createTitle) createTitle.textContent = "Rooms"; if (createHint) createHint.textContent = "Join a room or create a world of your own"; setServerType(false); setKeepOpen24h(false); setKeepOpenForever(false); roomInput.value = localStorage.getItem("webminecraft-room") || "default"; joinButton.disabled = false; setStatus(""); backButton.textContent = "Home"; };
+    const renderRoomList = server => { roomList.innerHTML = ""; const rooms = [...(server.rooms || [])].sort((a, b) => String(a.id).localeCompare(String(b.id))); if (!rooms.length) { roomList.innerHTML = '<div class="multiplayerEmpty">No rooms are listed yet. Create one below.</div>'; return; } for (const room of rooms) { const button = document.createElement("button"); button.type = "button"; button.className = "multiplayerCard"; const count = Number(room.players) || 0, max = Number(room.maxPlayers) || 0; const roomIsPrivate = Boolean(room.private || room.isPrivate); const forever = Boolean(room.keepOpenForever); const keep24h = Boolean(room.keepOpen24h); const privacyLabel = roomIsPrivate ? "Private room • code required" : "Public room"; const retentionLabel = forever ? " · ♾ FOREVER" : keep24h ? " · 24H" : ""; button.innerHTML = `<div class="multiplayerRoomPreview" aria-hidden="true"></div><div class="multiplayerCardBody"><div class="multiplayerCardTop"><span class="multiplayerCardName">${escapeHtml(room.name || room.id || "Room")}</span><span class="${roomIsPrivate ? "multiplayerOffline" : "multiplayerOnline"}">${roomIsPrivate ? "🔒 PRIVATE" : forever ? "♾ FOREVER" : keep24h ? "◷ 24H" : "● ONLINE"}</span></div><div class="multiplayerMeta">${privacyLabel}<br>${count}${max ? `/${max}` : ""} players online${retentionLabel}${room.owner ? " · Owner: " + escapeHtml(room.owner) : ""}</div></div><span class="multiplayerCardAction">${roomIsPrivate ? "Select" : "Join"}</span>`; button.addEventListener("click", event => { event.stopPropagation(); roomInput.value = String(room.id || room.name || "default").slice(0, 32); setServerType(roomIsPrivate); joinButton.disabled = false; if (roomIsPrivate) { const code = window.prompt("Enter the private code for this room:"); if (code === null) return; privateCodeInput.value = String(code).trim().slice(0, 16); } joinButton.click(); }); roomList.appendChild(button); } };
+    const showRoomView = server => { selectedServer = server || fallbackServer(); closeServerDetails(); overlay.querySelector("#multiplayerPanel")?.classList.remove("servers-screen","create-server-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("rooms-screen"); roomView.classList.add("roomsStyle"); roomView.classList.remove("create-open"); identityFields.classList.remove("visible"); guestIdentity.classList.remove("visible"); serverView.style.display = "none"; roomView.style.display = "block"; stepServer.classList.remove("active"); stepRoom.classList.add("active"); serverInput.value = selectedServer.websocket || defaultServerUrl(); selectedInfo.innerHTML = `<strong>${escapeHtml(selectedServer.name || "Server")}</strong> · ${escapeHtml(selectedServer.description || "Multiplayer server")}`; renderRoomList(selectedServer); joinButton.disabled = false; setStatus(""); backButton.textContent = "Home"; };
     const openServerDetails = server => {
         if (!server || !serverDetails) return;
         selectedServer = server;
@@ -698,8 +697,8 @@ const getMultiplayerIdentity = () => {
     const fallbackServer = () => ({ name: "Official WebMinecraft Server", description: "Official multiplayer server", online: true, websocket: defaultServerUrl(), rooms: [] });
     const refreshRoomsFromServer = server => {
         selectedServer = server || fallbackServer();
-        if (serverInput) serverInput.value = selectedServer.websocket || defaultServerUrl();
-        selectedInfo.textContent = "Join an existing room or create one. Forever rooms keep their worlds saved when empty.";
+        serverInput.value = selectedServer.websocket || defaultServerUrl();
+        selectedInfo.innerHTML = `<strong>${escapeHtml(selectedServer.name || "Server")}</strong> · ${escapeHtml(selectedServer.description || "Multiplayer server")}`;
         renderRoomList(selectedServer);
     };
     const loadServers = async () => {
@@ -710,12 +709,12 @@ const getMultiplayerIdentity = () => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             const servers = (Array.isArray(data.servers) ? data.servers : []).map(server => ({ ...server, websocket: server.websocket || PRODUCTION_SERVER_URL }));
-            const chosen = servers.find(server => server.id === "webminecraft-official") || servers.find(server => server.online !== false) || fallbackServer();
-            refreshRoomsFromServer(chosen);
+            const server = servers.find(item => item.id === "webminecraft-official") || servers.find(item => item.online !== false) || fallbackServer();
+            refreshRoomsFromServer(server);
         } catch (error) {
             console.error("Failed to refresh multiplayer rooms:", error);
             refreshRoomsFromServer(selectedServer || fallbackServer());
-            if (!selectedServer) setStatus("Live room list unavailable. The official room service may still be available.", false);
+            setStatus("Could not refresh the room list. You can still join the official server.", false);
         } finally {
             serverLoadInFlight = false;
         }
@@ -726,13 +725,11 @@ const getMultiplayerIdentity = () => {
             if (overlay.style.display !== "none" && roomView.style.display !== "none" && !roomView.classList.contains("create-open")) loadServers();
         }, 5000);
     };
-    overlay.__webminecraftShowRoomsHome = () => showRoomView(selectedServer || fallbackServer());
     const closeMenu = () => { intentionalDisconnect = true; hideConnectionLostUI(); if (socket) { try { socket.close(); } catch {} socket = null; } remotePlayers.clear(); localPlayerId = null; pendingPlayerAction = "idle"; window.__webminecraftMultiplayerActive = false; window.__webminecraftMultiplayerPlayerId = null; window.__webminecraftMultiplayerRoomInfo = { room: "", serverName: "", websocket: "", private: false }; window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-state-changed")); window.__webminecraftChatHide?.(); overlay.style.display = "none"; overlay.setAttribute("aria-hidden", "true"); showServerView(); setStatus(""); joinButton.disabled = true; joinButton.textContent = "Join Room"; };
     const connect = () => {
         intentionalDisconnect = false;
         hideConnectionLostUI();
-        const address = selectedServer?.websocket || defaultServerUrl();
-        if (serverInput) serverInput.value = address;
+        const address = serverInput.value.trim();
         const room = (roomInput.value.trim() || "default").slice(0, 32);
         const privateCode = privateCodeInput.value.trim().slice(0, 16);
         const identity = getMultiplayerIdentity();
@@ -798,6 +795,8 @@ const getMultiplayerIdentity = () => {
     window.addEventListener("keydown", event => { if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return; if (!isMultiplayerActive()) return; if (event.key === "/") { event.preventDefault(); event.stopImmediatePropagation(); openChatInput("/"); return; } if (event.key === "Enter" || event.key.toLowerCase() === "t") { event.preventDefault(); event.stopImmediatePropagation(); openChatInput(); } }, true);
     window.addEventListener("beforeunload", () => { intentionalDisconnect = true; if (socket) { try { socket.close(); } catch {} } });
     overlay.addEventListener("click", event => { if (event.target === overlay) closeMenu(); });
+    overlay.__webminecraftShowRoomsHome = () => showRoomView(selectedServer || fallbackServer());
+    showRoomView(fallbackServer());
     startServerAutoRefresh();
     loadServers();
     watchMaintenance();
@@ -828,18 +827,7 @@ export function sendItemDrop(drop) { if (!isMultiplayerActive() || !drop) return
 export function sendItemClaim(dropId) { if (!isMultiplayerActive() || !dropId) return; socket.send(JSON.stringify({ type: "item_claim", id: String(dropId) })); }
 export function syncWorldChanges() { if (isMultiplayerActive()) applyPendingWorldChanges(); }
 export function getRemotePlayers() { return remotePlayers; }
-export function openMultiplayerMenu() {
-    ensureMenu();
-    document.querySelectorAll("#multiplayerMenu").forEach(element => { if (element !== overlay) element.remove(); });
-    const stalePlayerPanel = document.getElementById("globalPlayerPanel");
-    const stalePlayerCount = document.getElementById("globalPlayerCount");
-    if (stalePlayerPanel) stalePlayerPanel.style.setProperty("display", "none", "important");
-    if (stalePlayerCount) stalePlayerCount.style.setProperty("display", "none", "important");
-    overlay.style.display = "flex";
-    overlay.setAttribute("aria-hidden", "false");
-    window.__webminecraftShowRoomsHome?.();
-}
-
+export function openMultiplayerMenu() { ensureMenu(); document.querySelectorAll("#multiplayerMenu").forEach(element => { if (element !== overlay) element.remove(); }); const stalePlayerPanel = document.getElementById("globalPlayerPanel"); const stalePlayerCount = document.getElementById("globalPlayerCount"); if (stalePlayerPanel) stalePlayerPanel.style.setProperty("display","none","important"); if (stalePlayerCount) stalePlayerCount.style.setProperty("display","none","important"); overlay.style.display = "flex"; overlay.setAttribute("aria-hidden", "false"); overlay.setAttribute("aria-modal", "true"); overlay.__webminecraftShowRoomsHome?.(); }
 export function joinMultiplayerRoomFromInvite(details = {}) {
     ensureMenu();
     const server = overlay?.querySelector("#multiplayerServer");
