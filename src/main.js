@@ -812,8 +812,26 @@ const shadowQuality = document.getElementById("shadowQuality");
 const pixelQuality = document.getElementById("pixelQuality");
 const lightingQuality = document.getElementById("lightingQuality");
 const brightnessControl = document.getElementById("brightnessControl");
-if (shadowsToggle) { shadowsToggle.checked = settings.shadows; shadowsToggle.addEventListener("change", () => { settings.shadows = shadowsToggle.checked; saveSettings(); applySettings(); }); }
-if (shadowQuality) { shadowQuality.value = String(settings.shadowQuality); shadowQuality.addEventListener("change", () => { settings.shadowQuality = Number(shadowQuality.value); saveSettings(); applySettings(); }); }
+if (shadowsToggle) {
+    shadowsToggle.checked = settings.shadows && !IS_TOUCH_DEVICE;
+    shadowsToggle.disabled = IS_TOUCH_DEVICE;
+    if (IS_TOUCH_DEVICE) shadowsToggle.title = "Real-time shadows are disabled on touch devices to protect frame rate.";
+    shadowsToggle.addEventListener("change", () => {
+        settings.shadows = IS_TOUCH_DEVICE ? false : shadowsToggle.checked;
+        saveSettings();
+        applySettings();
+    });
+}
+if (shadowQuality) {
+    shadowQuality.value = String(settings.shadowQuality);
+    shadowQuality.disabled = IS_TOUCH_DEVICE;
+    if (IS_TOUCH_DEVICE) shadowQuality.title = "Shadow quality is managed automatically on touch devices.";
+    shadowQuality.addEventListener("change", () => {
+        settings.shadowQuality = IS_TOUCH_DEVICE ? 512 : Number(shadowQuality.value);
+        saveSettings();
+        applySettings();
+    });
+}
 if (pixelQuality) { pixelQuality.value = String(settings.pixelRatio); pixelQuality.addEventListener("change", () => { settings.pixelRatio = Number(pixelQuality.value); saveSettings(); applySettings(); }); }
 if (lightingQuality) { lightingQuality.value = settings.lightingQuality; lightingQuality.addEventListener("change", () => { settings.lightingQuality = lightingQuality.value; saveSettings(); applySettings(); }); }
 if (brightnessControl) { brightnessControl.value = String(settings.brightness); brightnessControl.addEventListener("input", () => { settings.brightness = Number(brightnessControl.value); saveSettings(); applySettings(); }); }
