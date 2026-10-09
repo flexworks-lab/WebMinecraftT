@@ -192,133 +192,6 @@ function injectStyle() {
 .createWorldSettingsTab.active{
     box-shadow:inset 3px 0 0 #eee,inset -4px -4px 0 rgba(0,0,0,.22),0 4px 0 #151515!important;
 }
-
-/* Bright Bedrock-style world creation palette. This injected sheet loads after index.html. */
-#savedWorlds[data-create-open="1"]{
-    z-index:2147482000!important;
-    background:#e5e5e5!important;
-}
-#savedWorlds[data-create-open="1"] .sw2-wrap > :not(.sw2-modal){display:none!important}
-#savedWorlds[data-create-open="1"] .sw2-modal{
-    position:fixed!important;inset:0!important;display:flex!important;
-    padding:0!important;background:#e5e5e5!important;z-index:2147483647!important;
-    opacity:1!important;visibility:visible!important;backdrop-filter:none!important;
-}
-#createWorldSettingsRoot{
-    position:absolute!important;inset:0!important;width:100vw!important;height:100dvh!important;
-    min-height:100vh!important;overflow:hidden!important;background:#e5e5e5!important;
-    color:#292929!important;border:0!important;box-shadow:none!important;
-}
-#createWorldSettingsSidebar{background:#eeeeee!important;border-right:2px solid #aaa!important}
-#createWorldSettingsPreview{background:#d3d3d3!important;border-color:#777!important;box-shadow:0 2px 0 rgba(0,0,0,.16)!important}
-#createWorldSettingsCreateWrap{background:#d5d5d5!important;border-bottom:1px solid #aaa!important}
-#createWorldSettingsContent{background:#e5e5e5!important}
-#createWorldSettingsHeader{background:#cfcfcf!important;border-bottom:2px solid #aaa!important;box-shadow:none!important}
-#createWorldSettingsSectionTitle,#createWorldSettingsSub,#createWorldSettingsSidebarFooter,
-.createWorldSettingsGroupTitle,.createWorldSettingsRow label,.createWorldSettingsRow small,
-.createWorldSettingsStatic,.createWorldSettingsPackName,.createWorldSettingsPackState,
-#createWorldSettingsMessage{color:#292929!important;text-shadow:none!important}
-#createWorldSettingsSidebarFooter{background:#e3e3e3!important;border-top:1px solid #bbb!important}
-#createWorldSettingsScroll{background:#e5e5e5!important}
-.createWorldSettingsGroupTitle{border-bottom-color:#aaa!important}
-.createWorldSettingsRow,.createWorldSettingsChoice,.createWorldSettingsStatic,.createWorldSettingsPack{
-    background:#fafafa!important;color:#292929!important;border-color:#b0b0b0!important;
-    box-shadow:0 1px 0 rgba(0,0,0,.10)!important;
-}
-.createWorldSettingsInput{background:#fff!important;color:#292929!important;border:2px solid #999!important;border-top-color:#777!important;border-left-color:#777!important}
-.createWorldSettingsTab{
-    background:linear-gradient(#d8d8d8,#c1c1c1)!important;color:#292929!important;
-    text-shadow:none!important;border-color:#999!important;border-top-color:#fff!important;border-left-color:#fff!important;
-    box-shadow:inset 2px 2px 0 rgba(255,255,255,.24),0 2px 0 rgba(0,0,0,.14)!important;
-}
-.createWorldSettingsTab:hover,.createWorldSettingsTab.active{
-    background:linear-gradient(#edf8e8,#cce9bf)!important;color:#274b1e!important;
-    border-color:#74af5d!important;filter:none!important;
-}
-.createWorldSettingsChoice.active{
-    background:#e4f2dc!important;border-color:#6eac57!important;box-shadow:inset 4px 0 0 #74b95a!important;
-}
-.createWorldSettingsMode button,.createWorldSettingsDifficulty button,.createWorldSettingsAction,#createWorldSettingsClose{
-    background:linear-gradient(#d4d4d4,#bcbcbc)!important;color:#292929!important;
-    text-shadow:none!important;border-color:#888!important;border-top-color:#fff!important;border-left-color:#fff!important;
-    box-shadow:inset 2px 2px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.16)!important;
-}
-.createWorldSettingsMode button.active,.createWorldSettingsDifficulty button.active{
-    background:linear-gradient(#cceabd,#a8d794)!important;color:#23441a!important;
-    border-color:#6ca653!important;
-}
-#createWorldSettingsCreate{
-    background:linear-gradient(#78c95e,#4ca235)!important;color:#fff!important;
-    text-shadow:1px 1px 0 #316b24!important;border-color:#3b7e2b!important;
-    border-top-color:#c7f3b9!important;border-left-color:#c7f3b9!important;
-    box-shadow:inset 2px 2px 0 rgba(255,255,255,.2),0 3px 0 rgba(0,0,0,.2)!important;
-}
-#createWorldSettingsCreate:hover{background:linear-gradient(#91dc77,#5ebd45)!important;filter:none!important;transform:none!important}
-#createWorldSettingsCancel{background:linear-gradient(#d4d4d4,#bcbcbc)!important;color:#292929!important}
-.createWorldSettingsRange{accent-color:#888!important}
-
-/* Final neutral-gray override: no green, blue, red or yellow UI accents. */
-#savedWorlds[data-create-open="1"]{
-    position:fixed!important;inset:0!important;z-index:2147482000!important;
-    background:#e5e5e5!important;opacity:1!important;visibility:visible!important;
-}
-#savedWorlds[data-create-open="1"] .sw2-wrap{
-    position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
-    background:#e5e5e5!important;opacity:1!important;visibility:visible!important;
-}
-#savedWorlds[data-create-open="1"] .sw2-wrap > :not(.sw2-modal){
-    display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;
-}
-#savedWorlds[data-create-open="1"] .sw2-modal{
-    position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
-    display:flex!important;align-items:stretch!important;justify-content:stretch!important;
-    padding:0!important;margin:0!important;background:#e5e5e5!important;
-    opacity:1!important;visibility:visible!important;z-index:2147483647!important;
-}
-#createWorldSettingsRoot{
-    position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
-    min-height:100vh!important;overflow:hidden!important;background:#e5e5e5!important;
-    color:#292929!important;border:0!important;box-shadow:none!important;
-}
-#createWorldSettingsSidebar,#createWorldSettingsSidebarFooter{background:#d5d5d5!important;border-color:#999!important}
-#createWorldSettingsContent,#createWorldSettingsScroll{background:#e5e5e5!important}
-#createWorldSettingsHeader{background:#cecece!important;border-color:#999!important;box-shadow:none!important}
-#createWorldSettingsSectionTitle,#createWorldSettingsSub,#createWorldSettingsSidebarFooter,
-.createWorldSettingsGroupTitle,.createWorldSettingsRow label,.createWorldSettingsRow small,
-.createWorldSettingsStatic,.createWorldSettingsPackName,.createWorldSettingsPackState,
-#createWorldSettingsMessage{color:#292929!important;text-shadow:none!important}
-.createWorldSettingsGroupTitle{border-bottom-color:#aaa!important}
-.createWorldSettingsRow,.createWorldSettingsChoice,.createWorldSettingsStatic,.createWorldSettingsPack{
-    background:#fafafa!important;color:#292929!important;border-color:#b0b0b0!important;
-    box-shadow:0 1px 0 rgba(0,0,0,.1)!important;
-}
-.createWorldSettingsInput{background:#fff!important;color:#292929!important;border-color:#999!important}
-.createWorldSettingsTab,.createWorldSettingsMode button,.createWorldSettingsDifficulty button,
-.createWorldSettingsAction,#createWorldSettingsClose{
-    background:linear-gradient(#d8d8d8,#bdbdbd)!important;color:#292929!important;
-    border-color:#858585!important;border-top-color:#fff!important;border-left-color:#fff!important;
-    text-shadow:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.14)!important;
-}
-.createWorldSettingsTab:hover,.createWorldSettingsTab.active,
-.createWorldSettingsChoice.active,.createWorldSettingsMode button.active,
-.createWorldSettingsDifficulty button.active{
-    background:linear-gradient(#eeeeee,#d5d5d5)!important;color:#292929!important;
-    border-color:#777!important;box-shadow:inset 3px 0 0 #aaa,0 2px 0 rgba(0,0,0,.14)!important;
-}
-.createWorldSettingsTabIcon{background:#bdbdbd!important;color:#292929!important;border-color:#888!important}
-#createWorldSettingsCreate,#createWorldSettingsCreate:hover,#createWorldSettingsCreate:active{
-    background:linear-gradient(#d8d8d8,#bdbdbd)!important;color:#292929!important;
-    text-shadow:none!important;border-color:#858585!important;border-top-color:#fff!important;
-    border-left-color:#fff!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.25),0 2px 0 rgba(0,0,0,.14)!important;
-    filter:none!important;transform:none!important;
-}
-#createWorldSettingsCancel{background:linear-gradient(#d8d8d8,#bdbdbd)!important;color:#292929!important}
-.createWorldSettingsRange{accent-color:#888!important}
-@media(max-width:760px){
-    #createWorldSettingsSidebar{background:#d5d5d5!important;border-bottom:2px solid #999!important}
-    #createWorldSettingsRoot{height:100dvh!important;min-height:100vh!important}
-    #createWorldSettingsHeader{background:#cecece!important}
-}
     `;
     document.head.appendChild(style);
 }
@@ -547,21 +420,8 @@ function enhance(modal) {
     observer.observe(newSeedDisplay, { childList:true, characterData:true, subtree:true });
 
 
-    // Keep the Create World screen exclusive while the source modal is visible.
-    const syncCreateScreenState = () => {
-        const isOpen = modal.style.display === "flex";
-        document.body.classList.toggle("webminecraft-creating-world", isOpen);
-        const worldsOverlay = document.getElementById("savedWorlds");
-        if (worldsOverlay) {
-            if (isOpen) worldsOverlay.setAttribute("data-create-open", "1");
-            else worldsOverlay.removeAttribute("data-create-open");
-        }
-    };
-    syncCreateScreenState();
-
     // Keep the original hidden fields synchronized whenever the modal is opened/reused.
     const syncObserver = new MutationObserver(() => {
-        syncCreateScreenState();
         newSeedDisplay.textContent = seedDisplay.textContent;
         newNameField.value = nameField.value;
         if (!newMessage.textContent) newMessage.textContent = message.textContent || "";
