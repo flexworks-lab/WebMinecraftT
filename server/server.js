@@ -36,6 +36,7 @@ function serializeRoom(room) {
         isPrivate: Boolean(room.isPrivate),
         mode: normalizeMode(room.mode),
         keepOpen24h: Boolean(room.keepOpen24h),
+        keepOpenForever: Boolean(room.keepOpenForever),
         privateCode: room.privateCode || "",
         worldSeed: room.worldSeed,
         createdAt: Number(room.createdAt) || Date.now(),
@@ -77,7 +78,9 @@ function loadRoomsState() {
             if (!id || id.toLowerCase() === "player" || rooms.has(id)) continue;
 
             const emptySince = Number(data?.emptySince) || Number(data?.createdAt) || now;
-            if (now - emptySince > EMPTY_ROOM_RETENTION_MS) continue;
+            const keepOpenForever = data?.keepOpenForever === true;
+            const keepOpen24h = !keepOpenForever && data?.keepOpen24h !== false;
+            if (!keepOpenForever && now - emptySince > EMPTY_ROOM_RETENTION_MS) continue;
 
             const room = createRoom(
                 sanitizeRoom(id),
@@ -85,7 +88,8 @@ function loadRoomsState() {
                 Boolean(data?.isPrivate),
                 String(data?.privateCode || "").slice(0, 16),
                 normalizeMode(data?.mode),
-                data?.keepOpen24h !== false
+                keepOpen24h,
+                keepOpenForever
             );
             room.name = room.id;
             room.worldSeed = Number(data?.worldSeed) >>> 0;
@@ -140,14 +144,15 @@ function setPlayerRole(room, playerName, role) {
     return next;
 }
 
-function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "", mode = "survival", keepOpen24h = false) {
+function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "", mode = "survival", keepOpen24h = false, keepOpenForever = false) {
     return {
         id,
         name: id,
         ownerName,
         isPrivate: Boolean(isPrivate),
         mode: normalizeMode(mode),
-        keepOpen24h: Boolean(keepOpen24h),
+        keepOpen24h: Boolean(keepOpen24h) && !keepOpenForever,
+        keepOpenForever: Boolean(keepOpenForever),
         privateCode: privateCode || (isPrivate ? String(Math.floor(100000 + Math.random() * 900000)) : ""),
         players: new Map(),
         worldSeed: Math.floor(Math.random() * 4294967296) >>> 0,
@@ -160,11 +165,11 @@ function createRoom(id, ownerName = "Player", isPrivate = false, privateCode = "
     };
 }
 
-function getOrCreateRoom(id, ownerName = "Player", isPrivate = false, mode = "survival", keepOpen24h = false) {
+function getOrCreateRoom(id, ownerName = "Player", isPrivate = false, mode = "survival", keepOpen24h = false, keepOpenForever = false) {
     let room = rooms.get(id);
     if (room) return room;
     if (rooms.size >= MAX_ROOMS) return null;
-    room = createRoom(id, ownerName, isPrivate, "", mode, keepOpen24h);
+    room = createRoom(id, ownerName, isPrivate, "", mode, keepOpen24h, keepOpenForever);
     rooms.set(id, room);
     scheduleRoomStateSave();
     return room;
@@ -174,7 +179,7 @@ function cleanRoom(room) {
     if (!room || room.players.size !== 0) return;
     if (rooms.get(room.id) !== room) return;
 
-    if (!room.keepOpen24h) {
+    if (!room.keepOpenForever && !room.keepOpen24h) {
         rooms.delete(room.id);
         saveRoomsStateSync();
         return;
@@ -188,7 +193,7 @@ function pruneExpiredEmptyRooms() {
     const now = Date.now();
     let changed = false;
     for (const room of rooms.values()) {
-        if (room.players.size > 0 || !room.emptySince) continue;
+        if (room.players.size > 0 || !room.emptySince || room.keepOpenForever) continue;
         if (now - room.emptySince <= EMPTY_ROOM_RETENTION_MS) continue;
         rooms.delete(room.id);
         changed = true;
@@ -256,6 +261,7 @@ function publicRoom(room) {
         private: Boolean(room.isPrivate),
         mode: normalizeMode(room.mode),
         keepOpen24h: Boolean(room.keepOpen24h),
+        keepOpenForever: Boolean(room.keepOpenForever),
         worldSeed: room.worldSeed,
         createdAt: room.createdAt,
     };
@@ -401,6 +407,7 @@ function handleMessage(ws, raw, state) {
         const requestedMode = normalizeMode(message.mode);
         const suppliedCode = String(message.privateCode ?? "").trim().slice(0, 16);
         const keepOpen24h = Boolean(message.keepOpen24h);
+        const keepOpenForever = Boolean(message.keepOpenForever);
 
         if (roomId.toLowerCase() === "player") {
             send(ws, { type: "error", code: "reserved_room_name", message: "The room name \"player\" is reserved. Choose another room name." });
@@ -419,7 +426,7 @@ function handleMessage(ws, raw, state) {
             ws.close();
             return;
         }
-        room = getOrCreateRoom(roomId, safeName, wantsPrivate, requestedMode, keepOpen24h);
+        room = getOrCreateRoom(roomId, safeName, wantsPrivate, requestedMode, keepOpen24h, keepOpenForever);
         if (!room) { send(ws, { type: "error", code: "server_limit", message: "The server has reached its room limit." }); ws.close(); return; }
         if (room.players.size >= MAX_PLAYERS_PER_SERVER) { send(ws, { type: "error", code: "server_full", message: "This server is full." }); ws.close(); return; }
 
@@ -451,6 +458,7 @@ function handleMessage(ws, raw, state) {
             private: Boolean(room.isPrivate),
             mode: normalizeMode(room.mode),
             keepOpen24h: Boolean(room.keepOpen24h),
+            keepOpenForever: Boolean(room.keepOpenForever),
             privateCode: room.isPrivate && room.ownerName === safeName ? room.privateCode : "",
             role: getPlayerRole(room, player),
             isHost: roleKey(room.ownerName) === roleKey(player.name),
