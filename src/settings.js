@@ -53,6 +53,7 @@ function readSettings() {
 }
 
 let settings = readSettings();
+settings.fullscreen = Boolean(document.fullscreenElement);
 
 function save() {
     try {
@@ -285,6 +286,11 @@ function build() {
         const quality = document.getElementById("sPixelRatio");
         if (quality) for (const option of quality.options) {
             if (Number(option.value) > 1) option.disabled = true;
+        }
+        const lighting = document.getElementById("sLighting");
+        if (lighting) {
+            const high = [...lighting.options].find(option => option.value === "high");
+            if (high) high.disabled = true;
         }
         const shadowHint = document.querySelector('label[for="sShadows"]')?.parentElement?.querySelector("small");
         if (shadowHint) shadowHint.textContent = "Dynamic shadows are disabled on touch devices to protect frame rate.";
