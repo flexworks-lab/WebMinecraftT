@@ -508,7 +508,7 @@ function handleMessage(ws, raw, state) {
         player.name = nextName;
         scheduleRoomStateSave();
         const role = getPlayerRole(room, player);
-        send(ws, { type: "player_name_changed", playerId: player.id, oldName, name: nextName, role });
+        send(ws, { type: "player_name_changed", playerId: player.id, oldName, name: nextName, role, ownerName: room.ownerName, isHost: roleKey(room.ownerName) === nextKey });
         broadcast(room, { type: "player_renamed", playerId: player.id, oldName, name: nextName, role, isHost: roleKey(room.ownerName) === nextKey });
         broadcast(room, { type: "chat_system", text: oldName + " is now known as " + nextName });
         return;
@@ -602,6 +602,44 @@ function handleMessage(ws, raw, state) {
         const text = sanitizeChat(message.text);
         if (!text) return;
         broadcast(room, { type: "chat_message", playerId: player.id, name: player.name, text, verifiedRole: normalizeVerifiedChatRole(player.verifiedRole) });
+        return;
+    }
+    if (message.type === "export_room_world_request") {
+        const room = rooms.get(player.room);
+        if (!room) { send(ws, { type: "error", code: "room_not_found", message: "This room no longer exists." }); return; }
+        if (roleKey(room.ownerName) !== roleKey(player.name)) {
+            send(ws, { type: "error", code: "owner_required", message: "Only the room owner can save this room to Singleplayer Worlds." });
+            return;
+        }
+        send(ws, {
+            type: "room_world_export",
+            room: room.id,
+            ownerName: room.ownerName,
+            worldSeed: room.worldSeed,
+            mode: normalizeMode(room.mode),
+            worldChanges: [...room.blockChanges.values()],
+        });
+        return;
+    }
+    if (message.type === "shutdown_room") {
+        const room = rooms.get(player.room);
+        if (!room) { send(ws, { type: "error", code: "room_not_found", message: "This room no longer exists." }); return; }
+        if (roleKey(room.ownerName) !== roleKey(player.name)) {
+            send(ws, { type: "error", code: "owner_required", message: "Only the room owner can shut down this room." });
+            return;
+        }
+        send(ws, { type: "room_shutdown_ack", ok: true, room: room.id });
+        broadcast(room, {
+            type: "room_shutdown",
+            room: room.id,
+            ownerName: room.ownerName,
+            message: `Room "${room.name}" was shut down by its owner.`,
+        });
+        rooms.delete(room.id);
+        saveRoomsStateSync();
+        for (const member of room.players.values()) {
+            try { member.ws.close(); } catch {}
+        }
         return;
     }
     if (message.type === "save_and_quit") {
