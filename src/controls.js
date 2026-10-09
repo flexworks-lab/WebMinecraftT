@@ -245,8 +245,9 @@ function createTouchControls() {
         lookLastX = event.clientX;
         lookLastY = event.clientY;
         const sensitivity = Number(localStorage.getItem("webminecraft-touch-sensitivity") || 1);
+        const invert = localStorage.getItem("webminecraft-invert-y") === "true";
         yaw -= dx * .006 * sensitivity;
-        pitch -= dy * .006 * sensitivity;
+        pitch += (invert ? 1 : -1) * dy * .006 * sensitivity;
         pitch = clamp(pitch, -Math.PI / 2 + .01, Math.PI / 2 - .01);
         touchInput.lookActive = true;
         aimKnob.style.left = `${event.clientX}px`;
