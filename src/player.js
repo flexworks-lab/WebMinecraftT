@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createCharacterModel, createCharacterTexture } from "./characterModel.js";
 import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getKeybind } from "./keybinds.js";
 import { getBlockAt, getBlockCollisionBounds, getBlockCollisionBoxes } from "./world.js";
@@ -411,21 +412,19 @@ function updateMultiplayerAvatars(scene) {
         let avatar = avatarDots.get(id);
         if (!avatar) {
             avatar = new THREE.Group();
-            const dot = new THREE.Mesh(
-                new THREE.SphereGeometry(0.18, 8, 6),
-                new THREE.MeshBasicMaterial({ color: avatarColor(id) }),
-            );
-            dot.userData.multiplayerAvatar = true;
+            const skinTexture = createCharacterTexture();
+            const body = createCharacterModel(skinTexture);
+            body.userData.multiplayerAvatar = true;
             avatar.userData.multiplayerPlayerId = id;
+            avatar.add(body);
             const nameplate = createMultiplayerNameplate(player.name);
-            avatar.add(dot);
             avatar.add(nameplate);
             scene.add(avatar);
             avatarDots.set(id, avatar);
         }
         avatar.position.set(
             Number(player.position.x) || 0,
-            (Number(player.position.y) || 0) - PLAYER_HEIGHT + 0.18,
+            (Number(player.position.y) || 0) - PLAYER_HEIGHT,
             Number(player.position.z) || 0,
         );
     }
