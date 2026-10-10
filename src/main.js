@@ -9,6 +9,7 @@ import { setWorldSeedForPersistence } from "./worldSave.js";
 import { setupWorldClouds, setWorldCloudSeed } from "./worldClouds.js";
 import { setupWaterPhysics } from "./waterPhysics.js";
 import { clearHotbar } from "./inventory.js";
+import "./characterEditor.js";
 import "./background.js";
 import "./loadingScreen.js";
 import "./auth.js";
