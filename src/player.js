@@ -29,7 +29,7 @@ window.addEventListener("webminecraft-character-changed", () => {
             for (const material of materials) {
                 if (!material.map) continue;
                 const oldMap = material.map;
-                const replacement = nextTexture.clone();
+                const replacement = oldMap.clone();
                 replacement.image = nextTexture.image;
                 replacement.colorSpace = THREE.SRGBColorSpace;
                 replacement.magFilter = THREE.NearestFilter;
