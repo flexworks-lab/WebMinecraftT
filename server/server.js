@@ -249,6 +249,27 @@ function publicPlayer(player) {
     };
 }
 
+const CHARACTER_TEXTURE_KEYS = [
+    "face", "headBack", "headSide", "headTop", "skin", "shirt", "pants", "shoes"
+];
+function sanitizeCharacterTextures(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const result = {};
+    let totalLength = 0;
+    for (const key of CHARACTER_TEXTURE_KEYS) {
+        const data = value[key];
+        if (typeof data !== "string" || data.length > 24000 ||
+            !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(data)) continue;
+        totalLength += data.length;
+        if (totalLength > 100000) return null;
+        result[key] = data;
+    }
+    return Object.keys(result).length ? result : null;
+}
+function publicPlayerWithSkin(player) {
+    return { ...publicPlayer(player), skinTextures: player.skinTextures || null };
+}
+
 function publicRoom(room) {
     return {
         id: room.id,
@@ -440,6 +461,7 @@ function handleMessage(ws, raw, state) {
             heldItemId: 0,
             sneaking: false,
             action: "idle",
+            skinTextures: sanitizeCharacterTextures(message.skinTextures),
             verifiedRole: normalizeVerifiedChatRole(message.verifiedRole),
             lastUpdate: 0,
         };
@@ -464,11 +486,11 @@ function handleMessage(ws, raw, state) {
             isHost: roleKey(room.ownerName) === roleKey(player.name),
             worldSeed: room.worldSeed,
             maxPlayers: MAX_PLAYERS_PER_SERVER,
-            players: [...room.players.values()].map(publicPlayer),
+            players: [...room.players.values()].map(publicPlayerWithSkin),
             worldChanges: [...room.blockChanges.values()],
             worldDrops: [...room.drops.values()],
         });
-        broadcast(room, { type: "player_joined", player: publicPlayer(player) }, player.id);
+        broadcast(room, { type: "player_joined", player: publicPlayerWithSkin(player) }, player.id);
         broadcast(room, { type: "chat_system", text: `${player.name} has joined the server` });
         return;
     }
@@ -794,6 +816,15 @@ function handleMessage(ws, raw, state) {
         const room = rooms.get(player.room);
         if (!room) return;
         send(ws, { type: "world_sync", worldSeed: room.worldSeed, worldChanges: [...room.blockChanges.values()], worldDrops: [...room.drops.values()] });
+        return;
+    }
+    if (message.type === "player_skin") {
+        const room = rooms.get(player.room);
+        if (!room) return;
+        const skinTextures = sanitizeCharacterTextures(message.textures);
+        if (!skinTextures) return;
+        player.skinTextures = skinTextures;
+        broadcast(room, { type: "player_skin", playerId: player.id, textures: skinTextures }, player.id);
         return;
     }
     if (message.type === "player_state") {
