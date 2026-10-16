@@ -461,7 +461,7 @@ export function updateMultiplayerAvatars(scene) {
         if (!player?.position) continue;
         let entry = avatars.get(id);
         if (!entry) {
-            const avatar = createAvatar(id, player.name);
+            const avatar = createAvatar(id, player.name, player.skinTextures);
             scene.add(avatar.group);
             window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-avatar-created", { detail: { avatar: avatar.group, playerId: String(id) } }));
             entry = {
@@ -513,6 +513,13 @@ export function updateMultiplayerAvatars(scene) {
         if (!players.has(id)) { scene.remove(entry.group); disposeAvatar(entry.group); avatars.delete(id); }
     }
 }
+
+window.addEventListener("webminecraft:player-skin-changed", event => {
+    const playerId = String(event.detail?.playerId || "");
+    const entry = avatars.get(playerId);
+    if (!entry) return;
+    void applyAvatarTextureData(entry.textures, event.detail?.textures);
+});
 
 export function initMultiplayerAvatars(scene) {
     if (animationStarted) return;
