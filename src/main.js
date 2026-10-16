@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { IS_TOUCH_DEVICE } from "./performance.js";
+import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
 import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "./world.js";
 import { setupControls, resetView } from "./controls.js";
 import { updatePlayer } from "./player.js";
@@ -16,6 +16,8 @@ import "./auth.js";
 import "./chat.js";
 import { getWorldMode } from "./survivalMode.js";
 import "./survivalRules.js";
+
+const LIGHTING_BLOCKS = getBlockTypes();
 
 const scene = new THREE.Scene();
 const skyColor = new THREE.Color(0x87ceeb);
@@ -102,13 +104,13 @@ const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobil
 if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
-const defaults = { shadows: !IS_TOUCH_DEVICE, shadowQuality: IS_TOUCH_DEVICE ? 512 : 1024, pixelRatio: 1, lightingQuality: IS_TOUCH_DEVICE ? "balanced" : "high", brightness: 1 };
+const defaults = { shadows: !IS_LOW_POWER_DEVICE, shadowQuality: IS_LOW_POWER_DEVICE ? 512 : 1024, pixelRatio: 1, lightingQuality: IS_LOW_POWER_DEVICE ? "balanced" : "high", brightness: 1 };
 let settings;
 try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
 catch { settings = { ...defaults }; }
 
 const extendedDefaults = {
-    fov: 75, renderDistance: IS_TOUCH_DEVICE ? 60 : 120, fog: true, waterEffects: true,
+    fov: 75, renderDistance: IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 57 : 76), fog: true, waterEffects: true,
     masterVolume: 1, soundEffects: true, music: true
 };
 let extendedSettings = { ...extendedDefaults };
@@ -117,14 +119,25 @@ try {
     if (saved && typeof saved === "object") extendedSettings = { ...extendedDefaults, ...saved };
 } catch {}
 if (IS_TOUCH_DEVICE) {
-    if (extendedSettings.deviceProfile !== "touch") {
-        extendedSettings.renderDistance = 60;
-    }
+    if (extendedSettings.deviceProfile !== "touch") extendedSettings.renderDistance = 60;
     if (extendedSettings.lightingQuality === "high") extendedSettings.lightingQuality = "balanced";
 }
-settings.shadows = IS_TOUCH_DEVICE ? false : (extendedSettings.shadows ?? settings.shadows);
-settings.shadowQuality = IS_TOUCH_DEVICE ? Math.min(Number(extendedSettings.shadowQuality) || 512, 512) : (extendedSettings.shadowQuality ?? settings.shadowQuality);
-settings.pixelRatio = IS_TOUCH_DEVICE ? Math.min(Number(extendedSettings.pixelRatio) || 1, 1) : (extendedSettings.pixelRatio ?? settings.pixelRatio);
+// Bound the saved view distance: each extra chunk ring adds many meshes and
+// makes both world generation and rendering significantly more expensive.
+const renderDistanceCap = IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 57 : 76);
+const requestedRenderDistance = Number(extendedSettings.renderDistance);
+extendedSettings.renderDistance = Number.isFinite(requestedRenderDistance) && requestedRenderDistance > 0
+    ? Math.min(requestedRenderDistance, renderDistanceCap)
+    : renderDistanceCap;
+if (IS_LOW_POWER_DEVICE) {
+    settings.shadows = false;
+    settings.shadowQuality = Math.min(Number(settings.shadowQuality) || 512, 512);
+    settings.pixelRatio = 1;
+    if (extendedSettings.lightingQuality === "high") extendedSettings.lightingQuality = "balanced";
+}
+settings.shadows = IS_LOW_POWER_DEVICE ? false : (extendedSettings.shadows ?? settings.shadows);
+settings.shadowQuality = IS_LOW_POWER_DEVICE ? Math.min(Number(extendedSettings.shadowQuality) || 512, 512) : (extendedSettings.shadowQuality ?? settings.shadowQuality);
+settings.pixelRatio = IS_LOW_POWER_DEVICE ? 1 : (extendedSettings.pixelRatio ?? settings.pixelRatio);
 settings.lightingQuality = extendedSettings.lightingQuality ?? settings.lightingQuality;
 settings.brightness = Number(extendedSettings.brightness ?? settings.brightness);
 camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
@@ -153,7 +166,7 @@ function applySettings() {
     const effectiveShadowQuality = IS_TOUCH_DEVICE ? Math.min(settings.shadowQuality, 512) : settings.shadowQuality;
     sun.shadow.mapSize.width = effectiveShadowQuality;
     sun.shadow.mapSize.height = effectiveShadowQuality;
-    renderer.setPixelRatio(Math.min(settings.pixelRatio, IS_TOUCH_DEVICE ? 1 : 1.5));
+    renderer.setPixelRatio(Math.min(settings.pixelRatio, IS_LOW_POWER_DEVICE ? 1 : 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.shadowMap.type = IS_TOUCH_DEVICE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     renderer.toneMappingExposure = 0.98 + settings.brightness * 0.30;
@@ -178,8 +191,7 @@ function applySettings() {
 function smoothStep(edge0, edge1, value) { const t = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1); return t * t * (3 - 2 * t); }
 function isLightingSolid(x, y, z) {
     const type = getBlockAt(Math.floor(x), Math.floor(y), Math.floor(z));
-    const blocks = getBlockTypes();
-    if (type === blocks.AIR || type === blocks.OAK_DOOR || type === blocks.LEAVES) return false;
+    if (type === LIGHTING_BLOCKS.AIR || type === LIGHTING_BLOCKS.OAK_DOOR || type === LIGHTING_BLOCKS.LEAVES) return false;
     return 1;
 }
 
@@ -204,17 +216,11 @@ function measureSkyVisibility(x, y, z) {
             [0, 0.96, 0.29, 0.90],
             [0, 0.96, -0.29, 0.90],
             [0.43, 0.90, 0.18, 0.82],
-            [-0.43, 0.90, 0.18, 0.82],
-            [0.18, 0.90, -0.43, 0.82],
-            [0.18, 0.90, 0.43, 0.82],
-            [-0.43, 0.70, 0.52, 0.62],
-            [0.43, 0.70, 0.52, 0.62],
-            [-0.52, 0.70, -0.43, 0.62],
-            [0.52, 0.70, -0.43, 0.62]
+            [-0.43, 0.90, 0.18, 0.82]
         ];
 
-    const maxDistance = IS_TOUCH_DEVICE ? 14 : 24;
-    const step = IS_TOUCH_DEVICE ? 1.75 : 0.9;
+    const maxDistance = IS_TOUCH_DEVICE ? 14 : 18;
+    const step = IS_TOUCH_DEVICE ? 1.75 : 1.4;
 
     let weightedOpen = 0;
     let totalWeight = 0;
@@ -297,7 +303,7 @@ function updateDepthLighting() {
             sampleX - cachedLightingSampleX,
             sampleY - cachedLightingSampleY,
             sampleZ - cachedLightingSampleZ
-        ) >= (IS_TOUCH_DEVICE ? 1.25 : 0.35);
+        ) >= (IS_TOUCH_DEVICE ? 1.5 : 1.0);
 
     if (movedForLighting) {
         cachedLightingSampleX = sampleX;
