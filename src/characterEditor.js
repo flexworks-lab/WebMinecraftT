@@ -2,7 +2,6 @@ import * as THREE from "three";
 import {
   AVATAR_TEXTURE_PARTS,
   createAvatar,
-  exportAvatarTextureData,
   applyAvatarTextureData
 } from "./multiplayerAvatars.js";
 import { sendCharacterSkin } from "./multiplayerClient.js";
@@ -162,7 +161,6 @@ let undoStack = [];
 let avatarYaw = -0.22;
 let dragging = false;
 let lastX = 0;
-let renderFrame = 0;
 
 function setSelectedColor(color) {
   selectedColor = color;
@@ -252,6 +250,22 @@ function makeScene() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   overlay.querySelector("#characterEditorPreview").prepend(renderer.domElement);
+  const previewCanvas = renderer.domElement;
+  previewCanvas.style.touchAction = "pan-y";
+  previewCanvas.addEventListener("pointerdown", event => {
+    dragging = true;
+    lastX = event.clientX;
+    previewCanvas.setPointerCapture(event.pointerId);
+  });
+  previewCanvas.addEventListener("pointermove", event => {
+    if (!dragging || !previewAvatar) return;
+    avatarYaw += (event.clientX - lastX) * 0.012;
+    lastX = event.clientX;
+    previewAvatar.group.rotation.y = avatarYaw;
+  });
+  const stopDragging = () => { dragging = false; };
+  previewCanvas.addEventListener("pointerup", stopDragging);
+  previewCanvas.addEventListener("pointercancel", stopDragging);
   scene.add(new THREE.HemisphereLight("#e9f4ff", "#6b5946", 1.8));
   const key = new THREE.DirectionalLight("#fff1d8", 2.1);
   key.position.set(4, 8, 5);
@@ -557,7 +571,7 @@ addMenuButton();
 window.addEventListener("DOMContentLoaded", addMenuButton, { once: true });
 
 function render() {
-  renderFrame = requestAnimationFrame(render);
+  requestAnimationFrame(render);
   if (overlay.classList.contains("open") && renderer && scene && camera) renderer.render(scene, camera);
 }
 render();
