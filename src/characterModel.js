@@ -138,23 +138,9 @@ export function createCharacterTexture() {
   return texture;
 }
 
-function faceMaterial(texture, rect) {
-  // Each cuboid face samples only its own vanilla atlas rectangle. Cloned
-  // Texture objects keep face UV transforms independent while sharing pixels.
-  const map = texture.clone();
-  map.image = texture.image;
-  map.colorSpace = THREE.SRGBColorSpace;
-  map.magFilter = THREE.NearestFilter;
-  map.minFilter = THREE.NearestFilter;
-  map.generateMipmaps = false;
-  map.wrapS = THREE.ClampToEdgeWrapping;
-  map.wrapT = THREE.ClampToEdgeWrapping;
-  const [x, y, w, h] = rect;
-  map.repeat.set(w / SIZE, h / SIZE);
-  map.offset.set(x / SIZE, 1 - (y + h) / SIZE);
-  map.needsUpdate = true;
+function createSkinMaterial(texture) {
   return new THREE.MeshStandardMaterial({
-    map,
+    map: texture,
     transparent: true,
     alphaTest: 0.01,
     roughness: 1,
@@ -163,16 +149,34 @@ function faceMaterial(texture, rect) {
   });
 }
 
-function createSkinMaterials(texture, faceRects) {
-  // BoxGeometry groups: +X, -X, +Y, -Y, +Z, -Z.
-  return [
-    faceMaterial(texture, faceRects.right),
-    faceMaterial(texture, faceRects.left),
-    faceMaterial(texture, faceRects.top),
-    faceMaterial(texture, faceRects.bottom),
-    faceMaterial(texture, faceRects.front),
-    faceMaterial(texture, faceRects.back)
+function applySkinAtlasUVs(geometry, faceRects) {
+  // BoxGeometry emits four independent UV vertices per face in this order:
+  // +X, -X, +Y, -Y, +Z, -Z. Rewrite those UVs into the classic skin atlas.
+  // All faces share ONE CanvasTexture, so painting updates every live preview
+  // and avatar immediately rather than leaving stale cloned texture objects.
+  const uv = geometry.attributes.uv;
+  const rects = [
+    faceRects.right, faceRects.left, faceRects.top,
+    faceRects.bottom, faceRects.front, faceRects.back
   ];
+  for (let face = 0; face < 6; face++) {
+    const [x, y, w, h] = rects[face];
+    const first = face * 4;
+    for (let vertex = 0; vertex < 4; vertex++) {
+      const index = first + vertex;
+      const u = uv.getX(index);
+      const v = uv.getY(index);
+      uv.setXY(
+        index,
+        (x + u * w) / SIZE,
+        1 - (y + (1 - v) * h) / SIZE
+      );
+    }
+  }
+  uv.needsUpdate = true;
+  geometry.clearGroups();
+  geometry.addGroup(0, geometry.index ? geometry.index.count : uv.count, 0);
+  return geometry;
 }
 
 // The character silhouette and proportions intentionally remain unchanged;
@@ -183,8 +187,8 @@ export function createCharacterModel(texture = createCharacterTexture()) {
   root.userData.skinAtlas = "minecraft-64x64";
 
   function box(name, size, position, faceRects) {
-    const geometry = new THREE.BoxGeometry(...size);
-    const mesh = new THREE.Mesh(geometry, createSkinMaterials(texture, faceRects));
+    const geometry = applySkinAtlasUVs(new THREE.BoxGeometry(...size), faceRects);
+    const mesh = new THREE.Mesh(geometry, createSkinMaterial(texture));
     mesh.name = name;
     mesh.position.set(...position);
     mesh.castShadow = true;
