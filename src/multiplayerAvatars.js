@@ -185,6 +185,18 @@ export function exportAvatarTextureData(textures) {
     return result;
 }
 
+export function resetAvatarTextureData(textures) {
+    for (const { key } of AVATAR_TEXTURE_PARTS) {
+        const texture = textures?.[key];
+        const canvas = texture?.userData?.canvas;
+        const pixels = texture?.userData?.proceduralBasePixels;
+        if (!canvas || !pixels) continue;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.putImageData(pixels, 0, 0);
+        texture.needsUpdate = true;
+    }
+}
+
 export function applyAvatarTextureData(textures, savedTextures) {
     const jobs = [];
     for (const { key } of AVATAR_TEXTURE_PARTS) {
@@ -333,6 +345,13 @@ export function createAvatar(id, name, savedTextures = null) {
         pants: pantsTexture,
         shoes: shoeTexture
     };
+    // Keep a private copy of the originally generated pixels. Resetting a skin
+    // restores the seeded procedural texture instead of flattening it to gray.
+    for (const { key } of AVATAR_TEXTURE_PARTS) {
+        const canvas = textures[key]?.userData?.canvas;
+        const ctx = canvas?.getContext("2d", { willReadFrequently: true });
+        if (ctx) textures[key].userData.proceduralBasePixels = ctx.getImageData(0, 0, 16, 16);
+    }
     const textureReady = applyAvatarTextureData(textures, savedTextures);
     const skin = makeMaterial(skinTexture);
     const face = makeMaterial(faceTexture);
@@ -518,6 +537,7 @@ window.addEventListener("webminecraft:player-skin-changed", event => {
     const playerId = String(event.detail?.playerId || "");
     const entry = avatars.get(playerId);
     if (!entry) return;
+    resetAvatarTextureData(entry.textures);
     void applyAvatarTextureData(entry.textures, event.detail?.textures);
 });
 
