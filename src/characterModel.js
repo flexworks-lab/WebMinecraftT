@@ -112,6 +112,16 @@ function loadSavedSkin(canvas, ctx, texture) {
   } catch {}
 }
 
+export function resetCharacterTexture(texture) {
+  const canvas = texture?.userData?.canvas;
+  const ctx = canvas?.getContext("2d", { willReadFrequently: true, alpha: true });
+  if (!canvas || !ctx) return false;
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  drawDefaultSkin(ctx);
+  texture.needsUpdate = true;
+  return true;
+}
+
 export function createCharacterTexture() {
   const { canvas, ctx } = makeCanvas();
   drawDefaultSkin(ctx);
