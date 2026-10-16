@@ -143,7 +143,7 @@ function makeCanvasTexture(draw) {
     const canvas = document.createElement("canvas");
     canvas.width = 16;
     canvas.height = 16;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     ctx.imageSmoothingEnabled = false;
     draw(ctx);
     const texture = new THREE.CanvasTexture(canvas);
@@ -151,8 +151,64 @@ function makeCanvasTexture(draw) {
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
     texture.generateMipmaps = false;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.userData = { canvas, size: 16, proceduralAvatarTexture: true };
     texture.needsUpdate = true;
     return texture;
+}
+
+function makeSolidTexture(hex) {
+    return makeCanvasTexture(ctx => {
+        ctx.fillStyle = `#${new THREE.Color(hex).getHexString()}`;
+        ctx.fillRect(0, 0, 16, 16);
+    });
+}
+
+export const AVATAR_TEXTURE_PARTS = [
+    { key: "face", label: "Face" },
+    { key: "headBack", label: "Head back" },
+    { key: "headSide", label: "Head sides" },
+    { key: "headTop", label: "Hair / top" },
+    { key: "skin", label: "Skin" },
+    { key: "shirt", label: "Shirt / arms" },
+    { key: "pants", label: "Pants / legs" },
+    { key: "shoes", label: "Shoes" }
+];
+
+export function exportAvatarTextureData(textures) {
+    const result = {};
+    for (const { key } of AVATAR_TEXTURE_PARTS) {
+        const canvas = textures?.[key]?.userData?.canvas;
+        if (canvas) result[key] = canvas.toDataURL("image/png");
+    }
+    return result;
+}
+
+export function applyAvatarTextureData(textures, savedTextures) {
+    const jobs = [];
+    for (const { key } of AVATAR_TEXTURE_PARTS) {
+        const dataUrl = savedTextures?.[key];
+        const canvas = textures?.[key]?.userData?.canvas;
+        const texture = textures?.[key];
+        if (!canvas || !texture || typeof dataUrl !== "string" ||
+            !dataUrl.startsWith("data:image/") || dataUrl.length > 50000) continue;
+
+        jobs.push(new Promise(resolve => {
+            const image = new Image();
+            image.onload = () => {
+                const ctx = canvas.getContext("2d", { willReadFrequently: true });
+                ctx.clearRect(0, 0, 16, 16);
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(image, 0, 0, 16, 16);
+                texture.needsUpdate = true;
+                resolve(true);
+            };
+            image.onerror = () => resolve(false);
+            image.src = dataUrl;
+        }));
+    }
+    return Promise.all(jobs);
 }
 
 function makeFaceTexture(seed, skinHex, hairHex) {
@@ -252,7 +308,7 @@ function makeMaterial(textureOrColor, options = {}) {
     return new THREE.MeshLambertMaterial({ color: textureOrColor, ...options });
 }
 
-export function createAvatar(id, name) {
+export function createAvatar(id, name, savedTextures = null) {
     const rng = makeRng(hashString(id));
     const skinColor = SKIN_COLORS[Math.floor(rng() * SKIN_COLORS.length)];
     const hairColor = HAIR_COLORS[Math.floor(rng() * HAIR_COLORS.length)];
@@ -265,14 +321,27 @@ export function createAvatar(id, name) {
     const headTop = makeHeadTexture(hashString(id), skinColor, hairColor, 2);
     const shirtTexture = makeClothTexture(hashString(id), `#${new THREE.Color(shirtColor).getHexString()}`, 1);
     const pantsTexture = makeClothTexture(hashString(id), `#${new THREE.Color(pantsColor).getHexString()}`, 2);
-    const skin = makeMaterial(skinColor);
+    const skinTexture = makeSolidTexture(skinColor);
+    const shoeTexture = makeSolidTexture(shoeColor);
+    const textures = {
+        face: faceTexture,
+        headBack,
+        headSide,
+        headTop,
+        skin: skinTexture,
+        shirt: shirtTexture,
+        pants: pantsTexture,
+        shoes: shoeTexture
+    };
+    const textureReady = applyAvatarTextureData(textures, savedTextures);
+    const skin = makeMaterial(skinTexture);
     const face = makeMaterial(faceTexture);
     const back = makeMaterial(headBack);
     const side = makeMaterial(headSide);
     const top = makeMaterial(headTop);
     const shirt = makeMaterial(shirtTexture);
     const pants = makeMaterial(pantsTexture);
-    const shoes = makeMaterial(shoeColor);
+    const shoes = makeMaterial(shoeTexture);
 
     const group = new THREE.Group();
     group.userData.multiplayerAvatar = true;
@@ -295,7 +364,12 @@ export function createAvatar(id, name) {
     const nameTexture = new THREE.CanvasTexture(nameCanvas); nameTexture.colorSpace = THREE.SRGBColorSpace; nameTexture.minFilter = THREE.LinearFilter; nameTexture.magFilter = THREE.LinearFilter;
     const nameSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTexture, transparent: true, depthTest: false })); nameSprite.scale.set(Math.max(1.1, Math.min(2.8, 0.8 + text.length * 0.13)), 0.36, 1); nameSprite.position.y = 2.28; group.add(nameSprite);
     group.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } });
-    return { group, parts: { head, torso, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe } };
+    return {
+        group,
+        parts: { head, torso, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe },
+        textures,
+        textureReady
+    };
 }
 
 function disposeAvatar(group) {
