@@ -316,7 +316,14 @@ function makeClothTexture(seed, baseHex, variant) {
 }
 
 function makeMaterial(textureOrColor, options = {}) {
-    if (textureOrColor instanceof THREE.Texture) return new THREE.MeshLambertMaterial({ map: textureOrColor, ...options });
+    if (textureOrColor instanceof THREE.Texture) {
+        return new THREE.MeshLambertMaterial({
+            map: textureOrColor,
+            transparent: true,
+            alphaTest: 0.01,
+            ...options
+        });
+    }
     return new THREE.MeshLambertMaterial({ color: textureOrColor, ...options });
 }
 
