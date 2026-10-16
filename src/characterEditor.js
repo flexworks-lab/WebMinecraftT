@@ -147,6 +147,9 @@ let renderer;
 let previewAvatar;
 let currentTextures = {};
 let baseSnapshots = {};
+let savedTextureData = readSavedTextures() || {};
+let dirtyTextureKeys = new Set();
+let resetOverridesPending = false;
 let currentIdentity = "";
 let selectedTextureKey = "face";
 let selectedColor = PALETTE[5];
@@ -295,8 +298,10 @@ async function buildPreview(force = false) {
   if (currentIdentity !== key) return;
   baseSnapshots = snapshotTextures(currentTextures);
   undoStack = [];
-  const saved = readSavedTextures();
-  if (saved) await applyAvatarTextureData(currentTextures, saved);
+  savedTextureData = readSavedTextures() || {};
+  dirtyTextureKeys = new Set();
+  resetOverridesPending = false;
+  if (Object.keys(savedTextureData).length) await applyAvatarTextureData(currentTextures, savedTextureData);
   if (currentIdentity !== key) return;
   copySelectedTextureToEditor();
   refreshTextureButtons();
@@ -335,6 +340,7 @@ function applyBrush(x, y) {
     skinCtx.fillStyle = selectedColor;
     skinCtx.fillRect(left, top, brushSize, brushSize);
   }
+  dirtyTextureKeys.add(selectedTextureKey);
   pushEditorIntoTexture();
 }
 function paintLine(from, to) {
@@ -430,21 +436,45 @@ function resetTextures() {
     ctx.putImageData(image, 0, 0);
     currentTextures[key].needsUpdate = true;
   }
+  savedTextureData = {};
+  dirtyTextureKeys.clear();
+  resetOverridesPending = true;
   undoStack = [];
   copySelectedTextureToEditor();
   refreshTextureButtons();
 }
 function saveTextures() {
   pushEditorIntoTexture();
-  const textures = exportAvatarTextureData(currentTextures);
+  if (!resetOverridesPending && dirtyTextureKeys.size === 0) {
+    const button = overlay.querySelector("#characterSave");
+    button.textContent = "NO CHANGES";
+    window.setTimeout(() => { button.textContent = "SAVE TEXTURES"; }, 1200);
+    return;
+  }
+
+  // Store only texture maps the player actually edited. The rest remain the
+  // seeded random-generated maps for that player's procedural model.
+  const textures = resetOverridesPending ? {} : { ...savedTextureData };
+  for (const key of dirtyTextureKeys) {
+    const canvas = textureCanvas(key);
+    if (canvas) textures[key] = canvas.toDataURL("image/png");
+  }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, textures }));
+    if (Object.keys(textures).length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, textures }));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   } catch (error) {
     alert("Unable to save these textures in this browser. Try exporting the individual maps instead.");
     console.warn("Could not save procedural character textures.", error);
     return;
   }
-  sendCharacterSkin(textures);
+
+  sendCharacterSkin(Object.keys(textures).length ? textures : null);
+  savedTextureData = textures;
+  dirtyTextureKeys.clear();
+  resetOverridesPending = false;
   window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures } }));
   const button = overlay.querySelector("#characterSave");
   button.textContent = "SAVED ✓";
@@ -475,6 +505,7 @@ function importPng(file) {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(image, 0, 0, 16, 16);
     currentTextures[selectedTextureKey].needsUpdate = true;
+    dirtyTextureKeys.add(selectedTextureKey);
     URL.revokeObjectURL(url);
     copySelectedTextureToEditor();
   };
