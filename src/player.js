@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { createCharacterModel, createCharacterTexture } from "./characterModel.js";
 import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getKeybind } from "./keybinds.js";
 import { getBlockAt, getBlockCollisionBounds, getBlockCollisionBoxes } from "./world.js";
@@ -13,36 +12,6 @@ let velocityZ = 0;
 let onGround = false;
 let jumpWasDown = false;
 let lastNetworkSend = 0;
-const avatarDots = new Map();
-
-// Rebuild visible multiplayer models when the saved skin changes. Their
-// materials use independent cloned textures, so changing localStorage alone
-// does not refresh models that were already spawned.
-window.addEventListener("webminecraft-character-changed", () => {
-    for (const avatar of avatarDots.values()) {
-        const body = avatar.children.find(child => child?.userData?.multiplayerAvatar);
-        if (!body) continue;
-        const nextTexture = createCharacterTexture();
-        body.traverse(part => {
-            if (!part.isMesh || !part.material) return;
-            const materials = Array.isArray(part.material) ? part.material : [part.material];
-            for (const material of materials) {
-                if (!material.map) continue;
-                const oldMap = material.map;
-                const replacement = oldMap.clone();
-                replacement.image = nextTexture.image;
-                replacement.colorSpace = THREE.SRGBColorSpace;
-                replacement.magFilter = THREE.NearestFilter;
-                replacement.minFilter = THREE.NearestFilter;
-                replacement.generateMipmaps = false;
-                replacement.needsUpdate = true;
-                material.map = replacement;
-                oldMap.dispose();
-                material.needsUpdate = true;
-            }
-        });
-    }
-});
 
 const PLAYER_WIDTH = 0.80;
 const PLAYER_HEIGHT = 1.8;
