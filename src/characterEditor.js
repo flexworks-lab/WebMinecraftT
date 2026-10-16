@@ -1,32 +1,363 @@
 import * as THREE from "three";
-import { createCharacterModel, createCharacterTexture, CHARACTER_TEXTURE_KEY } from "./characterModel.js";
-const PALETTE=["#202020","#f4f4f4","#c98d62","#8b5a3c","#f0c7a0","#3974bd","#4b8051","#a94d42","#d1a43c","#303947","#171717","#70472c","#79b5c9","#553e80","#777777","#b9b9b9"];
-const css=document.createElement("style");css.textContent=`
-#characterEditor{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(9,12,15,.9);color:#f5f5f5;font-family:Arial,sans-serif}#characterEditor.open{display:flex}#characterEditor *{box-sizing:border-box}
-#characterEditorPanel{width:min(1100px,100%);height:min(740px,94vh);min-height:480px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);overflow:hidden;background:#252525;border:2px solid #777;box-shadow:0 18px 60px #000b}
-#characterEditorPreview{position:relative;min-width:0;background:radial-gradient(ellipse at 50% 38%,#555 0,#303030 42%,#181818 100%)}#characterEditorPreview canvas{width:100%;height:100%;display:block}#characterEditorHint{position:absolute;left:14px;bottom:12px;color:#ccc;font-size:11px;letter-spacing:1px;text-transform:uppercase;pointer-events:none}
-#characterEditorControls{padding:22px;overflow:auto;background:#292929}#characterEditorTitle{margin:0 0 5px;font-size:24px;letter-spacing:1px}#characterEditorSub{color:#aaa;font-size:12px;margin:0 0 18px}#skinCanvasWrap{width:min(100%,384px);aspect-ratio:1;background:#181818;border:2px solid #777;image-rendering:pixelated;touch-action:none}#skinCanvas{display:block;width:100%;height:100%;image-rendering:pixelated;cursor:crosshair;touch-action:none}
-.characterLabel{display:block;margin:17px 0 8px;color:#ddd;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px}#skinPalette{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px}.skinColor{aspect-ratio:1;border:2px solid #111;outline:1px solid #777;cursor:pointer}.skinColor[aria-pressed=true]{outline:3px solid white;outline-offset:2px}
-#characterActions{display:flex;gap:8px;margin-top:20px}.characterAction{flex:1;min-height:42px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#666;color:white;font-weight:700;cursor:pointer}#characterSave{background:#668746}#characterClose{position:absolute;top:10px;right:12px;z-index:3;width:40px;height:40px;border:1px solid #888;background:#222;color:#fff;font-size:23px;cursor:pointer}
-@media(max-width:700px){#characterEditor{padding:0}#characterEditorPanel{width:100%;height:100%;min-height:0;grid-template-columns:1fr;grid-template-rows:minmax(180px,32vh) 1fr}#characterEditorControls{padding:15px}#characterEditorTitle{font-size:21px}#characterEditorSub{margin-bottom:10px}#skinCanvasWrap{width:min(100%,300px)}.characterLabel{margin-top:13px}}`;
+import {
+  createCharacterModel,
+  createCharacterTexture,
+  CHARACTER_TEXTURE_KEY,
+  resetCharacterTexture
+} from "./characterModel.js";
+
+const PALETTE = [
+  "#202020", "#f4f4f4", "#c98d62", "#8b5a3c", "#f0c7a0", "#3974bd",
+  "#4b8051", "#a94d42", "#d1a43c", "#303947", "#171717", "#70472c",
+  "#79b5c9", "#553e80", "#777777", "#b9b9b9"
+];
+
+const css = document.createElement("style");
+css.textContent = `
+#characterEditor{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(8,10,12,.92);color:#f5f5f5;font-family:Arial,sans-serif}
+#characterEditor.open{display:flex}#characterEditor *{box-sizing:border-box}
+#characterEditorPanel{position:relative;width:min(1180px,100%);height:min(780px,94vh);min-height:480px;display:grid;grid-template-columns:minmax(0,1fr) minmax(350px,.9fr);overflow:hidden;background:#292929;border:2px solid #777;box-shadow:0 18px 60px #000b}
+#characterEditorPreview{position:relative;min-width:0;min-height:0;background:radial-gradient(ellipse at 50% 38%,#565656 0,#303030 45%,#171717 100%)}#characterEditorPreview canvas{width:100%;height:100%;display:block}
+#characterEditorHint{position:absolute;left:14px;bottom:12px;color:#ddd;font-size:11px;letter-spacing:1px;text-transform:uppercase;pointer-events:none}
+#characterEditorControls{padding:20px;overflow:auto;background:#292929}#characterEditorTitle{margin:0 0 5px;font-size:23px;letter-spacing:.7px}#characterEditorSub{color:#bbb;font-size:12px;line-height:1.5;margin:0 0 14px}
+#skinCanvasWrap{width:min(100%,420px);aspect-ratio:1;background-color:#ddd;background-image:linear-gradient(45deg,#aaa 25%,transparent 25%),linear-gradient(-45deg,#aaa 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#aaa 75%),linear-gradient(-45deg,transparent 75%,#aaa 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;border:2px solid #888;image-rendering:pixelated;touch-action:none}
+#skinCanvas{display:block;width:100%;height:100%;image-rendering:pixelated;cursor:crosshair;touch-action:none}
+.characterLabel{display:block;margin:15px 0 7px;color:#ddd;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+#skinTools{display:flex;gap:6px;flex-wrap:wrap}.skinTool{min-height:32px;padding:0 10px;border:1px solid #111;border-top-color:#999;border-left-color:#999;background:#555;color:#fff;font-weight:700;font-size:11px;cursor:pointer}.skinTool.active{outline:2px solid #fff;outline-offset:1px;background:#777}
+#skinPalette{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}.skinColor{aspect-ratio:1;border:2px solid #111;outline:1px solid #777;cursor:pointer;min-width:0}.skinColor[aria-pressed=true]{outline:3px solid white;outline-offset:1px}
+#skinColorRow{display:flex;align-items:center;gap:9px;margin-top:9px;font-size:12px;color:#ccc}#skinCustomColor{width:42px;height:30px;padding:0;border:1px solid #aaa;background:transparent;cursor:pointer}
+#characterActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:17px}.characterAction{min-height:39px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#626262;color:white;font-weight:700;font-size:11px;cursor:pointer}.characterAction.primary{background:#668746}
+#characterClose{position:absolute;top:9px;right:9px;z-index:3;width:38px;height:38px;border:1px solid #888;background:#222;color:#fff;font-size:23px;cursor:pointer}
+@media(max-width:760px){#characterEditor{padding:0}#characterEditorPanel{width:100%;height:100%;min-height:0;grid-template-columns:1fr;grid-template-rows:minmax(180px,30vh) 1fr}#characterEditorControls{padding:14px}#characterEditorTitle{font-size:20px}#characterEditorSub{margin-bottom:9px}#skinCanvasWrap{width:min(100%,330px)}.characterLabel{margin-top:11px}}
+`;
 document.head.appendChild(css);
-const overlay=document.createElement("section");overlay.id="characterEditor";overlay.setAttribute("aria-label","Character texture editor");overlay.innerHTML=`<div id="characterEditorPanel"><div id="characterEditorPreview"><button id="characterClose" aria-label="Close character editor">×</button><div id="characterEditorHint">Drag to rotate · Live game model</div></div><div id="characterEditorControls"><h2 id="characterEditorTitle">CHARACTER TEXTURE EDITOR</h2><p id="characterEditorSub">Paint pixels on your skin texture. Body shape and parts cannot be changed.</p><span class="characterLabel">64 × 64 skin texture</span><div id="skinCanvasWrap"><canvas id="skinCanvas" width="64" height="64"></canvas></div><span class="characterLabel">Paint color</span><div id="skinPalette"></div><div id="characterActions"><button class="characterAction" id="characterReset">RESET TEXTURE</button><button class="characterAction" id="characterSave">SAVE TEXTURE</button></div></div></div>`;document.body.appendChild(overlay);
-const skinCanvas=overlay.querySelector("#skinCanvas"),skinCtx=skinCanvas.getContext("2d",{willReadFrequently:true});skinCtx.imageSmoothingEnabled=false;
-const texture=createCharacterTexture(),textureCanvas=texture.userData.canvas,textureCtx=textureCanvas.getContext("2d",{willReadFrequently:true});textureCtx.imageSmoothingEnabled=false;
-function copyTextureToEditor(){skinCtx.clearRect(0,0,64,64);skinCtx.drawImage(textureCanvas,0,0);skinCtx.imageSmoothingEnabled=false;}copyTextureToEditor();
-// The saved PNG is loaded asynchronously by the shared texture factory. Keep the atlas canvas in sync once it arrives.
-window.addEventListener("webminecraft-character-texture-loaded",copyTextureToEditor);
-let selectedColor=PALETTE[5],painting=false,avatarYaw=-.22;const palette=overlay.querySelector("#skinPalette");
-for(const color of PALETTE){const b=document.createElement("button");b.type="button";b.className="skinColor";b.style.background=color;b.title=color;b.setAttribute("aria-label",color);b.setAttribute("aria-pressed",String(color===selectedColor));b.addEventListener("click",()=>{selectedColor=color;for(const el of palette.children)el.setAttribute("aria-pressed",String(el.title===selectedColor));});palette.appendChild(b);}
-function paintAt(e){const r=skinCanvas.getBoundingClientRect(),x=Math.max(0,Math.min(63,Math.floor((e.clientX-r.left)/r.width*64))),y=Math.max(0,Math.min(63,Math.floor((e.clientY-r.top)/r.height*64)));skinCtx.fillStyle=selectedColor;skinCtx.fillRect(x,y,1,1);textureCtx.fillStyle=selectedColor;textureCtx.fillRect(x,y,1,1);texture.needsUpdate=true;}
-skinCanvas.addEventListener("pointerdown",e=>{painting=true;skinCanvas.setPointerCapture(e.pointerId);paintAt(e);});skinCanvas.addEventListener("pointermove",e=>{if(painting)paintAt(e);});skinCanvas.addEventListener("pointerup",()=>painting=false);skinCanvas.addEventListener("pointercancel",()=>painting=false);
-const scene=new THREE.Scene();scene.background=new THREE.Color("#303030");const camera=new THREE.PerspectiveCamera(32,1,.1,80);camera.position.set(3.8,2.7,6.8);camera.lookAt(0,.95,0);const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;overlay.querySelector("#characterEditorPreview").prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight("#e9f4ff","#6b5946",2));const key=new THREE.DirectionalLight("#fff1d8",2.7);key.position.set(4,8,5);key.castShadow=true;scene.add(key);const rim=new THREE.DirectionalLight("#9bbfff",1.2);rim.position.set(-4,4,-3);scene.add(rim);const avatar=createCharacterModel(texture);scene.add(avatar);const ground=new THREE.Mesh(new THREE.CircleGeometry(2.4,32),new THREE.MeshStandardMaterial({color:"#414141",roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.02;ground.receiveShadow=true;scene.add(ground);
-let dragging=false,lastX=0;const previewCanvas=renderer.domElement;previewCanvas.style.touchAction="pan-y";previewCanvas.addEventListener("pointerdown",e=>{dragging=true;lastX=e.clientX;previewCanvas.setPointerCapture(e.pointerId);});previewCanvas.addEventListener("pointermove",e=>{if(!dragging)return;avatarYaw+=(e.clientX-lastX)*.012;lastX=e.clientX;avatar.rotation.y=avatarYaw;});previewCanvas.addEventListener("pointerup",()=>dragging=false);previewCanvas.addEventListener("pointercancel",()=>dragging=false);
-function resize(){const host=overlay.querySelector("#characterEditorPreview"),w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
-function show(){overlay.classList.add("open");resize();copyTextureToEditor();}function close(){overlay.classList.remove("open");}
-function save(){try{localStorage.setItem(CHARACTER_TEXTURE_KEY,textureCanvas.toDataURL("image/png"));}catch{}window.dispatchEvent(new CustomEvent("webminecraft-character-changed"));const b=overlay.querySelector("#characterSave");b.textContent="SAVED ✓";setTimeout(()=>b.textContent="SAVE TEXTURE",1000);}
-function reset(){textureCtx.clearRect(0,0,64,64);textureCtx.fillStyle="#b9b9b9";textureCtx.fillRect(0,0,64,64);textureCtx.fillStyle="#c98d62";textureCtx.fillRect(8,8,8,8);textureCtx.fillStyle="#39291f";textureCtx.fillRect(8,8,8,2);textureCtx.fillRect(8,8,2,8);textureCtx.fillStyle="#263f68";textureCtx.fillRect(10,11,1,1);textureCtx.fillRect(13,11,1,1);textureCtx.fillStyle="#3974bd";for(const r of [[20,20,8,12],[32,20,8,12],[16,20,4,12],[28,20,4,12],[20,16,8,4],[28,16,8,4]])textureCtx.fillRect(...r);textureCtx.fillStyle="#c98d62";for(const r of [[40,20,4,12],[48,20,4,12],[44,16,4,4],[48,16,4,4],[44,20,4,12],[52,20,4,12],[32,52,4,12],[40,52,4,12],[36,48,4,4],[40,48,4,4],[36,52,4,12],[44,52,4,12]])textureCtx.fillRect(...r);textureCtx.fillStyle="#303947";for(const r of [[0,20,4,12],[8,20,4,12],[4,16,4,4],[8,16,4,4],[4,20,4,12],[12,20,4,12],[16,52,4,12],[24,52,4,12],[20,48,4,4],[24,48,4,4],[20,52,4,12],[28,52,4,12]])textureCtx.fillRect(...r);texture.needsUpdate=true;copyTextureToEditor();}
-overlay.querySelector("#characterClose").addEventListener("click",close);overlay.querySelector("#characterReset").addEventListener("click",reset);overlay.querySelector("#characterSave").addEventListener("click",save);overlay.addEventListener("click",e=>{if(e.target===overlay)close();});window.addEventListener("keydown",e=>{if(e.key==="Escape"&&overlay.classList.contains("open"))close();});window.addEventListener("resize",resize);
-function addMenuButton(){const host=document.querySelector("#menuButtons");if(!host||document.querySelector("#characterEditorOpen"))return;const b=document.createElement("button");b.className="menuButton";b.id="characterEditorOpen";b.type="button";b.textContent="CHARACTER TEXTURE";b.addEventListener("click",show);const settings=host.querySelector("#menuSettingsButton");if(settings)host.insertBefore(b,settings);else host.appendChild(b);}addMenuButton();window.addEventListener("DOMContentLoaded",addMenuButton,{once:true});
-function render(){requestAnimationFrame(render);if(overlay.classList.contains("open"))renderer.render(scene,camera);}render();
+
+const overlay = document.createElement("section");
+overlay.id = "characterEditor";
+overlay.setAttribute("aria-label", "Character texture editor");
+overlay.innerHTML = `
+<div id="characterEditorPanel">
+  <div id="characterEditorPreview">
+    <button id="characterClose" type="button" aria-label="Close character editor">×</button>
+    <div id="characterEditorHint">Drag model to rotate · Preview updates live</div>
+  </div>
+  <div id="characterEditorControls">
+    <h2 id="characterEditorTitle">SKIN TEXTURE STUDIO</h2>
+    <p id="characterEditorSub">Paint the 64 × 64 Minecraft skin atlas. The character model and proportions stay the same. Transparent pixels are preserved.</p>
+    <span class="characterLabel">Skin atlas · 64 × 64 pixels</span>
+    <div id="skinCanvasWrap"><canvas id="skinCanvas" width="64" height="64"></canvas></div>
+    <span class="characterLabel">Tool</span>
+    <div id="skinTools">
+      <button class="skinTool active" type="button" data-tool="paint">PAINT</button>
+      <button class="skinTool" type="button" data-tool="erase">ERASER</button>
+      <button class="skinTool" type="button" data-tool="pick">PICK COLOR</button>
+      <button class="skinTool" type="button" id="skinUndo">UNDO</button>
+      <button class="skinTool" type="button" id="skinGrid" aria-pressed="true">PIXEL GRID: ON</button>
+    </div>
+    <div id="skinColorRow">Brush size
+      <select id="skinBrushSize" aria-label="Brush size" style="background:#444;color:#fff;border:1px solid #888;padding:6px">
+        <option value="1">1 px</option><option value="2">2 px</option><option value="3">3 px</option><option value="4">4 px</option>
+      </select>
+      <label for="skinCustomColor">Custom</label><input id="skinCustomColor" type="color" value="#3974bd">
+    </div>
+    <span class="characterLabel">Palette</span><div id="skinPalette"></div>
+    <div id="characterActions">
+      <button class="characterAction" id="skinImport" type="button">IMPORT PNG</button>
+      <button class="characterAction" id="skinExport" type="button">EXPORT PNG</button>
+      <button class="characterAction" id="characterReset" type="button">RESET TEXTURE</button>
+      <button class="characterAction primary" id="characterSave" type="button">SAVE TEXTURE</button>
+    </div>
+    <input id="skinFileInput" type="file" accept="image/png,image/webp,image/jpeg" hidden>
+  </div>
+</div>`;
+document.body.appendChild(overlay);
+
+const skinCanvas = overlay.querySelector("#skinCanvas");
+const skinCtx = skinCanvas.getContext("2d", { willReadFrequently: true, alpha: true });
+skinCtx.imageSmoothingEnabled = false;
+
+const texture = createCharacterTexture();
+const textureCanvas = texture.userData.canvas;
+const textureCtx = textureCanvas.getContext("2d", { willReadFrequently: true, alpha: true });
+textureCtx.imageSmoothingEnabled = false;
+
+function copyTextureToEditor() {
+  skinCtx.clearRect(0, 0, 64, 64);
+  skinCtx.drawImage(textureCanvas, 0, 0);
+  skinCtx.imageSmoothingEnabled = false;
+}
+copyTextureToEditor();
+window.addEventListener("webminecraft-character-texture-loaded", copyTextureToEditor);
+
+let selectedColor = PALETTE[5];
+let tool = "paint";
+let brushSize = 1;
+let painting = false;
+let lastPixel = null;
+let strokeSnapshot = null;
+let undoStack = [];
+let avatarYaw = -0.22;
+const palette = overlay.querySelector("#skinPalette");
+const brushSelect = overlay.querySelector("#skinBrushSize");
+const gridButton = overlay.querySelector("#skinGrid");
+const canvasWrap = overlay.querySelector("#skinCanvasWrap");
+
+function selectColor(color) {
+  selectedColor = color;
+  overlay.querySelector("#skinCustomColor").value = color;
+  for (const el of palette.children) el.setAttribute("aria-pressed", String(el.dataset.color === selectedColor));
+}
+for (const color of PALETTE) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "skinColor";
+  button.dataset.color = color;
+  button.style.background = color;
+  button.title = color;
+  button.setAttribute("aria-label", `Select ${color}`);
+  button.setAttribute("aria-pressed", String(color === selectedColor));
+  button.addEventListener("click", () => selectColor(color));
+  palette.appendChild(button);
+}
+overlay.querySelector("#skinCustomColor").addEventListener("input", e => selectColor(e.target.value));
+brushSelect.addEventListener("change", () => { brushSize = Number(brushSelect.value) || 1; });
+overlay.querySelectorAll("[data-tool]").forEach(button => button.addEventListener("click", () => {
+  tool = button.dataset.tool;
+  overlay.querySelectorAll("[data-tool]").forEach(el => el.classList.toggle("active", el === button));
+  skinCanvas.style.cursor = tool === "pick" ? "copy" : tool === "erase" ? "cell" : "crosshair";
+}));
+gridButton.addEventListener("click", () => {
+  const on = gridButton.getAttribute("aria-pressed") !== "true";
+  gridButton.setAttribute("aria-pressed", String(on));
+  gridButton.textContent = `PIXEL GRID: ${on ? "ON" : "OFF"}`;
+  skinCanvas.style.imageRendering = on ? "pixelated" : "auto";
+  canvasWrap.style.borderColor = on ? "#888" : "#555";
+});
+
+function pixelFromEvent(event) {
+  const rect = skinCanvas.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(63, Math.floor((event.clientX - rect.left) / rect.width * 64))),
+    y: Math.max(0, Math.min(63, Math.floor((event.clientY - rect.top) / rect.height * 64)))
+  };
+}
+function snapshotBeforeStroke() {
+  strokeSnapshot = textureCtx.getImageData(0, 0, 64, 64);
+}
+function applyBrush(x, y) {
+  if (tool === "pick") {
+    const pixel = textureCtx.getImageData(x, y, 1, 1).data;
+    if (pixel[3] > 0) {
+      const hex = "#" + [pixel[0], pixel[1], pixel[2]].map(v => v.toString(16).padStart(2, "0")).join("");
+      selectColor(hex);
+    }
+    tool = "paint";
+    overlay.querySelectorAll("[data-tool]").forEach(el => el.classList.toggle("active", el.dataset.tool === "paint"));
+    skinCanvas.style.cursor = "crosshair";
+    return;
+  }
+  const half = Math.floor(brushSize / 2);
+  const left = x - half, top = y - half;
+  if (tool === "erase") textureCtx.clearRect(left, top, brushSize, brushSize);
+  else {
+    textureCtx.fillStyle = selectedColor;
+    textureCtx.fillRect(left, top, brushSize, brushSize);
+  }
+  texture.needsUpdate = true;
+  copyTextureToEditor();
+}
+function paintLine(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const steps = Math.max(Math.abs(dx), Math.abs(dy), 1);
+  for (let i = 0; i <= steps; i++) {
+    const x = Math.round(from.x + dx * i / steps);
+    const y = Math.round(from.y + dy * i / steps);
+    applyBrush(x, y);
+  }
+}
+skinCanvas.addEventListener("pointerdown", event => {
+  if (tool === "pick") {
+    const p = pixelFromEvent(event);
+    applyBrush(p.x, p.y);
+    return;
+  }
+  painting = true;
+  skinCanvas.setPointerCapture(event.pointerId);
+  snapshotBeforeStroke();
+  lastPixel = pixelFromEvent(event);
+  applyBrush(lastPixel.x, lastPixel.y);
+});
+skinCanvas.addEventListener("pointermove", event => {
+  if (!painting || !lastPixel) return;
+  const next = pixelFromEvent(event);
+  paintLine(lastPixel, next);
+  lastPixel = next;
+});
+function finishStroke() {
+  if (painting && strokeSnapshot) {
+    undoStack.push(strokeSnapshot);
+    if (undoStack.length > 40) undoStack.shift();
+    strokeSnapshot = null;
+  }
+  painting = false;
+  lastPixel = null;
+}
+skinCanvas.addEventListener("pointerup", finishStroke);
+skinCanvas.addEventListener("pointercancel", finishStroke);
+function undo() {
+  const previous = undoStack.pop();
+  if (!previous) return;
+  textureCtx.putImageData(previous, 0, 0);
+  texture.needsUpdate = true;
+  copyTextureToEditor();
+}
+overlay.querySelector("#skinUndo").addEventListener("click", undo);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#303030");
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 80);
+camera.position.set(3.8, 2.7, 6.8);
+camera.lookAt(0, 0.95, 0);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+overlay.querySelector("#characterEditorPreview").prepend(renderer.domElement);
+scene.add(new THREE.HemisphereLight("#e9f4ff", "#6b5946", 2));
+const keyLight = new THREE.DirectionalLight("#fff1d8", 2.7);
+keyLight.position.set(4, 8, 5);
+keyLight.castShadow = true;
+scene.add(keyLight);
+const rimLight = new THREE.DirectionalLight("#9bbfff", 1.2);
+rimLight.position.set(-4, 4, -3);
+scene.add(rimLight);
+const avatar = createCharacterModel(texture);
+scene.add(avatar);
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(2.4, 32),
+  new THREE.MeshStandardMaterial({ color: "#414141", roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.02;
+ground.receiveShadow = true;
+scene.add(ground);
+
+let dragging = false;
+let lastX = 0;
+const previewCanvas = renderer.domElement;
+previewCanvas.style.touchAction = "pan-y";
+previewCanvas.addEventListener("pointerdown", event => {
+  dragging = true;
+  lastX = event.clientX;
+  previewCanvas.setPointerCapture(event.pointerId);
+});
+previewCanvas.addEventListener("pointermove", event => {
+  if (!dragging) return;
+  avatarYaw += (event.clientX - lastX) * 0.012;
+  lastX = event.clientX;
+  avatar.rotation.y = avatarYaw;
+});
+previewCanvas.addEventListener("pointerup", () => dragging = false);
+previewCanvas.addEventListener("pointercancel", () => dragging = false);
+
+function resize() {
+  const host = overlay.querySelector("#characterEditorPreview");
+  const width = Math.max(1, host.clientWidth);
+  const height = Math.max(1, host.clientHeight);
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+function show() {
+  overlay.classList.add("open");
+  resize();
+  copyTextureToEditor();
+}
+function close() {
+  overlay.classList.remove("open");
+}
+function save() {
+  try {
+    localStorage.setItem(CHARACTER_TEXTURE_KEY, textureCanvas.toDataURL("image/png"));
+  } catch (error) {
+    console.warn("Could not save character texture in this browser.", error);
+  }
+  window.dispatchEvent(new CustomEvent("webminecraft-character-changed"));
+  const button = overlay.querySelector("#characterSave");
+  button.textContent = "SAVED ✓";
+  setTimeout(() => button.textContent = "SAVE TEXTURE", 1000);
+}
+function reset() {
+  undoStack.push(textureCtx.getImageData(0, 0, 64, 64));
+  if (undoStack.length > 40) undoStack.shift();
+  resetCharacterTexture(texture);
+  copyTextureToEditor();
+}
+function exportPng() {
+  const link = document.createElement("a");
+  link.download = "webminecraft-skin-64x64.png";
+  link.href = textureCanvas.toDataURL("image/png");
+  link.click();
+}
+function importPng(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  image.onload = () => {
+    undoStack.push(textureCtx.getImageData(0, 0, 64, 64));
+    if (undoStack.length > 40) undoStack.shift();
+    textureCtx.clearRect(0, 0, 64, 64);
+    textureCtx.drawImage(image, 0, 0, 64, 64);
+    texture.needsUpdate = true;
+    copyTextureToEditor();
+    URL.revokeObjectURL(url);
+  };
+  image.onerror = () => {
+    URL.revokeObjectURL(url);
+    alert("That image could not be loaded. Choose a valid skin PNG.");
+  };
+  image.src = url;
+}
+overlay.querySelector("#characterClose").addEventListener("click", close);
+overlay.querySelector("#characterReset").addEventListener("click", reset);
+overlay.querySelector("#characterSave").addEventListener("click", save);
+overlay.querySelector("#skinExport").addEventListener("click", exportPng);
+const fileInput = overlay.querySelector("#skinFileInput");
+overlay.querySelector("#skinImport").addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", event => {
+  importPng(event.target.files?.[0]);
+  event.target.value = "";
+});
+overlay.addEventListener("click", event => { if (event.target === overlay) close(); });
+window.addEventListener("keydown", event => {
+  if (!overlay.classList.contains("open")) return;
+  if (event.key === "Escape") close();
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+    event.preventDefault();
+    undo();
+  }
+});
+window.addEventListener("resize", resize);
+
+function addMenuButton() {
+  const host = document.querySelector("#menuButtons");
+  if (!host || document.querySelector("#characterEditorOpen")) return;
+  const button = document.createElement("button");
+  button.className = "menuButton";
+  button.id = "characterEditorOpen";
+  button.type = "button";
+  button.textContent = "CHARACTER TEXTURE";
+  button.addEventListener("click", show);
+  const settings = host.querySelector("#menuSettingsButton");
+  if (settings) host.insertBefore(button, settings);
+  else host.appendChild(button);
+}
+addMenuButton();
+window.addEventListener("DOMContentLoaded", addMenuButton, { once: true });
+
+function render() {
+  requestAnimationFrame(render);
+  if (overlay.classList.contains("open")) renderer.render(scene, camera);
+}
+render();
