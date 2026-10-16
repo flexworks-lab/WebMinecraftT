@@ -990,7 +990,7 @@ function makeGeometryForChunk(chunk){
     geometry.setAttribute("normal",new THREE.Float32BufferAttribute(normals,3));
     geometry.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));
     geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));
-    const index=[];for(let i=0;i<groups.length;i++){const startIndex=index.length;index.push(...groups[i]);if(groups[i].length)geometry.addGroup(startIndex,groups[i].length,i);}
+    const index=[];for(let i=0;i<groups.length;i++){const startIndex=index.length;const group=groups[i];for(let j=0;j<group.length;j++)index.push(group[j]);if(group.length)geometry.addGroup(startIndex,group.length,i);}
     geometry.setIndex(index);geometry.computeBoundingSphere();geometry.computeBoundingBox();return geometry;
 }
 function disposeChunkMesh(chunk){if(!chunk||!worldScene)return;const key=chunkKey(chunk.x,chunk.z),mesh=chunkMeshes.get(key);if(mesh){worldScene.remove(mesh);mesh.geometry.dispose();chunkMeshes.delete(key);}}
