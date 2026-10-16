@@ -413,10 +413,21 @@ function updateDepthLighting() {
 function applyExtendedSettings(next = {}) {
     if (!next || typeof next !== "object") return;
     extendedSettings = { ...extendedSettings, ...next };
-    settings.shadows = IS_TOUCH_DEVICE ? false : Boolean(extendedSettings.shadows);
-    settings.shadowQuality = IS_TOUCH_DEVICE ? Math.min(Number(extendedSettings.shadowQuality) || 512, 512) : Number(extendedSettings.shadowQuality) || 1024;
-    settings.pixelRatio = IS_TOUCH_DEVICE ? Math.min(Number(extendedSettings.pixelRatio) || 1, 1) : Number(extendedSettings.pixelRatio) || 1;
-    settings.lightingQuality = extendedSettings.lightingQuality || "high";
+    // Keep settings events from restoring costly desktop graphics preferences
+    // or a huge view distance after the low-power profile has been applied.
+    const renderDistanceCap = IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 57 : 76);
+    const requestedDistance = Number(extendedSettings.renderDistance);
+    extendedSettings.renderDistance = Number.isFinite(requestedDistance) && requestedDistance > 0
+        ? Math.min(requestedDistance, renderDistanceCap)
+        : renderDistanceCap;
+    settings.shadows = IS_LOW_POWER_DEVICE ? false : Boolean(extendedSettings.shadows);
+    settings.shadowQuality = IS_LOW_POWER_DEVICE
+        ? Math.min(Number(extendedSettings.shadowQuality) || 512, 512)
+        : Number(extendedSettings.shadowQuality) || 1024;
+    settings.pixelRatio = IS_LOW_POWER_DEVICE ? 1 : Number(extendedSettings.pixelRatio) || 1;
+    settings.lightingQuality = IS_LOW_POWER_DEVICE && extendedSettings.lightingQuality === "high"
+        ? "balanced"
+        : (extendedSettings.lightingQuality || "high");
     settings.brightness = Number.isFinite(Number(extendedSettings.brightness)) ? Number(extendedSettings.brightness) : 1;
     camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
     camera.updateProjectionMatrix();
