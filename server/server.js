@@ -818,6 +818,13 @@ function handleMessage(ws, raw, state) {
         send(ws, { type: "world_sync", worldSeed: room.worldSeed, worldChanges: [...room.blockChanges.values()], worldDrops: [...room.drops.values()] });
         return;
     }
+    if (message.type === "player_skin_reset") {
+        const room = rooms.get(player.room);
+        if (!room) return;
+        player.skinTextures = null;
+        broadcast(room, { type: "player_skin_reset", playerId: player.id }, player.id);
+        return;
+    }
     if (message.type === "player_skin") {
         const room = rooms.get(player.room);
         if (!room) return;
