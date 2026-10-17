@@ -1,4 +1,4 @@
-import { touchInput } from "./controls.js";
+import { touchInput } from "../player/controls.js";
 
 const remotePlayers = new Map();
 const claimedByOthers = new Set();

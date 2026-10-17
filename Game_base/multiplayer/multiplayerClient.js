@@ -1,6 +1,6 @@
-import { setBlockAt, setWorldSeed, beginWorldEditBatch, endWorldEditBatch } from "./world.js";
-import { addItem } from "./inventory.js";
-import { hidePlayerDataSync, resetPlayerDataSyncCancellation, isPlayerDataSyncCancelled, setPlayerDataSyncProgress, showPlayerDataSync } from "./playerDataSyncUi.js";
+import { setBlockAt, setWorldSeed, beginWorldEditBatch, endWorldEditBatch } from "../world/world.js";
+import { addItem } from "../inventory/inventory.js";
+import { hidePlayerDataSync, resetPlayerDataSyncCancellation, isPlayerDataSyncCancelled, setPlayerDataSyncProgress, showPlayerDataSync } from "../accounts/playerDataSyncUi.js";
 
 let overlay = null;
 let socket = null;
@@ -267,7 +267,7 @@ async function saveExportedRoomWorld(message) {
             if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 184) continue;
             blocks[`${x},${y},${z}`] = type;
         }
-        const worldStorage = await import("./worldsV2.js");
+        const worldStorage = await import("../world/worldsV2.js");
         await worldStorage.initSavedWorldStorage();
         const existing = await worldStorage.getLocalWorld(seed);
         if (existing && !window.confirm(`A single-player world named "${existing.name}" already uses this terrain seed. Replace its saved block changes with this room?`)) {

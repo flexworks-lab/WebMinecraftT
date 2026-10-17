@@ -1,5 +1,5 @@
-import { setWorldMode } from "./survivalMode.js";
-import { setFlying } from "./controls.js";
+import { setWorldMode } from "../inventory/survivalMode.js";
+import { setFlying } from "../player/controls.js";
 
 const STORAGE_KEY = "webminecraft-multiplayer-game-mode";
 const VALID_MODES = new Set(["survival", "creative"]);

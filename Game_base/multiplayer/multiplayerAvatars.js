@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { getRemotePlayers, isMultiplayerActive } from "./multiplayerClient.js";
-import * as blockMaterials from "./blocks.js";
+import * as blockMaterials from "../world/blocks.js";
 
 const avatars = new Map();
 let animationStarted = false;
