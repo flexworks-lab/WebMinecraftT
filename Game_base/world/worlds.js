@@ -1,5 +1,5 @@
 import "./createWorldSettingsUi.js";
-import "./singleplayerGameModeFix.js";
+import "../player/singleplayerGameModeFix.js";
 import "./worldTypeSettings.js";
 import "./worldBulkDelete.js";
 export * from "./worldsV2.js";
