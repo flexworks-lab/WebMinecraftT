@@ -1,4 +1,4 @@
-import "./friendJoin.js";
+import "../multiplayer/friendJoin.js";
 
 const FIREBASE_VERSION = "12.18.0";
 
