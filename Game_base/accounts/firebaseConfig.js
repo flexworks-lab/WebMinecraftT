@@ -1,11 +1,11 @@
 // Firebase web configuration for WebMinecraftT.
 // This config is safe to include in the browser. Firebase Authentication and
 // your Firebase security rules control access to your project's data.
-import "./browserWorldFallback.js";
-import "./moderation.js";
-import "./multiplayerServerMode.js";
-import "./multiplayerSurvivalBridge.js";
-import "./multiplayerGameplayStateFix.js";
+import "../world/browserWorldFallback.js";
+import "../admin/moderation.js";
+import "../multiplayer/multiplayerServerMode.js";
+import "../multiplayer/multiplayerSurvivalBridge.js";
+import "../multiplayer/multiplayerGameplayStateFix.js";
 import "./authLiveRefresh.js";
 
 // The News button is created by menuUpdates.js. Give any button that becomes
@@ -179,19 +179,19 @@ try {
     }
 } catch {}
 
-import("./admin/devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
-import("./admin/devServerControls.js").catch(error => console.warn("Developer server controls failed to load:", error));
-import("./admin/adminChatFix.js").catch(error => console.warn("Admin server chat fix failed to load:", error));
-import("./admin/adminGameChatFix.js").catch(error => console.warn("Admin multiplayer chat styling failed to load:", error));
-import("./admin/adminManagement.js").catch(error => console.warn("Admin management failed to load:", error));
-import("./adminManagementEmailFix.js").catch(error => console.warn("Admin email support failed to load:", error));
-import("./admin/adminControls.js").catch(error => console.warn("Admin controls failed to load:", error));
-import("./admin/accountDevControls.js").catch(error => console.warn("Account developer controls failed to load:", error));
-import("./admin/announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
-import("./newsLive.js").catch(error => console.warn("Live News tabs failed to load:", error));
-import("./newsFreshStart.js").catch(error => console.warn("Fresh News start failed to load:", error));
-import("./announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
+import("../admin/modules/devControls.js").catch(error => console.warn("Developer controls failed to load:", error));
+import("../admin/modules/devServerControls.js").catch(error => console.warn("Developer server controls failed to load:", error));
+import("../admin/modules/adminChatFix.js").catch(error => console.warn("Admin server chat fix failed to load:", error));
+import("../admin/modules/adminGameChatFix.js").catch(error => console.warn("Admin multiplayer chat styling failed to load:", error));
+import("../admin/modules/adminManagement.js").catch(error => console.warn("Admin management failed to load:", error));
+import("../admin/adminManagementEmailFix.js").catch(error => console.warn("Admin email support failed to load:", error));
+import("../admin/modules/adminControls.js").catch(error => console.warn("Admin controls failed to load:", error));
+import("../admin/modules/accountDevControls.js").catch(error => console.warn("Account developer controls failed to load:", error));
+import("../admin/modules/announcementDev.js").catch(error => console.warn("Announcement controls failed to load:", error));
+import("../ui/newsLive.js").catch(error => console.warn("Live News tabs failed to load:", error));
+import("../admin/newsFreshStart.js").catch(error => console.warn("Fresh News start failed to load:", error));
+import("../ui/announcements.js").catch(error => console.warn("Website announcements failed to load:", error));
 import("./friendsLive.js").catch(error => console.warn("Live friend presence failed to load:", error));
 import("./friendsPresence.js").catch(error => console.warn("Live friend presence failed to load:", error));
-import("./gameInvites.js").catch(error => console.warn("Game invites failed to load:", error));
-import("./oauthLogos.js").catch(error => console.warn("OAuth logo UI failed to load:", error));
+import("../multiplayer/gameInvites.js").catch(error => console.warn("Game invites failed to load:", error));
+import("../assets/oauthLogos.js").catch(error => console.warn("OAuth logo UI failed to load:", error));

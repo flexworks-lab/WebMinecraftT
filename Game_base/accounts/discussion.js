@@ -1,4 +1,4 @@
-import { censorUserText } from "./textCensorship.js";
+import { censorUserText } from "../ui/textCensorship.js";
 const COLLECTION = "discussions";
 const CHANNELS = {
     bugs: { title: "Report Bugs", subtitle: "Tell us about a problem you found." },
