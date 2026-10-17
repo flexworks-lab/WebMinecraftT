@@ -150,7 +150,7 @@ function startLooseGravelScan() {
         if (id.endsWith("/Game_base/core/main.js")) {
             code = code.replace(
                 'import * as THREE from "three";',
-                'import * as THREE from "three";\nimport { initMultiplayerAvatars } from "./multiplayerAvatars.js";\nimport { initShortGrass } from "./shortGrass.js";'
+                'import * as THREE from "three";\nimport { initMultiplayerAvatars } from "../multiplayer/multiplayerAvatars.js";\nimport { initShortGrass } from "../world/shortGrass.js";'
             );
             code = code.replace(
                 "const scene = new THREE.Scene();",
@@ -185,7 +185,7 @@ function startLooseGravelScan() {
 
         if (id.endsWith("/Game_base/multiplayer/multiplayerClient.js")) {
             code = code.replace(
-                'import { setBlockAt, setWorldSeed } from "./world.js";',
+                'import { setBlockAt, setWorldSeed, getWorldSeed } from "../world/world.js";\nimport { makeCommandsButton, runLocalCommand } from "./multiplayerCommands.js";',
                 'import { setBlockAt, setWorldSeed, getWorldSeed } from "./world.js";\nimport { makeCommandsButton, runLocalCommand } from "./multiplayerCommands.js";'
             );
             code = code.replace(
