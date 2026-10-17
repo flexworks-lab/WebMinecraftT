@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { getBlockAt, getWorldSeed, getBlockTypes, setBlockAt } from "./world.js";
-import { sendBlockChange } from "./multiplayerClient.js";
+import { sendBlockChange } from "../multiplayer/multiplayerClient.js";
 import { blockGeometry, gravelMaterial } from "./blocks.js";
 
 const ROOT_NAME = "ShortGrassVegetation";

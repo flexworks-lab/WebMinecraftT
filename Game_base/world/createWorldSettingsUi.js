@@ -2,7 +2,7 @@
 // This only changes the Create New World modal appearance and navigation.
 // The existing worldsV2.js create/cancel handlers remain the source of truth.
 
-import { setWorldMode } from "./survivalMode.js";
+import { setWorldMode } from "../inventory/survivalMode.js";
 
 const STYLE_ID = "webminecraft-create-world-settings-ui";
 const MODAL_MARK = "data-create-world-settings-ui";

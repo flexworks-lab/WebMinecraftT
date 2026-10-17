@@ -1,13 +1,13 @@
-import "./discussion.js";
-import "./welcome.js";
-import "./playerList.js";
+import "../accounts/discussion.js";
+import "../ui/welcome.js";
+import "../multiplayer/playerList.js";
 import "./worldSync.js";
-import "./mobileFlightControls.js";
-import "./uiFixes.js";
+import "../player/mobileFlightControls.js";
+import "../ui/uiFixes.js";
 import "./waterPhysicsMinecraft.js";
 import "./waterTextureFix.js";
-import "./survivalMode.js";
-import "./performance.js";
+import "../inventory/survivalMode.js";
+import "../core/performance.js";
 
 function applyDirtBackgrounds() {
     if (document.getElementById("webMinecraftDirtBackgrounds")) return;

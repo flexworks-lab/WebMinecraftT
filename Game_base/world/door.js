@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
-import { sendBlockChange } from "./multiplayerClient.js";
+import { sendBlockChange } from "../multiplayer/multiplayerClient.js";
 
 const texturePath = file => `${import.meta.env.BASE_URL}textures/${encodeURIComponent(file)}`;
 const textureLoader = new THREE.TextureLoader();
