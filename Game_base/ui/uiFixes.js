@@ -1,5 +1,5 @@
-import "./friendsUi.js";
-import { touchInput } from "./controls.js";
+import "../accounts/friendsUi.js";
+import { touchInput } from "../player/controls.js";
 
 const WORLD_DB_NAME = "webminecraft-local-worlds";
 const WORLD_STORE_NAME = "worlds";

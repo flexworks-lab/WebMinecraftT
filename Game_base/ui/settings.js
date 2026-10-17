@@ -1,5 +1,5 @@
-import { getKeybinds, setKeybind, resetKeybinds, formatKeyCode, keybindLabels } from "./keybinds.js";
-import { IS_TOUCH_DEVICE } from "./performance.js";
+import { getKeybinds, setKeybind, resetKeybinds, formatKeyCode, keybindLabels } from "../player/keybinds.js";
+import { IS_TOUCH_DEVICE } from "../core/performance.js";
 
 const STORAGE_KEY = "webminecraft-settings-v2";
 

@@ -1,5 +1,5 @@
-import "./chat.js";
-import { clearWorld, getWorldSeed } from "./world.js";
+import "../multiplayer/chat.js";
+import { clearWorld, getWorldSeed } from "../world/world.js";
 
 const updates = document.getElementById("menuUpdates");
 const menu = document.getElementById("mainMenu");
