@@ -1,5 +1,5 @@
-import { getWorldSeed } from "./world.js";
-import { yaw, pitch, resetView } from "./controls.js";
+import { getWorldSeed } from "../world/world.js";
+import { yaw, pitch, resetView } from "../player/controls.js";
 
 const MODE_PREFIX = "webminecraft-world-mode-";
 const STATE_PREFIX = "webminecraft-singleplayer-world-state-";

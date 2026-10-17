@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { isSurvivalWorld } from "./survivalMode.js";
 import { getInventoryItem } from "./inventory.js";
-import { createAvatar } from "./multiplayerAvatars.js";
+import { createAvatar } from "../multiplayer/multiplayerAvatars.js";
 
 const ITEM_DEFS = [
     { id: 1, name: "Grass Block", texture: "grass_block_side.png" },

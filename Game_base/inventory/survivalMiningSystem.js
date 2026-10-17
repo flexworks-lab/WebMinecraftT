@@ -1,11 +1,11 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes, isStairBlock, stairBaseType } from "./world.js";
-import { touchInput } from "./controls.js";
-import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop, sendItemDrop, sendItemClaim, isMultiplayerActive } from "./multiplayerClient.js";
-import { handleDoorTarget } from "./door.js";
+import { getBlockAt, setBlockAt, getBlockTypes, isStairBlock, stairBaseType } from "../world/world.js";
+import { touchInput } from "../player/controls.js";
+import { sendBlockChange, sendPlayerAction, sendMiningProgress, sendMiningStop, sendItemDrop, sendItemClaim, isMultiplayerActive } from "../multiplayer/multiplayerClient.js";
+import { handleDoorTarget } from "../world/door.js";
 import { isSurvivalWorld } from "./survivalMode.js";
-import { spawnBlockBreakParticles } from "./blockParticles.js";
-import { extraBlockMaterials } from "./blocks.js";
+import { spawnBlockBreakParticles } from "../world/blockParticles.js";
+import { extraBlockMaterials } from "../world/blocks.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);

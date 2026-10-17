@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes } from "./world.js";
-import { sendBlockChange, sendPlayerAction } from "./multiplayerClient.js";
-import { handleDoorTarget } from "./door.js";
+import { getBlockAt, setBlockAt, getBlockTypes } from "../world/world.js";
+import { sendBlockChange, sendPlayerAction } from "../multiplayer/multiplayerClient.js";
+import { handleDoorTarget } from "../world/door.js";
 import { isSurvivalWorld } from "./survivalMode.js";
 
 const raycaster = new THREE.Raycaster();
