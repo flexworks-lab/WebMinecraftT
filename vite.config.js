@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 const worldTerrainPlugin = {
     name: "webminecraft-terrain-fixes",
     transform(code, id) {
-        if (!id.endsWith("/src/world.js")) return null;
+        if (!id.endsWith("/Game_base/world/world.js")) return null;
 
         code = code.replace(
             "if (surfaceRoll < 0.94) return BLOCK.SAND;",
@@ -36,7 +36,7 @@ const worldTerrainPlugin = {
 const gameplayUiPlugin = {
     name: "webminecraft-gameplay-ui-fixes",
     transform(code, id) {
-        if (id.endsWith("/src/interaction.js")) {
+        if (id.endsWith("/Game_base/player/interaction.js")) {
             code = code.replace(
                 "const punch = mobile && !!touchInput.punchPressed;",
                 "const punch = mobile && !!touchInput.breakPressed;"
@@ -51,7 +51,7 @@ const gameplayUiPlugin = {
             return { code, map: null };
         }
 
-        if (id.endsWith("/src/survivalMining.js")) {
+        if (id.endsWith("/Game_base/inventory/survivalMining.js")) {
             code = code.replace(
                 "function getTarget() {\n    if (!sceneRef || !cameraRef) return null;",
                 "function getTarget() {\n    sceneRef ||= window.__webminecraftMiningScene || null;\n    cameraRef ||= window.__webminecraftMiningCamera || window.__webminecraftCamera || null;\n    if (!sceneRef || !cameraRef) return null;"
@@ -63,7 +63,7 @@ const gameplayUiPlugin = {
             return { code, map: null };
         }
 
-        if (id.endsWith("/src/inventory.js")) {
+        if (id.endsWith("/Game_base/inventory/inventory.js")) {
             code = code.replace(
                 'texture: "Grass_Block_(top_texture)_JE2.png"',
                 'texture: "grass_block_side.png"'
@@ -99,7 +99,7 @@ const gameplayUiPlugin = {
             return { code, map: null };
         }
 
-        if (id.endsWith("/src/tnt.js")) {
+        if (id.endsWith("/Game_base/world/tnt.js")) {
             const scanCode = `
 let looseGravelScanStarted = false;
 function startLooseGravelScan() {
@@ -139,7 +139,7 @@ function startLooseGravelScan() {
             return { code, map: null };
         }
 
-        if (id.endsWith("/src/playerList.js")) {
+        if (id.endsWith("/Game_base/multiplayer/playerList.js")) {
             code = code.replace(
                 "if (!mainMenuVisible && !active) {",
                 "if (!mainMenuVisible) {"
@@ -147,7 +147,7 @@ function startLooseGravelScan() {
             return { code, map: null };
         }
 
-        if (id.endsWith("/src/main.js")) {
+        if (id.endsWith("/Game_base/core/main.js")) {
             code = code.replace(
                 'import * as THREE from "three";',
                 'import * as THREE from "three";\nimport { initMultiplayerAvatars } from "./multiplayerAvatars.js";\nimport { initShortGrass } from "./shortGrass.js";'
@@ -175,7 +175,7 @@ function startLooseGravelScan() {
             return { code, map: null };
         }
 
-        if (id.endsWith("/src/player.js")) {
+        if (id.endsWith("/Game_base/player/player.js")) {
             code = code.replace(
                 /function updateMultiplayerAvatars\(scene\) \{[\s\S]*?\n\}\n\nfunction syncMultiplayerState/,
                 'function updateMultiplayerAvatars(scene) {}\n\nfunction syncMultiplayerState'
@@ -183,7 +183,7 @@ function startLooseGravelScan() {
             return { code, map: null };
         }
 
-        if (id.endsWith("/src/multiplayerClient.js")) {
+        if (id.endsWith("/Game_base/multiplayer/multiplayerClient.js")) {
             code = code.replace(
                 'import { setBlockAt, setWorldSeed } from "./world.js";',
                 'import { setBlockAt, setWorldSeed, getWorldSeed } from "./world.js";\nimport { makeCommandsButton, runLocalCommand } from "./multiplayerCommands.js";'
