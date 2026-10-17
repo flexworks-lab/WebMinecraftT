@@ -28,7 +28,7 @@ import {
     deepslateCoalOreMaterial, deepslateCopperOreMaterial, deepslateDiamondOreMaterial, deepslateEmeraldOreMaterial,
     deepslateGoldOreMaterial, deepslateIronOreMaterial, deepslateLapisOreMaterial, deepslateRedstoneOreMaterial,
     deepslateTilesMaterial, polishedDeepslateMaterial, reinforcedDeepslateMaterial, extraBlockMaterials
-} from "./blocks.js";
+} from "../world/blocks.js";
 
 const ITEM_MATERIALS = {
     1: grassMaterial,

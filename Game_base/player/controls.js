@@ -1,4 +1,4 @@
-import "./auth.js";
+import "../accounts/auth.js";
 import { getKeybind } from "./keybinds.js";
 
 export const keys = {};
@@ -391,5 +391,5 @@ export function setupControls() {
         pitch = clamp(pitch, -Math.PI / 2 + .01, Math.PI / 2 - .01);
     });
     createTouchControls();
-    import("./settings.js").catch(error => console.warn("Settings extras failed to load:", error));
+    import("../ui/settings.js").catch(error => console.warn("Settings extras failed to load:", error));
 }

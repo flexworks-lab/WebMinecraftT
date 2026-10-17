@@ -1,15 +1,15 @@
 import * as THREE from "three";
-import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType, isStairBlock, stairShapeMask, stairOrientedType } from "./world.js";
+import { getBlockAt, setBlockAt, getBlockTypes, isSlabBlock, slabParentType, isStairBlock, stairShapeMask, stairOrientedType } from "../world/world.js";
 import { touchInput, yaw } from "./controls.js";
-import { sendBlockChange, sendSlabPlacement, sendPlayerAction } from "./multiplayerClient.js";
-import { setupInventory, getSelectedItemId, consumeSelected } from "./inventory.js";
-import { tryIgniteTNT, registerTNTPhysicsScene } from "./tnt.js";
-import { setupDoorSystem, isDoorSelected, placeDoor, handleDoorTarget, getDoorSelectionTarget } from "./door.js";
-import { startSurvivalMining, setMiningContext } from "./survivalMiningSystem.js";
-import "./worldSave.js";
+import { sendBlockChange, sendSlabPlacement, sendPlayerAction } from "../multiplayer/multiplayerClient.js";
+import { setupInventory, getSelectedItemId, consumeSelected } from "../inventory/inventory.js";
+import { tryIgniteTNT, registerTNTPhysicsScene } from "../world/tnt.js";
+import { setupDoorSystem, isDoorSelected, placeDoor, handleDoorTarget, getDoorSelectionTarget } from "../world/door.js";
+import { startSurvivalMining, setMiningContext } from "../inventory/survivalMiningSystem.js";
+import "../world/worldSave.js";
 import "./heldBlock3D.js";
-import { spawnBlockBreakParticles } from "./blockParticles.js";
-import { setupCraftingTableMenu, openCraftingTableMenu } from "./craftingTableMenu.js";
+import { spawnBlockBreakParticles } from "../world/blockParticles.js";
+import { setupCraftingTableMenu, openCraftingTableMenu } from "../inventory/craftingTableMenu.js";
 
 const raycaster = new THREE.Raycaster();
 const CENTER = new THREE.Vector2(0, 0);

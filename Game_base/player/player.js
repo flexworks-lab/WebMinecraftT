@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getKeybind } from "./keybinds.js";
-import { getBlockAt, getBlockCollisionBounds, getBlockCollisionBoxes } from "./world.js";
-import { isDoorBlocking } from "./door.js";
-import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "./multiplayerClient.js";
-import { getSelectedItemId } from "./inventory.js";
+import { getBlockAt, getBlockCollisionBounds, getBlockCollisionBoxes } from "../world/world.js";
+import { isDoorBlocking } from "../world/door.js";
+import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "../multiplayer/multiplayerClient.js";
+import { getSelectedItemId } from "../inventory/inventory.js";
 
 let velocityX = 0;
 let velocityY = 0;

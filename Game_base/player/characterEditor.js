@@ -3,8 +3,8 @@ import {
   AVATAR_TEXTURE_PARTS,
   createAvatar,
   applyAvatarTextureData
-} from "./multiplayerAvatars.js";
-import { sendCharacterSkin } from "./multiplayerClient.js";
+} from "../multiplayer/multiplayerAvatars.js";
+import { sendCharacterSkin } from "../multiplayer/multiplayerClient.js";
 
 const STORAGE_KEY = "webminecraft-procedural-character-textures-v1";
 const PALETTE = [
