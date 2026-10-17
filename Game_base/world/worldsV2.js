@@ -1,5 +1,5 @@
-import { clearHotbar } from "./inventory.js";
-import { normalizeSafeName } from "./textCensorship.js";
+import { clearHotbar } from "../inventory/inventory.js";
+import { normalizeSafeName } from "../ui/textCensorship.js";
 
 const INDEX_KEY = "webminecraft_saved_world_index_v2";
 const DELETED_KEY = "webminecraft_deleted_worlds";
