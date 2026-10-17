@@ -1003,8 +1003,10 @@ function rebuildChunkMesh(chunk){
         mesh.userData.isChunk=true;
         mesh.userData.chunkX=chunk.x;
         mesh.userData.chunkZ=chunk.z;
-        mesh.castShadow=true;
-        mesh.receiveShadow=true;
+        // Chunk meshes dominate the scene. Avoid expensive shadow passes on
+        // touch/low-power hardware; lighting and block shading remain intact.
+        mesh.castShadow = !IS_LOW_POWER_DEVICE;
+        mesh.receiveShadow = !IS_LOW_POWER_DEVICE;
         worldScene.add(mesh);
         chunkMeshes.set(chunkKey(chunk.x,chunk.z),mesh);
     }
