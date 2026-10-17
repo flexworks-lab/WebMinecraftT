@@ -4,7 +4,7 @@ import "./playerList.js";
 import "./worldSync.js";
 import "./mobileFlightControls.js";
 import "./uiFixes.js";
-import "./waterPhysics.js";
+import "./waterPhysicsMinecraft.js";
 import "./waterTextureFix.js";
 import "./survivalMode.js";
 import "./performance.js";
