@@ -941,6 +941,60 @@ window.addEventListener("pointermove", () => {
 window.addEventListener("pointerleave", () => { menuLook.targetX = 0; menuLook.targetY = 0; });
 
 let lastTime = performance.now(), fpsTime = lastTime, fpsFrames = 0, lastSunX = camera.position.x, lastSunZ = camera.position.z;
+
+// Adaptive quality: preserve gameplay while lowering GPU cost when frame times
+// stay high, then cautiously restore quality after sustained headroom.
+let qualitySampleTime = performance.now();
+let qualityFrames = 0;
+let adaptivePixelRatio = Math.min(renderer.getPixelRatio(), IS_LOW_POWER_DEVICE ? 1 : 1.25);
+let lowFpsSamples = 0;
+let highFpsSamples = 0;
+let adaptiveShadowsReduced = false;
+function updateAdaptiveQuality(now) {
+    qualityFrames++;
+    const elapsed = now - qualitySampleTime;
+    if (elapsed < 1800) return;
+    const measuredFps = qualityFrames * 1000 / elapsed;
+    qualityFrames = 0;
+    qualitySampleTime = now;
+
+    if (measuredFps < 42) {
+        lowFpsSamples++;
+        highFpsSamples = 0;
+    } else if (measuredFps > 56) {
+        highFpsSamples++;
+        lowFpsSamples = 0;
+    } else {
+        lowFpsSamples = Math.max(0, lowFpsSamples - 1);
+        highFpsSamples = 0;
+    }
+
+    if (lowFpsSamples >= 2) {
+        lowFpsSamples = 0;
+        if (adaptivePixelRatio > 0.7) {
+            adaptivePixelRatio = Math.max(0.7, adaptivePixelRatio - 0.15);
+            renderer.setPixelRatio(adaptivePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight, false);
+        } else if (!adaptiveShadowsReduced && !IS_TOUCH_DEVICE) {
+            adaptiveShadowsReduced = true;
+            renderer.shadowMap.enabled = false;
+            sun.castShadow = false;
+            renderer.shadowMap.needsUpdate = false;
+        }
+    } else if (highFpsSamples >= 5) {
+        highFpsSamples = 0;
+        if (adaptiveShadowsReduced && settings.shadows !== false) {
+            adaptiveShadowsReduced = false;
+            renderer.shadowMap.enabled = true;
+            sun.castShadow = true;
+            renderer.shadowMap.needsUpdate = true;
+        } else if (adaptivePixelRatio < Math.min(Number(settings.pixelRatio) || 1, IS_LOW_POWER_DEVICE ? 1 : 1.5)) {
+            adaptivePixelRatio = Math.min(adaptivePixelRatio + 0.1, Number(settings.pixelRatio) || 1, IS_LOW_POWER_DEVICE ? 1 : 1.5);
+            renderer.setPixelRatio(adaptivePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight, false);
+        }
+    }
+}
 const sunFollowDistance = 8;
 const panoramaAngle = Math.random() * Math.PI * 2;
 const panoramaDistance = 48 + Math.random() * 112;
@@ -1003,6 +1057,7 @@ function animate() {
     const currentTime = performance.now();
     const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
     lastTime = currentTime;
+    updateAdaptiveQuality(currentTime);
     if (gameStarted) {
         updatePlayer(camera, scene, deltaTime);
         updateChunkVisibility(camera.position, camera);
