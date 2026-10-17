@@ -185,8 +185,8 @@ function startLooseGravelScan() {
 
         if (id.endsWith("/Game_base/multiplayer/multiplayerClient.js")) {
             code = code.replace(
-                'import { setBlockAt, setWorldSeed, getWorldSeed } from "../world/world.js";\nimport { makeCommandsButton, runLocalCommand } from "./multiplayerCommands.js";',
-                'import { setBlockAt, setWorldSeed, getWorldSeed } from "./world.js";\nimport { makeCommandsButton, runLocalCommand } from "./multiplayerCommands.js";'
+                'import { setBlockAt, setWorldSeed, beginWorldEditBatch, endWorldEditBatch } from "../world/world.js";',
+                'import { setBlockAt, setWorldSeed, getWorldSeed, beginWorldEditBatch, endWorldEditBatch } from "../world/world.js";\nimport { makeCommandsButton, runLocalCommand } from "./multiplayerCommands.js";'
             );
             code = code.replace(
                 'const chat = document.createElement("div");\n    chat.id = "multiplayerChat";\n    chat.innerHTML = `\n        <div id="multiplayerChatFeed" aria-live="polite"></div>\n        <input id="multiplayerChatInput" maxlength="120" autocomplete="off" placeholder="Press Enter to chat...">\n    `;',
