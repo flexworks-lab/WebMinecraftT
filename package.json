@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server/watchdog.js",
-    "server:direct": "node server/start.js",
+    "server": "node Game_base/server/watchdog.js",
+    "server:direct": "node Game_base/server/start.js",
     "electron:dev": "vite & electron .",
     "electron:build": "npm run build && electron-builder --win --x64 --publish never"
   },
