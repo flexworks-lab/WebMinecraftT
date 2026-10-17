@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getBlockAt, setBlockAt, getBlockTypes, beginWorldEditBatch, endWorldEditBatch } from "./world.js";
-import { sendBlockChanges } from "./multiplayerClient.js";
-import { sendTNTIgnite } from "./tntMultiplayer.js";
+import { sendBlockChanges } from "../multiplayer/multiplayerClient.js";
+import { sendTNTIgnite } from "../multiplayer/tntMultiplayer.js";
 import { blockGeometry, tntMaterial, sandMaterial, gravelMaterial } from "./blocks.js";
 
 const FLINT_AND_STEEL_ITEM_ID = 16;

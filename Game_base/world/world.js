@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
+import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "../core/performance.js";
 import {
     grassMaterial, dirtMaterial, stoneMaterial, cobblestoneMaterial,
     gravelMaterial, sandMaterial, sandstoneMaterial, bedrockMaterial,
