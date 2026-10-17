@@ -7,7 +7,7 @@ import { setupInteraction } from "./interaction.js";
 import { initSavedWorlds } from "./worlds.js";
 import { setWorldSeedForPersistence } from "./worldSave.js";
 import { setupWorldClouds, setWorldCloudSeed } from "./worldClouds.js";
-import { setupWaterPhysics } from "./waterPhysics.js";
+import { setupWaterPhysics } from "./waterPhysicsMinecraft.js";
 import { clearHotbar } from "./inventory.js";
 import "./characterEditor.js";
 import "./background.js";
