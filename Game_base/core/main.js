@@ -1,21 +1,21 @@
 import * as THREE from "three";
 import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
-import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "./world.js";
-import { setupControls, resetView } from "./controls.js";
-import { updatePlayer } from "./player.js";
-import { setupInteraction } from "./interaction.js";
-import { initSavedWorlds } from "./worlds.js";
-import { setWorldSeedForPersistence } from "./worldSave.js";
-import { setupWorldClouds, setWorldCloudSeed } from "./worldClouds.js";
-import { setupWaterPhysics } from "./waterPhysicsMinecraft.js";
-import { clearHotbar } from "./inventory.js";
-import "./characterEditor.js";
-import "./background.js";
+import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "../world/world.js";
+import { setupControls, resetView } from "../player/controls.js";
+import { updatePlayer } from "../player/player.js";
+import { setupInteraction } from "../player/interaction.js";
+import { initSavedWorlds } from "../world/worlds.js";
+import { setWorldSeedForPersistence } from "../world/worldSave.js";
+import { setupWorldClouds, setWorldCloudSeed } from "../world/worldClouds.js";
+import { setupWaterPhysics } from "../world/waterPhysicsMinecraft.js";
+import { clearHotbar } from "../inventory/inventory.js";
+import "../player/characterEditor.js";
+import "../world/background.js";
 import "./loadingScreen.js";
-import "./auth.js";
-import "./chat.js";
-import { getWorldMode } from "./survivalMode.js";
-import "./survivalRules.js";
+import "../accounts/auth.js";
+import "../multiplayer/chat.js";
+import { getWorldMode } from "../inventory/survivalMode.js";
+import "../inventory/survivalRules.js";
 
 const LIGHTING_BLOCKS = getBlockTypes();
 
@@ -842,7 +842,7 @@ initSavedWorlds({ onOpenWorld: startWorldWithSeed });
 if (multiplayerButton) multiplayerButton.addEventListener("click", async event => {
     event.preventDefault(); event.stopPropagation();
     try {
-        const { openMultiplayerMenu } = await import("./multiplayerClient.js");
+        const { openMultiplayerMenu } = await import("../multiplayer/multiplayerClient.js");
         openMultiplayerMenu();
     } catch (error) {
         console.error("Failed to open multiplayer menu:", error);
