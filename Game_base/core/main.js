@@ -17,6 +17,7 @@ import "../multiplayer/chat.js";
 import { getWorldMode } from "../inventory/survivalMode.js";
 import "../inventory/survivalRules.js";
 
+const BASE_PIXEL_RATIO = IS_LOW_POWER_DEVICE ? 0.76 : 0.95;
 const LIGHTING_BLOCKS = getBlockTypes();
 
 const scene = new THREE.Scene();
@@ -30,16 +31,16 @@ const fillColor = new THREE.Color(0x9fc8ef);
 scene.background = skyColor.clone();
 scene.fog = new THREE.Fog(skyColor.clone(), 55, 175);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 180);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 260);
 camera.position.set(0, 7, 5);
 camera.up.set(0, 1, 0);
 camera.rotation.order = "YXZ";
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", preserveDrawingBuffer: false });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(0.65);
+renderer.setPixelRatio(BASE_PIXEL_RATIO);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.NoToneMapping;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1;
 renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -47,13 +48,13 @@ document.body.appendChild(renderer.domElement);
 window.__webminecraftRenderer = renderer;
 window.__webminecraftCamera = camera;
 
-const skyLight = new THREE.HemisphereLight(skyLightColor, groundLightColor, 1.15);
+const skyLight = new THREE.HemisphereLight(skyLightColor, groundLightColor, 0.82);
 scene.add(skyLight);
 
-const ambientLight = new THREE.AmbientLight(0x98a4ad, 0.10);
+const ambientLight = new THREE.AmbientLight(0x98a4ad, 0.20);
 scene.add(ambientLight);
 
-const sun = new THREE.DirectionalLight(sunColor, 3.0);
+const sun = new THREE.DirectionalLight(sunColor, 1.55);
 sun.position.set(45, 85, 30);
 sun.castShadow = !IS_TOUCH_DEVICE;
 sun.shadow.mapSize.width = 1024;
@@ -70,7 +71,7 @@ sun.shadow.radius = 2.5;
 scene.add(sun);
 scene.add(sun.target);
 
-const fillLight = new THREE.DirectionalLight(fillColor, 0.20);
+const fillLight = new THREE.DirectionalLight(fillColor, 0.08);
 fillLight.position.set(-38, 58, -26);
 fillLight.castShadow = false;
 scene.add(fillLight);
@@ -105,13 +106,13 @@ if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
 let worldLoadingForStart = false;
-const defaults = { shadows: false, shadowQuality: 256, pixelRatio: 0.65, lightingQuality: "performance", brightness: 1 };
+const defaults = { shadows: false, shadowQuality: 256, pixelRatio: BASE_PIXEL_RATIO, lightingQuality: IS_LOW_POWER_DEVICE ? "balanced" : "high", brightness: 1 };
 let settings;
 try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
 catch { settings = { ...defaults }; }
 
 const extendedDefaults = {
-    fov: 75, renderDistance: 24, fog: false, waterEffects: false,
+    fov: 75, renderDistance: 24, fog: true, waterEffects: true,
     masterVolume: 1, soundEffects: true, music: true
 };
 let extendedSettings = { ...extendedDefaults };
@@ -138,7 +139,7 @@ if (IS_LOW_POWER_DEVICE) {
 }
 settings.shadows = false;
 settings.shadowQuality = 256;
-settings.pixelRatio = 0.65;
+settings.pixelRatio = BASE_PIXEL_RATIO;
 settings.lightingQuality = extendedSettings.lightingQuality ?? settings.lightingQuality;
 settings.brightness = Number(extendedSettings.brightness ?? settings.brightness);
 camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
@@ -153,12 +154,12 @@ window.__webminecraftAudioSettings = {
 function saveSettings() { try { localStorage.setItem("webminecraft-settings", JSON.stringify(settings)); } catch {} }
 function getLightingProfile() {
     if (settings.lightingQuality === "performance") {
-        return { sun: 1.25, sky: 0.65, ambient: 0.25, fill: 0.04 };
+        return { sun: 1.30, sky: 0.70, ambient: 0.19, fill: 0.045 };
     }
     if (settings.lightingQuality === "balanced") {
-        return { sun: 1.25, sky: 0.65, ambient: 0.25, fill: 0.04 };
+        return { sun: 1.45, sky: 0.79, ambient: 0.20, fill: 0.065 };
     }
-    return { sun: 1.25, sky: 0.65, ambient: 0.25, fill: 0.04 };
+    return { sun: 1.55, sky: 0.85, ambient: 0.20, fill: 0.08 };
 }
 function applySettings() {
     const shadowsEnabled = Boolean(settings.shadows) && !IS_TOUCH_DEVICE;
@@ -167,10 +168,12 @@ function applySettings() {
     const effectiveShadowQuality = 256;
     sun.shadow.mapSize.width = effectiveShadowQuality;
     sun.shadow.mapSize.height = effectiveShadowQuality;
-    renderer.setPixelRatio(0.65);
-    renderer.toneMapping = THREE.NoToneMapping;
+    const requestedPixelRatio = Number(settings.pixelRatio) || BASE_PIXEL_RATIO;
+    const pixelRatioCap = IS_LOW_POWER_DEVICE ? 0.82 : 1.05;
+    renderer.setPixelRatio(THREE.MathUtils.clamp(requestedPixelRatio, 0.70, pixelRatioCap));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.shadowMap.type = THREE.BasicShadowMap;
-    renderer.toneMappingExposure = 0.98 + settings.brightness * 0.30;
+    renderer.toneMappingExposure = 0.92 + settings.brightness * 0.08;
 
     const profile = getLightingProfile();
     ambientLight.intensity = profile.ambient;
@@ -353,7 +356,7 @@ function updateDepthLighting() {
     const targetAmbient = profile.ambient * ambientOpeningFactor * depthAmbientFactor * waterAmbientFactor;
     const targetFill = profile.fill * fillOpeningFactor * depthFillFactor * waterFillFactor;
 
-    const exposureBase = 0.98 + settings.brightness * 0.30;
+    const exposureBase = 0.92 + settings.brightness * 0.08;
     const caveExposure = THREE.MathUtils.lerp(0.58, 1, openingLight);
     const depthExposure = THREE.MathUtils.lerp(0.72, 1, 1 - depthT);
     const underwaterExposure = underwaterVisuals ? 0.66 : 1;
@@ -423,8 +426,10 @@ function applyExtendedSettings(next = {}) {
         : renderDistanceCap;
     settings.shadows = false;
     settings.shadowQuality = 256;
-    settings.pixelRatio = 0.65;
-    settings.lightingQuality = "performance";
+    settings.pixelRatio = BASE_PIXEL_RATIO;
+    settings.lightingQuality = IS_LOW_POWER_DEVICE && extendedSettings.lightingQuality === "high"
+        ? "balanced"
+        : (extendedSettings.lightingQuality || defaults.lightingQuality);
     settings.brightness = Number.isFinite(Number(extendedSettings.brightness)) ? Number(extendedSettings.brightness) : 1;
     camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
     camera.updateProjectionMatrix();
@@ -1003,7 +1008,7 @@ function updateAdaptiveQuality(now) {
             sun.castShadow = true;
             renderer.shadowMap.needsUpdate = true;
         } else if (adaptivePixelRatio < Math.min(Number(settings.pixelRatio) || 1, IS_LOW_POWER_DEVICE ? 1 : 1.5)) {
-            adaptivePixelRatio = Math.min(adaptivePixelRatio + 0.1, Number(settings.pixelRatio) || 1, IS_LOW_POWER_DEVICE ? 1 : 1.5);
+            adaptivePixelRatio = Math.min(adaptivePixelRatio + 0.1, Number(settings.pixelRatio) || 1, IS_LOW_POWER_DEVICE ? 0.82 : 1.05);
             renderer.setPixelRatio(adaptivePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight, false);
         }
