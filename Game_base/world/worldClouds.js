@@ -170,12 +170,10 @@ function updateUndergroundAmbient(){
 }
 function clearClouds(){cloudEntries.length=0;if(!cloudRoot)return;while(cloudRoot.children.length)cloudRoot.remove(cloudRoot.children[0]);}
 function shouldShowClouds(){
-    if (document.body.classList.contains("webminecraft-in-world")) return true;
-    if (document.body.classList.contains("webminecraft-worlds-menu")) return false;
-    const mainMenu = document.getElementById("mainMenu");
-    return Boolean(mainMenu && mainMenu.style.display !== "none");
+    // Ultra-low graphics profile: skip cloud meshes entirely.
+    return false;
 }
-function rebuildCloudField(seed){cloudSeed=(Math.floor(Math.abs(Number(seed)))>>>0)||0;clearClouds();for(let cellX=-CLOUD_GRID_RADIUS;cellX<=CLOUD_GRID_RADIUS;cellX++)for(let cellZ=-CLOUD_GRID_RADIUS;cellZ<=CLOUD_GRID_RADIUS;cellZ++){if(seedHash(cellX,cellZ,97)<0.32)continue;makeCloud(cellX,cellZ);}updateSkyPosition();}
+function rebuildCloudField(seed){cloudSeed=(Math.floor(Math.abs(Number(seed)))>>>0)||0;clearClouds();updateSkyPosition();}
 function tick(now){const delta=Math.min((now-lastFrame)/1000,0.1);lastFrame=now;windDistance+=CLOUD_WIND_SPEED*delta;if(windDistance>CLOUD_WRAP)windDistance-=CLOUD_WRAP;if(cloudRoot?.visible)for(const entry of cloudEntries)entry.mesh.position.set(entry.baseX+windDistance,entry.baseY,entry.baseZ);updateSkyPosition();updateUndergroundAmbient();requestAnimationFrame(tick);}
 export function setupWorldClouds(scene,camera=null){cloudCamera=camera;cloudScene=scene;createSkyDome(scene);createUndergroundLighting(scene);removeWaterSpecularHighlights(scene);if(!cloudRoot){cloudRoot=new THREE.Group();cloudRoot.name="MinecraftWorldClouds";cloudRoot.renderOrder=2;cloudRoot.visible=shouldShowClouds();scene.add(cloudRoot);}if(!running){running=true;lastFrame=performance.now();requestAnimationFrame(tick);}if(!visibilityObserver){visibilityObserver=new MutationObserver(()=>{if(cloudRoot)cloudRoot.visible=shouldShowClouds();});visibilityObserver.observe(document.body,{attributes:true,attributeFilter:["class","style"]});}return cloudRoot;}
 export function setWorldCloudSeed(seed){if(!cloudRoot)return;rebuildCloudField(seed);for(const entry of cloudEntries)entry.mesh.position.set(entry.baseX+windDistance,entry.baseY,entry.baseZ);}
