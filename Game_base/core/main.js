@@ -835,6 +835,19 @@ async function startWorldWithSeed(seed, savedMode = null) {
 
 initSavedWorlds({ onOpenWorld: startWorldWithSeed });
 
+if (multiplayerButton) {
+    multiplayerButton.textContent = "Multiplayer (Temporarily Offline)";
+    multiplayerButton.disabled = true;
+    multiplayerButton.setAttribute("aria-disabled", "true");
+    multiplayerButton.title = "Multiplayer is temporarily disabled while WebMinecraft is being rebuilt.";
+    multiplayerButton.style.opacity = "0.55";
+    multiplayerButton.style.cursor = "not-allowed";
+    multiplayerButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }, true);
+}
+/* Multiplayer entry is intentionally disabled for now.
 if (multiplayerButton) multiplayerButton.addEventListener("click", async event => {
     event.preventDefault(); event.stopPropagation();
     try {
@@ -844,6 +857,7 @@ if (multiplayerButton) multiplayerButton.addEventListener("click", async event =
         console.error("Failed to open multiplayer menu:", error);
     }
 });
+*/
 if (openSeedButton) openSeedButton.addEventListener("click", event => {
     event.preventDefault(); event.stopPropagation();
     openSeedMenu("open");
