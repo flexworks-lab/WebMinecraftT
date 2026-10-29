@@ -1146,7 +1146,7 @@ function rebuildChunkMesh(chunk) {
 function queueNeededChunks(playerChunkX,playerChunkZ){const wanted=[];for(let dx=-RENDER_DISTANCE;dx<=RENDER_DISTANCE;dx++){for(let dz=-RENDER_DISTANCE;dz<=RENDER_DISTANCE;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))>RENDER_DISTANCE)continue;const x=playerChunkX+dx,z=playerChunkZ+dz,key=chunkKey(x,z);if(chunks.has(key)||queuedKeys.has(key))continue;wanted.push({x,z,distance:Math.sqrt(dx*dx+dz*dz)});}}wanted.sort((a,b)=>a.distance-b.distance);for(const item of wanted){const key=chunkKey(item.x,item.z);queuedKeys.add(key);generationQueue.push(item);}generationQueue.sort((a,b)=>Math.hypot(a.x-playerChunkX,a.z-playerChunkZ)-Math.hypot(b.x-playerChunkX,b.z-playerChunkZ));}
 function processChunkQueue() {
     const startTime = performance.now();
-    const budgetMs = IS_TOUCH_DEVICE ? 1.5 : (IS_LOW_POWER_DEVICE ? 2.25 : 3.5);
+    const budgetMs = IS_TOUCH_DEVICE ? 0.9 : (IS_LOW_POWER_DEVICE ? 1.25 : 2.0);
     let steps = 0;
 
     while (performance.now() - startTime < budgetMs && steps++ < 256) {
