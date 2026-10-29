@@ -123,6 +123,7 @@ const generationQueue = [];
 const queuedKeys = new Set();
 let lastChunkProcessTime = 0;
 const worldOverrides = new Map();
+const worldOverridesByChunk = new Map();
 let worldEditBatchDepth = 0;
 const pendingChunkRebuilds = new Set();
 let worldScene = null;
@@ -599,8 +600,8 @@ function* generateTreeSteps(chunk) {
     const startX = chunk.x * CHUNK_SIZE;
     const startZ = chunk.z * CHUNK_SIZE;
 
-    for (let lx = 2; lx < CHUNK_SIZE - 2; lx++) {
-        for (let lz = 2; lz < CHUNK_SIZE - 2; lz++) {
+    for (let lx = 3; lx < CHUNK_SIZE - 3; lx++) {
+        for (let lz = 3; lz < CHUNK_SIZE - 3; lz++) {
             yield;
             const x = startX + lx;
             const z = startZ + lz;
@@ -625,11 +626,12 @@ function* generateTreeSteps(chunk) {
 }
 
 function* applyWorldOverridesSteps(chunk) {
-    for (const [overrideKey, type] of worldOverrides) {
+    const overrides = worldOverridesByChunk.get(chunkKey(chunk.x, chunk.z));
+    if (!overrides) return;
+    for (const [overrideKey, type] of overrides) {
         yield;
         const [x, y, z] = overrideKey.split(",").map(Number);
-        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
-        if (Math.floor(x / CHUNK_SIZE) !== chunk.x || Math.floor(z / CHUNK_SIZE) !== chunk.z || y < MIN_Y || y > WORLD_TOP) continue;
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z) || y < MIN_Y || y > WORLD_TOP) continue;
         const localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
         const localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
         const columnIndex = localZ * CHUNK_SIZE + localX;
@@ -1225,7 +1227,7 @@ export function endWorldEditBatch() {
 
 function queueChunkRebuild(chunkX, chunkZ) { pendingChunkRebuilds.add(chunkKey(chunkX, chunkZ)); }
 
-export function setBlockAt(x,y,z,type){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);type=Math.floor(Number(type));if(![x,y,z,type].every(Number.isFinite)||y<MIN_Y||y>WORLD_TOP)return false;worldOverrides.set(`${x},${y},${z}`,type);const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk||!chunk.generated)return true;chunk.blocks[blockIndex(localX,y,localZ)]=type;if(type!==BLOCK.AIR){const columnIndex=localZ*CHUNK_SIZE+localX;if(y>chunk.columnTop[columnIndex])chunk.columnTop[columnIndex]=y;}if(worldEditBatchDepth>0){queueChunkRebuild(chunkX,chunkZ);if(localX===0)queueChunkRebuild(chunkX-1,chunkZ);if(localX===CHUNK_SIZE-1)queueChunkRebuild(chunkX+1,chunkZ);if(localZ===0)queueChunkRebuild(chunkX,chunkZ-1);if(localZ===CHUNK_SIZE-1)queueChunkRebuild(chunkX,chunkZ+1);return true;}rebuildChunkMesh(chunk);if(localX===0){const neighbor=getChunk(chunkX-1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localX===CHUNK_SIZE-1){const neighbor=getChunk(chunkX+1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===0){const neighbor=getChunk(chunkX,chunkZ-1);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===CHUNK_SIZE-1){const neighbor=getChunk(chunkX,chunkZ+1);if(neighbor)rebuildChunkMesh(neighbor);}return true;}
+export function setBlockAt(x,y,z,type){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);type=Math.floor(Number(type));if(![x,y,z,type].every(Number.isFinite)||y<MIN_Y||y>WORLD_TOP)return false;const overrideKey=`${x},${y},${z}`;worldOverrides.set(overrideKey,type);const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z);const overrideChunkKey=chunkKey(chunkX,chunkZ);let chunkOverrides=worldOverridesByChunk.get(overrideChunkKey);if(!chunkOverrides){chunkOverrides=new Map();worldOverridesByChunk.set(overrideChunkKey,chunkOverrides);}chunkOverrides.set(overrideKey,type);const chunk=getChunk(chunkX,chunkZ);if(!chunk||!chunk.generated)return true;chunk.blocks[blockIndex(localX,y,localZ)]=type;if(type!==BLOCK.AIR){const columnIndex=localZ*CHUNK_SIZE+localX;if(y>chunk.columnTop[columnIndex])chunk.columnTop[columnIndex]=y;}if(worldEditBatchDepth>0){queueChunkRebuild(chunkX,chunkZ);if(localX===0)queueChunkRebuild(chunkX-1,chunkZ);if(localX===CHUNK_SIZE-1)queueChunkRebuild(chunkX+1,chunkZ);if(localZ===0)queueChunkRebuild(chunkX,chunkZ-1);if(localZ===CHUNK_SIZE-1)queueChunkRebuild(chunkX,chunkZ+1);return true;}rebuildChunkMesh(chunk);if(localX===0){const neighbor=getChunk(chunkX-1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localX===CHUNK_SIZE-1){const neighbor=getChunk(chunkX+1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===0){const neighbor=getChunk(chunkX,chunkZ-1);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===CHUNK_SIZE-1){const neighbor=getChunk(chunkX,chunkZ+1);if(neighbor)rebuildChunkMesh(neighbor);}return true;}
 export function clearWorld(){
     for(const chunk of chunks.values())disposeChunkMesh(chunk);
     chunks.clear();
@@ -1235,6 +1237,7 @@ export function clearWorld(){
     generationQueue.length=0;
     queuedKeys.clear();
     worldOverrides.clear();
+    worldOverridesByChunk.clear();
     lastPlayerChunkX=Infinity;
     lastPlayerChunkZ=Infinity;
     lastFacingVisibilityUpdate=0;
