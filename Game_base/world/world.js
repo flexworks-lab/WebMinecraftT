@@ -116,6 +116,8 @@ export function createNewWorldSeed() {
 
 const chunks = new Map();
 const chunkMeshes = new Map();
+let activeGenerationChunk = null;
+let activeChunkTask = null;
 let lastFacingVisibilityUpdate = 0;
 const generationQueue = [];
 const queuedKeys = new Set();
@@ -538,16 +540,126 @@ function getSurfaceBlock(biome,y,surfaceY,x,z){
     return chooseStoneVariant(x,y,z,surfaceY);
 }
 function setBlockData(x,y,z,type){if(y<MIN_Y||y>WORLD_TOP)return false;const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk)return false;chunk.blocks[blockIndex(localX,y,localZ)]=type;if(type!==BLOCK.AIR){const columnIndex=localZ*CHUNK_SIZE+localX;if(y>chunk.columnTop[columnIndex])chunk.columnTop[columnIndex]=y;}return true;}
-function getBlockType(x,y,z){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);if(y<MIN_Y||y>WORLD_TOP)return BLOCK.AIR;const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk)return BLOCK.AIR;return chunk.blocks[blockIndex(localX,y,localZ)]||BLOCK.AIR;}
+function getBlockType(x,y,z){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);if(y<MIN_Y||y>WORLD_TOP)return BLOCK.AIR;const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk||(!chunk.generated&&chunk!==activeGenerationChunk))return BLOCK.AIR;return chunk.blocks[blockIndex(localX,y,localZ)]||BLOCK.AIR;}
 export function getBlockAt(x,y,z){return getBlockType(x,y,z);}
 export function getBlockTypes(){return{...BLOCK};}
 export function isPointInWater(x,y,z){if(isFlatWorld())return false;const profile=getTerrainProfile(Math.floor(x),Math.floor(z));if(profile.height>=SEA_LEVEL)return false;const waterSurface=SEA_LEVEL+.42,solidFloor=profile.height+.5;return y<waterSurface-.02&&y>solidFloor+.05;}
 function treeChance(x,z){if(isFlatWorld())return 0;const{temperature,humidity}=getClimate(x,z);if(temperature<.28||humidity<.3)return 0;const forest=THREE.MathUtils.clamp((humidity-.34)/.34,0,1),base=hash2D(x,z,1201),jitter=hash2D(x+137,z-411,1207),density=humidity>.6?.18+forest*.14:.045+forest*.045;return(base*.78+jitter*.22)<density?1:0;}
 function addTree(x,y,z){const heightRoll=hash2D(x,z,1301),sizeRoll=hash2D(x,z,1303),shapeRoll=hash2D(x,z,1307),trunkHeight=4+Math.floor(heightRoll*4),canopyRadius=sizeRoll>.78?3:sizeRoll>.38?2:1,canopyLayers=shapeRoll>.68?4:shapeRoll>.32?3:2;for(let i=0;i<trunkHeight;i++)setBlockData(x,y+i,z,BLOCK.OAK);const top=y+trunkHeight-1;for(let layer=0;layer<canopyLayers;layer++){const layerY=top-layer,layerRadius=layer===canopyLayers-1?Math.max(1,canopyRadius-1):canopyRadius;for(let dx=-layerRadius;dx<=layerRadius;dx++){for(let dz=-layerRadius;dz<=layerRadius;dz++){const distance=Math.sqrt(dx*dx+dz*dz),edgeNoise=hash2D(x+dx*31+layer*17,z+dz*37-layer*11,1313),edgeLimit=layerRadius+.35+edgeNoise*.35;if(distance>edgeLimit)continue;if(layer===0&&dx===0&&dz===0)continue;setBlockData(x+dx,layerY,z+dz,BLOCK.LEAVES);}}}setBlockData(x,top+1,z,BLOCK.LEAVES);if(shapeRoll>.56){setBlockData(x-1,top,z,BLOCK.LEAVES);setBlockData(x+1,top,z,BLOCK.LEAVES);}if(canopyRadius>=3&&sizeRoll>.86){setBlockData(x,top-1,z-2,BLOCK.LEAVES);setBlockData(x,top-1,z+2,BLOCK.LEAVES);}}
-function generateTerrain(chunk){const startX=chunk.x*CHUNK_SIZE,startZ=chunk.z*CHUNK_SIZE;for(let lx=0;lx<CHUNK_SIZE;lx++){for(let lz=0;lz<CHUNK_SIZE;lz++){const x=startX+lx,z=startZ+lz,biome=getBiome(x,z),surfaceY=getTerrainProfile(x,z).height;chunk.surfaceHeights[lz*CHUNK_SIZE+lx]=surfaceY;for(let y=MIN_Y;y<=surfaceY;y++){let type=y===MIN_Y?BLOCK.BEDROCK:getSurfaceBlock(biome,y,surfaceY,x,z);if(type!==BLOCK.BEDROCK&&shouldCarveCave(x,y,z,surfaceY))type=BLOCK.AIR;setBlockData(x,y,z,type);}}}if(isFlatWorld())return;for(let lx=0;lx<CHUNK_SIZE;lx++){for(let lz=0;lz<CHUNK_SIZE;lz++){const x=startX+lx,z=startZ+lz,biome=getBiome(x,z),surfaceY=getTerrainProfile(x,z).height;if(surfaceY<=SEA_LEVEL+1)continue;if(biome==="desert"||biome==="badlands"||biome==="snow"||biome==="tundra")continue;const patch=octave2D(x-400,z+900,2,11,.55,1409);if(patch>.82){const depth=2+Math.floor(hash2D(x,z,1411)*2);for(let d=0;d<depth;d++)if(getBlockType(x,surfaceY-d,z)===BLOCK.DIRT)setBlockData(x,surfaceY-d,z,BLOCK.GRASS);}}}}
-function generateTrees(chunk){if(isFlatWorld())return;const startX=chunk.x*CHUNK_SIZE,startZ=chunk.z*CHUNK_SIZE;for(let lx=2;lx<CHUNK_SIZE-2;lx++){for(let lz=2;lz<CHUNK_SIZE-2;lz++){const x=startX+lx,z=startZ+lz,biome=getBiome(x,z);if(biome!=="forest"&&biome!=="plains")continue;const surfaceY=getTerrainProfile(x,z).height;if(surfaceY<SEA_LEVEL+1||getBlockType(x,surfaceY,z)!==BLOCK.GRASS||!treeChance(x,z))continue;let crowded=false;for(let dx=-1;dx<=1&&!crowded;dx++){for(let dz=-1;dz<=1;dz++){if(dx===0&&dz===0)continue;if(treeChance(x+dx,z+dz)&&hash2D(x+dx,z+dz,1417)>.48){crowded=true;break;}}}if(!crowded)addTree(x,surfaceY+1,z);}}}
-function applyWorldOverridesToChunk(chunk){for(const[key,type]of worldOverrides){const[x,y,z]=key.split(',').map(Number);if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;if(Math.floor(x/CHUNK_SIZE)!==chunk.x||Math.floor(z/CHUNK_SIZE)!==chunk.z||y<MIN_Y||y>WORLD_TOP)continue;const localX=((x%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,localZ=((z%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,columnIndex=localZ*CHUNK_SIZE+localX;chunk.blocks[blockIndex(localX,y,localZ)]=type;if(type!==BLOCK.AIR&&y>chunk.columnTop[columnIndex])chunk.columnTop[columnIndex]=y;}}
-function generateChunk(chunkX,chunkZ){const key=chunkKey(chunkX,chunkZ);if(chunks.has(key))return chunks.get(key);const chunk={x:chunkX,z:chunkZ,blocks:new Uint8Array(CHUNK_SIZE*CHUNK_SIZE*CHUNK_HEIGHT),surfaceHeights:new Int16Array(CHUNK_SIZE*CHUNK_SIZE),columnTop:new Int16Array(CHUNK_SIZE*CHUNK_SIZE),generated:false};chunk.columnTop.fill(MIN_Y-1);chunks.set(key,chunk);generateTerrain(chunk);generateTrees(chunk);applyWorldOverridesToChunk(chunk);chunk.generated=true;return chunk;}
+function* generateTerrainSteps(chunk) {
+    const startX = chunk.x * CHUNK_SIZE;
+    const startZ = chunk.z * CHUNK_SIZE;
+
+    // Generate one column per scheduler step instead of constructing an entire
+    // chunk in one uninterrupted main-thread task.
+    for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+            yield;
+            const x = startX + lx;
+            const z = startZ + lz;
+            const biome = getBiome(x, z);
+            const surfaceY = getTerrainProfile(x, z).height;
+            chunk.surfaceHeights[lz * CHUNK_SIZE + lx] = surfaceY;
+
+            for (let y = MIN_Y; y <= surfaceY; y++) {
+                let type = y === MIN_Y ? BLOCK.BEDROCK : getSurfaceBlock(biome, y, surfaceY, x, z);
+                if (type !== BLOCK.BEDROCK && shouldCarveCave(x, y, z, surfaceY)) type = BLOCK.AIR;
+                setBlockData(x, y, z, type);
+            }
+        }
+    }
+
+    if (isFlatWorld()) return;
+
+    for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+            yield;
+            const x = startX + lx;
+            const z = startZ + lz;
+            const biome = getBiome(x, z);
+            const surfaceY = getTerrainProfile(x, z).height;
+            if (surfaceY <= SEA_LEVEL + 1) continue;
+            if (biome === "desert" || biome === "badlands" || biome === "snow" || biome === "tundra") continue;
+
+            const patch = octave2D(x - 400, z + 900, 2, 11, .55, 1409);
+            if (patch > .82) {
+                const depth = 2 + Math.floor(hash2D(x, z, 1411) * 2);
+                for (let d = 0; d < depth; d++) {
+                    if (getBlockType(x, surfaceY - d, z) === BLOCK.DIRT) {
+                        setBlockData(x, surfaceY - d, z, BLOCK.GRASS);
+                    }
+                }
+            }
+        }
+    }
+}
+
+function* generateTreeSteps(chunk) {
+    if (isFlatWorld()) return;
+    const startX = chunk.x * CHUNK_SIZE;
+    const startZ = chunk.z * CHUNK_SIZE;
+
+    for (let lx = 2; lx < CHUNK_SIZE - 2; lx++) {
+        for (let lz = 2; lz < CHUNK_SIZE - 2; lz++) {
+            yield;
+            const x = startX + lx;
+            const z = startZ + lz;
+            const biome = getBiome(x, z);
+            if (biome !== "forest" && biome !== "plains") continue;
+            const surfaceY = getTerrainProfile(x, z).height;
+            if (surfaceY < SEA_LEVEL + 1 || getBlockType(x, surfaceY, z) !== BLOCK.GRASS || !treeChance(x, z)) continue;
+
+            let crowded = false;
+            for (let dx = -1; dx <= 1 && !crowded; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    if (dx === 0 && dz === 0) continue;
+                    if (treeChance(x + dx, z + dz) && hash2D(x + dx, z + dz, 1417) > .48) {
+                        crowded = true;
+                        break;
+                    }
+                }
+            }
+            if (!crowded) addTree(x, surfaceY + 1, z);
+        }
+    }
+}
+
+function* applyWorldOverridesSteps(chunk) {
+    for (const [overrideKey, type] of worldOverrides) {
+        yield;
+        const [x, y, z] = overrideKey.split(",").map(Number);
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+        if (Math.floor(x / CHUNK_SIZE) !== chunk.x || Math.floor(z / CHUNK_SIZE) !== chunk.z || y < MIN_Y || y > WORLD_TOP) continue;
+        const localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        const localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+        const columnIndex = localZ * CHUNK_SIZE + localX;
+        chunk.blocks[blockIndex(localX, y, localZ)] = type;
+        if (type !== BLOCK.AIR && y > chunk.columnTop[columnIndex]) chunk.columnTop[columnIndex] = y;
+    }
+}
+
+function createChunkData(chunkX, chunkZ) {
+    const chunk = {
+        x: chunkX,
+        z: chunkZ,
+        blocks: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT),
+        surfaceHeights: new Int16Array(CHUNK_SIZE * CHUNK_SIZE),
+        columnTop: new Int16Array(CHUNK_SIZE * CHUNK_SIZE),
+        generated: false
+    };
+    chunk.columnTop.fill(MIN_Y - 1);
+    chunks.set(chunkKey(chunkX, chunkZ), chunk);
+    return chunk;
+}
+
+function* generateChunkDataSteps(chunk) {
+    yield* generateTerrainSteps(chunk);
+    yield* generateTreeSteps(chunk);
+    yield* applyWorldOverridesSteps(chunk);
+    chunk.generated = true;
+    return chunk;
+}
+
 export function isSlabBlock(type){return Number(type)>=BLOCK.STONE_SLAB&&Number(type)<=BLOCK.REINFORCED_DEEPSLATE_SLAB;}
 export function isStairBlock(type){
     const n=Number(type);
@@ -937,10 +1049,11 @@ function getChunkNeighborType(chunk,lx,y,lz,dx,dz){
     }
     return getBlockType(chunk.x*CHUNK_SIZE+nx,y,chunk.z*CHUNK_SIZE+nz);
 }
-function makeGeometryForChunk(chunk){
+function* makeGeometryForChunkSteps(chunk){
     const positions=[],normals=[],uvs=[],colors=[],groups=Array.from({length:chunkMaterials.length},()=>[]);
     const vertexRef={count:0};
     for(let lx=0;lx<CHUNK_SIZE;lx++)for(let lz=0;lz<CHUNK_SIZE;lz++){
+        yield;
         const columnIndex=lz*CHUNK_SIZE+lx;
         const x=chunk.x*CHUNK_SIZE+lx,z=chunk.z*CHUNK_SIZE+lz,surfaceY=chunk.surfaceHeights[columnIndex] ?? getTerrainProfile(x,z).height;
         const maxY=Math.min(WORLD_TOP,Math.max(surfaceY,chunk.columnTop[columnIndex] ?? surfaceY));
@@ -993,27 +1106,96 @@ function makeGeometryForChunk(chunk){
     const index=[];for(let i=0;i<groups.length;i++){const startIndex=index.length;const group=groups[i];for(let j=0;j<group.length;j++)index.push(group[j]);if(group.length)geometry.addGroup(startIndex,group.length,i);}
     geometry.setIndex(index);geometry.computeBoundingSphere();geometry.computeBoundingBox();return geometry;
 }
+function makeGeometryForChunk(chunk){
+    const iterator = makeGeometryForChunkSteps(chunk);
+    let step = iterator.next();
+    while (!step.done) step = iterator.next();
+    return step.value;
+}
 function disposeChunkMesh(chunk){if(!chunk||!worldScene)return;const key=chunkKey(chunk.x,chunk.z),mesh=chunkMeshes.get(key);if(mesh){worldScene.remove(mesh);mesh.geometry.dispose();chunkMeshes.delete(key);}}
-function rebuildChunkMesh(chunk){
-    if(!chunk||!worldScene)return;
+function attachChunkMesh(chunk, geometry) {
+    if (!chunk || !worldScene || !geometry) return;
+    const key = chunkKey(chunk.x, chunk.z);
+    const oldMesh = chunkMeshes.get(key);
+    if (oldMesh) {
+        worldScene.remove(oldMesh);
+        oldMesh.geometry?.dispose();
+        chunkMeshes.delete(key);
+    }
+    const mesh = new THREE.Mesh(geometry, chunkMaterials);
+    mesh.userData.isChunk = true;
+    mesh.userData.chunkX = chunk.x;
+    mesh.userData.chunkZ = chunk.z;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    worldScene.add(mesh);
+    chunkMeshes.set(key, mesh);
+}
+
+function rebuildChunkMesh(chunk) {
+    if (!chunk || !worldScene) return;
     disposeChunkMesh(chunk);
-    const geometry=makeGeometryForChunk(chunk);
-    if(geometry){
-        const mesh=new THREE.Mesh(geometry,chunkMaterials);
-        mesh.userData.isChunk=true;
-        mesh.userData.chunkX=chunk.x;
-        mesh.userData.chunkZ=chunk.z;
-        // Chunk meshes dominate the scene. Avoid expensive shadow passes on
-        // touch/low-power hardware; lighting and block shading remain intact.
-        mesh.castShadow = !IS_LOW_POWER_DEVICE;
-        mesh.receiveShadow = !IS_LOW_POWER_DEVICE;
-        worldScene.add(mesh);
-        chunkMeshes.set(chunkKey(chunk.x,chunk.z),mesh);
+    const geometry = makeGeometryForChunk(chunk);
+    if (geometry) attachChunkMesh(chunk, geometry);
+}
+function queueNeededChunks(playerChunkX,playerChunkZ){const wanted=[];for(let dx=-RENDER_DISTANCE;dx<=RENDER_DISTANCE;dx++){for(let dz=-RENDER_DISTANCE;dz<=RENDER_DISTANCE;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))>RENDER_DISTANCE)continue;const x=playerChunkX+dx,z=playerChunkZ+dz,key=chunkKey(x,z);if(chunks.has(key)||queuedKeys.has(key))continue;wanted.push({x,z,distance:Math.sqrt(dx*dx+dz*dz)});}}wanted.sort((a,b)=>a.distance-b.distance);for(const item of wanted){const key=chunkKey(item.x,item.z);queuedKeys.add(key);generationQueue.push(item);}generationQueue.sort((a,b)=>Math.hypot(a.x-playerChunkX,a.z-playerChunkZ)-Math.hypot(b.x-playerChunkX,b.z-playerChunkZ));}
+function processChunkQueue() {
+    const startTime = performance.now();
+    const budgetMs = IS_TOUCH_DEVICE ? 1.5 : (IS_LOW_POWER_DEVICE ? 2.25 : 3.5);
+    let steps = 0;
+
+    while (performance.now() - startTime < budgetMs && steps++ < 256) {
+        if (!activeChunkTask) {
+            let next = null;
+            while (generationQueue.length && !next) {
+                const candidate = generationQueue.shift();
+                const candidateKey = chunkKey(candidate.x, candidate.z);
+                queuedKeys.delete(candidateKey);
+                if (chunks.has(candidateKey)) continue;
+                // Do not spend work on chunks that have fallen outside the unload buffer.
+                if (Math.max(Math.abs(candidate.x - lastPlayerChunkX), Math.abs(candidate.z - lastPlayerChunkZ)) > UNLOAD_DISTANCE) continue;
+                next = candidate;
+            }
+            if (!next) break;
+
+            const chunk = createChunkData(next.x, next.z);
+            activeChunkTask = { chunk, phase: "data", iterator: generateChunkDataSteps(chunk) };
+        }
+
+        const task = activeChunkTask;
+        try {
+            if (task.phase === "data") {
+                const previous = activeGenerationChunk;
+                activeGenerationChunk = task.chunk;
+                let step;
+                try {
+                    step = task.iterator.next();
+                } finally {
+                    activeGenerationChunk = previous;
+                }
+                if (step.done) {
+                    task.phase = "mesh";
+                    task.iterator = makeGeometryForChunkSteps(task.chunk);
+                }
+            } else {
+                const step = task.iterator.next();
+                if (step.done) {
+                    attachChunkMesh(task.chunk, step.value);
+                    activeChunkTask = null;
+                }
+            }
+        } catch (error) {
+            activeGenerationChunk = null;
+            const failedKey = chunkKey(task.chunk.x, task.chunk.z);
+            disposeChunkMesh(task.chunk);
+            chunks.delete(failedKey);
+            activeChunkTask = null;
+            console.warn("Chunk streaming task failed:", error);
+            break;
+        }
     }
 }
-function queueNeededChunks(playerChunkX,playerChunkZ){const wanted=[];for(let dx=-RENDER_DISTANCE;dx<=RENDER_DISTANCE;dx++){for(let dz=-RENDER_DISTANCE;dz<=RENDER_DISTANCE;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))>RENDER_DISTANCE)continue;const x=playerChunkX+dx,z=playerChunkZ+dz,key=chunkKey(x,z);if(chunks.has(key)||queuedKeys.has(key))continue;wanted.push({x,z,distance:Math.sqrt(dx*dx+dz*dz)});}}wanted.sort((a,b)=>a.distance-b.distance);for(const item of wanted){const key=chunkKey(item.x,item.z);queuedKeys.add(key);generationQueue.push(item);}}
-function processChunkQueue(){if(!generationQueue.length)return;const now=performance.now();const interval=IS_TOUCH_DEVICE?100:(IS_LOW_POWER_DEVICE?80:50);if(now-lastChunkProcessTime<interval)return;lastChunkProcessTime=now;const first=generationQueue.shift();if(!first)return;const key=chunkKey(first.x,first.z);queuedKeys.delete(key);if(chunks.has(key))return;const chunk=generateChunk(first.x,first.z);rebuildChunkMesh(chunk);}
-function unloadFarChunks(playerChunkX,playerChunkZ){for(const[key,chunk]of chunks){const distance=Math.max(Math.abs(chunk.x-playerChunkX),Math.abs(chunk.z-playerChunkZ));if(distance>UNLOAD_DISTANCE){disposeChunkMesh(chunk);chunks.delete(key);}}for(let i=generationQueue.length-1;i>=0;i--){const item=generationQueue[i];if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){queuedKeys.delete(chunkKey(item.x,item.z));generationQueue.splice(i,1);}}}
+function unloadFarChunks(playerChunkX,playerChunkZ){if(activeChunkTask){const activeDistance=Math.max(Math.abs(activeChunkTask.chunk.x-playerChunkX),Math.abs(activeChunkTask.chunk.z-playerChunkZ));if(activeDistance>UNLOAD_DISTANCE){const activeKey=chunkKey(activeChunkTask.chunk.x,activeChunkTask.chunk.z);disposeChunkMesh(activeChunkTask.chunk);chunks.delete(activeKey);activeChunkTask=null;activeGenerationChunk=null;}}for(const[key,chunk]of chunks){const distance=Math.max(Math.abs(chunk.x-playerChunkX),Math.abs(chunk.z-playerChunkZ));if(distance>UNLOAD_DISTANCE){disposeChunkMesh(chunk);chunks.delete(key);}}for(let i=generationQueue.length-1;i>=0;i--){const item=generationQueue[i];if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){queuedKeys.delete(chunkKey(item.x,item.z));generationQueue.splice(i,1);}}}
 function updateFacingVisibility(playerPosition,camera){if(!camera)return;const now=performance.now();const interval=IS_LOW_POWER_DEVICE?100:50;if(now-lastFacingVisibilityUpdate<interval)return;lastFacingVisibilityUpdate=now;const direction=new THREE.Vector3();camera.getWorldDirection(direction);direction.y=0;const directionLengthSq=direction.lengthSq();if(directionLengthSq<.0001)return;const invLength=1/Math.sqrt(directionLengthSq);direction.x*=invLength;direction.z*=invLength;const playerChunk=getChunkCoords(playerPosition.x,playerPosition.z),maxDistance=RENDER_DISTANCE+1,maxDistanceSq=maxDistance*maxDistance;for(const chunk of chunks.values()){const mesh=chunkMeshes.get(chunkKey(chunk.x,chunk.z));if(!mesh)continue;const dx=chunk.x-playerChunk.chunkX,dz=chunk.z-playerChunk.chunkZ;if(Math.max(Math.abs(dx),Math.abs(dz))>maxDistance){mesh.visible=false;continue;}const distanceSq=dx*dx+dz*dz;let shouldKeep=distanceSq<2.4*2.4;if(!shouldKeep){const invDistance=1/Math.sqrt(distanceSq);const dot=(dx*invDistance)*direction.x+(dz*invDistance)*direction.z;shouldKeep=dot>-.72;}mesh.visible=shouldKeep;}
     // Dynamic water uses separate meshes, so explicitly mirror the visibility
     // of its owning terrain chunk. Otherwise water remains visible in the
@@ -1037,17 +1219,19 @@ export function endWorldEditBatch() {
     for (const key of rebuilds) {
         const parts = key.split(",").map(Number);
         const chunk = getChunk(parts[0], parts[1]);
-        if (chunk) rebuildChunkMesh(chunk);
+        if (chunk?.generated) rebuildChunkMesh(chunk);
     }
 }
 
 function queueChunkRebuild(chunkX, chunkZ) { pendingChunkRebuilds.add(chunkKey(chunkX, chunkZ)); }
 
-export function setBlockAt(x,y,z,type){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);type=Math.floor(Number(type));if(![x,y,z,type].every(Number.isFinite)||y<MIN_Y||y>WORLD_TOP)return false;worldOverrides.set(`${x},${y},${z}`,type);const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk)return true;chunk.blocks[blockIndex(localX,y,localZ)]=type;if(type!==BLOCK.AIR){const columnIndex=localZ*CHUNK_SIZE+localX;if(y>chunk.columnTop[columnIndex])chunk.columnTop[columnIndex]=y;}if(worldEditBatchDepth>0){queueChunkRebuild(chunkX,chunkZ);if(localX===0)queueChunkRebuild(chunkX-1,chunkZ);if(localX===CHUNK_SIZE-1)queueChunkRebuild(chunkX+1,chunkZ);if(localZ===0)queueChunkRebuild(chunkX,chunkZ-1);if(localZ===CHUNK_SIZE-1)queueChunkRebuild(chunkX,chunkZ+1);return true;}rebuildChunkMesh(chunk);if(localX===0){const neighbor=getChunk(chunkX-1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localX===CHUNK_SIZE-1){const neighbor=getChunk(chunkX+1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===0){const neighbor=getChunk(chunkX,chunkZ-1);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===CHUNK_SIZE-1){const neighbor=getChunk(chunkX,chunkZ+1);if(neighbor)rebuildChunkMesh(neighbor);}return true;}
+export function setBlockAt(x,y,z,type){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);type=Math.floor(Number(type));if(![x,y,z,type].every(Number.isFinite)||y<MIN_Y||y>WORLD_TOP)return false;worldOverrides.set(`${x},${y},${z}`,type);const{chunkX,chunkZ,localX,localZ}=getChunkCoords(x,z),chunk=getChunk(chunkX,chunkZ);if(!chunk||!chunk.generated)return true;chunk.blocks[blockIndex(localX,y,localZ)]=type;if(type!==BLOCK.AIR){const columnIndex=localZ*CHUNK_SIZE+localX;if(y>chunk.columnTop[columnIndex])chunk.columnTop[columnIndex]=y;}if(worldEditBatchDepth>0){queueChunkRebuild(chunkX,chunkZ);if(localX===0)queueChunkRebuild(chunkX-1,chunkZ);if(localX===CHUNK_SIZE-1)queueChunkRebuild(chunkX+1,chunkZ);if(localZ===0)queueChunkRebuild(chunkX,chunkZ-1);if(localZ===CHUNK_SIZE-1)queueChunkRebuild(chunkX,chunkZ+1);return true;}rebuildChunkMesh(chunk);if(localX===0){const neighbor=getChunk(chunkX-1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localX===CHUNK_SIZE-1){const neighbor=getChunk(chunkX+1,chunkZ);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===0){const neighbor=getChunk(chunkX,chunkZ-1);if(neighbor)rebuildChunkMesh(neighbor);}if(localZ===CHUNK_SIZE-1){const neighbor=getChunk(chunkX,chunkZ+1);if(neighbor)rebuildChunkMesh(neighbor);}return true;}
 export function clearWorld(){
     for(const chunk of chunks.values())disposeChunkMesh(chunk);
     chunks.clear();
     chunkMeshes.clear();
+    activeChunkTask = null;
+    activeGenerationChunk = null;
     generationQueue.length=0;
     queuedKeys.clear();
     worldOverrides.clear();
@@ -1056,7 +1240,7 @@ export function clearWorld(){
     lastFacingVisibilityUpdate=0;
     if(typeof window!=="undefined")window.dispatchEvent(new CustomEvent("webminecraft:worldreset"));
 }
-export function createWorld(scene){worldScene=scene;clearWorld();for(let dx=-1;dx<=1;dx++){for(let dz=-1;dz<=1;dz++){const chunk=generateChunk(dx,dz);rebuildChunkMesh(chunk);}}queueNeededChunks(0,0);}
+export function createWorld(scene){worldScene=scene;clearWorld();queueNeededChunks(0,0);}
 export function updateChunkVisibility(position,camera){if(!worldScene||!position)return;const{chunkX,chunkZ}=getChunkCoords(position.x,position.z);if(chunkX!==lastPlayerChunkX||chunkZ!==lastPlayerChunkZ){lastPlayerChunkX=chunkX;lastPlayerChunkZ=chunkZ;queueNeededChunks(chunkX,chunkZ);unloadFarChunks(chunkX,chunkZ);}processChunkQueue();updateFacingVisibility(position,camera);}
-export function getPerformanceStats(){return{loadedChunks:chunks.size,queuedChunks:generationQueue.length,renderDistance:RENDER_DISTANCE,seed:WORLD_SEED};}
+export function getPerformanceStats(){let loadedChunks=0;for(const[key,chunk]of chunks){if(chunk.generated&&chunkMeshes.has(key))loadedChunks++;}return{loadedChunks,queuedChunks:generationQueue.length+(activeChunkTask?1:0),renderDistance:RENDER_DISTANCE,seed:WORLD_SEED,generatingChunks:activeChunkTask?1:0};}
 export function getWorldSeed(){return WORLD_SEED;}
