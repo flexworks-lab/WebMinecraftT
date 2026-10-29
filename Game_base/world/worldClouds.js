@@ -170,10 +170,9 @@ function updateUndergroundAmbient(){
 }
 function clearClouds(){cloudEntries.length=0;if(!cloudRoot)return;while(cloudRoot.children.length)cloudRoot.remove(cloudRoot.children[0]);}
 function shouldShowClouds(){
-    if (document.body.classList.contains("webminecraft-in-world")) return true;
-    if (document.body.classList.contains("webminecraft-worlds-menu")) return false;
-    const mainMenu = document.getElementById("mainMenu");
-    return Boolean(mainMenu && mainMenu.style.display !== "none");
+    // Keep the small cloud field in the menu and in worlds; hide it only when
+    // a full-screen worlds browser is open behind the overlay.
+    return !document.body.classList.contains("webminecraft-worlds-menu");
 }
 function rebuildCloudField(seed){
     cloudSeed = (Math.floor(Math.abs(Number(seed))) >>> 0) || 0;
