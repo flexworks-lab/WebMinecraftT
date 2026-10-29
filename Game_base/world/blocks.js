@@ -127,12 +127,12 @@ const reinforcedDeepslateBottomTexture = loadTexture(texturePath("reinforced_dee
 const reinforcedDeepslateSideTexture = loadTexture(texturePath("reinforced_deepslate_side.png"), "reinforced deepslate side");
 const reinforcedDeepslateTopTexture = loadTexture(texturePath("reinforced_deepslate_top.png"), "reinforced deepslate top");
 
-// Keep the darker block palette while adding a small material floor so textures
-// never become completely black when underground lighting gets very low.
-const textureShade = 0xd8d8d8;
-const grassTextureShade = 0x858585;
-const textureEmissive = 0x2a2a2a;
-const textureEmissiveIntensity = 0.32;
+// Keep textures crisp and naturally colored, with only a restrained emissive
+// floor so cave blocks remain readable without washing out outdoor colors.
+const textureShade = 0xe8e8e8;
+const grassTextureShade = 0xd3d3d3;
+const textureEmissive = 0x202020;
+const textureEmissiveIntensity = 0.24;
 const materialOptions = {
     vertexColors: true,
     emissive: textureEmissive,
@@ -141,7 +141,7 @@ const materialOptions = {
 
 const grassTopMaterial = new THREE.MeshPhongMaterial({ map: grassTopTexture, color: grassTextureShade, ...materialOptions });
 const grassSideMaterial = new THREE.MeshPhongMaterial({ map: grassSideTexture, color: grassTextureShade, ...materialOptions });
-const dirtMaterial = new THREE.MeshPhongMaterial({ map: dirtTexture, color: grassTextureShade, ...materialOptions });
+const dirtMaterial = new THREE.MeshPhongMaterial({ map: dirtTexture, color: textureShade, ...materialOptions });
 const stoneMaterial = new THREE.MeshPhongMaterial({ map: stoneTexture, color: textureShade, ...materialOptions });
 const cobblestoneMaterial = new THREE.MeshPhongMaterial({ map: cobblestoneTexture, color: textureShade, ...materialOptions });
 const gravelMaterial = new THREE.MeshPhongMaterial({ map: gravelTexture, color: textureShade, ...materialOptions });
