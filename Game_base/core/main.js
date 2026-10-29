@@ -104,6 +104,7 @@ const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobil
 if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
+let worldLoadingForStart = false;
 const defaults = { shadows: false, shadowQuality: 256, pixelRatio: 0.65, lightingQuality: "performance", brightness: 1 };
 let settings;
 try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
@@ -730,14 +731,15 @@ function waitForEventOnce(eventName, timeoutMs = 12000) {
     });
 }
 
-async function waitForInitialWorldRender(timeoutMs = 5000) {
+async function waitForInitialWorldRender(timeoutMs = 15000) {
     const started = performance.now();
     await new Promise(resolve => {
         const check = () => {
             const stats = getPerformanceStats();
-            const hasChunks = Number(stats?.loadedChunks || 0) > 0;
-            const queueSettled = Number(stats?.queuedChunks || 0) <= 4;
-            if ((hasChunks && queueSettled) || performance.now() - started >= timeoutMs) {
+            const readyChunks = Number(stats?.loadedChunks || 0);
+            // The central 3x3 is enough for a safe initial spawn. Remaining chunks
+            // keep streaming in the background instead of delaying entry to the world.
+            if (readyChunks >= 9 || performance.now() - started >= timeoutMs) {
                 resolve();
                 return;
             }
@@ -750,6 +752,7 @@ async function waitForInitialWorldRender(timeoutMs = 5000) {
 
 async function startWorldWithSeed(seed, savedMode = null) {
     window.__webminecraftShowWorldLoading?.("Loading world data...");
+    worldLoadingForStart = true;
     clearHotbar();
     setWorldSeed(seed);
     const multiplayerStarting = Boolean(window.__webminecraftMultiplayerActive);
@@ -830,6 +833,7 @@ async function startWorldWithSeed(seed, savedMode = null) {
     } finally {
         window.dispatchEvent(new CustomEvent("webminecraft:world-ready", { detail: { seed, multiplayer: multiplayerStarting } }));
         window.__webminecraftHideWorldLoading?.();
+        worldLoadingForStart = false;
     }
 }
 
@@ -1074,7 +1078,14 @@ function animate() {
         window.__webMinecraftUpdateShortGrass?.(currentTime);
         updateSunPosition();
         updateDepthLighting();
-    } else updateMenuCamera(deltaTime);
+    } else {
+        updateMenuCamera(deltaTime);
+        if (worldLoadingForStart) {
+            // Keep the chunk scheduler running while the loading overlay is up.
+            // Anchor this warm-up around the spawn area, not the menu panorama.
+            updateChunkVisibility(new THREE.Vector3(0, 20, 0), camera);
+        }
+    }
     renderer.render(scene, camera);
     fpsFrames++;
     if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
