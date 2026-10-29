@@ -29,7 +29,7 @@ const groundLightColor = new THREE.Color(0x3f3b43);
 const sunColor = new THREE.Color(0xfff0cf);
 const fillColor = new THREE.Color(0x9fc8ef);
 scene.background = skyColor.clone();
-scene.fog = new THREE.Fog(skyColor.clone(), 55, 175);
+scene.fog = new THREE.Fog(skyColor.clone(), 26, 72);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 260);
 camera.position.set(0, 7, 5);
@@ -398,13 +398,13 @@ function updateDepthLighting() {
         const depthFog = depthT;
         scene.background.copy(skyColor);
         scene.fog.color.copy(extendedSettings.fog === false ? skyColor : caveFogColor);
-        scene.fog.near = extendedSettings.fog === false ? 1000000 : THREE.MathUtils.lerp(55, 8, Math.max(caveAmount, depthFog * 0.65));
-        scene.fog.far = extendedSettings.fog === false ? 1000001 : THREE.MathUtils.lerp(175, 44, Math.max(caveAmount, depthFog * 0.65));
+        scene.fog.near = extendedSettings.fog === false ? 1000000 : THREE.MathUtils.lerp(26, 8, Math.max(caveAmount, depthFog * 0.65));
+        scene.fog.far = extendedSettings.fog === false ? 1000001 : THREE.MathUtils.lerp(72, 44, Math.max(caveAmount, depthFog * 0.65));
     } else {
         scene.background.copy(skyColor);
         scene.fog.color.copy(skyColor);
-        scene.fog.near = extendedSettings.fog === false ? 1000000 : 55;
-        scene.fog.far = extendedSettings.fog === false ? 1000001 : 175;
+        scene.fog.near = extendedSettings.fog === false ? 1000000 : 26;
+        scene.fog.far = extendedSettings.fog === false ? 1000001 : 72;
     }
 
     skyLight.color.copy(skyLightColor);
