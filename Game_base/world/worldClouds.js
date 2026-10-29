@@ -5,7 +5,7 @@ const CLOUD_BLOCK_SIZE = 3;
 const CLOUD_HEIGHT = 1;
 const CLOUD_ALTITUDE = 78;
 const CLOUD_CELL_SIZE = 105;
-const CLOUD_GRID_RADIUS = 9;
+const CLOUD_GRID_RADIUS = 2;
 const CLOUD_WRAP = 2048;
 const CLOUD_WIND_SPEED = 0.45;
 
@@ -27,7 +27,7 @@ let outdoorLights = [];
 const cloudMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: false, opacity: 1, depthWrite: false, depthTest: true, fog: false, toneMapped: false });
 const cloudGeometry = new THREE.BoxGeometry(CLOUD_BLOCK_SIZE, CLOUD_HEIGHT, CLOUD_BLOCK_SIZE);
 const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffe27a, toneMapped: false, depthWrite: false, depthTest: false, fog: false });
-const sunGeometry = new THREE.SphereGeometry(14, 24, 16);
+const sunGeometry = new THREE.SphereGeometry(7, 12, 8);
 const SKY_SUN_DIRECTION = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
 
 function seedHash(a, b, c = 0) {
@@ -103,7 +103,7 @@ function makeCloud(cellX, cellZ) {
 }
 function createSkyDome(scene) {
     if (skyDome) return;
-    const geometry = new THREE.SphereGeometry(1000, 32, 16);
+    const geometry = new THREE.SphereGeometry(180, 24, 12);
     const material = new THREE.ShaderMaterial({
         uniforms: { topColor: { value: new THREE.Color(0x3f9fe8) }, horizonColor: { value: new THREE.Color(0x9fddff) }, bottomColor: { value: new THREE.Color(0x72bde7) } },
         vertexShader: `varying vec3 vSkyDirection; void main(){vSkyDirection=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
@@ -155,7 +155,7 @@ function updateSkyPosition(){
     if (skyDome) skyDome.position.copy(cloudCamera.position);
     if (sunDisc) {
         sunDisc.position.copy(cloudCamera.position)
-            .addScaledVector(SKY_SUN_DIRECTION, 820);
+            .addScaledVector(SKY_SUN_DIRECTION, 160);
     }
 }
 function updateUndergroundAmbient(){
@@ -170,10 +170,24 @@ function updateUndergroundAmbient(){
 }
 function clearClouds(){cloudEntries.length=0;if(!cloudRoot)return;while(cloudRoot.children.length)cloudRoot.remove(cloudRoot.children[0]);}
 function shouldShowClouds(){
-    // Ultra-low graphics profile: skip cloud meshes entirely.
-    return false;
+    if (document.body.classList.contains("webminecraft-in-world")) return true;
+    if (document.body.classList.contains("webminecraft-worlds-menu")) return false;
+    const mainMenu = document.getElementById("mainMenu");
+    return Boolean(mainMenu && mainMenu.style.display !== "none");
 }
-function rebuildCloudField(seed){cloudSeed=(Math.floor(Math.abs(Number(seed)))>>>0)||0;clearClouds();updateSkyPosition();}
+function rebuildCloudField(seed){
+    cloudSeed = (Math.floor(Math.abs(Number(seed))) >>> 0) || 0;
+    clearClouds();
+    // A compact field of instanced clouds adds depth while keeping draw calls
+    // and geometry memory far below the old 19x19 cloud grid.
+    for (let cellX = -CLOUD_GRID_RADIUS; cellX <= CLOUD_GRID_RADIUS; cellX++) {
+        for (let cellZ = -CLOUD_GRID_RADIUS; cellZ <= CLOUD_GRID_RADIUS; cellZ++) {
+            if (seedHash(cellX, cellZ, 97) < 0.50) continue;
+            makeCloud(cellX, cellZ);
+        }
+    }
+    updateSkyPosition();
+}
 function tick(now){const delta=Math.min((now-lastFrame)/1000,0.1);lastFrame=now;windDistance+=CLOUD_WIND_SPEED*delta;if(windDistance>CLOUD_WRAP)windDistance-=CLOUD_WRAP;if(cloudRoot?.visible)for(const entry of cloudEntries)entry.mesh.position.set(entry.baseX+windDistance,entry.baseY,entry.baseZ);updateSkyPosition();updateUndergroundAmbient();requestAnimationFrame(tick);}
 export function setupWorldClouds(scene,camera=null){cloudCamera=camera;cloudScene=scene;createSkyDome(scene);createUndergroundLighting(scene);removeWaterSpecularHighlights(scene);if(!cloudRoot){cloudRoot=new THREE.Group();cloudRoot.name="MinecraftWorldClouds";cloudRoot.renderOrder=2;cloudRoot.visible=shouldShowClouds();scene.add(cloudRoot);}if(!running){running=true;lastFrame=performance.now();requestAnimationFrame(tick);}if(!visibilityObserver){visibilityObserver=new MutationObserver(()=>{if(cloudRoot)cloudRoot.visible=shouldShowClouds();});visibilityObserver.observe(document.body,{attributes:true,attributeFilter:["class","style"]});}return cloudRoot;}
 export function setWorldCloudSeed(seed){if(!cloudRoot)return;rebuildCloudField(seed);for(const entry of cloudEntries)entry.mesh.position.set(entry.baseX+windDistance,entry.baseY,entry.baseZ);}
