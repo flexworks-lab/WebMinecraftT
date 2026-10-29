@@ -139,7 +139,11 @@ if (IS_LOW_POWER_DEVICE) {
 }
 settings.shadows = false;
 settings.shadowQuality = 256;
-settings.pixelRatio = BASE_PIXEL_RATIO;
+settings.pixelRatio = THREE.MathUtils.clamp(
+    Number(settings.pixelRatio) || BASE_PIXEL_RATIO,
+    0.70,
+    IS_LOW_POWER_DEVICE ? 0.82 : 1.05
+);
 settings.lightingQuality = extendedSettings.lightingQuality ?? settings.lightingQuality;
 settings.brightness = Number(extendedSettings.brightness ?? settings.brightness);
 camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
@@ -426,7 +430,8 @@ function applyExtendedSettings(next = {}) {
         : renderDistanceCap;
     settings.shadows = false;
     settings.shadowQuality = 256;
-    settings.pixelRatio = BASE_PIXEL_RATIO;
+    const requestedPixelRatio = Number(extendedSettings.pixelRatio ?? settings.pixelRatio) || BASE_PIXEL_RATIO;
+    settings.pixelRatio = THREE.MathUtils.clamp(requestedPixelRatio, 0.70, IS_LOW_POWER_DEVICE ? 0.82 : 1.05);
     settings.lightingQuality = IS_LOW_POWER_DEVICE && extendedSettings.lightingQuality === "high"
         ? "balanced"
         : (extendedSettings.lightingQuality || defaults.lightingQuality);
