@@ -37,11 +37,11 @@ camera.rotation.order = "YXZ";
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", preserveDrawingBuffer: false });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(1);
+renderer.setPixelRatio(0.65);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
-renderer.shadowMap.enabled = !IS_TOUCH_DEVICE;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.toneMappingExposure = 1;
+renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.appendChild(renderer.domElement);
 window.__webminecraftRenderer = renderer;
@@ -104,13 +104,13 @@ const mobileMode = params.get("mobile") === "1" || params.get("mode") === "mobil
 if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
-const defaults = { shadows: !IS_LOW_POWER_DEVICE, shadowQuality: IS_LOW_POWER_DEVICE ? 512 : 1024, pixelRatio: 1, lightingQuality: IS_LOW_POWER_DEVICE ? "balanced" : "high", brightness: 1 };
+const defaults = { shadows: false, shadowQuality: 256, pixelRatio: 0.65, lightingQuality: "performance", brightness: 1 };
 let settings;
 try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
 catch { settings = { ...defaults }; }
 
 const extendedDefaults = {
-    fov: 75, renderDistance: IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 57 : 76), fog: true, waterEffects: true,
+    fov: 75, renderDistance: 24, fog: false, waterEffects: false,
     masterVolume: 1, soundEffects: true, music: true
 };
 let extendedSettings = { ...extendedDefaults };
@@ -119,12 +119,12 @@ try {
     if (saved && typeof saved === "object") extendedSettings = { ...extendedDefaults, ...saved };
 } catch {}
 if (IS_TOUCH_DEVICE) {
-    if (extendedSettings.deviceProfile !== "touch") extendedSettings.renderDistance = 60;
+    if (extendedSettings.deviceProfile !== "touch") extendedSettings.renderDistance = 24;
     if (extendedSettings.lightingQuality === "high") extendedSettings.lightingQuality = "balanced";
 }
 // Bound the saved view distance: each extra chunk ring adds many meshes and
 // makes both world generation and rendering significantly more expensive.
-const renderDistanceCap = IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 57 : 76);
+const renderDistanceCap = 24;
 const requestedRenderDistance = Number(extendedSettings.renderDistance);
 extendedSettings.renderDistance = Number.isFinite(requestedRenderDistance) && requestedRenderDistance > 0
     ? Math.min(requestedRenderDistance, renderDistanceCap)
@@ -135,9 +135,9 @@ if (IS_LOW_POWER_DEVICE) {
     settings.pixelRatio = 1;
     if (extendedSettings.lightingQuality === "high") extendedSettings.lightingQuality = "balanced";
 }
-settings.shadows = IS_LOW_POWER_DEVICE ? false : (extendedSettings.shadows ?? settings.shadows);
-settings.shadowQuality = IS_LOW_POWER_DEVICE ? Math.min(Number(extendedSettings.shadowQuality) || 512, 512) : (extendedSettings.shadowQuality ?? settings.shadowQuality);
-settings.pixelRatio = IS_LOW_POWER_DEVICE ? 1 : (extendedSettings.pixelRatio ?? settings.pixelRatio);
+settings.shadows = false;
+settings.shadowQuality = 256;
+settings.pixelRatio = 0.65;
 settings.lightingQuality = extendedSettings.lightingQuality ?? settings.lightingQuality;
 settings.brightness = Number(extendedSettings.brightness ?? settings.brightness);
 camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
@@ -152,23 +152,23 @@ window.__webminecraftAudioSettings = {
 function saveSettings() { try { localStorage.setItem("webminecraft-settings", JSON.stringify(settings)); } catch {} }
 function getLightingProfile() {
     if (settings.lightingQuality === "performance") {
-        return { sun: 2.45, sky: 0.92, ambient: 0.13, fill: 0.13 };
+        return { sun: 1.25, sky: 0.65, ambient: 0.25, fill: 0.04 };
     }
     if (settings.lightingQuality === "balanced") {
-        return { sun: 2.75, sky: 1.04, ambient: 0.11, fill: 0.17 };
+        return { sun: 1.25, sky: 0.65, ambient: 0.25, fill: 0.04 };
     }
-    return { sun: 3.05, sky: 1.16, ambient: 0.10, fill: 0.21 };
+    return { sun: 1.25, sky: 0.65, ambient: 0.25, fill: 0.04 };
 }
 function applySettings() {
     const shadowsEnabled = Boolean(settings.shadows) && !IS_TOUCH_DEVICE;
-    renderer.shadowMap.enabled = shadowsEnabled;
-    sun.castShadow = shadowsEnabled;
-    const effectiveShadowQuality = IS_TOUCH_DEVICE ? Math.min(settings.shadowQuality, 512) : settings.shadowQuality;
+    renderer.shadowMap.enabled = false;
+    sun.castShadow = false;
+    const effectiveShadowQuality = 256;
     sun.shadow.mapSize.width = effectiveShadowQuality;
     sun.shadow.mapSize.height = effectiveShadowQuality;
-    renderer.setPixelRatio(Math.min(settings.pixelRatio, IS_LOW_POWER_DEVICE ? 1 : 1.5));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.shadowMap.type = IS_TOUCH_DEVICE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(0.65);
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.shadowMap.type = THREE.BasicShadowMap;
     renderer.toneMappingExposure = 0.98 + settings.brightness * 0.30;
 
     const profile = getLightingProfile();
@@ -415,19 +415,15 @@ function applyExtendedSettings(next = {}) {
     extendedSettings = { ...extendedSettings, ...next };
     // Keep settings events from restoring costly desktop graphics preferences
     // or a huge view distance after the low-power profile has been applied.
-    const renderDistanceCap = IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 57 : 76);
+    const renderDistanceCap = 24;
     const requestedDistance = Number(extendedSettings.renderDistance);
     extendedSettings.renderDistance = Number.isFinite(requestedDistance) && requestedDistance > 0
         ? Math.min(requestedDistance, renderDistanceCap)
         : renderDistanceCap;
-    settings.shadows = IS_LOW_POWER_DEVICE ? false : Boolean(extendedSettings.shadows);
-    settings.shadowQuality = IS_LOW_POWER_DEVICE
-        ? Math.min(Number(extendedSettings.shadowQuality) || 512, 512)
-        : Number(extendedSettings.shadowQuality) || 1024;
-    settings.pixelRatio = IS_LOW_POWER_DEVICE ? 1 : Number(extendedSettings.pixelRatio) || 1;
-    settings.lightingQuality = IS_LOW_POWER_DEVICE && extendedSettings.lightingQuality === "high"
-        ? "balanced"
-        : (extendedSettings.lightingQuality || "high");
+    settings.shadows = false;
+    settings.shadowQuality = 256;
+    settings.pixelRatio = 0.65;
+    settings.lightingQuality = "performance";
     settings.brightness = Number.isFinite(Number(extendedSettings.brightness)) ? Number(extendedSettings.brightness) : 1;
     camera.fov = THREE.MathUtils.clamp(Number(extendedSettings.fov) || 75, 60, 110);
     camera.updateProjectionMatrix();
