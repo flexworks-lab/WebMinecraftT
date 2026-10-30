@@ -898,9 +898,6 @@ function injectStyle() {
     }
     .createWorldSettingsGroup{padding:12px 10px 9px!important}
 }
-    `;
-
-
 /* Flat gray UI: both World Creator columns are translucent stone gray. */
 #createWorldSettingsRoot{background:rgba(76,76,76,.70)!important}
 #createWorldSettingsSidebar{background:rgba(65,65,65,.70)!important}
@@ -917,6 +914,7 @@ function injectStyle() {
 #createWorldSettingsRoot .createWorldSettingsTab,#createWorldSettingsRoot .createWorldSettingsAction,#createWorldSettingsRoot .createWorldSettingsSelect{background:linear-gradient(180deg,#858585,#626262)!important;color:#fff!important}
 #createWorldSettingsRoot #createWorldSettingsCreate{background:linear-gradient(180deg,#858585,#626262)!important;border-color:#292929!important;border-top-color:#c5c5c5!important;border-left-color:#c5c5c5!important;text-shadow:1px 1px #333!important}
 #createWorldSettingsRoot input:focus,#createWorldSettingsRoot select:focus{outline:2px solid #ddd!important;outline-offset:1px!important}
+    `;
 
     document.head.appendChild(workshopStyle);
 }
