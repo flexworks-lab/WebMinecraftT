@@ -1088,7 +1088,7 @@ const devPerformanceLab = createDevPerformanceLab({
     onResume: () => { lastTime = performance.now(); fpsTime = lastTime; fpsFrames = 0; frameTimeSamples = []; }
 });
 window.__webminecraftDevPerformanceLab = devPerformanceLab;
-devPerformanceButton?.addEventListener("click", () => devPerformanceLab.open());
+devPerformanceButton?.addEventListener("click", () => { devPerformanceLab.open(); void devPerformanceLab.start(); });
 
 // Adaptive quality: preserve gameplay while lowering GPU cost when frame times
 // stay high, then cautiously restore quality after sustained headroom.

@@ -151,7 +151,8 @@ export function createDevPerformanceLab(deps) {
         const p99 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.99))] : 0;
         const fps = avg > 0 ? 1000 / avg : 0;
         const low = p99 > 0 ? 1000 / p99 : 0;
-        const world = getPerformanceStats();
+        const liveWorld = getPerformanceStats();
+        const world = worldPrepared ? liveWorld : { loadedChunks: 0, queuedChunks: 0, queuedGenerationChunks: 0, queuedMeshRebuilds: 0, chunkProcessMs: 0 };
         const render = renderer.info.render;
         const memory = renderer.info.memory;
         el("devBenchFps").textContent = fps > 0 ? fps.toFixed(1) : "--";
@@ -320,6 +321,7 @@ export function createDevPerformanceLab(deps) {
         return new Promise(resolve => {
             currentStageIndex = index;
             currentStage = stage.name;
+            el("devBenchStageDetail").textContent = stage.detail;
             currentSamples = [];
             const start = performance.now();
             let previous = start;
