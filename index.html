@@ -935,6 +935,27 @@ button[aria-label*="close" i]:hover{
 #mainMenu .menuButton,#settingsMenu button,#multiplayerMenu button,#savedWorlds button,#settingsMenu select,#multiplayerMenu select,#savedWorlds input,#savedWorlds select{border-radius:0!important}
 #mainMenu .menuButton,#settingsMenu button,#multiplayerMenu button,#savedWorlds button{background:linear-gradient(180deg,#858585,#626262)!important;color:#fff!important;border-color:#292929!important;border-top-color:#c5c5c5!important;border-left-color:#c5c5c5!important}
 #settingsMenu,#multiplayerMenu,#savedWorlds{border-radius:0!important}
+
+/* Flat grayscale menu surfaces and controls. */
+body,body *{border-radius:0!important}
+#mainMenu #menuPanel,#settingsMenu,#multiplayerMenu,#savedWorlds{
+  background:rgba(88,88,88,.78)!important;
+  color:#fff!important;
+  border:1px solid #292929!important;
+  box-shadow:none!important;
+}
+#settingsMenu button,#multiplayerMenu button,#savedWorlds button,
+#settingsMenu select,#multiplayerMenu select,#savedWorlds select,
+#settingsMenu input,#multiplayerMenu input,#savedWorlds input,
+#settingsMenu textarea,#multiplayerMenu textarea,#savedWorlds textarea,
+#mainMenu button{
+  border-radius:0!important;
+  background:linear-gradient(180deg,#858585,#626262)!important;
+  color:#fff!important;
+  border-color:#292929!important;
+  border-top-color:#c5c5c5!important;
+  border-left-color:#c5c5c5!important;
+}
 </style>
 </head>
 <body>

@@ -916,6 +916,17 @@ function injectStyle() {
 #createWorldSettingsRoot input:focus,#createWorldSettingsRoot select:focus{outline:2px solid #ddd!important;outline-offset:1px!important}
     `;
 
+
+#createWorldSettingsRoot .createWorldSettingsStatic,
+#createWorldSettingsRoot .createWorldSettingsPack{
+  background:rgba(125,125,125,.70)!important;
+  color:#fff!important;
+  border:1px solid #444!important;
+  box-shadow:none!important;
+}
+#createWorldSettingsRoot .createWorldSettingsPackName,
+#createWorldSettingsRoot .createWorldSettingsPackState{color:#fff!important}
+
     document.head.appendChild(workshopStyle);
 }
 
