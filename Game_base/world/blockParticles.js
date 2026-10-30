@@ -186,67 +186,69 @@ function disposeParticle(particle) {
     particle.geometry?.dispose?.();
 }
 
+let activeParticleBursts = 0;
+const MAX_ACTIVE_PARTICLE_BURSTS = 5;
+
 export function spawnBlockBreakParticles(scene, center, type) {
-    if (!scene || !center) return;
+    if (!scene || !center || activeParticleBursts >= MAX_ACTIVE_PARTICLE_BURSTS) return;
+
+    // A single InstancedMesh replaces dozens of individual meshes and draw calls.
+    const start = performance.now();
+    const count = 16;
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = materialForFragment(type, Math.random());
+    const mesh = new THREE.InstancedMesh(geometry, material, count);
+    mesh.frustumCulled = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.renderOrder = 2;
 
     const particles = [];
-    const start = performance.now();
-    const count = 36;
-    const baseGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const dummy = new THREE.Object3D();
     const block = getBlockTypes();
-
     for (let i = 0; i < count; i++) {
-        const size = i < 4 ? 0.032 + Math.random() * 0.018 : 0.048 + Math.random() * 0.026;
-        const particle = new THREE.Mesh(baseGeometry.clone(), materialForFragment(type, Math.random()));
-        particle.scale.setScalar(size);
-        particle.position.copy(center).add(new THREE.Vector3(
+        const size = 0.045 + Math.random() * 0.035;
+        const position = center.clone().add(new THREE.Vector3(
             (Math.random() - 0.5) * 0.68,
             (Math.random() - 0.5) * 0.68,
             (Math.random() - 0.5) * 0.68
         ));
-
         const velocity = new THREE.Vector3(
             (Math.random() - 0.5) * 3.4,
             1.8 + Math.random() * 3.0,
             (Math.random() - 0.5) * 3.4
         );
-        velocity.addScaledVector(
-            new THREE.Vector3(
-                particle.position.x - center.x,
-                particle.position.y - center.y,
-                particle.position.z - center.z
-            ).normalize(),
-            0.5 + Math.random() * 1.2
-        );
-
-        particle.userData.velocity = velocity;
-        particle.userData.rotation = new THREE.Vector3(
-            (Math.random() - 0.5) * 8,
-            (Math.random() - 0.5) * 8,
-            (Math.random() - 0.5) * 8
-        );
-        particle.userData.start = start;
-        scene.add(particle);
-        particles.push(particle);
+        velocity.addScaledVector(position.clone().sub(center).normalize(), 0.5 + Math.random() * 1.2);
+        particles.push({
+            position,
+            velocity,
+            rotation: new THREE.Vector3(
+                (Math.random() - 0.5) * 8,
+                (Math.random() - 0.5) * 8,
+                (Math.random() - 0.5) * 8
+            ),
+            size
+        });
+        dummy.position.copy(position);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.setScalar(size);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
     }
+    mesh.instanceMatrix.needsUpdate = true;
+    scene.add(mesh);
+    activeParticleBursts++;
 
     function tick(now) {
         let alive = false;
         const dt = Math.min(0.033, Math.max(0.001, (now - tick.last) / 1000));
+        const age = now - start;
         tick.last = now;
 
-        for (const particle of particles) {
-            if (!particle.parent) continue;
-
-            const age = now - particle.userData.start;
-            const life = 760 + (particle.id % 4) * 55;
-            if (age >= life) {
-                disposeParticle(particle);
-                continue;
-            }
-
+        for (let i = 0; i < particles.length; i++) {
+            const particle = particles[i];
+            if (age >= 760) continue;
             alive = true;
-            const velocity = particle.userData.velocity;
+            const velocity = particle.velocity;
             velocity.y -= 8.6 * dt;
             velocity.x *= Math.exp(-0.7 * dt);
             velocity.z *= Math.exp(-0.7 * dt);
@@ -263,16 +265,25 @@ export function spawnBlockBreakParticles(scene, center, type) {
                 velocity.z *= 0.72;
             }
 
-            particle.rotation.x += particle.userData.rotation.x * dt;
-            particle.rotation.y += particle.userData.rotation.y * dt;
-            particle.rotation.z += particle.userData.rotation.z * dt;
-
-            const fadeStart = life * 0.55;
-            particle.material.opacity = age <= fadeStart ? 1 : Math.max(0, 1 - (age - fadeStart) / (life - fadeStart));
+            dummy.position.copy(particle.position);
+            dummy.rotation.x += particle.rotation.x * dt;
+            dummy.rotation.y += particle.rotation.y * dt;
+            dummy.rotation.z += particle.rotation.z * dt;
+            dummy.scale.setScalar(particle.size);
+            dummy.updateMatrix();
+            mesh.setMatrixAt(i, dummy.matrix);
         }
 
-        if (alive) requestAnimationFrame(tick);
-        else baseGeometry.dispose();
+        mesh.instanceMatrix.needsUpdate = true;
+        material.opacity = age <= 420 ? 1 : Math.max(0, 1 - (age - 420) / 340);
+        if (alive) {
+            requestAnimationFrame(tick);
+        } else {
+            scene.remove(mesh);
+            geometry.dispose();
+            material.dispose();
+            activeParticleBursts = Math.max(0, activeParticleBursts - 1);
+        }
     }
 
     tick.last = start;

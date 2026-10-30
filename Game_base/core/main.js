@@ -607,6 +607,10 @@ function setMenuUiVisible(visible) {
     if (settingsButton) settingsButton.style.display = (!visible && gameStarted && mobileMode) ? "flex" : display;
     if (menuUpdates) menuUpdates.style.display = visible ? "block" : "none";
     if (performanceHud) performanceHud.style.display = display;
+    if (visible) {
+        if (statsContextMenu) statsContextMenu.style.display = "none";
+        if (nerdStatsPanel) nerdStatsPanel.style.display = "none";
+    }
 }
 
 window.addEventListener("webminecraft:return-home", () => { returnToHomeScreen(); });
@@ -912,6 +916,11 @@ if (settingsCloseTop) {
 document.addEventListener("keydown", event => {
     if (event.code !== "Escape") return;
     if (settingsMenu?.style.display === "flex") closeSettingsMenu();
+    if (statsContextMenu.style.display !== "none") statsContextMenu.style.display = "none";
+    if (nerdStatsPanel.style.display !== "none") {
+        nerdStatsPanel.style.display = "none";
+        requestPointerLock();
+    }
 });
 if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
 
@@ -952,6 +961,47 @@ performanceHud.id = "performanceHud";
 performanceHud.style.cssText = "position:fixed;top:12px;left:12px;padding:6px 8px;background:rgba(0,0,0,.45);color:white;font:12px monospace;line-height:1.4;pointer-events:none;z-index:15;border-radius:5px;";
 performanceHud.textContent = "FPS: -- | Chunks: -- | Calls: --";
 document.body.appendChild(performanceHud);
+
+const statsContextMenu = document.createElement("div");
+statsContextMenu.id = "webMinecraftStatsContextMenu";
+statsContextMenu.style.cssText = "position:fixed;display:none;min-width:174px;padding:5px;background:rgba(24,24,24,.98);border:1px solid #555;color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.45);z-index:2000005;font:13px Arial,sans-serif;";
+const statsMenuButton = document.createElement("button");
+statsMenuButton.type = "button";
+statsMenuButton.textContent = "Stats for nerds";
+statsMenuButton.style.cssText = "display:block;width:100%;padding:9px 12px;border:0;background:transparent;color:#fff;text-align:left;font:13px Arial,sans-serif;cursor:pointer;";
+statsMenuButton.addEventListener("mouseenter", () => { statsMenuButton.style.background = "#3d3d3d"; });
+statsMenuButton.addEventListener("mouseleave", () => { statsMenuButton.style.background = "transparent"; });
+statsContextMenu.appendChild(statsMenuButton);
+document.body.appendChild(statsContextMenu);
+
+const nerdStatsPanel = document.createElement("section");
+nerdStatsPanel.id = "webMinecraftNerdStats";
+nerdStatsPanel.style.cssText = "position:fixed;top:16px;right:16px;display:none;width:min(360px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:auto;padding:0;background:rgba(18,18,18,.94);border:1px solid rgba(255,255,255,.34);border-radius:7px;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.48);z-index:2000004;font:12px/1.45 Arial,sans-serif;pointer-events:auto;";
+nerdStatsPanel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #555;font-weight:700;font-size:13px"><span>Stats for nerds</span><button id="webMinecraftNerdStatsClose" type="button" aria-label="Close stats" style="border:0;background:transparent;color:#fff;font-size:20px;cursor:pointer">×</button></div><pre id="webMinecraftNerdStatsContent" style="margin:0;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;color:#e8e8e8;font:11px/1.55 Consolas,monospace"></pre>';
+document.body.appendChild(nerdStatsPanel);
+const nerdStatsContent = nerdStatsPanel.querySelector("#webMinecraftNerdStatsContent");
+const nerdStatsClose = nerdStatsPanel.querySelector("#webMinecraftNerdStatsClose");
+statsMenuButton.addEventListener("click", () => {
+    statsContextMenu.style.display = "none";
+    nerdStatsPanel.style.display = "block";
+    updateNerdStats();
+});
+nerdStatsClose.addEventListener("click", () => {
+    nerdStatsPanel.style.display = "none";
+    requestPointerLock();
+});
+document.addEventListener("contextmenu", event => {
+    if (!gameStarted || !document.body.classList.contains("webminecraft-in-world")) return;
+    event.preventDefault();
+    const x = event.clientX || window.innerWidth / 2;
+    const y = event.clientY || window.innerHeight / 2;
+    statsContextMenu.style.left = Math.max(8, Math.min(window.innerWidth - 188, x)) + "px";
+    statsContextMenu.style.top = Math.max(8, Math.min(window.innerHeight - 46, y)) + "px";
+    statsContextMenu.style.display = "block";
+});
+document.addEventListener("pointerdown", event => {
+    if (!statsContextMenu.contains(event.target)) statsContextMenu.style.display = "none";
+});
 setMenuUiVisible(true);
 window.addEventListener("resize", () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
@@ -965,6 +1015,48 @@ window.addEventListener("pointermove", () => {
 window.addEventListener("pointerleave", () => { menuLook.targetX = 0; menuLook.targetY = 0; });
 
 let lastTime = performance.now(), fpsTime = lastTime, fpsFrames = 0, lastSunX = camera.position.x, lastSunZ = camera.position.z;
+let lastFrameTimeMs = 0;
+let shownFps = 0;
+let frameTimeSamples = [];
+let lastNerdStatsUpdate = 0;
+
+function updateNerdStats() {
+    const samples = frameTimeSamples;
+    const averageMs = samples.length ? samples.reduce((sum, value) => sum + value, 0) / samples.length : 0;
+    const ordered = samples.slice().sort((a, b) => a - b);
+    const p99FrameMs = ordered.length ? ordered[Math.min(ordered.length - 1, Math.floor(ordered.length * 0.99))] : 0;
+    const stats = getPerformanceStats();
+    const render = renderer.info.render;
+    const memory = renderer.info.memory;
+    const fps = averageMs > 0 ? 1000 / averageMs : shownFps;
+    const lowFps = p99FrameMs > 0 ? 1000 / p99FrameMs : 0;
+    const lines = [
+        "FPS:                    " + (Number.isFinite(fps) ? fps.toFixed(1) : "--"),
+        "1% low FPS:             " + (Number.isFinite(lowFps) ? lowFps.toFixed(1) : "--"),
+        "Frame time:             " + lastFrameTimeMs.toFixed(1) + " ms",
+        "Average frame:          " + averageMs.toFixed(1) + " ms",
+        "",
+        "World",
+        "Loaded chunks:          " + stats.loadedChunks,
+        "Queued chunks:          " + stats.queuedChunks,
+        "  Generation queue:     " + stats.queuedGenerationChunks,
+        "  Mesh rebuild queue:   " + stats.queuedMeshRebuilds,
+        "Active chunk task:      " + stats.activeChunkPhase,
+        "Chunk work/frame:       " + Number(stats.chunkProcessMs || 0).toFixed(2) + " ms",
+        "Render distance:        " + stats.renderDistance + " chunks",
+        "World seed:             " + stats.seed,
+        "",
+        "Renderer",
+        "Draw calls:             " + render.calls,
+        "Triangles:              " + render.triangles.toLocaleString(),
+        "Geometries:             " + memory.geometries,
+        "Textures:               " + memory.textures,
+        "Pixel ratio:            " + renderer.getPixelRatio().toFixed(2),
+        "Canvas:                 " + renderer.domElement.width + " x " + renderer.domElement.height,
+        "Viewport:               " + window.innerWidth + " x " + window.innerHeight
+    ];
+    nerdStatsContent.textContent = lines.join("\n");
+}
 
 // Adaptive quality: preserve gameplay while lowering GPU cost when frame times
 // stay high, then cautiously restore quality after sustained headroom.
@@ -1079,7 +1171,10 @@ function animate() {
     requestAnimationFrame(animate);
     if (document.hidden) return;
     const currentTime = performance.now();
-    const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
+    lastFrameTimeMs = currentTime - lastTime;
+    frameTimeSamples.push(Math.min(1000, lastFrameTimeMs));
+    if (frameTimeSamples.length > 120) frameTimeSamples.shift();
+    const deltaTime = Math.min(lastFrameTimeMs / 1000, 0.05);
     lastTime = currentTime;
     updateAdaptiveQuality(currentTime);
     if (gameStarted) {
@@ -1098,6 +1193,16 @@ function animate() {
     }
     renderer.render(scene, camera);
     fpsFrames++;
-    if (currentTime - fpsTime >= 500) { const fps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime)); const stats = getPerformanceStats(); performanceHud.textContent = `FPS: ${fps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`; fpsFrames = 0; fpsTime = currentTime; }
+    if (currentTime - fpsTime >= 500) {
+        shownFps = Math.round((fpsFrames * 1000) / (currentTime - fpsTime));
+        const stats = getPerformanceStats();
+        performanceHud.textContent = `FPS: ${shownFps} | Chunks: ${stats.loadedChunks} | Calls: ${renderer.info.render.calls}`;
+        fpsFrames = 0;
+        fpsTime = currentTime;
+    }
+    if (nerdStatsPanel.style.display !== "none" && currentTime - lastNerdStatsUpdate >= 250) {
+        lastNerdStatsUpdate = currentTime;
+        updateNerdStats();
+    }
 }
 animate();

@@ -1205,6 +1205,7 @@ function processChunkQueue() {
                 if (step.done) {
                     attachChunkMesh(task.chunk, step.value);
                     activeChunkTask = null;
+                    if (task.repeatAfterBuild) queueMeshRebuild(task.chunk.x, task.chunk.z);
                 }
             }
         } catch (error) {
@@ -1219,6 +1220,7 @@ function processChunkQueue() {
             break;
         }
     }
+    lastChunkProcessTime = performance.now() - startTime;
 }
 function unloadFarChunks(playerChunkX,playerChunkZ){if(activeChunkTask){const activeDistance=Math.max(Math.abs(activeChunkTask.chunk.x-playerChunkX),Math.abs(activeChunkTask.chunk.z-playerChunkZ));if(activeDistance>UNLOAD_DISTANCE){const activeKey=chunkKey(activeChunkTask.chunk.x,activeChunkTask.chunk.z);disposeChunkMesh(activeChunkTask.chunk);chunks.delete(activeKey);activeChunkTask=null;activeGenerationChunk=null;}}for(const[key,chunk]of chunks){const distance=Math.max(Math.abs(chunk.x-playerChunkX),Math.abs(chunk.z-playerChunkZ));if(distance>UNLOAD_DISTANCE){disposeChunkMesh(chunk);chunks.delete(key);}}for(let i=generationQueue.length-1;i>=0;i--){const item=generationQueue[i];if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){queuedKeys.delete(chunkKey(item.x,item.z));generationQueue.splice(i,1);}}for(let i=meshRebuildQueue.length-1;i>=0;i--){const item=meshRebuildQueue[i];if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){queuedMeshRebuildKeys.delete(chunkKey(item.x,item.z));meshRebuildQueue.splice(i,1);}}}
 function updateFacingVisibility(playerPosition,camera){if(!camera)return;const now=performance.now();const interval=IS_LOW_POWER_DEVICE?100:50;if(now-lastFacingVisibilityUpdate<interval)return;lastFacingVisibilityUpdate=now;const direction=new THREE.Vector3();camera.getWorldDirection(direction);direction.y=0;const directionLengthSq=direction.lengthSq();if(directionLengthSq<.0001)return;const invLength=1/Math.sqrt(directionLengthSq);direction.x*=invLength;direction.z*=invLength;const playerChunk=getChunkCoords(playerPosition.x,playerPosition.z),maxDistance=RENDER_DISTANCE+1,maxDistanceSq=maxDistance*maxDistance;for(const chunk of chunks.values()){const mesh=chunkMeshes.get(chunkKey(chunk.x,chunk.z));if(!mesh)continue;const dx=chunk.x-playerChunk.chunkX,dz=chunk.z-playerChunk.chunkZ;if(Math.max(Math.abs(dx),Math.abs(dz))>maxDistance){mesh.visible=false;continue;}const distanceSq=dx*dx+dz*dz;let shouldKeep=distanceSq<2.4*2.4;if(!shouldKeep){const invDistance=1/Math.sqrt(distanceSq);const dot=(dx*invDistance)*direction.x+(dz*invDistance)*direction.z;shouldKeep=dot>-.72;}mesh.visible=shouldKeep;}
@@ -1255,10 +1257,10 @@ function queueMeshRebuild(chunkX, chunkZ) {
     const chunk = chunks.get(key);
     if (!chunk?.generated) return;
 
-    // If the streamer is already building this chunk's mesh, restart it so
-    // the finished geometry includes the latest block edit.
+    // Let the current mesh build finish and schedule one follow-up for all
+    // edits received during that build. Never restart its iterator per block.
     if (activeChunkTask?.chunk === chunk && activeChunkTask.phase === "mesh") {
-        activeChunkTask.iterator = makeGeometryForChunkSteps(chunk);
+        activeChunkTask.repeatAfterBuild = true;
         return;
     }
 
@@ -1289,5 +1291,19 @@ export function clearWorld(){
 }
 export function createWorld(scene){worldScene=scene;clearWorld();queueNeededChunks(0,0);}
 export function updateChunkVisibility(position,camera){if(!worldScene||!position)return;const{chunkX,chunkZ}=getChunkCoords(position.x,position.z);if(chunkX!==lastPlayerChunkX||chunkZ!==lastPlayerChunkZ){lastPlayerChunkX=chunkX;lastPlayerChunkZ=chunkZ;queueNeededChunks(chunkX,chunkZ);unloadFarChunks(chunkX,chunkZ);}processChunkQueue();updateFacingVisibility(position,camera);}
-export function getPerformanceStats(){let loadedChunks=0;for(const[key,chunk]of chunks){if(chunk.generated&&chunkMeshes.has(key))loadedChunks++;}return{loadedChunks,queuedChunks:generationQueue.length+meshRebuildQueue.length+(activeChunkTask?1:0),renderDistance:RENDER_DISTANCE,seed:WORLD_SEED,generatingChunks:activeChunkTask?1:0};}
+export function getPerformanceStats(){
+    let loadedChunks=0;
+    for(const[key,chunk]of chunks){if(chunk.generated&&chunkMeshes.has(key))loadedChunks++;}
+    return {
+        loadedChunks,
+        queuedChunks:generationQueue.length+meshRebuildQueue.length+(activeChunkTask?1:0),
+        queuedGenerationChunks:generationQueue.length,
+        queuedMeshRebuilds:meshRebuildQueue.length,
+        activeChunkPhase:activeChunkTask?.phase || "idle",
+        chunkProcessMs:lastChunkProcessTime,
+        renderDistance:RENDER_DISTANCE,
+        seed:WORLD_SEED,
+        generatingChunks:activeChunkTask?.phase === "data" ? 1 : 0
+    };
+}
 export function getWorldSeed(){return WORLD_SEED;}

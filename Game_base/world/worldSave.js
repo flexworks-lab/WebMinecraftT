@@ -65,6 +65,25 @@ function writeLocalBlockSnapshot(seed, blocks) {
     try { localStorage.setItem(key, JSON.stringify(blocks || {})); } catch {}
 }
 
+let snapshotTimer = null;
+let pendingSnapshotSeed = null;
+
+function flushLocalSnapshot() {
+    if (snapshotTimer !== null) clearTimeout(snapshotTimer);
+    snapshotTimer = null;
+    const seed = pendingSnapshotSeed;
+    pendingSnapshotSeed = null;
+    if (seed === null || isWorldDeleted(seed)) return;
+    writeLocalBlockSnapshot(seed, activeBlocks);
+    writePlayerState(seed);
+}
+
+function scheduleLocalSnapshot(seed) {
+    pendingSnapshotSeed = seed;
+    if (snapshotTimer !== null) clearTimeout(snapshotTimer);
+    snapshotTimer = setTimeout(flushLocalSnapshot, LOCAL_SAVE_DELAY_MS);
+}
+
 function readWorldPreview(seed) {
     const normalized = normalizeSeed(seed);
     if (normalized === null) return null;
@@ -448,6 +467,11 @@ async function flushBlockSaves() {
     }
 }
 
+window.addEventListener("pagehide", () => {
+    if (pendingSnapshotSeed !== null) flushLocalSnapshot();
+    if (activeWorldSeed !== null && !isWorldDeleted(activeWorldSeed)) writePlayerState(activeWorldSeed, true);
+});
+
 window.addEventListener("webminecraft:blockchange", event => {
     const detail = event.detail || {};
     const x = Math.floor(Number(detail.x));
@@ -462,13 +486,12 @@ window.addEventListener("webminecraft:blockchange", event => {
     activeBlocks[key] = type;
     pendingChanges.set(key, { x, y, z, type });
     worldDirty = true;
-    writeLocalBlockSnapshot(seed, activeBlocks);
-    writePlayerState(seed);
+    scheduleLocalSnapshot(seed);
 
-    // Mirror the edit into the active world, but let worldEditSave.js be the only
-    // module responsible for persisting block edits to the browser world record.
+    // activeBlocks is the authoritative in-memory map; share it instead of
+    // cloning the complete saved-world block object after every edit.
     if (activeWorld && activeWorldSeed === seed) {
-        activeWorld.blocks = { ...activeWorld.blocks, ...activeBlocks };
+        activeWorld.blocks = activeBlocks;
         activeWorld.updatedAt = new Date().toISOString();
     }
 });
@@ -477,6 +500,7 @@ async function switchWorld(seed, options = {}) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null) return null;
 
+    if (pendingSnapshotSeed !== null) flushLocalSnapshot();
     const switchId = ++worldSwitchId;
     clearTimeout(saveTimer);
     clearTimeout(cloudSaveTimer);
@@ -507,6 +531,7 @@ export async function saveCurrentWorld(options = {}) {
     const skipPreview = options?.skipPreview === true;
     clearTimeout(saveTimer);
     saveTimer = null;
+    if (pendingSnapshotSeed !== null) flushLocalSnapshot();
     if (pendingChanges.size > 0) await flushBlockSaves();
 
     if (activeWorld && !isWorldDeleted(activeWorld.seed)) {
@@ -537,6 +562,13 @@ export async function deleteCurrentWorld(seed) {
     if (normalizedSeed === null) return false;
 
     ++worldSwitchId;
+    if (pendingSnapshotSeed === normalizedSeed) {
+        if (snapshotTimer !== null) clearTimeout(snapshotTimer);
+        snapshotTimer = null;
+        pendingSnapshotSeed = null;
+    } else if (pendingSnapshotSeed !== null) {
+        flushLocalSnapshot();
+    }
     clearTimeout(saveTimer);
     clearTimeout(cloudSaveTimer);
     stopLiveCloudSave();
