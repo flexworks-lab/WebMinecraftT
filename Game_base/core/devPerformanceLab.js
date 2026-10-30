@@ -11,7 +11,7 @@ export function createDevPerformanceLab(deps) {
     const root = document.createElement("section");
     root.id = "webminecraftDevPerformanceLab";
     root.setAttribute("aria-hidden", "true");
-    root.style.cssText = "position:fixed;inset:0;display:none;z-index:3000000;color:#f4f7f4;font:13px/1.45 Arial,sans-serif;background:linear-gradient(90deg,rgba(4,8,6,.22) 0%,rgba(4,8,6,.10) 48%,rgba(10,15,12,.94) 100%);pointer-events:auto;";
+    root.style.cssText = "position:fixed;inset:0;display:none;z-index:2000003;color:#f4f7f4;font:13px/1.45 Arial,sans-serif;background:linear-gradient(90deg,rgba(4,8,6,.22) 0%,rgba(4,8,6,.10) 48%,rgba(10,15,12,.94) 100%);pointer-events:auto;";
     root.innerHTML = [
         '<div style="position:absolute;left:20px;top:18px;max-width:min(520px,48vw);text-shadow:0 2px 5px #000">',
         '<div style="font:900 11px Arial,sans-serif;letter-spacing:3px;color:#a9d5b5">WEBMINECRAFT / DEVELOPER TOOLS</div>',
@@ -66,6 +66,7 @@ export function createDevPerformanceLab(deps) {
     let preview = null;
     let opened = false;
     let running = false;
+    let worldPrepared = false;
     let stopRequested = false;
     let closeAfterStop = false;
     let originalSeed = 0;
@@ -246,13 +247,17 @@ export function createDevPerformanceLab(deps) {
 
     function setupSimulationWorld() {
         removePreview();
-        originalSeed = getWorldSeed();
-        originalRenderDistance = getPerformanceStats().renderDistance || 3;
+        if (!worldPrepared) {
+            originalSeed = getWorldSeed();
+            originalRenderDistance = getPerformanceStats().renderDistance || 3;
+        }
+        resetWaterPhysics();
         const testDistance = Math.max(2, Math.min(originalRenderDistance, 3));
         setRenderDistance(testDistance * CHUNK_SIZE);
         setWorldSeed(20261029);
         createWorld(benchScene);
         setupWaterPhysics(benchScene);
+        worldPrepared = true;
         const terrain = getTerrainProfile(0, 0);
         setCameraForWorld(0, 0, Math.max(terrain.height + 24, 34));
         lastParticleBurst = 0;
@@ -340,7 +345,6 @@ export function createDevPerformanceLab(deps) {
     async function run() {
         if (running) return;
         ensureScene();
-        removePreview();
         running = true;
         stopRequested = false;
         closeAfterStop = false;
@@ -353,10 +357,10 @@ export function createDevPerformanceLab(deps) {
         startButton.style.display = "none";
         stopButton.style.display = "block";
         el("devBenchState").textContent = "RUNNING";
-        setupSimulationWorld();
         try {
             for (let i = 0; i < stages.length; i++) {
                 if (stopRequested) break;
+                if (i === 1) setupSimulationWorld();
                 const result = await runStage(stages[i], i);
                 results.push(result);
                 renderResults();
@@ -366,6 +370,7 @@ export function createDevPerformanceLab(deps) {
             el("devBenchMessage").textContent = "Benchmark stopped: " + String(error?.message || error);
         } finally {
             running = false;
+            restoreKeys();
             stopButton.style.display = "none";
             startButton.style.display = "block";
             el("devBenchState").textContent = stopRequested ? "STOPPED" : "COMPLETE";
@@ -381,6 +386,13 @@ export function createDevPerformanceLab(deps) {
         }
     }
 
+    function restoreKeys() {
+        if (!savedKeys) return;
+        for (const key of Object.keys(keys)) delete keys[key];
+        Object.assign(keys, savedKeys);
+        savedKeys = null;
+    }
+
     function cleanupAndHide() {
         if (running) {
             closeAfterStop = true;
@@ -388,18 +400,19 @@ export function createDevPerformanceLab(deps) {
             return;
         }
         try {
-            if (savedKeys) {
-                for (const key of Object.keys(keys)) delete keys[key];
-                Object.assign(keys, savedKeys);
-                savedKeys = null;
+            restoreKeys();
+            if (worldPrepared) {
+                resetWaterPhysics();
+                createWorld(mainScene);
+                clearWorld();
+                setRenderDistance(originalRenderDistance * CHUNK_SIZE);
+                setWorldSeed(originalSeed);
+                worldPrepared = false;
             }
-            resetWaterPhysics();
-            createWorld(mainScene);
-            clearWorld();
-            setRenderDistance(originalRenderDistance * CHUNK_SIZE);
-            setWorldSeed(originalSeed);
             removePreview();
             if (benchScene) benchScene.clear();
+            benchScene = null;
+            benchCamera = null;
         } catch (error) {
             console.warn("Developer benchmark cleanup:", error);
         }
