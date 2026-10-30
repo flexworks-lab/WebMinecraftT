@@ -705,14 +705,14 @@ body #hotbar,body #crosshair,body #performanceHud,body #coordinatesHud{opacity:v
   border-top-color:#c3c3c3!important;
   border-left-color:#c3c3c3!important;
   border-radius:0!important;
-  background:linear-gradient(#777,#5e5e5e)!important;
+  background:linear-gradient(180deg,rgba(66,66,66,.80),rgba(29,29,29,.80))!important;
   color:#fff!important;
   font-family:"MinecraftFont",monospace!important;
   font-size:11px!important;
   text-shadow:1px 1px #333!important;
   box-shadow:0 2px 0 #333!important;
 }
-#settingsScroll .settingControl select option{background:#555!important;color:#fff!important}
+#settingsScroll .settingControl select option{background:#242424!important;color:#f5f5f5!important}
 #settingsScroll .settingControl input[type=range]{
   width:100%!important;
   min-width:80px!important;

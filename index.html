@@ -967,6 +967,44 @@ body,body *{border-radius:0!important}
   border-color:#111!important;
   color:#f5f5f5!important;
 }
+
+/* One shared dropdown style for every menu and in-game select. Backgrounds
+   use 80% opacity (20% transparency); text and arrow remain fully opaque. */
+body select,
+#settingsMenu #settingsScroll select,
+#multiplayerMenu select,
+#savedWorlds select,
+#seedMenu select,
+#createWorldSettingsRoot select {
+  box-sizing:border-box!important;
+  min-height:38px!important;
+  padding:7px 34px 7px 10px!important;
+  appearance:auto!important;
+  -webkit-appearance:menulist!important;
+  border:2px solid rgba(8,8,8,.96)!important;
+  border-top-color:rgba(135,135,135,.80)!important;
+  border-left-color:rgba(135,135,135,.80)!important;
+  border-radius:0!important;
+  background:linear-gradient(180deg,rgba(66,66,66,.80),rgba(29,29,29,.80))!important;
+  color:#f5f5f5!important;
+  opacity:1!important;
+  box-shadow:inset 1px 1px 0 rgba(255,255,255,.07),inset -1px -2px 0 rgba(0,0,0,.34)!important;
+  font-family:"MinecraftFont",monospace!important;
+  cursor:pointer!important;
+}
+body select option,
+body select optgroup {
+  background:#242424!important;
+  color:#f5f5f5!important;
+}
+body select:disabled {
+  opacity:.65!important;
+  cursor:not-allowed!important;
+}
+body select:focus-visible {
+  outline:2px solid #a0a0a0!important;
+  outline-offset:1px!important;
+}
 </style>
 </head>
 <body>

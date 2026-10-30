@@ -909,11 +909,13 @@ function injectStyle() {
 .createWorldSettingsGroup{background:rgba(174,174,174,.70)!important;border:1px solid #555!important;box-shadow:none!important}
 .createWorldSettingsRow{background:rgba(125,125,125,.70)!important;border:1px solid #444!important;border-left:3px solid #333!important;box-shadow:none!important}
 .createWorldSettingsGroupTitle,#createWorldSettingsSectionTitle,.createWorldSettingsRow label,.createWorldSettingsRow small{color:#fff!important}
-.createWorldSettingsSelect,.createWorldSettingsInput{background:#777!important;color:#fff!important;border:2px solid #333!important;border-top-color:#aaa!important;border-left-color:#aaa!important}
-#createWorldSettingsRoot #cwGameMode{display:block!important;width:100%!important;min-width:190px!important;height:38px!important;padding:7px 32px 7px 10px!important;appearance:auto!important;background:#777!important;color:#fff!important;border:2px solid #292929!important;border-top-color:#bcbcbc!important;border-left-color:#bcbcbc!important;font:12px "MinecraftFont",monospace!important;cursor:pointer!important}
+.createWorldSettingsSelect,.createWorldSettingsInput{background:#292929!important;color:#f5f5f5!important;border:2px solid #111!important;border-top-color:#777!important;border-left-color:#777!important}
+#createWorldSettingsRoot #cwGameMode{display:block!important;width:100%!important;min-width:190px!important;height:38px!important;padding:7px 34px 7px 10px!important;appearance:auto!important;-webkit-appearance:menulist!important;background:linear-gradient(180deg,rgba(66,66,66,.80),rgba(29,29,29,.80))!important;color:#f5f5f5!important;border:2px solid #111!important;border-top-color:#777!important;border-left-color:#777!important;opacity:1!important;font:12px "MinecraftFont",monospace!important;cursor:pointer!important}
 #createWorldSettingsRoot .createWorldSettingsChoice,#createWorldSettingsRoot #cwGameModeChoices{display:none!important}
 #createWorldSettingsRoot *{border-radius:0!important}
-#createWorldSettingsRoot .createWorldSettingsTab,#createWorldSettingsRoot .createWorldSettingsAction,#createWorldSettingsRoot .createWorldSettingsSelect{background:linear-gradient(180deg,#858585,#626262)!important;color:#fff!important}
+#createWorldSettingsRoot .createWorldSettingsTab,#createWorldSettingsRoot .createWorldSettingsAction{background:linear-gradient(180deg,#555,#383838)!important;color:#fff!important}
+#createWorldSettingsRoot .createWorldSettingsSelect{background:linear-gradient(180deg,rgba(66,66,66,.80),rgba(29,29,29,.80))!important;color:#f5f5f5!important;border-color:#111!important;border-top-color:#777!important;border-left-color:#777!important;opacity:1!important;appearance:auto!important;-webkit-appearance:menulist!important}
+#createWorldSettingsRoot .createWorldSettingsSelect option{background:#242424!important;color:#f5f5f5!important}
 #createWorldSettingsRoot #createWorldSettingsCreate{background:linear-gradient(180deg,#858585,#626262)!important;border-color:#292929!important;border-top-color:#c5c5c5!important;border-left-color:#c5c5c5!important;text-shadow:1px 1px #333!important}
 #createWorldSettingsRoot input:focus,#createWorldSettingsRoot select:focus{outline:2px solid #ddd!important;outline-offset:1px!important}
 #createWorldSettingsRoot .createWorldSettingsStatic,
