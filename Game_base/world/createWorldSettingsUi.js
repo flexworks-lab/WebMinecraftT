@@ -914,9 +914,6 @@ function injectStyle() {
 #createWorldSettingsRoot .createWorldSettingsTab,#createWorldSettingsRoot .createWorldSettingsAction,#createWorldSettingsRoot .createWorldSettingsSelect{background:linear-gradient(180deg,#858585,#626262)!important;color:#fff!important}
 #createWorldSettingsRoot #createWorldSettingsCreate{background:linear-gradient(180deg,#858585,#626262)!important;border-color:#292929!important;border-top-color:#c5c5c5!important;border-left-color:#c5c5c5!important;text-shadow:1px 1px #333!important}
 #createWorldSettingsRoot input:focus,#createWorldSettingsRoot select:focus{outline:2px solid #ddd!important;outline-offset:1px!important}
-    `;
-
-
 #createWorldSettingsRoot .createWorldSettingsStatic,
 #createWorldSettingsRoot .createWorldSettingsPack{
   background:rgba(125,125,125,.70)!important;
@@ -926,6 +923,7 @@ function injectStyle() {
 }
 #createWorldSettingsRoot .createWorldSettingsPackName,
 #createWorldSettingsRoot .createWorldSettingsPackState{color:#fff!important}
+    `;
 
     document.head.appendChild(workshopStyle);
 }
