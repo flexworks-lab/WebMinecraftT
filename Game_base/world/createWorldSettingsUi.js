@@ -642,13 +642,165 @@ function injectStyle() {
     .createWorldSettingsChoice strong{font-size:10px!important}
     .createWorldSettingsChoice small{font-size:9px!important}
 }
+
+/* Lightly transparent world creator with classic Minecraft button bevels. */
+#createWorldSettingsRoot{
+    background:rgba(223,232,216,.84)!important;
+}
+#createWorldSettingsContent{
+    background:
+      radial-gradient(ellipse at 100% 0%,rgba(180,211,170,.18),transparent 42%),
+      linear-gradient(145deg,rgba(240,243,233,.84),rgba(223,232,216,.78))!important;
+}
+#createWorldSettingsHeader{
+    background:rgba(255,255,255,.36)!important;
+}
+#createWorldSettingsScroll{
+    background:rgba(229,237,222,.18)!important;
+}
+.createWorldSettingsGroup{
+    background:rgba(255,255,255,.50)!important;
+    border-color:rgba(166,188,160,.72)!important;
+    box-shadow:0 5px 14px rgba(33,65,40,.045)!important;
+}
+.createWorldSettingsRow{
+    background:rgba(248,250,244,.66)!important;
+}
+
+/* Classic raised stone buttons: bright top/left edges, dark bottom/right edges. */
+#createWorldSettingsRoot .createWorldSettingsTab,
+#createWorldSettingsRoot .createWorldSettingsAction,
+#createWorldSettingsRoot #createWorldSettingsClose,
+#createWorldSettingsRoot .createWorldSettingsMode button,
+#createWorldSettingsRoot .createWorldSettingsDifficulty button,
+#createWorldSettingsRoot .createWorldSettingsChoice{
+    border:2px solid #202020!important;
+    border-top-color:#e1e1e1!important;
+    border-left-color:#e1e1e1!important;
+    border-right-color:#292929!important;
+    border-bottom-color:#292929!important;
+    border-radius:0!important;
+    font-family:"MinecraftFont",monospace!important;
+    text-shadow:2px 2px 0 rgba(0,0,0,.55)!important;
+    box-shadow:
+      inset 2px 2px 0 rgba(255,255,255,.18),
+      inset -2px -3px 0 rgba(0,0,0,.22),
+      0 3px 0 rgba(0,0,0,.42)!important;
+    transition:filter .08s ease,transform .08s ease!important;
+}
+#createWorldSettingsRoot .createWorldSettingsTab{
+    min-height:42px!important;
+    justify-content:center!important;
+    padding:9px 12px!important;
+    background:linear-gradient(180deg,#858585 0%,#686868 100%)!important;
+    color:#fff!important;
+    font-size:11px!important;
+    text-align:center!important;
+}
+#createWorldSettingsRoot .createWorldSettingsTab:hover{
+    filter:brightness(1.12)!important;
+    transform:none!important;
+    background:linear-gradient(180deg,#969696 0%,#777 100%)!important;
+}
+#createWorldSettingsRoot .createWorldSettingsTab.active{
+    background:linear-gradient(180deg,#a0a0a0 0%,#7c7c7c 100%)!important;
+    color:#fff!important;
+    box-shadow:
+      inset 2px 2px 0 rgba(255,255,255,.25),
+      inset -2px -3px 0 rgba(0,0,0,.2),
+      0 3px 0 rgba(0,0,0,.42)!important;
+}
+.createWorldSettingsTabLabel{
+    width:100%!important;
+    color:inherit!important;
+    font:11px "MinecraftFont",monospace!important;
+    text-shadow:2px 2px 0 rgba(0,0,0,.55)!important;
+    text-align:center!important;
+}
+.createWorldSettingsTabIcon{display:none!important}
+#createWorldSettingsCreate{
+    min-height:50px!important;
+    border:2px solid #16451f!important;
+    border-top-color:#c2f0a6!important;
+    border-left-color:#c2f0a6!important;
+    border-right-color:#173d1d!important;
+    border-bottom-color:#173d1d!important;
+    border-radius:0!important;
+    background:linear-gradient(180deg,#72c95d 0%,#459b38 100%)!important;
+    color:#fff!important;
+    font:13px "MinecraftFont",monospace!important;
+    text-shadow:2px 2px #245c25!important;
+    box-shadow:inset 2px 2px 0 rgba(255,255,255,.2),inset -2px -3px 0 rgba(0,0,0,.2),0 4px 0 #183e21!important;
+}
+#createWorldSettingsCreate:hover{filter:brightness(1.1)!important;transform:none!important}
+#createWorldSettingsCreate:active{
+    transform:translateY(2px)!important;
+    box-shadow:inset 2px 2px 0 rgba(0,0,0,.15),0 1px 0 #183e21!important;
+}
+#createWorldSettingsRoot .createWorldSettingsAction{
+    min-height:40px!important;
+    padding:8px 14px!important;
+    background:linear-gradient(180deg,#898989 0%,#696969 100%)!important;
+    color:#fff!important;
+    font-size:10px!important;
+}
+#createWorldSettingsRoot #createWorldSettingsCancel{
+    background:linear-gradient(180deg,#858585 0%,#666 100%)!important;
+}
+#createWorldSettingsRoot .createWorldSettingsMode button,
+#createWorldSettingsRoot .createWorldSettingsDifficulty button{
+    min-height:38px!important;
+    background:linear-gradient(180deg,#858585 0%,#686868 100%)!important;
+    color:#fff!important;
+    font-size:10px!important;
+}
+#createWorldSettingsRoot .createWorldSettingsMode button.active,
+#createWorldSettingsRoot .createWorldSettingsDifficulty button.active{
+    background:linear-gradient(180deg,#a3a3a3 0%,#7e7e7e 100%)!important;
+    color:#fff!important;
+    border-color:#242424!important;
+    border-top-color:#eee!important;
+    border-left-color:#eee!important;
+}
+#createWorldSettingsRoot .createWorldSettingsChoice{
+    min-height:76px!important;
+    background:linear-gradient(180deg,#8c8c8c 0%,#6b6b6b 100%)!important;
+    color:#fff!important;
+}
+#createWorldSettingsRoot .createWorldSettingsChoice.active{
+    background:linear-gradient(180deg,#a0a0a0 0%,#7b7b7b 100%)!important;
+    border-color:#202020!important;
+    border-top-color:#f0f0f0!important;
+    border-left-color:#f0f0f0!important;
+}
+#createWorldSettingsRoot .createWorldSettingsChoice strong,
+#createWorldSettingsRoot .createWorldSettingsChoice small{
+    color:#fff!important;
+    text-shadow:1px 1px #333!important;
+}
+#createWorldSettingsRoot .createWorldSettingsChoiceIcon{
+    border:2px solid #222!important;
+    border-top-color:#ccc!important;
+    border-left-color:#ccc!important;
+    border-radius:0!important;
+    background:#777!important;
+    color:#fff!important;
+}
+#createWorldSettingsRoot #createWorldSettingsClose{
+    border-radius:0!important;
+    background:linear-gradient(180deg,#858585 0%,#686868 100%)!important;
+    color:#fff!important;
+    font-family:"MinecraftFont",monospace!important;
+    font-size:18px!important;
+    text-shadow:2px 2px #333!important;
+}
+#createWorldSettingsRoot #createWorldSettingsClose:hover{filter:brightness(1.1)!important}
     `;
     document.head.appendChild(workshopStyle);
 }
 
-function tabButton(label, page, icon, iconName) {
-    return `<button class="createWorldSettingsTab${page === "game" ? " active" : ""}" type="button" data-cw-tab="${page}" data-cw-icon="${iconName}">
-        <span class="createWorldSettingsTabIcon" aria-hidden="true">${icon}</span>
+function tabButton(label, page) {
+    return `<button class="createWorldSettingsTab${page === "game" ? " active" : ""}" type="button" data-cw-tab="${page}">
         <span class="createWorldSettingsTabLabel">${label}</span>
     </button>`;
 }
@@ -672,12 +824,12 @@ function enhance(modal) {
                 <div id="createWorldSettingsCreateWrap"><button id="createWorldSettingsCreate" class="createWorldSettingsAction" type="button">Create World</button></div>
                 <p id="createWorldSettingsSub">Set up your world before you create it.</p>
                 <nav id="createWorldSettingsTabs" aria-label="Create world sections">
-                    ${tabButton("General", "game", "◆", "general")}
-                    ${tabButton("Advanced", "world", "⚙", "advanced")}
-                    ${tabButton("Multiplayer", "more", "●", "multiplayer")}
-                    ${tabButton("Cheats", "more", "✦", "cheats")}
-                    ${tabButton("Resource Packs", "more", "✚", "resources")}
-                    ${tabButton("Behavior Packs", "more", "◇", "behavior")}
+                    ${tabButton("General", "game")}
+                    ${tabButton("Advanced", "world")}
+                    ${tabButton("Multiplayer", "more")}
+                    ${tabButton("Cheats", "more")}
+                    ${tabButton("Resource Packs", "more")}
+                    ${tabButton("Behavior Packs", "more")}
                 </nav>
                 <div id="createWorldSettingsSidebarFooter">World settings are saved with the world when it is created.</div>
             </aside>
