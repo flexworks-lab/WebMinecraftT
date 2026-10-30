@@ -131,60 +131,59 @@ function control(id, label, description, type, options) {
 }
 
 const panels = {
-    Graphics: `
-        <div class="settingsGroup"><h3>Rendering</h3>
-        ${control("sShadows", "Shadows", "Toggle dynamic shadows.", "checkbox")}
-        ${control("sShadowQuality", "Shadow Quality", "Higher values look better but use more GPU power.", "select", [[512,"Low"],[1024,"High"],[2048,"Ultra"]])}
-        ${control("sPixelRatio", "Render Quality", "Controls the resolution used for 3D rendering.", "select", [[0.75,"Performance"],[1,"Balanced"],[1.25,"Quality"],[1.5,"Ultra"]])}
-        ${control("sLighting", "Lighting Quality", "Choose the lighting performance profile.", "select", [["performance","Performance"],["balanced","Balanced"],["high","High"]])}
-        ${control("sBrightness", "Brightness", "Adjust scene exposure.", "range", [0.5,1.5,0.05])}
-        ${control("sFov", "Field of View", "Change how wide your camera view feels.", "range", [60,110,1])}
-        ${control("sRenderDistance", "View Distance", "How far terrain remains visible.", "select", [[60,"Short"],[90,"Normal"],[120,"Far"],[150,"Very Far"],[180,"Extreme"]])}
-        ${control("sFog", "Fog", "Enable distance fog.", "checkbox")}
-        ${control("sWaterEffects", "Water Effects", "Enable underwater visual effects.", "checkbox")}
-        ${control("sPixelated", "Pixelated Mode", "Give the interface a crisp pixel presentation.", "checkbox")}
+    Video: `
+        <div class="settingsGroup"><h3>World</h3>
+        ${control("sShadows", "Shadows", "Show shadows around the world.", "checkbox")}
+        ${control("sShadowQuality", "Shadow Detail", "Choose how detailed shadows look.", "select", [[512,"Low"],[1024,"High"],[2048,"Ultra"]])}
+        ${control("sPixelRatio", "Graphics Quality", "Choose a balance between looks and speed.", "select", [[0.75,"Performance"],[1,"Balanced"],[1.25,"High"],[1.5,"Ultra"]])}
+        ${control("sLighting", "Lighting", "Choose how lighting looks.", "select", [["performance","Low"],["balanced","Balanced"],["high","High"]])}
+        ${control("sBrightness", "Brightness", "Make the world brighter or darker.", "range", [0.5,1.5,0.05])}
+        ${control("sFog", "Fog", "Show fog in the distance.", "checkbox")}
+        ${control("sWaterEffects", "Water Effects", "Show extra water effects.", "checkbox")}
+        </div>
+        <div class="settingsGroup"><h3>View</h3>
+        ${control("sFov", "Field of View", "Change how wide your view is.", "range", [60,110,1])}
+        ${control("sRenderDistance", "View Distance", "Choose how far you can see.", "select", [[60,"Short"],[90,"Normal"],[120,"Far"],[150,"Very Far"],[180,"Extreme"]])}
+        ${control("sPixelated", "Classic Pixels", "Use a crisp, blocky look.", "checkbox")}
         </div>`,
     Controls: `
-        <div class="settingsGroup settings-desktop-only"><h3>Mouse</h3>
-        ${control("sMouseSensitivity", "Mouse Sensitivity", "Camera turn speed with a mouse.", "range", [0.35,2,0.05])}
+        <div class="settingsGroup"><h3>Keyboard & Mouse</h3>
+        ${control("sMouseSensitivity", "Mouse Speed", "How quickly you turn with the mouse.", "range", [0.35,2,0.05])}
+        ${control("sInvertY", "Invert Look", "Reverse up and down camera movement.", "checkbox")}
         </div>
-        <div class="settingsGroup settings-touch-only"><h3>Touch Controls</h3>
-        ${control("sTouchSensitivity", "Look Sensitivity", "How quickly the camera turns when you drag to look.", "range", [0.5,2,0.05])}
-        ${control("sTouchControlSize", "Control Size", "Resize the on-screen movement and action controls.", "range", [0.7,1.35,0.05])}
-        ${control("sTouchControlOpacity", "Control Opacity", "Make the on-screen controls more or less visible.", "range", [0.3,1,0.05])}
-        ${control("sShowTouchControls", "Show Touch Buttons", "Hide or show movement and action buttons. Touch-look still works.", "checkbox")}
-        ${control("sLeftHandedControls", "Left-Handed Layout", "Move action buttons to the left and movement buttons to the right.", "checkbox")}
+        <div class="settingsGroup settings-touch-only"><h3>Touch</h3>
+        ${control("sTouchSensitivity", "Look Speed", "How quickly you turn when dragging.", "range", [0.5,2,0.05])}
+        ${control("sTouchControlSize", "Button Size", "Make the touch buttons bigger or smaller.", "range", [0.7,1.35,0.05])}
+        ${control("sTouchControlOpacity", "Button Opacity", "Make the touch buttons easier or harder to see.", "range", [0.3,1,0.05])}
+        ${control("sShowTouchControls", "Show Touch Buttons", "Show or hide the on-screen buttons.", "checkbox")}
+        ${control("sLeftHandedControls", "Left-Handed Layout", "Move the touch buttons to the other side.", "checkbox")}
         </div>
-        <div class="settingsGroup"><h3>Camera</h3>
-        ${control("sInvertY", "Invert Y Axis", "Reverse vertical camera movement.", "checkbox")}
-        </div>
-        <div class="settingsGroup settings-desktop-only"><h3>Keyboard Keybinds</h3>
+        <div class="settingsGroup settings-desktop-only"><h3>Keyboard</h3>
             <div id="settingsKeybinds"></div>
-            <div class="setting settingInfo"><div><label>Reset Keybinds</label><small>Restore movement and gameplay keys to their defaults.</small></div><div class="settingControl"><button id="resetKeybinds" type="button">Reset</button></div></div>
+            <div class="setting settingInfo"><div><label>Reset Keys</label><small>Put all keys back to their defaults.</small></div><div class="settingControl"><button id="resetKeybinds" type="button">Reset</button></div></div>
         </div>`,
     Audio: `
         <div class="settingsGroup"><h3>Sound</h3>
-        ${control("sMasterVolume", "Master Volume", "Overall volume level.", "range", [0,1,0.05])}
-        ${control("sSoundEffects", "Sound Effects", "Enable gameplay sound effects.", "checkbox")}
-        <div class="setting settingInfo"><div><label>Music</label><small>No music track is currently loaded in the game, so there is nothing to toggle yet.</small></div></div>
+        ${control("sMasterVolume", "Volume", "Set the overall game volume.", "range", [0,1,0.05])}
+        ${control("sSoundEffects", "Sound Effects", "Turn game sounds on or off.", "checkbox")}
         </div>`,
     Accessibility: `
-        <div class="settingsGroup"><h3>Interface</h3>
-        ${control("sLargeUi", "Large UI", "Make interface controls easier to read.", "checkbox")}
-        ${control("sHighContrast", "High Contrast", "Increase contrast of interface elements.", "checkbox")}
-        ${control("sColorblind", "Colorblind-Friendly", "Use a more color-distinct interface palette.", "checkbox")}
-        ${control("sUiOpacity", "UI Opacity", "Adjust interface opacity.", "range", [0.5,1,0.05])}
-        ${control("sReducedMotion", "Reduced Motion", "Reduce interface animation.", "checkbox")}
+        <div class="settingsGroup"><h3>Screen</h3>
+        ${control("sLargeUi", "Larger Text & Buttons", "Make menus easier to see.", "checkbox")}
+        ${control("sHighContrast", "High Contrast", "Make menu items easier to tell apart.", "checkbox")}
+        ${control("sColorblind", "Color-Friendly Mode", "Use clearer colors in the interface.", "checkbox")}
+        ${control("sUiOpacity", "Menu Opacity", "Change how see-through the game interface is.", "range", [0.5,1,0.05])}
+        ${control("sReducedMotion", "Reduce Movement", "Tone down menu animations.", "checkbox")}
         </div>
-        <div class="settingsGroup"><h3>HUD</h3>
-        ${control("sCrosshair", "Crosshair", "Show the center crosshair.", "checkbox")}
-        ${control("sHotbar", "Hotbar", "Show the block hotbar.", "checkbox")}
-        ${control("sPerformanceHud", "Performance HUD", "Show FPS and renderer statistics.", "checkbox")}
+        <div class="settingsGroup"><h3>In-Game Display</h3>
+        ${control("sCrosshair", "Crosshair", "Show the center marker.", "checkbox")}
+        ${control("sHotbar", "Hotbar", "Show your item bar.", "checkbox")}
+        ${control("sPerformanceHud", "Show FPS", "Show the frame-rate counter while playing.", "checkbox")}
         </div>`,
-    Gameplay: `
-        <div class="settingsGroup"><h3>Gameplay</h3>
-        ${control("sFullscreen", "Fullscreen", "Enter or leave browser fullscreen.", "checkbox")}
-        <div class="setting settingInfo"><div><label>Reset Settings</label><small>Restore every option to its default value.</small></div><div class="settingControl"><button id="resetSettings" type="button">Reset</button></div></div>
+    Game: `
+        <div class="settingsGroup"><h3>Game</h3>
+        ${control("sFullscreen", "Full Screen", "Play using the whole screen.", "checkbox")}
+        <div class="setting settingInfo"><div><label>Reset Settings</label><small>Put all settings back to their defaults.</small></div><div class="settingControl"><button id="resetSettings" type="button">Reset</button></div></div>
         </div>`
 };
 
@@ -218,8 +217,8 @@ function build() {
     menu.dataset.redone = "1";
     menu.innerHTML = `
         <div id="settingsPanel" class="settingsRedonePanel">
-            <aside id="settingsSidebar"><div class="settingsBrand">SETTINGS</div><div class="settingsHint">WebMinecraftT</div><nav id="settingsTabs"></nav></aside>
-            <section id="settingsContent"><header id="settingsHeader"><div><h2 id="settingsSectionTitle">Graphics</h2><span id="settingsSaveHint">Changes save automatically</span></div><button id="settingsCloseTop" type="button" aria-label="Close settings">×</button></header><div id="settingsScroll"></div></section>
+            <aside id="settingsSidebar"><div class="settingsBrand">SETTINGS</div><div class="settingsHint">Change your game</div><nav id="settingsTabs"></nav></aside>
+            <section id="settingsContent"><header id="settingsHeader"><div><h2 id="settingsSectionTitle">Video</h2><span id="settingsSaveHint">Changes save automatically</span></div><button id="settingsCloseTop" type="button" aria-label="Done with settings">Done</button></header><div id="settingsScroll"></div></section>
         </div>`;
 
     const tabs = document.getElementById("settingsTabs");
@@ -244,7 +243,14 @@ function build() {
         if (type === "checkbox") el.checked = !!settings[key];
         if (type === "range" || type === "select") el.value = String(settings[key]);
         const output = document.getElementById(`${id}Value`);
-        const updateOutput = () => { if (output) output.textContent = type === "range" ? String(settings[key]) : ""; };
+        const formatValue = value => {
+            const number = Number(value);
+            if (key === "fov") return Math.round(number) + "°";
+            if (["brightness", "masterVolume", "uiOpacity", "touchControlSize", "touchControlOpacity"].includes(key)) return Math.round(number * 100) + "%";
+            if (["mouseSensitivity", "touchSensitivity"].includes(key)) return number.toFixed(2) + "x";
+            return String(value);
+        };
+        const updateOutput = () => { if (output) output.textContent = type === "range" ? formatValue(settings[key]) : ""; };
         const changed = () => {
             settings[key] = type === "checkbox" ? el.checked : (type === "range" ? Number(el.value) : el.value);
             save(); applyUi(); after?.(settings[key]); emit(key); updateOutput(); toast();
@@ -329,7 +335,7 @@ function build() {
 
     ensureSettingsStyles();
     applyUi();
-    show("Graphics");
+    show("Video");
     save();
     window.dispatchEvent(new CustomEvent("webminecraft-settings-ready", { detail: { settings: { ...settings } } }));
 }
@@ -488,6 +494,328 @@ body #hotbar,body #crosshair,body #performanceHud,body #coordinatesHud{opacity:v
 .settings-left-handed #touchLookArea{left:0!important;right:31%!important}
 `;
     document.head.appendChild(style);
+
+    if (!document.getElementById("webminecraftSettingsMinecraftStyles")) {
+        const minecraftStyle = document.createElement("style");
+        minecraftStyle.id = "webminecraftSettingsMinecraftStyles";
+        minecraftStyle.textContent = `
+#settingsMenu{
+  align-items:center!important;
+  justify-content:center!important;
+  padding:18px!important;
+  background:rgba(0,0,0,.72)!important;
+  backdrop-filter:blur(2px)!important;
+  -webkit-backdrop-filter:blur(2px)!important;
+}
+#settingsPanel{
+  position:relative!important;
+  width:min(1180px,calc(100vw - 36px))!important;
+  height:min(820px,calc(100dvh - 36px))!important;
+  max-width:1180px!important;
+  max-height:820px!important;
+  margin:auto!important;
+  grid-template-columns:250px minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  border:4px solid #171717!important;
+  border-radius:0!important;
+  background:#858585!important;
+  color:#fff!important;
+  box-shadow:0 8px 0 rgba(0,0,0,.78),inset 0 0 0 2px rgba(255,255,255,.15)!important;
+  font-family:Arial,sans-serif!important;
+}
+#settingsSidebar{
+  min-width:0!important;
+  padding:26px 15px 18px!important;
+  background:linear-gradient(180deg,#555 0%,#454545 100%)!important;
+  border:0!important;
+  border-right:4px solid #222!important;
+  box-shadow:inset -2px 0 rgba(255,255,255,.1)!important;
+}
+#settingsPanel .settingsBrand{
+  margin:0 10px 5px!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  font-size:27px!important;
+  letter-spacing:.5px!important;
+  text-shadow:2px 2px 0 #222!important;
+}
+#settingsPanel .settingsHint{
+  margin:0 10px 25px!important;
+  color:#dedede!important;
+  font-size:12px!important;
+}
+#settingsTabs{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:7px!important;
+}
+#settingsMenu .settingsTab{
+  position:relative!important;
+  width:100%!important;
+  min-height:49px!important;
+  margin:0!important;
+  padding:11px 13px!important;
+  border:2px solid #202020!important;
+  border-top-color:#c2c2c2!important;
+  border-left-color:#c2c2c2!important;
+  border-radius:0!important;
+  background:linear-gradient(#888,#707070)!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  font-size:13px!important;
+  text-align:left!important;
+  text-shadow:2px 2px 0 #333!important;
+  box-shadow:inset 1px 1px rgba(255,255,255,.16),0 3px 0 #222!important;
+}
+#settingsMenu .settingsTab:hover{
+  filter:brightness(1.12)!important;
+  transform:none!important;
+}
+#settingsMenu .settingsTab.active{
+  border-color:#171717!important;
+  border-top-color:#e0e0e0!important;
+  border-left-color:#e0e0e0!important;
+  background:linear-gradient(#aaa,#898989)!important;
+  color:#fff!important;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.13),0 3px 0 #222!important;
+}
+#settingsVersion{
+  margin-top:auto!important;
+  padding:16px 10px 5px!important;
+  color:#d4d4d4!important;
+  font-size:10px!important;
+  line-height:1.5!important;
+}
+#settingsContent{
+  min-width:0!important;
+  min-height:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  background:#858585!important;
+}
+#settingsHeader{
+  flex:0 0 76px!important;
+  height:76px!important;
+  padding:0 24px!important;
+  background:linear-gradient(#686868,#595959)!important;
+  border:0!important;
+  border-bottom:4px solid #252525!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.14)!important;
+}
+#settingsHeader h2,#settingsSectionTitle{
+  margin:0!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  font-size:21px!important;
+  text-shadow:2px 2px 0 #292929!important;
+}
+#settingsSaveHint{
+  display:block!important;
+  margin-top:5px!important;
+  color:#dedede!important;
+  font-size:10px!important;
+}
+#settingsMenu #settingsCloseTop{
+  width:auto!important;
+  min-width:112px!important;
+  height:39px!important;
+  padding:7px 16px!important;
+  border:2px solid #202020!important;
+  border-top-color:#c8c8c8!important;
+  border-left-color:#c8c8c8!important;
+  border-radius:0!important;
+  background:linear-gradient(#858585,#686868)!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  font-size:12px!important;
+  text-shadow:2px 2px 0 #333!important;
+  box-shadow:0 3px 0 #222!important;
+  cursor:pointer!important;
+}
+#settingsMenu #settingsCloseTop:hover{filter:brightness(1.12)!important}
+#settingsScroll{
+  min-height:0!important;
+  flex:1 1 auto!important;
+  overflow:auto!important;
+  padding:23px 26px 30px!important;
+  background:#858585!important;
+}
+#settingsScroll::-webkit-scrollbar{width:13px!important}
+#settingsScroll::-webkit-scrollbar-track{background:#555!important;border:2px solid #222!important}
+#settingsScroll::-webkit-scrollbar-thumb{background:#aaa!important;border:2px solid #333!important}
+#settingsScroll .settingsGroup{
+  max-width:920px!important;
+  margin:0 auto 24px!important;
+}
+#settingsScroll .settingsGroup h3{
+  margin:0 0 10px!important;
+  padding:0 0 7px 2px!important;
+  border:0!important;
+  border-bottom:2px solid #303030!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  font-size:14px!important;
+  text-shadow:2px 2px 0 #444!important;
+}
+#settingsScroll .setting{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(150px,220px)!important;
+  align-items:center!important;
+  gap:18px!important;
+  min-height:66px!important;
+  margin:7px 0!important;
+  padding:12px 14px!important;
+  border:2px solid #292929!important;
+  border-top-color:#c5c5c5!important;
+  border-left-color:#c5c5c5!important;
+  border-radius:0!important;
+  background:linear-gradient(180deg,#707070,#626262)!important;
+  box-shadow:inset 1px 1px rgba(255,255,255,.11),0 3px 0 #363636!important;
+  transition:none!important;
+}
+#settingsScroll .setting:hover{transform:none!important;filter:brightness(1.035)!important}
+#settingsScroll .setting label{
+  display:block!important;
+  margin:0 0 4px!important;
+  color:#fff!important;
+  font-size:14px!important;
+  font-weight:700!important;
+  text-shadow:1px 1px 0 #444!important;
+}
+#settingsScroll .setting small{
+  display:block!important;
+  color:#e0e0e0!important;
+  font-size:11px!important;
+  line-height:1.35!important;
+}
+#settingsScroll .settingControl{
+  min-width:0!important;
+  display:flex!important;
+  justify-content:flex-end!important;
+  align-items:center!important;
+  gap:8px!important;
+  padding:0!important;
+}
+#settingsScroll .settingControl select,
+#settingsScroll .settingControl button{
+  width:100%!important;
+  min-height:37px!important;
+  padding:7px 10px!important;
+  border:2px solid #222!important;
+  border-top-color:#c3c3c3!important;
+  border-left-color:#c3c3c3!important;
+  border-radius:0!important;
+  background:linear-gradient(#777,#5e5e5e)!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  font-size:11px!important;
+  text-shadow:1px 1px #333!important;
+  box-shadow:0 2px 0 #333!important;
+}
+#settingsScroll .settingControl select option{background:#555!important;color:#fff!important}
+#settingsScroll .settingControl input[type=range]{
+  width:100%!important;
+  min-width:80px!important;
+  height:8px!important;
+  accent-color:#d7d7d7!important;
+  cursor:pointer!important;
+}
+#settingsScroll .settingControl input[type=checkbox]{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  position:relative!important;
+  flex:0 0 29px!important;
+  width:29px!important;
+  height:29px!important;
+  margin:0!important;
+  border:2px solid #222!important;
+  border-top-color:#c8c8c8!important;
+  border-left-color:#c8c8c8!important;
+  border-radius:0!important;
+  background:#5b5b5b!important;
+  cursor:pointer!important;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.18)!important;
+}
+#settingsScroll .settingControl input[type=checkbox]:checked{
+  background:#8a8a8a!important;
+}
+#settingsScroll .settingControl input[type=checkbox]:checked::after{
+  content:"✓"!important;
+  position:absolute!important;
+  inset:0!important;
+  display:grid!important;
+  place-items:center!important;
+  color:#fff!important;
+  font:bold 21px Arial,sans-serif!important;
+  text-shadow:1px 1px #333!important;
+}
+#settingsScroll output{
+  min-width:52px!important;
+  color:#fff!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  text-align:right!important;
+  text-shadow:1px 1px #333!important;
+}
+#settingsKeybinds .settingsKeybindRow{
+  grid-template-columns:minmax(0,1fr) 150px!important;
+  background:#696969!important;
+  border:2px solid #292929!important;
+  border-top-color:#c5c5c5!important;
+  border-left-color:#c5c5c5!important;
+  border-radius:0!important;
+}
+#settingsKeybinds .settingsKeybindName{color:#fff!important}
+#settingsKeybinds .settingsKeybindHint{color:#e0e0e0!important}
+#settingsKeybinds .settingsKeybindButton{
+  border:2px solid #222!important;
+  border-top-color:#c2c2c2!important;
+  border-left-color:#c2c2c2!important;
+  border-radius:0!important;
+  background:linear-gradient(#858585,#686868)!important;
+  box-shadow:0 2px 0 #333!important;
+}
+#settingsKeybinds .settingsKeybindStatus{color:#fff!important}
+#settingsScroll .settingInfo .settingControl button{
+  max-width:130px!important;
+}
+@media(max-width:900px){
+  #settingsMenu{padding:0!important}
+  #settingsPanel{
+    width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;
+    grid-template-columns:1fr!important;grid-template-rows:auto minmax(0,1fr)!important;
+    border:0!important;box-shadow:none!important;
+  }
+  #settingsSidebar{
+    padding:max(12px,env(safe-area-inset-top)) 12px 10px!important;
+    border:0!important;border-bottom:4px solid #222!important;
+  }
+  #settingsPanel .settingsBrand{margin:0 5px 3px!important;font-size:21px!important}
+  #settingsPanel .settingsHint{display:none!important}
+  #settingsTabs{flex-direction:row!important;gap:6px!important;overflow-x:auto!important;padding:2px 2px 5px!important}
+  #settingsMenu .settingsTab{flex:0 0 auto!important;width:auto!important;min-width:102px!important;min-height:39px!important;padding:8px 10px!important;font-size:11px!important;text-align:center!important}
+  #settingsVersion{display:none!important}
+  #settingsHeader{flex-basis:62px!important;height:62px!important;padding:0 14px!important}
+  #settingsHeader h2,#settingsSectionTitle{font-size:16px!important}
+  #settingsMenu #settingsCloseTop{min-width:82px!important;height:34px!important;font-size:10px!important}
+  #settingsScroll{padding:15px 12px 24px!important}
+  #settingsScroll .setting{grid-template-columns:minmax(0,1fr) auto!important;gap:10px!important;padding:11px 10px!important}
+  #settingsScroll .setting label{font-size:12px!important}
+  #settingsScroll .setting small{font-size:10px!important}
+  #settingsScroll .settingControl{min-width:92px!important;max-width:44vw!important}
+  #settingsScroll .settingControl select{min-width:0!important;font-size:10px!important}
+  #settingsScroll .settingControl input[type=range]{width:100%!important}
+}
+@media(max-width:480px){
+  #settingsScroll .setting{grid-template-columns:1fr!important;gap:8px!important}
+  #settingsScroll .settingControl{max-width:none!important;width:100%!important;justify-content:flex-start!important}
+  #settingsScroll .settingControl input[type=checkbox]{margin-left:2px!important}
+  #settingsKeybinds .settingsKeybindRow{grid-template-columns:1fr!important}
+  #settingsKeybinds .settingsKeybindButton{width:100%!important}
+}
+`;
+        document.head.appendChild(minecraftStyle);
+    }
 }
 
 function init() { build(); }
