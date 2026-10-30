@@ -131,12 +131,14 @@ const reinforcedDeepslateTopTexture = loadTexture(texturePath("reinforced_deepsl
 // floor so cave blocks remain readable without washing out outdoor colors.
 const textureShade = 0xe8e8e8;
 const grassTextureShade = 0xd3d3d3;
-const textureEmissive = 0x202020;
-const textureEmissiveIntensity = 0.24;
+const textureEmissive = 0x121212;
+const textureEmissiveIntensity = 0.14;
 const materialOptions = {
     vertexColors: true,
     emissive: textureEmissive,
-    emissiveIntensity: textureEmissiveIntensity
+    emissiveIntensity: textureEmissiveIntensity,
+    specular: 0x080808,
+    shininess: 5
 };
 
 const grassTopMaterial = new THREE.MeshPhongMaterial({ map: grassTopTexture, color: grassTextureShade, ...materialOptions });

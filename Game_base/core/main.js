@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
-import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, setBlockAt, getBlockTypes, isPointInWater, setChunkLoadConcurrency, getChunkLoadConcurrency, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "../world/world.js";
+import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, setBlockAt, getBlockTypes, isPointInWater, setChunkLoadConcurrency, getChunkLoadConcurrency, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, setChunkShadowRendering, SEA_LEVEL } from "../world/world.js";
 import { setupControls, resetView, keys } from "../player/controls.js";
 import { updatePlayer } from "../player/player.js";
 import { setupInteraction } from "../player/interaction.js";
@@ -26,10 +26,10 @@ const scene = new THREE.Scene();
 const skyColor = new THREE.Color(0x87ceeb);
 const caveFogColor = new THREE.Color(0x252a2e);
 const underwaterColor = new THREE.Color(0x071b2b);
-const skyLightColor = new THREE.Color(0xcfeeff);
-const groundLightColor = new THREE.Color(0x3f3b43);
-const sunColor = new THREE.Color(0xfff0cf);
-const fillColor = new THREE.Color(0x9fc8ef);
+const skyLightColor = new THREE.Color(0xc5e7ff);
+const groundLightColor = new THREE.Color(0x514b40);
+const sunColor = new THREE.Color(0xffe8c4);
+const fillColor = new THREE.Color(0x8eb9e6);
 scene.background = skyColor.clone();
 scene.fog = new THREE.Fog(skyColor.clone(), 26, 72);
 
@@ -108,7 +108,7 @@ if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
 let worldLoadingForStart = false;
-const defaults = { shadows: false, shadowQuality: 256, pixelRatio: BASE_PIXEL_RATIO, lightingQuality: IS_LOW_POWER_DEVICE ? "balanced" : "high", brightness: 1 };
+const defaults = { shadows: !IS_TOUCH_DEVICE && !IS_LOW_POWER_DEVICE, shadowQuality: IS_LOW_POWER_DEVICE ? 512 : 1024, pixelRatio: BASE_PIXEL_RATIO, lightingQuality: IS_LOW_POWER_DEVICE ? "balanced" : "high", brightness: 1 };
 let settings;
 try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
 catch { settings = { ...defaults }; }
@@ -139,8 +139,6 @@ if (IS_LOW_POWER_DEVICE) {
     settings.pixelRatio = 1;
     if (extendedSettings.lightingQuality === "high") extendedSettings.lightingQuality = "balanced";
 }
-settings.shadows = false;
-settings.shadowQuality = 256;
 settings.pixelRatio = THREE.MathUtils.clamp(
     Number(settings.pixelRatio) || BASE_PIXEL_RATIO,
     0.70,
@@ -159,40 +157,52 @@ window.__webminecraftAudioSettings = {
 
 function saveSettings() { try { localStorage.setItem("webminecraft-settings", JSON.stringify(settings)); } catch {} }
 function getLightingProfile() {
+    // Minecraft-style daylight: warm directional sunlight with cool sky bounce.
     if (settings.lightingQuality === "performance") {
-        return { sun: 1.30, sky: 0.70, ambient: 0.19, fill: 0.045 };
+        return { sun: 1.22, sky: 0.72, ambient: 0.16, fill: 0.035 };
     }
     if (settings.lightingQuality === "balanced") {
-        return { sun: 1.45, sky: 0.79, ambient: 0.20, fill: 0.065 };
+        return { sun: 1.36, sky: 0.82, ambient: 0.17, fill: 0.05 };
     }
-    return { sun: 1.55, sky: 0.85, ambient: 0.20, fill: 0.08 };
+    return { sun: 1.48, sky: 0.89, ambient: 0.18, fill: 0.065 };
 }
 function applySettings() {
-    const shadowsEnabled = Boolean(settings.shadows) && !IS_TOUCH_DEVICE;
-    renderer.shadowMap.enabled = false;
-    sun.castShadow = false;
-    const effectiveShadowQuality = 256;
+    const shadowsEnabled = Boolean(settings.shadows) && !IS_TOUCH_DEVICE && !IS_LOW_POWER_DEVICE;
+    const requestedShadowQuality = Number(settings.shadowQuality) || (IS_LOW_POWER_DEVICE ? 512 : 1024);
+    const effectiveShadowQuality = IS_LOW_POWER_DEVICE
+        ? THREE.MathUtils.clamp(requestedShadowQuality, 256, 512)
+        : THREE.MathUtils.clamp(requestedShadowQuality, 512, 1536);
+
+    renderer.shadowMap.enabled = shadowsEnabled;
+    sun.castShadow = shadowsEnabled;
     sun.shadow.mapSize.width = effectiveShadowQuality;
     sun.shadow.mapSize.height = effectiveShadowQuality;
+    sun.shadow.camera.left = -48;
+    sun.shadow.camera.right = 48;
+    sun.shadow.camera.top = 48;
+    sun.shadow.camera.bottom = -48;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 180;
+    sun.shadow.bias = -0.00018;
+    sun.shadow.normalBias = 0.035;
+    sun.shadow.radius = 3;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
     const requestedPixelRatio = Number(settings.pixelRatio) || BASE_PIXEL_RATIO;
     const pixelRatioCap = IS_LOW_POWER_DEVICE ? 0.82 : 1.05;
     renderer.setPixelRatio(THREE.MathUtils.clamp(requestedPixelRatio, 0.70, pixelRatioCap));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.shadowMap.type = THREE.BasicShadowMap;
-    renderer.toneMappingExposure = 0.92 + settings.brightness * 0.08;
+    renderer.toneMappingExposure = 0.94 + settings.brightness * 0.06;
 
     const profile = getLightingProfile();
     ambientLight.intensity = profile.ambient;
     fillLight.intensity = profile.fill;
     skyLight.intensity = profile.sky;
+    sun.intensity = profile.sun;
 
+    setChunkShadowRendering(shadowsEnabled, camera.position.x, camera.position.z);
     for (const object of scene.children) {
-        if (!object.isMesh) continue;
-        if (object.userData?.isChunk) {
-            object.castShadow = shadowsEnabled;
-            object.receiveShadow = shadowsEnabled;
-            continue;
-        }
+        if (!object.isMesh || object.userData?.isChunk) continue;
         object.castShadow = shadowsEnabled;
         object.receiveShadow = shadowsEnabled;
     }
@@ -430,8 +440,13 @@ function applyExtendedSettings(next = {}) {
     extendedSettings.renderDistance = Number.isFinite(requestedDistance) && requestedDistance > 0
         ? Math.min(requestedDistance, renderDistanceCap)
         : renderDistanceCap;
-    settings.shadows = false;
-    settings.shadowQuality = 256;
+    settings.shadows = IS_TOUCH_DEVICE || IS_LOW_POWER_DEVICE
+        ? false
+        : (typeof extendedSettings.shadows === "boolean" ? extendedSettings.shadows : Boolean(settings.shadows));
+    const requestedShadowQuality = Number(extendedSettings.shadowQuality ?? settings.shadowQuality) || 1024;
+    settings.shadowQuality = IS_LOW_POWER_DEVICE
+        ? Math.min(512, Math.max(256, requestedShadowQuality))
+        : Math.min(1536, Math.max(512, requestedShadowQuality));
     const requestedPixelRatio = Number(extendedSettings.pixelRatio ?? settings.pixelRatio) || BASE_PIXEL_RATIO;
     settings.pixelRatio = THREE.MathUtils.clamp(requestedPixelRatio, 0.70, IS_LOW_POWER_DEVICE ? 0.82 : 1.05);
     settings.lightingQuality = IS_LOW_POWER_DEVICE && extendedSettings.lightingQuality === "high"

@@ -140,6 +140,33 @@ let preferMeshRebuild = false;
 let worldScene = null;
 let lastPlayerChunkX = Infinity;
 let lastPlayerChunkZ = Infinity;
+let chunkShadowsEnabled = false;
+let chunkShadowCenterX = 0;
+let chunkShadowCenterZ = 0;
+const CHUNK_SHADOW_CAST_RADIUS = 2;
+const CHUNK_SHADOW_RECEIVE_RADIUS = 4;
+
+function applyChunkShadowFlags(mesh) {
+    if (!mesh?.userData?.isChunk) return;
+    const distance = Math.max(
+        Math.abs(Number(mesh.userData.chunkX) - chunkShadowCenterX),
+        Math.abs(Number(mesh.userData.chunkZ) - chunkShadowCenterZ)
+    );
+    mesh.castShadow = chunkShadowsEnabled && distance <= CHUNK_SHADOW_CAST_RADIUS;
+    mesh.receiveShadow = chunkShadowsEnabled && distance <= CHUNK_SHADOW_RECEIVE_RADIUS;
+}
+
+export function setChunkShadowRendering(enabled, worldX = 0, worldZ = 0) {
+    const center = getChunkCoords(Number(worldX) || 0, Number(worldZ) || 0);
+    const nextEnabled = Boolean(enabled) && !IS_TOUCH_DEVICE && !IS_LOW_POWER_DEVICE;
+    if (nextEnabled === chunkShadowsEnabled
+        && center.chunkX === chunkShadowCenterX
+        && center.chunkZ === chunkShadowCenterZ) return;
+    chunkShadowsEnabled = nextEnabled;
+    chunkShadowCenterX = center.chunkX;
+    chunkShadowCenterZ = center.chunkZ;
+    for (const mesh of chunkMeshes.values()) applyChunkShadowFlags(mesh);
+}
 
 const chunkMaterials = [
     grassMaterial[0], grassMaterial[2], dirtMaterial, stoneMaterial,
@@ -1141,6 +1168,7 @@ function attachChunkMesh(chunk, geometry) {
     mesh.userData.chunkZ = chunk.z;
     mesh.castShadow = false;
     mesh.receiveShadow = false;
+    applyChunkShadowFlags(mesh);
     worldScene.add(mesh);
     chunkMeshes.set(key, mesh);
 }
@@ -1331,7 +1359,7 @@ export function clearWorld(){
     if(typeof window!=="undefined")window.dispatchEvent(new CustomEvent("webminecraft:worldreset"));
 }
 export function createWorld(scene){worldScene=scene;clearWorld();queueNeededChunks(0,0);}
-export function updateChunkVisibility(position,camera){if(!worldScene||!position)return;const{chunkX,chunkZ}=getChunkCoords(position.x,position.z);if(chunkX!==lastPlayerChunkX||chunkZ!==lastPlayerChunkZ){lastPlayerChunkX=chunkX;lastPlayerChunkZ=chunkZ;queueNeededChunks(chunkX,chunkZ);unloadFarChunks(chunkX,chunkZ);}processChunkQueue();updateFacingVisibility(position,camera);}
+export function updateChunkVisibility(position,camera){if(!worldScene||!position)return;const{chunkX,chunkZ}=getChunkCoords(position.x,position.z);if(chunkX!==lastPlayerChunkX||chunkZ!==lastPlayerChunkZ){lastPlayerChunkX=chunkX;lastPlayerChunkZ=chunkZ;setChunkShadowRendering(chunkShadowsEnabled,position.x,position.z);queueNeededChunks(chunkX,chunkZ);unloadFarChunks(chunkX,chunkZ);}processChunkQueue();updateFacingVisibility(position,camera);}
 export function getPerformanceStats(){
     let loadedChunks=0;
     for(const[key,chunk]of chunks){if(chunk.generated&&chunkMeshes.has(key))loadedChunks++;}
