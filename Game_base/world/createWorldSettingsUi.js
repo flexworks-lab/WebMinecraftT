@@ -67,7 +67,9 @@ function injectStyle() {
 .createWorldSettingsChoice strong{display:block;font-family:"MinecraftFont",monospace;font-size:11px;line-height:1.1}
 .createWorldSettingsChoice small{display:block;margin-top:4px;color:#555;font:700 8px/1.25 Arial,sans-serif}
 .createWorldSettingsChoice.active small{color:#315f34}
-#cwGameMode{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+#cwGameMode{position:static!important;inset:auto!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;width:100%!important;min-width:180px!important;height:38px!important;appearance:auto!important;-webkit-appearance:menulist!important;background:#292929!important;color:#f5f5f5!important;border:2px solid #111!important;border-top-color:#777!important;border-left-color:#777!important;padding:6px 30px 6px 10px!important;font:12px "MinecraftFont",monospace!important;cursor:pointer!important}
+#createWorldSettingsRoot #cwGameMode,#savedWorlds #cwGameMode{position:static!important;inset:auto!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;display:block!important;width:100%!important;height:38px!important;min-width:180px!important}
+#createWorldSettingsRoot #cwGameMode option,#savedWorlds #cwGameMode option{background:#292929!important;color:#f5f5f5!important}
 
 .createWorldSettingsDifficulty{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:600px;border:1px solid #161616}
 .createWorldSettingsRange{width:100%;max-width:270px;accent-color:#8a8a8a;cursor:pointer}
