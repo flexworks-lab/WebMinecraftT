@@ -795,9 +795,7 @@ function injectStyle() {
     text-shadow:2px 2px #333!important;
 }
 #createWorldSettingsRoot #createWorldSettingsClose:hover{filter:brightness(1.1)!important}
-    `;
-
-/* Right editor panel: cool-toned builder surface, separate from the forest sidebar. */
+    /* Right editor panel: cool-toned builder surface, separate from the forest sidebar. */
 #createWorldSettingsContent{
     background:
       radial-gradient(ellipse at 92% 0%,rgba(164,195,219,.28),transparent 40%),
@@ -900,6 +898,7 @@ function injectStyle() {
     }
     .createWorldSettingsGroup{padding:12px 10px 9px!important}
 }
+    `;
 
     document.head.appendChild(workshopStyle);
 }
