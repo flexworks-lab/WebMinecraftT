@@ -194,6 +194,456 @@ function injectStyle() {
 }
     `;
     document.head.appendChild(style);
+
+    // World Workshop look: deliberately distinct from the gray Settings menu.
+    // A large world preview and forest-green creation rail frame a warm, light
+    // editing surface so this screen feels like building a new place.
+    const workshopStyle = document.createElement("style");
+    workshopStyle.id = "webminecraft-world-workshop-style";
+    workshopStyle.textContent = `
+#savedWorlds[data-create-open="1"] .sw2-wrap > :not(.sw2-modal){display:none!important}
+#createWorldSettingsRoot{
+    display:grid!important;
+    grid-template-columns:340px minmax(0,1fr)!important;
+    grid-template-rows:minmax(0,1fr)!important;
+    background:#dfe8d8!important;
+    color:#203629!important;
+    border:0!important;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)!important;
+    font-family:Arial,sans-serif!important;
+}
+#createWorldSettingsSidebar{
+    width:auto!important;
+    min-width:0!important;
+    flex:none!important;
+    padding:16px!important;
+    gap:10px!important;
+    background:
+      radial-gradient(ellipse at 10% 0%,rgba(98,166,119,.2),transparent 40%),
+      linear-gradient(155deg,#183b32 0%,#122b27 52%,#10221f 100%)!important;
+    border:0!important;
+    border-right:1px solid rgba(255,255,255,.13)!important;
+    box-shadow:8px 0 24px rgba(14,34,26,.14)!important;
+}
+#createWorldSettingsTitle{
+    display:block!important;
+    margin:2px 4px 0!important;
+    color:#f5f7e9!important;
+    font:700 18px/1.15 "MinecraftFont",monospace!important;
+    letter-spacing:.6px!important;
+    text-shadow:2px 2px #10201b!important;
+}
+#createWorldSettingsSub{
+    margin:0 4px 2px!important;
+    color:#b9d0bf!important;
+    font-size:11px!important;
+    line-height:1.4!important;
+}
+#createWorldSettingsPreview{
+    width:100%!important;
+    height:205px!important;
+    flex:0 0 205px!important;
+    margin:2px 0 0!important;
+    border:4px solid #0d201b!important;
+    border-radius:13px!important;
+    background:#496d68!important;
+    box-shadow:0 7px 0 rgba(0,0,0,.18),0 13px 25px rgba(0,0,0,.22),inset 0 0 0 1px rgba(255,255,255,.22)!important;
+}
+#createWorldSettingsPreviewImg{
+    object-fit:cover!important;
+    object-position:center!important;
+    filter:saturate(1.1) contrast(1.04)!important;
+}
+#createWorldSettingsPreview:after{
+    display:block!important;
+    content:""!important;
+    position:absolute!important;
+    inset:48% 0 0!important;
+    background:linear-gradient(180deg,transparent,rgba(5,23,20,.76))!important;
+    pointer-events:none!important;
+}
+#createWorldSettingsPreviewLabel{
+    left:10px!important;
+    right:10px!important;
+    top:auto!important;
+    bottom:9px!important;
+    padding:7px 9px!important;
+    background:rgba(8,27,23,.78)!important;
+    border:1px solid rgba(220,244,220,.25)!important;
+    border-radius:6px!important;
+    color:#f0f7e8!important;
+    font:700 10px/1.2 Arial,sans-serif!important;
+    letter-spacing:1.1px!important;
+    text-transform:uppercase!important;
+    text-shadow:none!important;
+}
+#createWorldSettingsCreateWrap{
+    padding:0!important;
+    background:transparent!important;
+    border:0!important;
+}
+#createWorldSettingsCreate{
+    min-height:52px!important;
+    border:1px solid #143e2c!important;
+    border-radius:10px!important;
+    background:linear-gradient(180deg,#75c96d,#45a75b)!important;
+    color:#102d20!important;
+    font:800 14px "MinecraftFont",monospace!important;
+    text-shadow:0 1px rgba(255,255,255,.35)!important;
+    box-shadow:0 5px 0 #1a573a,0 8px 16px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.4)!important;
+}
+#createWorldSettingsCreate:hover{filter:brightness(1.06)!important;transform:translateY(-1px)!important}
+#createWorldSettingsCreate:active{transform:translateY(3px)!important;box-shadow:0 2px 0 #1a573a!important}
+#createWorldSettingsTabs{
+    display:flex!important;
+    flex:1 1 auto!important;
+    flex-direction:column!important;
+    gap:6px!important;
+    min-height:0!important;
+    overflow:auto!important;
+    padding:8px 0!important;
+    background:transparent!important;
+    border:0!important;
+}
+.createWorldSettingsTab{
+    width:100%!important;
+    min-height:43px!important;
+    flex:0 0 auto!important;
+    margin:0!important;
+    padding:8px 11px!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:11px!important;
+    border:1px solid transparent!important;
+    border-radius:9px!important;
+    background:rgba(255,255,255,.055)!important;
+    color:#d9e9db!important;
+    font:600 12px Arial,sans-serif!important;
+    text-shadow:none!important;
+    box-shadow:none!important;
+    transition:background .12s ease,border-color .12s ease!important;
+}
+.createWorldSettingsTab:hover{
+    transform:none!important;
+    filter:none!important;
+    background:rgba(255,255,255,.12)!important;
+}
+.createWorldSettingsTab.active{
+    border-color:rgba(171,222,153,.34)!important;
+    background:linear-gradient(90deg,rgba(104,178,111,.28),rgba(104,178,111,.12))!important;
+    color:#fff!important;
+    box-shadow:inset 3px 0 #9bdd85!important;
+}
+.createWorldSettingsTabIcon{
+    width:27px!important;
+    height:27px!important;
+    flex:0 0 27px!important;
+    border:0!important;
+    border-radius:8px!important;
+    background:var(--tab-accent)!important;
+    color:#173126!important;
+    box-shadow:inset 0 1px rgba(255,255,255,.35)!important;
+    font-size:13px!important;
+}
+.createWorldSettingsTabLabel{font-size:12px!important;font-weight:700!important}
+#createWorldSettingsSidebarFooter{
+    padding:10px 4px 0!important;
+    border-top:1px solid rgba(255,255,255,.12)!important;
+    background:transparent!important;
+    color:#8fac9a!important;
+    font-size:9px!important;
+}
+#createWorldSettingsContent{
+    min-width:0!important;
+    min-height:0!important;
+    background:
+      radial-gradient(ellipse at 100% 0%,rgba(180,211,170,.25),transparent 42%),
+      linear-gradient(145deg,#f0f3e9,#dfe8d8)!important;
+}
+#createWorldSettingsHeader{
+    height:76px!important;
+    flex:0 0 76px!important;
+    padding:0 28px!important;
+    background:rgba(255,255,255,.48)!important;
+    border:0!important;
+    border-bottom:1px solid #c5d2c2!important;
+    box-shadow:0 3px 12px rgba(46,76,51,.06)!important;
+}
+#createWorldSettingsSectionTitle{
+    color:#1e4432!important;
+    font:700 18px "MinecraftFont",monospace!important;
+    letter-spacing:.2px!important;
+    text-shadow:none!important;
+}
+#createWorldSettingsClose{
+    width:38px!important;
+    height:38px!important;
+    margin-left:auto!important;
+    border:1px solid #b6c8b3!important;
+    border-radius:10px!important;
+    background:#f7f9f2!important;
+    color:#31543b!important;
+    font:500 23px Arial,sans-serif!important;
+    line-height:34px!important;
+    text-shadow:none!important;
+    box-shadow:0 2px 5px rgba(25,61,37,.08)!important;
+}
+#createWorldSettingsClose:hover{background:#e9f1e4!important;transform:none!important}
+#createWorldSettingsScroll{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow:auto!important;
+    padding:22px 28px 27px!important;
+}
+.createWorldSettingsPage{max-width:1020px!important}
+.createWorldSettingsGroup{
+    max-width:1020px!important;
+    margin:0 auto 22px!important;
+    padding:17px 18px 13px!important;
+    border:1px solid #c9d7c5!important;
+    border-radius:14px!important;
+    background:rgba(255,255,255,.62)!important;
+    box-shadow:0 7px 20px rgba(33,65,40,.055)!important;
+}
+.createWorldSettingsGroupTitle{
+    margin:0 0 12px!important;
+    padding:0 0 10px 2px!important;
+    border-bottom:1px solid #d5e0d1!important;
+    color:#346044!important;
+    font:700 11px Arial,sans-serif!important;
+    letter-spacing:1.4px!important;
+    text-transform:uppercase!important;
+    text-shadow:none!important;
+}
+.createWorldSettingsRow{
+    grid-template-columns:minmax(0,1fr) minmax(190px,320px)!important;
+    gap:22px!important;
+    min-height:66px!important;
+    margin:6px 0!important;
+    padding:11px 12px!important;
+    border:1px solid #e0e8dc!important;
+    border-radius:9px!important;
+    background:rgba(248,250,244,.84)!important;
+    box-shadow:0 2px 5px rgba(40,71,43,.035)!important;
+}
+.createWorldSettingsRow label{
+    margin-bottom:4px!important;
+    color:#294836!important;
+    font-size:12px!important;
+    font-weight:800!important;
+}
+.createWorldSettingsRow small{
+    color:#718273!important;
+    font-size:10px!important;
+    line-height:1.4!important;
+}
+.createWorldSettingsControl{min-width:0!important}
+.createWorldSettingsSelect,
+.createWorldSettingsInput{
+    width:100%!important;
+    min-height:39px!important;
+    padding:8px 11px!important;
+    border:1px solid #bdcfb8!important;
+    border-radius:8px!important;
+    background:#f8fbf4!important;
+    color:#274632!important;
+    font:600 12px Arial,sans-serif!important;
+    box-shadow:inset 0 1px 2px rgba(30,64,39,.05)!important;
+}
+.createWorldSettingsSelect:focus,
+.createWorldSettingsInput:focus{
+    outline:2px solid #8dc78a!important;
+    outline-offset:1px!important;
+}
+.createWorldSettingsSeed{
+    display:flex!important;
+    align-items:center!important;
+    min-height:39px!important;
+    background:#eaf2e5!important;
+    color:#42664b!important;
+    font:700 11px/1.35 Consolas,monospace!important;
+}
+.createWorldSettingsToggle{
+    width:22px!important;
+    height:22px!important;
+    accent-color:#4cae68!important;
+}
+.createWorldSettingsChoices{
+    width:100%!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:9px!important;
+}
+.createWorldSettingsChoice{
+    min-height:78px!important;
+    padding:10px 11px!important;
+    border:1px solid #c8d7c3!important;
+    border-radius:10px!important;
+    background:#f6f9f0!important;
+    color:#31513b!important;
+    box-shadow:0 2px 5px rgba(30,63,38,.06)!important;
+}
+.createWorldSettingsChoice:hover{
+    background:#edf5e8!important;
+    transform:translateY(-1px)!important;
+}
+.createWorldSettingsChoice.active{
+    border-color:#78b77a!important;
+    background:linear-gradient(145deg,#e6f5df,#d6ecd3)!important;
+    box-shadow:inset 0 0 0 1px #9dcc98,0 3px 8px rgba(54,112,58,.1)!important;
+}
+.createWorldSettingsChoiceIcon{
+    width:32px!important;
+    height:32px!important;
+    flex-basis:32px!important;
+    border:0!important;
+    border-radius:9px!important;
+    background:#d9e9d1!important;
+    color:#3d754b!important;
+    box-shadow:none!important;
+}
+.createWorldSettingsChoice.active .createWorldSettingsChoiceIcon{
+    background:#75bd78!important;
+    color:#fff!important;
+}
+.createWorldSettingsChoice strong{
+    color:#2b513a!important;
+    font:800 11px "MinecraftFont",monospace!important;
+}
+.createWorldSettingsChoice small{
+    color:#6b806f!important;
+    font:10px/1.3 Arial,sans-serif!important;
+}
+.createWorldSettingsDifficulty{
+    width:100%!important;
+    max-width:600px!important;
+    gap:5px!important;
+    border:0!important;
+}
+.createWorldSettingsDifficulty button{
+    min-height:37px!important;
+    border:1px solid #c0d0ba!important;
+    border-radius:8px!important;
+    background:#f8fbf4!important;
+    color:#45634c!important;
+    font:700 10px Arial,sans-serif!important;
+    box-shadow:none!important;
+}
+.createWorldSettingsDifficulty button.active{
+    border-color:#7fb67e!important;
+    background:#dff0d9!important;
+    color:#2d6840!important;
+}
+.createWorldSettingsRange{accent-color:#52a86b!important}
+.createWorldSettingsStatic{
+    padding:10px 12px!important;
+    border:1px dashed #bdcfb7!important;
+    border-radius:8px!important;
+    background:#eff5eb!important;
+    color:#647967!important;
+}
+.createWorldSettingsPack{
+    border:1px solid #d2dfcd!important;
+    border-radius:8px!important;
+    background:#f8fbf4!important;
+}
+.createWorldSettingsPackName{color:#365a40!important;font-family:Arial,sans-serif!important;font-weight:700!important}
+.createWorldSettingsPackState{color:#7f9280!important}
+#createWorldSettingsActions{
+    justify-content:flex-end!important;
+    gap:10px!important;
+    margin:18px auto 2px!important;
+    padding-top:13px!important;
+    border-top:1px solid #d0ddcb!important;
+}
+.createWorldSettingsAction{
+    min-width:125px!important;
+    min-height:40px!important;
+    border:1px solid #aebfa9!important;
+    border-radius:9px!important;
+    background:#edf3e9!important;
+    color:#355941!important;
+    font:700 11px Arial,sans-serif!important;
+    text-shadow:none!important;
+    box-shadow:0 2px 4px rgba(35,65,40,.06)!important;
+}
+#createWorldSettingsCancel{background:#edf3e9!important}
+.createWorldSettingsAction:hover{filter:brightness(1.025)!important;transform:translateY(-1px)!important}
+#createWorldSettingsMessage{
+    min-height:18px!important;
+    margin:7px 2px 0!important;
+    color:#52785a!important;
+    font-size:11px!important;
+    text-align:right!important;
+}
+@media(max-width:760px){
+    #createWorldSettingsRoot{
+        display:grid!important;
+        grid-template-columns:minmax(0,1fr)!important;
+        grid-template-rows:auto minmax(0,1fr)!important;
+    }
+    #createWorldSettingsSidebar{
+        display:grid!important;
+        grid-template-columns:minmax(0,1fr)!important;
+        grid-template-rows:auto auto auto!important;
+        gap:8px!important;
+        padding:10px 12px 8px!important;
+        border:0!important;
+        border-bottom:1px solid rgba(255,255,255,.15)!important;
+    }
+    #createWorldSettingsTitle{font-size:15px!important}
+    #createWorldSettingsPreview{
+        width:100%!important;
+        height:88px!important;
+        min-height:88px!important;
+        flex:none!important;
+        margin:0!important;
+        grid-row:1!important;
+    }
+    #createWorldSettingsCreateWrap{
+        grid-row:2!important;
+        padding:0!important;
+    }
+    #createWorldSettingsCreate{min-height:43px!important}
+    #createWorldSettingsSub{display:none!important}
+    #createWorldSettingsTabs{
+        grid-row:3!important;
+        flex-direction:row!important;
+        gap:6px!important;
+        overflow-x:auto!important;
+        padding:1px 0 4px!important;
+    }
+    .createWorldSettingsTab{
+        width:auto!important;
+        min-width:112px!important;
+        min-height:37px!important;
+        flex:0 0 auto!important;
+        justify-content:center!important;
+        padding:7px 9px!important;
+        border-radius:8px!important;
+    }
+    .createWorldSettingsTabIcon{width:23px!important;height:23px!important;flex-basis:23px!important}
+    #createWorldSettingsSidebarFooter{display:none!important}
+    #createWorldSettingsHeader{height:55px!important;flex-basis:55px!important;padding:0 13px!important}
+    #createWorldSettingsSectionTitle{font-size:14px!important}
+    #createWorldSettingsClose{width:31px!important;height:31px!important;line-height:28px!important}
+    #createWorldSettingsScroll{padding:12px 10px 18px!important}
+    .createWorldSettingsGroup{padding:12px 10px 9px!important;margin-bottom:13px!important;border-radius:10px!important}
+    .createWorldSettingsRow{grid-template-columns:minmax(0,1fr)!important;gap:8px!important;padding:10px!important}
+    .createWorldSettingsControl{justify-content:flex-start!important}
+    .createWorldSettingsChoices{grid-template-columns:1fr 1fr!important}
+    #createWorldSettingsActions{justify-content:stretch!important}
+    .createWorldSettingsAction{flex:1!important;min-width:0!important}
+    #createWorldSettingsMessage{text-align:left!important}
+}
+@media(max-width:430px){
+    #createWorldSettingsPreview{height:72px!important;min-height:72px!important}
+    .createWorldSettingsChoice{min-height:68px!important;padding:8px!important}
+    .createWorldSettingsChoiceIcon{width:27px!important;height:27px!important;flex-basis:27px!important}
+    .createWorldSettingsChoice strong{font-size:10px!important}
+    .createWorldSettingsChoice small{font-size:9px!important}
+}
+    `;
+    document.head.appendChild(workshopStyle);
 }
 
 function tabButton(label, page, icon, iconName) {
