@@ -221,11 +221,12 @@ export function spawnBlockBreakParticles(scene, center, type) {
         particles.push({
             position,
             velocity,
-            rotation: new THREE.Vector3(
+            rotationSpeed: new THREE.Vector3(
                 (Math.random() - 0.5) * 8,
                 (Math.random() - 0.5) * 8,
                 (Math.random() - 0.5) * 8
             ),
+            rotation: new THREE.Vector3(),
             size
         });
         dummy.position.copy(position);
@@ -265,10 +266,11 @@ export function spawnBlockBreakParticles(scene, center, type) {
                 velocity.z *= 0.72;
             }
 
+            particle.rotation.x += particle.rotationSpeed.x * dt;
+            particle.rotation.y += particle.rotationSpeed.y * dt;
+            particle.rotation.z += particle.rotationSpeed.z * dt;
             dummy.position.copy(particle.position);
-            dummy.rotation.x += particle.rotation.x * dt;
-            dummy.rotation.y += particle.rotation.y * dt;
-            dummy.rotation.z += particle.rotation.z * dt;
+            dummy.rotation.copy(particle.rotation);
             dummy.scale.setScalar(particle.size);
             dummy.updateMatrix();
             mesh.setMatrixAt(i, dummy.matrix);

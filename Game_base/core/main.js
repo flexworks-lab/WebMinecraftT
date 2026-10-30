@@ -829,6 +829,7 @@ async function startWorldWithSeed(seed, savedMode = null) {
         }
 
         gameStarted = true;
+        document.body.classList.add("webminecraft-in-world");
         setMenuUiVisible(false);
         requestPointerLock();
     } catch (error) {
@@ -840,6 +841,7 @@ async function startWorldWithSeed(seed, savedMode = null) {
             if (retrySpawn) {
                 camera.position.set(retrySpawn.x, retrySpawn.y, retrySpawn.z);
                 gameStarted = true;
+                document.body.classList.add("webminecraft-in-world");
                 setMenuUiVisible(false);
                 requestPointerLock();
             }
