@@ -900,6 +900,24 @@ function injectStyle() {
 }
     `;
 
+
+/* Flat gray UI: both World Creator columns are translucent stone gray. */
+#createWorldSettingsRoot{background:rgba(76,76,76,.70)!important}
+#createWorldSettingsSidebar{background:rgba(65,65,65,.70)!important}
+#createWorldSettingsContent{background:rgba(92,92,92,.70)!important;border-left:2px solid rgba(25,25,25,.75)!important}
+#createWorldSettingsHeader{background:rgba(145,145,145,.70)!important;border-bottom:2px solid #333!important;box-shadow:none!important}
+#createWorldSettingsScroll{background:rgba(105,105,105,.24)!important}
+.createWorldSettingsGroup{background:rgba(174,174,174,.70)!important;border:1px solid #555!important;box-shadow:none!important}
+.createWorldSettingsRow{background:rgba(125,125,125,.70)!important;border:1px solid #444!important;border-left:3px solid #333!important;box-shadow:none!important}
+.createWorldSettingsGroupTitle,#createWorldSettingsSectionTitle,.createWorldSettingsRow label,.createWorldSettingsRow small{color:#fff!important}
+.createWorldSettingsSelect,.createWorldSettingsInput{background:#777!important;color:#fff!important;border:2px solid #333!important;border-top-color:#aaa!important;border-left-color:#aaa!important}
+#createWorldSettingsRoot #cwGameMode{display:block!important;width:100%!important;min-width:190px!important;height:38px!important;padding:7px 32px 7px 10px!important;appearance:auto!important;background:#777!important;color:#fff!important;border:2px solid #292929!important;border-top-color:#bcbcbc!important;border-left-color:#bcbcbc!important;font:12px "MinecraftFont",monospace!important;cursor:pointer!important}
+#createWorldSettingsRoot .createWorldSettingsChoice,#createWorldSettingsRoot #cwGameModeChoices{display:none!important}
+#createWorldSettingsRoot *{border-radius:0!important}
+#createWorldSettingsRoot .createWorldSettingsTab,#createWorldSettingsRoot .createWorldSettingsAction,#createWorldSettingsRoot .createWorldSettingsSelect{background:linear-gradient(180deg,#858585,#626262)!important;color:#fff!important}
+#createWorldSettingsRoot #createWorldSettingsCreate{background:linear-gradient(180deg,#858585,#626262)!important;border-color:#292929!important;border-top-color:#c5c5c5!important;border-left-color:#c5c5c5!important;text-shadow:1px 1px #333!important}
+#createWorldSettingsRoot input:focus,#createWorldSettingsRoot select:focus{outline:2px solid #ddd!important;outline-offset:1px!important}
+
     document.head.appendChild(workshopStyle);
 }
 
@@ -953,17 +971,7 @@ function enhance(modal) {
                             <div class="createWorldSettingsRow">
                                 <div><label for="cwGameMode">Game Mode</label><small>Choose how you play in this world.</small></div>
                                 <div class="createWorldSettingsControl">
-    <div id="cwGameModeChoices" class="createWorldSettingsChoices" role="radiogroup" aria-label="Game Mode">
-        <button type="button" class="createWorldSettingsChoice active" data-game-mode="survival" role="radio" aria-checked="true">
-            <span class="createWorldSettingsChoiceIcon" aria-hidden="true">⚔</span>
-            <span><strong>Survival</strong><small>Gather, craft, and survive.</small></span>
-        </button>
-        <button type="button" class="createWorldSettingsChoice" data-game-mode="creative" role="radio" aria-checked="false">
-            <span class="createWorldSettingsChoiceIcon" aria-hidden="true">✦</span>
-            <span><strong>Creative</strong><small>Build freely with unlimited resources.</small></span>
-        </button>
-    </div>
-    <select id="cwGameMode" class="createWorldSettingsSelect" aria-hidden="true" tabindex="-1">
+    <select id="cwGameMode" class="createWorldSettingsSelect" aria-label="Game Mode">
         <option value="survival">Survival</option>
         <option value="creative">Creative</option>
     </select>
@@ -1100,6 +1108,12 @@ function enhance(modal) {
             return;
         }
         if (event.target.closest("#createWorldSettingsCreate")) {
+            if (!newNameField.value.trim()) {
+                newMessage.textContent = "Please enter a world name before creating it.";
+                newNameField.focus();
+                return;
+            }
+            nameField.value = newNameField.value.trim();
             applyCreateMode();
             hiddenCreate.click();
         }
@@ -1112,6 +1126,12 @@ function enhance(modal) {
     newNameField.addEventListener("keydown", event => {
         event.stopPropagation();
         if (event.key === "Enter") {
+            if (!newNameField.value.trim()) {
+                newMessage.textContent = "Please enter a world name before creating it.";
+                newNameField.focus();
+                return;
+            }
+            nameField.value = newNameField.value.trim();
             applyCreateMode();
             hiddenCreate.click();
         }
