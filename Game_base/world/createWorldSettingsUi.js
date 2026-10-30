@@ -796,6 +796,111 @@ function injectStyle() {
 }
 #createWorldSettingsRoot #createWorldSettingsClose:hover{filter:brightness(1.1)!important}
     `;
+
+/* Right editor panel: cool-toned builder surface, separate from the forest sidebar. */
+#createWorldSettingsContent{
+    background:
+      radial-gradient(ellipse at 92% 0%,rgba(164,195,219,.28),transparent 40%),
+      linear-gradient(145deg,rgba(220,234,246,.94),rgba(198,216,231,.88))!important;
+    border-left:1px solid rgba(57,88,113,.22)!important;
+}
+#createWorldSettingsHeader{
+    background:linear-gradient(90deg,rgba(239,247,252,.92),rgba(216,231,243,.86))!important;
+    border-bottom:2px solid rgba(117,149,174,.62)!important;
+    box-shadow:0 3px 12px rgba(39,69,91,.10)!important;
+}
+#createWorldSettingsSectionTitle{
+    padding-left:12px!important;
+    border-left:4px solid #739bb8!important;
+    color:#294a63!important;
+    text-shadow:1px 1px rgba(255,255,255,.65)!important;
+}
+#createWorldSettingsScroll{background:rgba(213,228,240,.28)!important}
+.createWorldSettingsGroup{
+    padding:16px 17px 13px!important;
+    border:1px solid rgba(114,147,173,.58)!important;
+    border-radius:5px!important;
+    background:rgba(247,251,255,.72)!important;
+    box-shadow:inset 0 1px rgba(255,255,255,.78),0 5px 14px rgba(39,69,91,.09)!important;
+}
+.createWorldSettingsGroupTitle{
+    color:#385d78!important;
+    border-bottom:1px solid rgba(125,158,183,.48)!important;
+}
+.createWorldSettingsRow{
+    border:1px solid rgba(144,169,188,.55)!important;
+    border-left:3px solid #8eafc8!important;
+    border-radius:3px!important;
+    background:rgba(231,241,248,.82)!important;
+    box-shadow:inset 0 1px rgba(255,255,255,.78),0 2px 4px rgba(46,76,98,.045)!important;
+}
+.createWorldSettingsRow label{color:#29465c!important}
+.createWorldSettingsRow small{color:#668096!important}
+.createWorldSettingsSelect,
+.createWorldSettingsInput{
+    border:1px solid #9eb5c7!important;
+    border-radius:2px!important;
+    background:#f5faff!important;
+    color:#29465c!important;
+    box-shadow:inset 0 2px 3px rgba(41,72,94,.08),0 1px rgba(255,255,255,.8)!important;
+}
+.createWorldSettingsSelect:focus,
+.createWorldSettingsInput:focus{
+    outline:2px solid #83abc8!important;
+    outline-offset:1px!important;
+}
+.createWorldSettingsSeed{background:#e3edf5!important;color:#496a82!important}
+.createWorldSettingsToggle{accent-color:#668eae!important}
+#createWorldSettingsRoot .createWorldSettingsChoice{
+    border-top-color:#eef7fd!important;
+    border-left-color:#eef7fd!important;
+    border-right-color:#536e82!important;
+    border-bottom-color:#536e82!important;
+    background:linear-gradient(180deg,#91acc0 0%,#718da3 100%)!important;
+    color:#fff!important;
+}
+#createWorldSettingsRoot .createWorldSettingsChoice.active{
+    background:linear-gradient(180deg,#86b5d1 0%,#5f91b2 100%)!important;
+    border-top-color:#e8f7ff!important;
+    border-left-color:#e8f7ff!important;
+    border-right-color:#345b75!important;
+    border-bottom-color:#345b75!important;
+}
+#createWorldSettingsRoot .createWorldSettingsChoice strong,
+#createWorldSettingsRoot .createWorldSettingsChoice small{
+    color:#fff!important;
+    text-shadow:1px 1px #38566b!important;
+}
+#createWorldSettingsRoot .createWorldSettingsChoiceIcon{
+    background:#d7e6f0!important;
+    color:#365b75!important;
+    border:2px solid #3e5e74!important;
+    border-top-color:#fff!important;
+    border-left-color:#fff!important;
+}
+.createWorldSettingsStatic{
+    border:1px dashed #9eb5c7!important;
+    border-radius:3px!important;
+    background:rgba(229,239,247,.88)!important;
+    color:#607b91!important;
+}
+.createWorldSettingsPack{
+    border:1px solid #b4c8d7!important;
+    border-radius:3px!important;
+    background:rgba(242,248,252,.9)!important;
+}
+.createWorldSettingsPackName{color:#385d78!important}
+.createWorldSettingsPackState{color:#71899b!important}
+#createWorldSettingsActions{border-top:1px solid rgba(117,149,174,.5)!important}
+#createWorldSettingsMessage{color:#52758e!important}
+@media(max-width:760px){
+    #createWorldSettingsContent{
+        border-left:0!important;
+        border-top:1px solid rgba(57,88,113,.22)!important;
+    }
+    .createWorldSettingsGroup{padding:12px 10px 9px!important}
+}
+
     document.head.appendChild(workshopStyle);
 }
 
