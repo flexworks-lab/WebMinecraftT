@@ -4,7 +4,7 @@ export function createDevPerformanceLab(deps) {
         createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
         setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
         setupWaterPhysics, updateWaterPhysics, resetWaterPhysics, getWaterPerformanceStats,
-        updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, setBlockAt,
+        updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, getBlockAt, setBlockAt,
         onResume
     } = deps;
 
@@ -233,14 +233,20 @@ export function createDevPerformanceLab(deps) {
     function renderResults() {
         const rows = results.map(item => {
             const bar = item.stats.reliable === false ? 2 : Math.max(2, Math.min(100, item.stats.fps / 60 * 100));
+            const errorLine = item.error
+                ? String(item.error).split(/\r?\n/)[0].replace(/[&<>"']/g, character => ({
+                    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+                }[character])).slice(0, 180)
+                : "";
             return '<div style="padding:9px 10px;background:#1c251f;border:1px solid #35443a">' +
                 '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
                 '<span style="font-size:10px;font-weight:800;color:#e4ebe5">' + item.name + '</span>' +
                 '<span style="font-size:9px;font-weight:900;color:' + item.stats.grade.color + '">' + item.stats.grade.label + '</span></div>' +
                 '<div style="height:5px;margin-top:7px;background:#303b33;overflow:hidden"><div style="height:100%;width:' + bar.toFixed(1) + '%;background:' + item.stats.grade.color + '"></div></div>' +
                 '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px;color:#9ca99f;font-size:9px;font-variant-numeric:tabular-nums">' +
-                '<span>' + (item.stats.reliable === false ? 'Not enough frames to grade' : item.stats.fps.toFixed(1) + ' avg FPS · ' + item.stats.low.toFixed(1) + ' 1% low') + '</span>' +
-                '<span>' + item.stats.avgMs.toFixed(1) + ' ms · ' + item.stats.frames + ' frames</span></div></div>';
+                '<span>' + (item.error ? 'ERROR · insufficient samples' : (item.stats.reliable === false ? 'Not enough frames to grade' : item.stats.fps.toFixed(1) + ' avg FPS · ' + item.stats.low.toFixed(1) + ' 1% low')) + '</span>' +
+                '<span>' + item.stats.avgMs.toFixed(1) + ' ms · ' + item.stats.frames + ' frames</span></div>' +
+                (errorLine ? '<div style="margin-top:6px;color:#f09b8d;font-size:9px;word-break:break-word">ERROR: ' + errorLine + '</div>' : '') + '</div>';
         }).join("");
         el("devBenchResults").innerHTML = rows || '<div style="color:#78867c;font-size:10px">No completed stages yet.</div>';
         if (results.length === stages.length) {

@@ -1092,7 +1092,7 @@ const devPerformanceLab = createDevPerformanceLab({
     createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
     setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
     setupWaterPhysics, updateWaterPhysics, resetWaterPhysics, getWaterPerformanceStats,
-    updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, setBlockAt, updateNerdStats,
+    updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, getBlockAt, setBlockAt, updateNerdStats,
     onResume: () => { lastTime = performance.now(); fpsTime = lastTime; fpsFrames = 0; frameTimeSamples = []; }
 });
 window.__webminecraftDevPerformanceLab = devPerformanceLab;
