@@ -1,13 +1,15 @@
 import * as THREE from "three";
 import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
-import { createWorld, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "../world/world.js";
-import { setupControls, resetView } from "../player/controls.js";
+import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "../world/world.js";
+import { setupControls, resetView, keys } from "../player/controls.js";
 import { updatePlayer } from "../player/player.js";
 import { setupInteraction } from "../player/interaction.js";
 import { initSavedWorlds } from "../world/worlds.js";
 import { setWorldSeedForPersistence } from "../world/worldSave.js";
 import { setupWorldClouds, setWorldCloudSeed } from "../world/worldClouds.js";
-import { setupWaterPhysics } from "../world/waterPhysicsMinecraft.js";
+import { setupWaterPhysics, updateWaterPhysics, resetWaterPhysics } from "../world/waterPhysicsMinecraft.js";
+import { spawnBlockBreakParticles } from "../world/blockParticles.js";
+import { createDevPerformanceLab } from "./devPerformanceLab.js";
 import { clearHotbar } from "../inventory/inventory.js";
 import "../player/characterEditor.js";
 import "../world/background.js";
@@ -477,6 +479,7 @@ const copyWorldLinkButton = document.getElementById("copyWorldLinkButton");
 const openWorldButton = document.getElementById("openWorldButton");
 const openSeedButton = document.getElementById("openSeedButton");
 const mobileModeButton = document.getElementById("mobileModeButton");
+const devPerformanceButton = document.getElementById("devPerformanceButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsMenu = document.getElementById("settingsMenu");
 const closeSettings = document.getElementById("closeSettings");
@@ -919,11 +922,17 @@ document.addEventListener("keydown", event => {
     if (event.code !== "Escape") return;
     if (settingsMenu?.style.display === "flex") closeSettingsMenu();
     if (statsContextMenu.style.display !== "none") statsContextMenu.style.display = "none";
-    if (nerdStatsPanel.style.display !== "none") {
-        nerdStatsPanel.style.display = "none";
-        requestPointerLock();
-    }
+    if (nerdStatsPanel.style.display !== "none") setNerdStatsVisible(false);
 });
+document.addEventListener("keydown", event => {
+    if (event.code !== "KeyP" || event.repeat) return;
+    const target = event.target;
+    if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || ""))) return;
+    if (!gameStarted && !window.__webminecraftDevBenchActive) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setNerdStatsVisible(nerdStatsPanel.style.display === "none");
+}, true);
 if (mobileModeButton) mobileModeButton.textContent = mobileMode ? "Desktop Mode" : "Mobile Mode";
 
 const shadowsToggle = document.getElementById("shadowsToggle");
@@ -983,15 +992,22 @@ nerdStatsPanel.innerHTML = '<div style="display:flex;align-items:center;justify-
 document.body.appendChild(nerdStatsPanel);
 const nerdStatsContent = nerdStatsPanel.querySelector("#webMinecraftNerdStatsContent");
 const nerdStatsClose = nerdStatsPanel.querySelector("#webMinecraftNerdStatsClose");
-statsMenuButton.addEventListener("click", () => {
+function setNerdStatsVisible(visible) {
     statsContextMenu.style.display = "none";
-    nerdStatsPanel.style.display = "block";
-    updateNerdStats();
-});
-nerdStatsClose.addEventListener("click", () => {
-    nerdStatsPanel.style.display = "none";
-    requestPointerLock();
-});
+    nerdStatsPanel.style.display = visible ? "block" : "none";
+    if (window.__webminecraftDevBenchActive) {
+        nerdStatsPanel.style.left = "16px";
+        nerdStatsPanel.style.right = "auto";
+    } else {
+        nerdStatsPanel.style.left = "auto";
+        nerdStatsPanel.style.right = "16px";
+    }
+    if (visible) updateNerdStats();
+    else if (gameStarted && !window.__webminecraftDevBenchActive) requestPointerLock();
+}
+window.__webminecraftShowNerdStats = () => setNerdStatsVisible(true);
+statsMenuButton.addEventListener("click", () => setNerdStatsVisible(true));
+nerdStatsClose.addEventListener("click", () => setNerdStatsVisible(false));
 document.addEventListener("contextmenu", event => {
     if (!gameStarted || !document.body.classList.contains("webminecraft-in-world")) return;
     event.preventDefault();
@@ -1023,7 +1039,8 @@ let frameTimeSamples = [];
 let lastNerdStatsUpdate = 0;
 
 function updateNerdStats() {
-    const samples = frameTimeSamples;
+    const benchmarkStats = window.__webminecraftDevBenchStats;
+    const samples = benchmarkStats?.samples?.length ? benchmarkStats.samples : frameTimeSamples;
     const averageMs = samples.length ? samples.reduce((sum, value) => sum + value, 0) / samples.length : 0;
     const ordered = samples.slice().sort((a, b) => a - b);
     const p99FrameMs = ordered.length ? ordered[Math.min(ordered.length - 1, Math.floor(ordered.length * 0.99))] : 0;
@@ -1035,7 +1052,8 @@ function updateNerdStats() {
     const lines = [
         "FPS:                    " + (Number.isFinite(fps) ? fps.toFixed(1) : "--"),
         "1% low FPS:             " + (Number.isFinite(lowFps) ? lowFps.toFixed(1) : "--"),
-        "Frame time:             " + lastFrameTimeMs.toFixed(1) + " ms",
+        "Frame time:             " + Number(benchmarkStats?.lastFrameMs ?? lastFrameTimeMs).toFixed(1) + " ms",
+        ...(benchmarkStats?.stage ? ["Benchmark stage:         " + benchmarkStats.stage] : []),
         "Average frame:          " + averageMs.toFixed(1) + " ms",
         "",
         "World",
@@ -1059,6 +1077,18 @@ function updateNerdStats() {
     ];
     nerdStatsContent.textContent = lines.join("\n");
 }
+window.__webminecraftUpdateNerdStats = updateNerdStats;
+
+const devPerformanceLab = createDevPerformanceLab({
+    THREE, renderer, mainScene: scene, mainCamera: camera, mainMenu,
+    createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
+    setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
+    setupWaterPhysics, updateWaterPhysics, resetWaterPhysics,
+    updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, updateNerdStats,
+    onResume: () => { lastTime = performance.now(); fpsTime = lastTime; fpsFrames = 0; frameTimeSamples = []; }
+});
+window.__webminecraftDevPerformanceLab = devPerformanceLab;
+devPerformanceButton?.addEventListener("click", () => devPerformanceLab.open());
 
 // Adaptive quality: preserve gameplay while lowering GPU cost when frame times
 // stay high, then cautiously restore quality after sustained headroom.
@@ -1171,6 +1201,7 @@ function updateSunPosition() {
 }
 function animate() {
     requestAnimationFrame(animate);
+    if (window.__webminecraftDevBenchActive) return;
     if (document.hidden) return;
     const currentTime = performance.now();
     lastFrameTimeMs = currentTime - lastTime;
