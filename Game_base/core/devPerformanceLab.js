@@ -2,6 +2,7 @@ export function createDevPerformanceLab(deps) {
     const {
         THREE, renderer, mainScene, mainCamera, mainMenu,
         createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
+        setChunkLoadConcurrency, getChunkLoadConcurrency,
         setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
         setupWaterPhysics, updateWaterPhysics, resetWaterPhysics, getWaterPerformanceStats,
         updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, getBlockAt, setBlockAt,
@@ -37,6 +38,7 @@ export function createDevPerformanceLab(deps) {
         '</div>',
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">',
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Loaded chunks</div><div id="devBenchChunks" style="margin-top:3px;font-weight:800">0</div></div>',
+        '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Active chunk jobs</div><div id="devBenchChunkJobs" style="margin-top:3px;font-weight:800">0 / 1</div></div>',
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Queued chunks</div><div id="devBenchQueue" style="margin-top:3px;font-weight:800">0</div></div>',
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Mesh work / frame</div><div id="devBenchMesh" style="margin-top:3px;font-weight:800">0 ms</div></div>',
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Draw calls</div><div id="devBenchCalls" style="margin-top:3px;font-weight:800">0</div></div>',
@@ -44,6 +46,16 @@ export function createDevPerformanceLab(deps) {
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">GPU resources</div><div id="devBenchMemory" style="margin-top:3px;font-weight:800">0 / 0</div></div>',
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Water cells / active</div><div id="devBenchWaterCells" style="margin-top:3px;font-weight:800">0 / 0</div></div>',
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Water fluid / mesh</div><div id="devBenchWaterWork" style="margin-top:3px;font-weight:800">0 / 0 ms</div></div>',
+        '</div>',
+        '<div style="margin-top:15px;padding:12px;background:#202a23;border:1px solid #3b4b3f">',
+        '<div style="font-size:10px;font-weight:900;letter-spacing:1.5px;color:#9fb6a4">CHUNK LOADING</div>',
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px">',
+        '<label for="devBenchChunkConcurrency" style="font-size:11px;font-weight:800;color:#e4ebe5">Chunks loading at once</label>',
+        '<span id="devBenchChunkConcurrencyValue" style="font-size:11px;font-weight:900;color:#c5df91">1</span>',
+        '</div>',
+        '<input id="devBenchChunkConcurrency" type="range" min="1" max="8" step="1" value="1" style="display:block;width:100%;margin-top:9px;accent-color:#9cdda4;cursor:pointer">',
+        '<div style="display:flex;justify-content:space-between;margin-top:3px;color:#87958b;font-size:9px"><span>1 · Lightest load</span><span>8 · Most concurrent</span></div>',
+        '<div style="margin-top:7px;color:#aab9ad;font-size:9px;line-height:1.45">Controls how many chunk generation or mesh jobs can advance concurrently. The per-frame CPU time limit stays in place to protect FPS.</div>',
         '</div>',
         '<div style="margin-top:16px;padding-top:13px;border-top:1px solid #303b33"><div style="font-size:10px;font-weight:900;letter-spacing:1.7px;color:#9fb6a4">STAGE RESULTS</div><div id="devBenchResults" style="display:grid;gap:8px;margin-top:10px"><div style="color:#78867c;font-size:10px">Results appear here as each system finishes.</div></div></div>',
         '<div id="devBenchFinal" style="display:none;margin-top:14px;padding:12px;background:#202a23;border:1px solid #526c56"><div style="font-size:9px;font-weight:900;letter-spacing:1px;color:#99caa1">OVERALL PERFORMANCE LEVEL</div><div id="devBenchOverall" style="margin-top:4px;font-size:20px;font-weight:900"></div><div id="devBenchSummary" style="margin-top:6px;font-size:10px;color:#c2cec5;line-height:1.5"></div></div>',
@@ -63,6 +75,8 @@ export function createDevPerformanceLab(deps) {
     const stopButton = el("devBenchStop");
     const closeButton = el("devBenchClose");
     const copyButton = el("devBenchCopy");
+    const chunkConcurrencyInput = el("devBenchChunkConcurrency");
+    let originalChunkLoadConcurrency = getChunkLoadConcurrency();
     let benchScene = null;
     let benchCamera = null;
     let preview = null;
@@ -168,6 +182,7 @@ export function createDevPerformanceLab(deps) {
         el("devBenchFrame").textContent = avg > 0 ? avg.toFixed(2) + " ms" : "-- ms";
         el("devBenchWorst").textContent = currentSamples.length ? Math.max(...currentSamples.slice(-90)).toFixed(1) + " ms" : "-- ms";
         el("devBenchChunks").textContent = String(world.loadedChunks ?? 0);
+        el("devBenchChunkJobs").textContent = String(world.activeChunkTasks ?? 0) + " / " + String(getChunkLoadConcurrency());
         el("devBenchQueue").textContent = String(world.queuedChunks ?? 0) + "  (gen " + String(world.queuedGenerationChunks ?? 0) + " / mesh " + String(world.queuedMeshRebuilds ?? 0) + ")";
         el("devBenchMesh").textContent = Number(world.chunkProcessMs || 0).toFixed(2) + " ms";
         el("devBenchCalls").textContent = String(render.calls ?? 0);
@@ -269,6 +284,7 @@ export function createDevPerformanceLab(deps) {
             "Cores: " + String(navigator.hardwareConcurrency || "unknown"),
             "Device memory: " + String(navigator.deviceMemory || "unknown") + " GB",
             "Renderer pixel ratio: " + renderer.getPixelRatio().toFixed(2),
+            "Chunk loading concurrency: " + String(getChunkLoadConcurrency()),
             "Benchmark status: " + (running ? "RUNNING / PARTIAL" : (lastStageError ? "STOPPED ON ERROR" : (results.length === stages.length ? "COMPLETE" : "STOPPED / INCOMPLETE"))),
             ...(lastStageError ? ["Stage error: " + lastStageError] : []),
             ...results.map(item => item.name + ": " + (item.stats.reliable === false ? "INSUFFICIENT SAMPLES, " : item.stats.fps.toFixed(1) + " average FPS, " + item.stats.low.toFixed(1) + " 1% low, ") + item.stats.avgMs.toFixed(2) + " ms average frame, " + item.stats.worstMs.toFixed(2) + " ms worst frame, " + item.stats.frames + " frames (" + item.stats.grade.label + ")" +
@@ -521,6 +537,9 @@ export function createDevPerformanceLab(deps) {
                 setWorldSeed(originalSeed);
                 worldPrepared = false;
             }
+            setChunkLoadConcurrency(originalChunkLoadConcurrency);
+            chunkConcurrencyInput.value = String(originalChunkLoadConcurrency);
+            el("devBenchChunkConcurrencyValue").textContent = String(originalChunkLoadConcurrency);
             removePreview();
             if (benchScene) benchScene.clear();
             benchScene = null;
@@ -541,6 +560,9 @@ export function createDevPerformanceLab(deps) {
     function open() {
         if (opened) return;
         ensureScene();
+        originalChunkLoadConcurrency = getChunkLoadConcurrency();
+        chunkConcurrencyInput.value = String(originalChunkLoadConcurrency);
+        el("devBenchChunkConcurrencyValue").textContent = String(originalChunkLoadConcurrency);
         opened = true;
         window.__webminecraftDevBenchActive = true;
         document.exitPointerLock?.();
@@ -553,9 +575,15 @@ export function createDevPerformanceLab(deps) {
         renderer.render(benchScene, benchCamera);
     }
 
+    chunkConcurrencyInput.addEventListener("input", () => {
+        const value = setChunkLoadConcurrency(chunkConcurrencyInput.value);
+        el("devBenchChunkConcurrencyValue").textContent = String(value);
+        updateHud(performance.now(), 0, results.length / totalStageCount);
+    });
     startButton.addEventListener("click", () => {
         if (!opened || running) return;
         savedKeys = { ...keys };
+        setChunkLoadConcurrency(chunkConcurrencyInput.value);
         void run();
     });
     stopButton.addEventListener("click", () => { stopRequested = true; });

@@ -22,6 +22,14 @@ export const SEA_LEVEL = 16;
 export const WORLD_TOP = MIN_Y + CHUNK_HEIGHT - 1;
 export let RENDER_DISTANCE = IS_TOUCH_DEVICE ? 3 : 6;
 export let UNLOAD_DISTANCE = RENDER_DISTANCE + (IS_TOUCH_DEVICE ? 1 : 2);
+let CHUNK_LOAD_CONCURRENCY = 1;
+export function setChunkLoadConcurrency(value) {
+    CHUNK_LOAD_CONCURRENCY = Math.max(1, Math.min(8, Math.round(Number(value) || 1)));
+    return CHUNK_LOAD_CONCURRENCY;
+}
+export function getChunkLoadConcurrency() {
+    return CHUNK_LOAD_CONCURRENCY;
+}
 
 export function setRenderDistance(blockDistance) {
     const value = Number(blockDistance);
@@ -117,7 +125,7 @@ export function createNewWorldSeed() {
 const chunks = new Map();
 const chunkMeshes = new Map();
 let activeGenerationChunk = null;
-let activeChunkTask = null;
+const activeChunkTasks = [];
 let lastFacingVisibilityUpdate = 0;
 const generationQueue = [];
 const queuedKeys = new Set();
@@ -1144,48 +1152,52 @@ function rebuildChunkMesh(chunk) {
     if (geometry) attachChunkMesh(chunk, geometry);
 }
 function queueNeededChunks(playerChunkX,playerChunkZ){const wanted=[];for(let dx=-RENDER_DISTANCE;dx<=RENDER_DISTANCE;dx++){for(let dz=-RENDER_DISTANCE;dz<=RENDER_DISTANCE;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))>RENDER_DISTANCE)continue;const x=playerChunkX+dx,z=playerChunkZ+dz,key=chunkKey(x,z);if(chunks.has(key)||queuedKeys.has(key))continue;wanted.push({x,z,distance:Math.sqrt(dx*dx+dz*dz)});}}wanted.sort((a,b)=>a.distance-b.distance);for(const item of wanted){const key=chunkKey(item.x,item.z);queuedKeys.add(key);generationQueue.push(item);}generationQueue.sort((a,b)=>Math.hypot(a.x-playerChunkX,a.z-playerChunkZ)-Math.hypot(b.x-playerChunkX,b.z-playerChunkZ));}
+function startNextChunkTask() {
+    const startRebuildTask = () => {
+        while (meshRebuildQueue.length) {
+            const candidate = meshRebuildQueue.shift();
+            const key = chunkKey(candidate.x, candidate.z);
+            queuedMeshRebuildKeys.delete(key);
+            const chunk = chunks.get(key);
+            if (!chunk?.generated) continue;
+            if (Math.max(Math.abs(candidate.x - lastPlayerChunkX), Math.abs(candidate.z - lastPlayerChunkZ)) > UNLOAD_DISTANCE) continue;
+            activeChunkTasks.push({ chunk, phase: "mesh", iterator: makeGeometryForChunkSteps(chunk), rebuildOnly: true });
+            return true;
+        }
+        return false;
+    };
+    const startGenerationTask = () => {
+        while (generationQueue.length) {
+            const candidate = generationQueue.shift();
+            const key = chunkKey(candidate.x, candidate.z);
+            queuedKeys.delete(key);
+            if (chunks.has(key)) continue;
+            if (Math.max(Math.abs(candidate.x - lastPlayerChunkX), Math.abs(candidate.z - lastPlayerChunkZ)) > UNLOAD_DISTANCE) continue;
+            const chunk = createChunkData(candidate.x, candidate.z);
+            activeChunkTasks.push({ chunk, phase: "data", iterator: generateChunkDataSteps(chunk), rebuildOnly: false });
+            return true;
+        }
+        return false;
+    };
+    const started = preferMeshRebuild
+        ? (startRebuildTask() || startGenerationTask())
+        : (startGenerationTask() || startRebuildTask());
+    if (started) preferMeshRebuild = !activeChunkTasks[activeChunkTasks.length - 1].rebuildOnly;
+    return started;
+}
+
 function processChunkQueue() {
     const startTime = performance.now();
+    // The concurrency setting does not increase the strict per-frame time budget.
     const budgetMs = IS_TOUCH_DEVICE ? 0.9 : (IS_LOW_POWER_DEVICE ? 1.25 : 2.0);
     let steps = 0;
-
-    while (performance.now() - startTime < budgetMs && steps++ < 256) {
-        if (!activeChunkTask) {
-            const startRebuildTask = () => {
-                while (meshRebuildQueue.length) {
-                    const candidate = meshRebuildQueue.shift();
-                    const key = chunkKey(candidate.x, candidate.z);
-                    queuedMeshRebuildKeys.delete(key);
-                    const chunk = chunks.get(key);
-                    if (!chunk?.generated) continue;
-                    if (Math.max(Math.abs(candidate.x - lastPlayerChunkX), Math.abs(candidate.z - lastPlayerChunkZ)) > UNLOAD_DISTANCE) continue;
-                    activeChunkTask = { chunk, phase: "mesh", iterator: makeGeometryForChunkSteps(chunk), rebuildOnly: true };
-                    return true;
-                }
-                return false;
-            };
-            const startGenerationTask = () => {
-                while (generationQueue.length) {
-                    const candidate = generationQueue.shift();
-                    const key = chunkKey(candidate.x, candidate.z);
-                    queuedKeys.delete(key);
-                    if (chunks.has(key)) continue;
-                    if (Math.max(Math.abs(candidate.x - lastPlayerChunkX), Math.abs(candidate.z - lastPlayerChunkZ)) > UNLOAD_DISTANCE) continue;
-                    const chunk = createChunkData(candidate.x, candidate.z);
-                    activeChunkTask = { chunk, phase: "data", iterator: generateChunkDataSteps(chunk), rebuildOnly: false };
-                    return true;
-                }
-                return false;
-            };
-
-            const started = preferMeshRebuild
-                ? (startRebuildTask() || startGenerationTask())
-                : (startGenerationTask() || startRebuildTask());
-            if (!started) break;
-            preferMeshRebuild = !activeChunkTask.rebuildOnly;
+    while (performance.now() - startTime < budgetMs && steps < 256) {
+        while (activeChunkTasks.length < CHUNK_LOAD_CONCURRENCY) {
+            if (!startNextChunkTask()) break;
         }
-
-        const task = activeChunkTask;
+        if (!activeChunkTasks.length) break;
+        const task = activeChunkTasks.shift();
+        steps++;
         try {
             if (task.phase === "data") {
                 const previous = activeGenerationChunk;
@@ -1200,29 +1212,57 @@ function processChunkQueue() {
                     task.phase = "mesh";
                     task.iterator = makeGeometryForChunkSteps(task.chunk);
                 }
+                activeChunkTasks.push(task);
             } else {
                 const step = task.iterator.next();
                 if (step.done) {
                     attachChunkMesh(task.chunk, step.value);
-                    activeChunkTask = null;
                     if (task.repeatAfterBuild) queueMeshRebuild(task.chunk.x, task.chunk.z);
+                } else {
+                    activeChunkTasks.push(task);
                 }
             }
         } catch (error) {
             activeGenerationChunk = null;
-            const failedKey = chunkKey(task.chunk.x, task.chunk.z);
             if (!task.rebuildOnly) {
                 disposeChunkMesh(task.chunk);
-                chunks.delete(failedKey);
+                chunks.delete(chunkKey(task.chunk.x, task.chunk.z));
             }
-            activeChunkTask = null;
             console.warn("Chunk streaming task failed:", error);
-            break;
         }
     }
     lastChunkProcessTime = performance.now() - startTime;
 }
-function unloadFarChunks(playerChunkX,playerChunkZ){if(activeChunkTask){const activeDistance=Math.max(Math.abs(activeChunkTask.chunk.x-playerChunkX),Math.abs(activeChunkTask.chunk.z-playerChunkZ));if(activeDistance>UNLOAD_DISTANCE){const activeKey=chunkKey(activeChunkTask.chunk.x,activeChunkTask.chunk.z);disposeChunkMesh(activeChunkTask.chunk);chunks.delete(activeKey);activeChunkTask=null;activeGenerationChunk=null;}}for(const[key,chunk]of chunks){const distance=Math.max(Math.abs(chunk.x-playerChunkX),Math.abs(chunk.z-playerChunkZ));if(distance>UNLOAD_DISTANCE){disposeChunkMesh(chunk);chunks.delete(key);}}for(let i=generationQueue.length-1;i>=0;i--){const item=generationQueue[i];if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){queuedKeys.delete(chunkKey(item.x,item.z));generationQueue.splice(i,1);}}for(let i=meshRebuildQueue.length-1;i>=0;i--){const item=meshRebuildQueue[i];if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){queuedMeshRebuildKeys.delete(chunkKey(item.x,item.z));meshRebuildQueue.splice(i,1);}}}
+function unloadFarChunks(playerChunkX,playerChunkZ){
+    for(let i=activeChunkTasks.length-1;i>=0;i--){
+        const task=activeChunkTasks[i];
+        const distance=Math.max(Math.abs(task.chunk.x-playerChunkX),Math.abs(task.chunk.z-playerChunkZ));
+        if(distance>UNLOAD_DISTANCE){
+            const key=chunkKey(task.chunk.x,task.chunk.z);
+            disposeChunkMesh(task.chunk);
+            chunks.delete(key);
+            activeChunkTasks.splice(i,1);
+        }
+    }
+    for(const[key,chunk]of chunks){
+        const distance=Math.max(Math.abs(chunk.x-playerChunkX),Math.abs(chunk.z-playerChunkZ));
+        if(distance>UNLOAD_DISTANCE){disposeChunkMesh(chunk);chunks.delete(key);}
+    }
+    for(let i=generationQueue.length-1;i>=0;i--){
+        const item=generationQueue[i];
+        if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){
+            queuedKeys.delete(chunkKey(item.x,item.z));
+            generationQueue.splice(i,1);
+        }
+    }
+    for(let i=meshRebuildQueue.length-1;i>=0;i--){
+        const item=meshRebuildQueue[i];
+        if(Math.max(Math.abs(item.x-playerChunkX),Math.abs(item.z-playerChunkZ))>UNLOAD_DISTANCE){
+            queuedMeshRebuildKeys.delete(chunkKey(item.x,item.z));
+            meshRebuildQueue.splice(i,1);
+        }
+    }
+}
 function updateFacingVisibility(playerPosition,camera){if(!camera)return;const now=performance.now();const interval=IS_LOW_POWER_DEVICE?100:50;if(now-lastFacingVisibilityUpdate<interval)return;lastFacingVisibilityUpdate=now;const direction=new THREE.Vector3();camera.getWorldDirection(direction);direction.y=0;const directionLengthSq=direction.lengthSq();if(directionLengthSq<.0001)return;const invLength=1/Math.sqrt(directionLengthSq);direction.x*=invLength;direction.z*=invLength;const playerChunk=getChunkCoords(playerPosition.x,playerPosition.z),maxDistance=RENDER_DISTANCE+1,maxDistanceSq=maxDistance*maxDistance;for(const chunk of chunks.values()){const mesh=chunkMeshes.get(chunkKey(chunk.x,chunk.z));if(!mesh)continue;const dx=chunk.x-playerChunk.chunkX,dz=chunk.z-playerChunk.chunkZ;if(Math.max(Math.abs(dx),Math.abs(dz))>maxDistance){mesh.visible=false;continue;}const distanceSq=dx*dx+dz*dz;let shouldKeep=distanceSq<2.4*2.4;if(!shouldKeep){const invDistance=1/Math.sqrt(distanceSq);const dot=(dx*invDistance)*direction.x+(dz*invDistance)*direction.z;shouldKeep=dot>-.72;}mesh.visible=shouldKeep;}
     // Dynamic water uses separate meshes, so explicitly mirror the visibility
     // of its owning terrain chunk. Otherwise water remains visible in the
@@ -1259,8 +1299,9 @@ function queueMeshRebuild(chunkX, chunkZ) {
 
     // Let the current mesh build finish and schedule one follow-up for all
     // edits received during that build. Never restart its iterator per block.
-    if (activeChunkTask?.chunk === chunk && activeChunkTask.phase === "mesh") {
-        activeChunkTask.repeatAfterBuild = true;
+    const activeMeshTask = activeChunkTasks.find(task => task.chunk === chunk && task.phase === "mesh");
+    if (activeMeshTask) {
+        activeMeshTask.repeatAfterBuild = true;
         return;
     }
 
@@ -1274,7 +1315,7 @@ export function clearWorld(){
     for(const chunk of chunks.values())disposeChunkMesh(chunk);
     chunks.clear();
     chunkMeshes.clear();
-    activeChunkTask = null;
+    activeChunkTasks.length = 0;
     activeGenerationChunk = null;
     generationQueue.length=0;
     queuedKeys.clear();
@@ -1296,14 +1337,18 @@ export function getPerformanceStats(){
     for(const[key,chunk]of chunks){if(chunk.generated&&chunkMeshes.has(key))loadedChunks++;}
     return {
         loadedChunks,
-        queuedChunks:generationQueue.length+meshRebuildQueue.length+(activeChunkTask?1:0),
+        queuedChunks:generationQueue.length+meshRebuildQueue.length+activeChunkTasks.length,
         queuedGenerationChunks:generationQueue.length,
         queuedMeshRebuilds:meshRebuildQueue.length,
-        activeChunkPhase:activeChunkTask?.phase || "idle",
+        activeChunkTasks:activeChunkTasks.length,
+        chunkLoadConcurrency:CHUNK_LOAD_CONCURRENCY,
+        activeGenerationChunks:activeChunkTasks.filter(task=>task.phase==="data").length,
+        activeMeshChunks:activeChunkTasks.filter(task=>task.phase==="mesh").length,
+        activeChunkPhase:activeChunkTasks.length ? activeChunkTasks.map(task=>task.phase).join(",") : "idle",
         chunkProcessMs:lastChunkProcessTime,
         renderDistance:RENDER_DISTANCE,
         seed:WORLD_SEED,
-        generatingChunks:activeChunkTask?.phase === "data" ? 1 : 0
+        generatingChunks:activeChunkTasks.filter(task=>task.phase==="data").length
     };
 }
 export function getWorldSeed(){return WORLD_SEED;}

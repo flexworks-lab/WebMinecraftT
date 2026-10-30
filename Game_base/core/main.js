@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
-import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, setBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "../world/world.js";
+import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, setBlockAt, getBlockTypes, isPointInWater, setChunkLoadConcurrency, getChunkLoadConcurrency, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "../world/world.js";
 import { setupControls, resetView, keys } from "../player/controls.js";
 import { updatePlayer } from "../player/player.js";
 import { setupInteraction } from "../player/interaction.js";
@@ -576,7 +576,8 @@ function hasOpenMenuScreen() {
 }
 window.__webminecraftHasOpenMenu = hasOpenMenuScreen;
 function requestPointerLock() {
-    if (!gameStarted || mobileMode || hasOpenMenuScreen()) return;
+    // Keep the mouse free while the developer performance lab is open.
+    if (window.__webminecraftDevBenchActive || !gameStarted || mobileMode || hasOpenMenuScreen()) return;
     if (document.pointerLockElement !== document.body) document.body.requestPointerLock?.();
 }
 function closeSettingsMenu(lockMouse = false) {
@@ -1090,6 +1091,7 @@ window.__webminecraftUpdateNerdStats = updateNerdStats;
 const devPerformanceLab = createDevPerformanceLab({
     THREE, renderer, mainScene: scene, mainCamera: camera, mainMenu,
     createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
+    setChunkLoadConcurrency, getChunkLoadConcurrency,
     setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
     setupWaterPhysics, updateWaterPhysics, resetWaterPhysics, getWaterPerformanceStats,
     updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, getBlockAt, setBlockAt, updateNerdStats,
