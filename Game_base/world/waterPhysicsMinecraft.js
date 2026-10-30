@@ -147,7 +147,7 @@ function sameState(a, b) {
     ));
 }
 
-function addCell(x, y, z, state, activate = true) {
+function addCell(x, y, z, state, activate = true, markDirty = true) {
     x = floorCoord(x);
     y = floorCoord(y);
     z = floorCoord(z);
@@ -176,7 +176,7 @@ function addCell(x, y, z, state, activate = true) {
         enqueue(x, y, z);
         activateNeighbors(x, y, z);
     }
-    markChunkDirty(x, z);
+    if (markDirty) markChunkDirty(x, z);
     return true;
 }
 
@@ -230,23 +230,35 @@ function seedOceanChunk(ck) {
     const startX = chunkX * CHUNK_SIZE;
     const startZ = chunkZ * CHUNK_SIZE;
 
+    let seededWater = false;
+
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         for (let lz = 0; lz < CHUNK_SIZE; lz++) {
             const x = startX + lx;
             const z = startZ + lz;
-            if (getTerrainProfile(x, z).height >= SEA_LEVEL) continue;
-            if (!isAir(x, SEA_LEVEL, z)) continue;
+            const terrainY = getTerrainProfile(x, z).height;
+            if (terrainY >= SEA_LEVEL || !isAir(x, SEA_LEVEL, z)) continue;
 
-            const k = key(x, SEA_LEVEL, z);
-            const current = water.get(k);
-            if (current?.source) continue;
+            // Fill the complete water column during chunk registration. The
+            // previous top-only seed made a waterfall that took many fluid
+            // ticks to settle and created a stack of falling cells.
+            for (let y = Math.max(MIN_Y, terrainY + 1); y <= SEA_LEVEL; y++) {
+                if (!isAir(x, y, z)) continue;
+                const current = getWater(x, y, z);
+                if (current?.source) continue;
 
-            addCell(x, SEA_LEVEL, z, makeState(SOURCE_LEVEL, false, true, false), false);
-            enqueue(x, SEA_LEVEL, z);
-            activateNeighbors(x, SEA_LEVEL, z);
-            markChunkDirty(x, z);
+                if (addCell(x, y, z, makeState(SOURCE_LEVEL, false, true, false), false, false)) {
+                    seededWater = true;
+                }
+            }
+
+            // Only wake the surface row. The water below is already present,
+            // so it must not cascade down from the top as separate falling cells.
+            if (getWater(x, SEA_LEVEL, z)) enqueue(x, SEA_LEVEL, z);
         }
     }
+
+    if (seededWater) markChunkDirty(startX, startZ);
 }
 
 function scheduleChunkPrune(ck) {
