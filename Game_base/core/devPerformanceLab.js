@@ -82,8 +82,13 @@ export function createDevPerformanceLab(deps) {
     let totalStageCount = 7;
     let lastParticleBurst = 0;
     let lastBlockEdit = 0;
+    let blockEditCursor = 0;
+    let blockEditTargets = [];
+    let lastStreamX = 0;
+    let lastStreamZ = 0;
     let lastHudUpdate = 0;
     let runStartedAt = 0;
+    let lastStageError = "";
     let reportText = "";
 
     const stages = [
@@ -258,7 +263,14 @@ export function createDevPerformanceLab(deps) {
             "Cores: " + String(navigator.hardwareConcurrency || "unknown"),
             "Device memory: " + String(navigator.deviceMemory || "unknown") + " GB",
             "Renderer pixel ratio: " + renderer.getPixelRatio().toFixed(2),
-            ...results.map(item => item.name + ": " + (item.stats.reliable === false ? "INSUFFICIENT SAMPLES, " : item.stats.fps.toFixed(1) + " average FPS, " + item.stats.low.toFixed(1) + " 1% low, ") + item.stats.avgMs.toFixed(2) + " ms average frame, " + item.stats.worstMs.toFixed(2) + " ms worst frame, " + item.stats.frames + " frames (" + item.stats.grade.label + ")")
+            "Benchmark status: " + (running ? "RUNNING / PARTIAL" : (lastStageError ? "STOPPED ON ERROR" : (results.length === stages.length ? "COMPLETE" : "STOPPED / INCOMPLETE"))),
+            ...(lastStageError ? ["Stage error: " + lastStageError] : []),
+            ...results.map(item => item.name + ": " + (item.stats.reliable === false ? "INSUFFICIENT SAMPLES, " : item.stats.fps.toFixed(1) + " average FPS, " + item.stats.low.toFixed(1) + " 1% low, ") + item.stats.avgMs.toFixed(2) + " ms average frame, " + item.stats.worstMs.toFixed(2) + " ms worst frame, " + item.stats.frames + " frames (" + item.stats.grade.label + ")" +
+                ", workload " + Number(item.stats.workloadAvgMs || 0).toFixed(2) + " ms avg / " + Number(item.stats.workloadWorstMs || 0).toFixed(2) + " ms worst" +
+                ", render " + Number(item.stats.renderAvgMs || 0).toFixed(2) + " ms avg / " + Number(item.stats.renderWorstMs || 0).toFixed(2) + " ms worst" +
+                ", chunk work " + Number(item.stats.chunkWorkMs || 0).toFixed(2) + " ms, mesh queue " + Number(item.stats.queuedMeshRebuilds || 0) +
+                ", water " + Number(item.stats.waterCells || 0) + " cells, " + Number(item.stats.waterFluidMs || 0).toFixed(2) + " ms fluid / " + Number(item.stats.waterMeshMs || 0).toFixed(2) + " ms mesh" +
+                (item.error ? ", ERROR: " + item.error : ""))
         ].join("\\n");
     }
 
@@ -285,6 +297,10 @@ export function createDevPerformanceLab(deps) {
         setCameraForWorld(0, 0, Math.max(terrain.height + 24, 34));
         lastParticleBurst = 0;
         lastBlockEdit = 0;
+        blockEditCursor = 0;
+        blockEditTargets = [];
+        lastStreamX = 0;
+        lastStreamZ = 0;
     }
 
     function stageWorkload(stageName, now, dt, elapsed) {
@@ -297,6 +313,8 @@ export function createDevPerformanceLab(deps) {
             const angle = elapsed * 0.85;
             const x = Math.cos(angle) * 58;
             const z = Math.sin(angle) * 58;
+            lastStreamX = x;
+            lastStreamZ = z;
             benchCamera.position.set(x + 28, terrain.height + 26, z + 38);
             benchCamera.lookAt(x, 16, z);
             updateChunkVisibility(new THREE.Vector3(x, 24, z), benchCamera);
@@ -305,15 +323,34 @@ export function createDevPerformanceLab(deps) {
             updateWaterPhysics();
             benchCamera.rotation.y += dt * 0.08;
         } else if (stageName === "Block edits + chunk remeshing") {
-            if (now - lastBlockEdit > 115) {
+            // Keep the edit workload inside the chunk that the streaming test
+            // just generated. The old origin-based targets could be unloaded,
+            // which meant setBlockAt only changed the override cache and never
+            // queued a real chunk mesh rebuild.
+            const anchorChunkX = Math.floor(lastStreamX / CHUNK_SIZE);
+            const anchorChunkZ = Math.floor(lastStreamZ / CHUNK_SIZE);
+            const targetOffsets = [[4,4],[7,4],[10,4],[13,4],[4,8],[7,8],[10,8],[13,8],[4,12],[7,12],[10,12],[13,12]];
+            if (!blockEditTargets.length) {
+                blockEditTargets = targetOffsets.map(([ox, oz]) => ({
+                    x: anchorChunkX * CHUNK_SIZE + ox,
+                    z: anchorChunkZ * CHUNK_SIZE + oz
+                }));
+            }
+            // Drain queued generation/rebuild work in this same region every
+            // frame so the stage measures both edit cost and mesh regeneration.
+            updateChunkVisibility(new THREE.Vector3(lastStreamX, 24, lastStreamZ), benchCamera);
+            if (now - lastBlockEdit > 140) {
                 lastBlockEdit = now;
-                const x = Math.floor(Math.sin(elapsed * 2.1) * 6);
-                const z = Math.floor(Math.cos(elapsed * 1.7) * 6);
-                const y = Math.floor(getTerrainProfile(x, z).height) + 1;
+                const target = blockEditTargets[blockEditCursor++ % blockEditTargets.length];
+                const y = Math.floor(getTerrainProfile(target.x, target.z).height) + 1;
                 const block = getBlockTypes();
-                const nextType = getBlockAt(x, y, z) === block.AIR ? block.STONE : block.AIR;
-                setBlockAt(x, y, z, nextType);
-                window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type: nextType } }));
+                const oldType = getBlockAt(target.x, y, target.z);
+                const nextType = oldType === block.AIR ? block.STONE : block.AIR;
+                const changed = setBlockAt(target.x, y, target.z, nextType);
+                if (!changed) throw new Error("Block edit was rejected at " + target.x + "," + y + "," + target.z);
+                window.dispatchEvent(new CustomEvent("webminecraft:blockchange", {
+                    detail: { x: target.x, y, z: target.z, type: nextType }
+                }));
             }
         } else if (stageName === "Block-break particles") {
             if (now - lastParticleBurst > 820) {
@@ -343,6 +380,8 @@ export function createDevPerformanceLab(deps) {
             currentStage = stage.name;
             el("devBenchStageDetail").textContent = stage.detail;
             currentSamples = [];
+            const workloadSamples = [];
+            const renderSamples = [];
             const start = performance.now();
             let previous = start;
             el("devBenchState").textContent = "RUNNING";
@@ -357,19 +396,43 @@ export function createDevPerformanceLab(deps) {
                 currentSamples.push(Math.min(1000, lastFrameMs));
                 const elapsed = now - start;
                 try {
+                    const workloadStarted = performance.now();
                     stageWorkload(stage.name, now, Math.min(0.05, lastFrameMs / 1000), elapsed / 1000);
+                    workloadSamples.push(performance.now() - workloadStarted);
+                    const renderStarted = performance.now();
                     renderer.render(benchScene, benchCamera);
+                    renderSamples.push(performance.now() - renderStarted);
                 } catch (error) {
-                    el("devBenchMessage").textContent = "Simulation error: " + String(error?.message || error);
+                    lastStageError = String(error?.stack || error?.message || error);
+                    el("devBenchMessage").textContent = "Simulation error in " + stage.name + ": " + lastStageError;
                     stopRequested = true;
-                    resolve({ name: stage.name, stats: summarize(currentSamples), error: String(error?.message || error) });
+                    resolve({ name: stage.name, stats: summarize(currentSamples), error: lastStageError });
                     return;
                 }
                 const progress = Math.max(0, Math.min(1, elapsed / stage.duration));
                 const overall = (index + progress) / totalStageCount;
                 updateHud(now, progress, overall);
                 if (elapsed >= stage.duration) {
-                    resolve({ name: stage.name, stats: summarize(currentSamples) });
+                    const average = values => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+                    const worst = values => values.length ? Math.max(...values) : 0;
+                    const worldStats = getPerformanceStats();
+                    const waterStats = getWaterPerformanceStats();
+                    resolve({
+                        name: stage.name,
+                        stats: {
+                            ...summarize(currentSamples),
+                            workloadAvgMs: average(workloadSamples),
+                            workloadWorstMs: worst(workloadSamples),
+                            renderAvgMs: average(renderSamples),
+                            renderWorstMs: worst(renderSamples),
+                            chunkWorkMs: Number(worldStats.chunkProcessMs || 0),
+                            queuedMeshRebuilds: Number(worldStats.queuedMeshRebuilds || 0),
+                            waterCells: Number(waterStats.waterCells || 0),
+                            activeWaterCells: Number(waterStats.activeCells || 0),
+                            waterFluidMs: Number(waterStats.fluidProcessMs || 0),
+                            waterMeshMs: Number(waterStats.meshBuildMs || 0)
+                        }
+                    });
                     return;
                 }
                 requestAnimationFrame(loop);
@@ -387,11 +450,14 @@ export function createDevPerformanceLab(deps) {
         results = [];
         currentSamples = [];
         runStartedAt = performance.now();
+        lastStageError = "";
         el("devBenchResults").innerHTML = '<div style="color:#aab9ad;font-size:10px">Running staged systems...</div>';
         el("devBenchFinal").style.display = "none";
         el("devBenchMessage").textContent = "The benchmark is active in an isolated simulation scene. You are not inside a playable world.";
         startButton.style.display = "none";
         stopButton.style.display = "block";
+        copyButton.disabled = true;
+        copyButton.textContent = "TEST RUNNING";
         el("devBenchState").textContent = "RUNNING";
         try {
             for (let i = 0; i < stages.length; i++) {
@@ -411,12 +477,16 @@ export function createDevPerformanceLab(deps) {
             startButton.style.display = "block";
             el("devBenchState").textContent = stopRequested ? "STOPPED" : "COMPLETE";
             currentStage = stopRequested ? "Stopped" : "Complete";
+            copyButton.disabled = false;
+            copyButton.textContent = "COPY RESULTS";
             updateHud(performance.now(), 1, results.length / totalStageCount);
-            if (results.length === stages.length) {
-                renderResults();
-                el("devBenchMessage").textContent = "Test complete. The stage-by-stage frame counts are ready to compare. Use Copy results to send the measurements back.";
+            renderResults();
+            if (lastStageError) {
+                el("devBenchMessage").textContent = "Test stopped at " + currentStage + ": " + lastStageError;
+            } else if (results.length === stages.length) {
+                el("devBenchMessage").textContent = "Test complete. All system stages finished. Use Copy results to send the measurements back.";
             } else if (stopRequested) {
-                el("devBenchMessage").textContent = "Test stopped. Completed stages are preserved; start again to run the full sequence.";
+                el("devBenchMessage").textContent = "Test stopped manually. Completed stages are preserved; start again to run the full sequence.";
             }
             if (closeAfterStop) cleanupAndHide();
         }
@@ -484,7 +554,12 @@ export function createDevPerformanceLab(deps) {
     });
     stopButton.addEventListener("click", () => { stopRequested = true; });
     closeButton.addEventListener("click", cleanupAndHide);
+    copyButton.disabled = true;
     copyButton.addEventListener("click", async () => {
+        if (running) {
+            el("devBenchMessage").textContent = "Wait for the current system sequence to finish before copying the complete report.";
+            return;
+        }
         if (!reportText) {
             el("devBenchMessage").textContent = "Run at least one stage before copying results.";
             return;
