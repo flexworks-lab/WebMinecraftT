@@ -53,11 +53,14 @@ waterTexture.needsUpdate = true;
 // Water tops must be opaque in the depth buffer so the texture from
 // lower water layers cannot show through the surface. Vertical edges remain
 // translucent so the shoreline and water depth still read naturally.
+// The water top stays see-through, but writes depth so lower water
+// geometry cannot draw through it. Top and side faces are separate meshes
+// with explicit render order to keep that depth protection consistent.
 const waterSurfaceMaterial = new THREE.MeshBasicMaterial({
     map: waterTexture,
     color: 0x164f7c,
-    transparent: false,
-    opacity: 1,
+    transparent: true,
+    opacity: 0.72,
     depthWrite: true,
     depthTest: true,
     side: THREE.DoubleSide
@@ -67,11 +70,10 @@ const fluidSideMaterial = new THREE.MeshBasicMaterial({
     color: 0x164f7c,
     transparent: true,
     opacity: 0.82,
-    depthWrite: true,
+    depthWrite: false,
     depthTest: true,
     side: THREE.DoubleSide
 });
-const fluidMaterials = [waterSurfaceMaterial, fluidSideMaterial];
 
 const key = (x, y, z) => Math.floor(x) + "," + Math.floor(y) + "," + Math.floor(z);
 const parseKey = value => value.split(",").map(Number);
@@ -218,14 +220,21 @@ function removeCell(x, y, z) {
     return true;
 }
 
+function disposeDynamicWaterGroup(group) {
+    if (!group) return;
+    group.traverse(object => {
+        if (object.geometry) object.geometry.dispose();
+    });
+}
+
 function clearDynamicMeshes() {
     if (!scene) {
         dynamicMeshes.clear();
         return;
     }
-    for (const mesh of dynamicMeshes.values()) {
-        scene.remove(mesh);
-        mesh.geometry?.dispose();
+    for (const group of dynamicMeshes.values()) {
+        scene.remove(group);
+        disposeDynamicWaterGroup(group);
     }
     dynamicMeshes.clear();
 }
@@ -310,10 +319,10 @@ function scheduleChunkPrune(ck) {
             chunkCells.delete(ck);
         }
 
-        const mesh = dynamicMeshes.get(ck);
-        if (mesh) {
-            scene?.remove(mesh);
-            mesh.geometry?.dispose();
+        const group = dynamicMeshes.get(ck);
+        if (group) {
+            scene?.remove(group);
+            disposeDynamicWaterGroup(group);
             dynamicMeshes.delete(ck);
         }
 
@@ -707,7 +716,7 @@ function buildChunk(ck) {
     const old = dynamicMeshes.get(ck);
     if (old) {
         scene.remove(old);
-        old.geometry?.dispose();
+        disposeDynamicWaterGroup(old);
         dynamicMeshes.delete(ck);
     }
 
@@ -840,27 +849,47 @@ function buildChunk(ck) {
 
     if (!positions.length) return;
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    const positionAttribute = new THREE.Float32BufferAttribute(positions, 3);
+    const normalAttribute = new THREE.Float32BufferAttribute(normals, 3);
+    const uvAttribute = new THREE.Float32BufferAttribute(uvs, 2);
+    const group = new THREE.Group();
+    group.userData.isDynamicWater = true;
+    group.userData.waterChunk = ck;
+    group.frustumCulled = true;
 
-    // Render the top first as an opaque surface, then render the transparent
-    // side faces. The shared depth buffer prevents lower water textures from
-    // bleeding through the top in overlapping water columns.
-    const combinedIndices = topIndices.concat(sideIndices);
-    geometry.setIndex(combinedIndices);
-    if (topIndices.length) geometry.addGroup(0, topIndices.length, 0);
-    if (sideIndices.length) geometry.addGroup(topIndices.length, sideIndices.length, 1);
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
+    const makeWaterGeometry = indices => {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", positionAttribute);
+        geometry.setAttribute("normal", normalAttribute);
+        geometry.setAttribute("uv", uvAttribute);
+        geometry.setIndex(indices);
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+        return geometry;
+    };
 
-    const mesh = new THREE.Mesh(geometry, fluidMaterials);
-    mesh.userData.isDynamicWater = true;
-    mesh.userData.waterChunk = ck;
-    mesh.frustumCulled = true;
-    scene.add(mesh);
-    dynamicMeshes.set(ck, mesh);
+    // Draw transparent top faces first. Their depth writes prevent the side
+    // faces of deeper water cells from layering over the surface. Side faces
+    // then blend normally, preserving visible water depth at shorelines.
+    if (topIndices.length) {
+        const topMesh = new THREE.Mesh(makeWaterGeometry(topIndices), waterSurfaceMaterial);
+        topMesh.renderOrder = 1;
+        topMesh.frustumCulled = true;
+        group.add(topMesh);
+    }
+    if (sideIndices.length) {
+        const sideMesh = new THREE.Mesh(makeWaterGeometry(sideIndices), fluidSideMaterial);
+        sideMesh.renderOrder = 2;
+        sideMesh.frustumCulled = true;
+        group.add(sideMesh);
+    }
+
+    if (!group.children.length) {
+        disposeDynamicWaterGroup(group);
+        return;
+    }
+    scene.add(group);
+    dynamicMeshes.set(ck, group);
 }
 
 function hNWFromCell(x, y, z, dx, dz, fallback) {
