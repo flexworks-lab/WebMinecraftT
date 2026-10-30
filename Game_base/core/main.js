@@ -186,6 +186,8 @@ function applySettings() {
     sun.shadow.bias = -0.00018;
     sun.shadow.normalBias = 0.035;
     sun.shadow.radius = 3;
+    sun.shadow.camera.updateProjectionMatrix();
+    sun.shadow.needsUpdate = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const requestedPixelRatio = Number(settings.pixelRatio) || BASE_PIXEL_RATIO;
