@@ -50,7 +50,19 @@ waterTexture.minFilter = THREE.NearestFilter;
 waterTexture.colorSpace = THREE.SRGBColorSpace;
 waterTexture.needsUpdate = true;
 
-const fluidMaterial = new THREE.MeshBasicMaterial({
+// Water tops must be opaque in the depth buffer so the texture from
+// lower water layers cannot show through the surface. Vertical edges remain
+// translucent so the shoreline and water depth still read naturally.
+const waterSurfaceMaterial = new THREE.MeshBasicMaterial({
+    map: waterTexture,
+    color: 0x164f7c,
+    transparent: false,
+    opacity: 1,
+    depthWrite: true,
+    depthTest: true,
+    side: THREE.DoubleSide
+});
+const fluidSideMaterial = new THREE.MeshBasicMaterial({
     map: waterTexture,
     color: 0x164f7c,
     transparent: true,
@@ -59,6 +71,7 @@ const fluidMaterial = new THREE.MeshBasicMaterial({
     depthTest: true,
     side: THREE.DoubleSide
 });
+const fluidMaterials = [waterSurfaceMaterial, fluidSideMaterial];
 
 const key = (x, y, z) => Math.floor(x) + "," + Math.floor(y) + "," + Math.floor(z);
 const parseKey = value => value.split(",").map(Number);
@@ -704,7 +717,8 @@ function buildChunk(ck) {
     const positions = [];
     const normals = [];
     const uvs = [];
-    const indices = [];
+    const topIndices = [];
+    const sideIndices = [];
     const vertexMap = new Map();
 
     for (const k of cells) {
@@ -749,7 +763,7 @@ function buildChunk(ck) {
                 ...uv2,
                 ...uv3
             );
-            addQuad(indices, topStart, topStart + 1, topStart + 2, topStart + 3);
+            addQuad(topIndices, topStart, topStart + 1, topStart + 2, topStart + 3);
         }
 
         const neighborDirections = [
@@ -820,7 +834,7 @@ function buildChunk(ck) {
                 normal[0], normal[1], normal[2],
                 ...sideUv(edgeA[0], edgeA[2], 0, normal, x, z)
             );
-            addQuad(indices, aTop, bTop, bBottom, aBottom);
+            addQuad(sideIndices, aTop, bTop, bBottom, aBottom);
         }
     }
 
@@ -830,11 +844,18 @@ function buildChunk(ck) {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.setIndex(indices);
+
+    // Render the top first as an opaque surface, then render the transparent
+    // side faces. The shared depth buffer prevents lower water textures from
+    // bleeding through the top in overlapping water columns.
+    const combinedIndices = topIndices.concat(sideIndices);
+    geometry.setIndex(combinedIndices);
+    if (topIndices.length) geometry.addGroup(0, topIndices.length, 0);
+    if (sideIndices.length) geometry.addGroup(topIndices.length, sideIndices.length, 1);
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 
-    const mesh = new THREE.Mesh(geometry, fluidMaterial);
+    const mesh = new THREE.Mesh(geometry, fluidMaterials);
     mesh.userData.isDynamicWater = true;
     mesh.userData.waterChunk = ck;
     mesh.frustumCulled = true;
