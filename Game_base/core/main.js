@@ -7,7 +7,7 @@ import { setupInteraction } from "../player/interaction.js";
 import { initSavedWorlds } from "../world/worlds.js";
 import { setWorldSeedForPersistence } from "../world/worldSave.js";
 import { setupWorldClouds, setWorldCloudSeed } from "../world/worldClouds.js";
-import { setupWaterPhysics, updateWaterPhysics, resetWaterPhysics } from "../world/waterPhysicsMinecraft.js";
+import { setupWaterPhysics, updateWaterPhysics, resetWaterPhysics, getWaterPerformanceStats } from "../world/waterPhysicsMinecraft.js";
 import { spawnBlockBreakParticles } from "../world/blockParticles.js";
 import { createDevPerformanceLab } from "./devPerformanceLab.js";
 import { clearHotbar } from "../inventory/inventory.js";
@@ -1045,6 +1045,7 @@ function updateNerdStats() {
     const ordered = samples.slice().sort((a, b) => a - b);
     const p99FrameMs = ordered.length ? ordered[Math.min(ordered.length - 1, Math.floor(ordered.length * 0.99))] : 0;
     const stats = getPerformanceStats();
+    const waterStats = getWaterPerformanceStats();
     const render = renderer.info.render;
     const memory = renderer.info.memory;
     const fps = averageMs > 0 ? 1000 / averageMs : shownFps;
@@ -1066,6 +1067,13 @@ function updateNerdStats() {
         "Render distance:        " + stats.renderDistance + " chunks",
         "World seed:             " + stats.seed,
         "",
+        "Water",
+        "Water cells:             " + waterStats.waterCells,
+        "Active water cells:      " + waterStats.activeCells,
+        "Dirty water chunks:      " + waterStats.dirtyChunks,
+        "Fluid work:              " + waterStats.fluidProcessMs.toFixed(2) + " ms (" + waterStats.fluidProcessedCells + " cells)",
+        "Water mesh build:        " + waterStats.meshBuildMs.toFixed(2) + " ms",
+        "",
         "Renderer",
         "Draw calls:             " + render.calls,
         "Triangles:              " + render.triangles.toLocaleString(),
@@ -1083,7 +1091,7 @@ const devPerformanceLab = createDevPerformanceLab({
     THREE, renderer, mainScene: scene, mainCamera: camera, mainMenu,
     createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
     setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
-    setupWaterPhysics, updateWaterPhysics, resetWaterPhysics,
+    setupWaterPhysics, updateWaterPhysics, resetWaterPhysics, getWaterPerformanceStats,
     updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, setBlockAt, updateNerdStats,
     onResume: () => { lastTime = performance.now(); fpsTime = lastTime; fpsFrames = 0; frameTimeSamples = []; }
 });

@@ -3,7 +3,7 @@ export function createDevPerformanceLab(deps) {
         THREE, renderer, mainScene, mainCamera, mainMenu,
         createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
         setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
-        setupWaterPhysics, updateWaterPhysics, resetWaterPhysics,
+        setupWaterPhysics, updateWaterPhysics, resetWaterPhysics, getWaterPerformanceStats,
         updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, setBlockAt,
         onResume
     } = deps;
@@ -42,6 +42,8 @@ export function createDevPerformanceLab(deps) {
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Draw calls</div><div id="devBenchCalls" style="margin-top:3px;font-weight:800">0</div></div>',
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Triangles</div><div id="devBenchTriangles" style="margin-top:3px;font-weight:800">0</div></div>',
         '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">GPU resources</div><div id="devBenchMemory" style="margin-top:3px;font-weight:800">0 / 0</div></div>',
+        '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Water cells / active</div><div id="devBenchWaterCells" style="margin-top:3px;font-weight:800">0 / 0</div></div>',
+        '<div style="padding:8px 9px;background:#1b241e;border:1px solid #303d33"><div style="color:#87958b;font-size:9px">Water fluid / mesh</div><div id="devBenchWaterWork" style="margin-top:3px;font-weight:800">0 / 0 ms</div></div>',
         '</div>',
         '<div style="margin-top:16px;padding-top:13px;border-top:1px solid #303b33"><div style="font-size:10px;font-weight:900;letter-spacing:1.7px;color:#9fb6a4">STAGE RESULTS</div><div id="devBenchResults" style="display:grid;gap:8px;margin-top:10px"><div style="color:#78867c;font-size:10px">Results appear here as each system finishes.</div></div></div>',
         '<div id="devBenchFinal" style="display:none;margin-top:14px;padding:12px;background:#202a23;border:1px solid #526c56"><div style="font-size:9px;font-weight:900;letter-spacing:1px;color:#99caa1">OVERALL PERFORMANCE LEVEL</div><div id="devBenchOverall" style="margin-top:4px;font-size:20px;font-weight:900"></div><div id="devBenchSummary" style="margin-top:6px;font-size:10px;color:#c2cec5;line-height:1.5"></div></div>',
@@ -153,6 +155,7 @@ export function createDevPerformanceLab(deps) {
         const low = p99 > 0 ? 1000 / p99 : 0;
         const liveWorld = getPerformanceStats();
         const world = worldPrepared ? liveWorld : { loadedChunks: 0, queuedChunks: 0, queuedGenerationChunks: 0, queuedMeshRebuilds: 0, chunkProcessMs: 0 };
+        const water = getWaterPerformanceStats();
         const render = renderer.info.render;
         const memory = renderer.info.memory;
         el("devBenchFps").textContent = fps > 0 ? fps.toFixed(1) : "--";
@@ -165,6 +168,8 @@ export function createDevPerformanceLab(deps) {
         el("devBenchCalls").textContent = String(render.calls ?? 0);
         el("devBenchTriangles").textContent = Number(render.triangles || 0).toLocaleString();
         el("devBenchMemory").textContent = String(memory.geometries ?? 0) + " / " + String(memory.textures ?? 0);
+        el("devBenchWaterCells").textContent = String(water.waterCells ?? 0) + " / " + String(water.activeCells ?? 0);
+        el("devBenchWaterWork").textContent = Number(water.fluidProcessMs || 0).toFixed(2) + " / " + Number(water.meshBuildMs || 0).toFixed(2) + " ms";
         el("devBenchStage").textContent = currentStage;
         const elapsed = runStartedAt ? Math.max(0, (now - runStartedAt) / 1000) : 0;
         el("devBenchStageDetail").textContent = running

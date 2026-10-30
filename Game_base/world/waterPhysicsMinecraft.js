@@ -38,6 +38,10 @@ let initialized = false;
 let hooksInstalled = false;
 let queueHead = 0;
 let lastTick = 0;
+let lastFluidProcessMs = 0;
+let lastFluidProcessedCells = 0;
+let lastWaterMeshBuildMs = 0;
+let lastWaterMeshesBuilt = 0;
 
 waterTexture.wrapS = THREE.RepeatWrapping;
 waterTexture.wrapT = THREE.ClampToEdgeWrapping;
@@ -626,6 +630,8 @@ function runFluidTick() {
     }
 
     compactQueue();
+    lastFluidProcessedCells = processed;
+    lastFluidProcessMs = performance.now() - tickStarted;
 }
 
 function wrap01(value) {
@@ -856,13 +862,33 @@ function rebuildDirtyChunks(limit = MAX_CHUNK_REBUILDS_PER_TICK) {
     let rebuilt = 0;
     for (const ck of [...dirtyChunks]) {
         dirtyChunks.delete(ck);
+        const buildStarted = performance.now();
         buildChunk(ck);
+        lastWaterMeshBuildMs = performance.now() - buildStarted;
+        lastWaterMeshesBuilt++;
         if (++rebuilt >= limit) break;
     }
 }
 
 export function resetWaterPhysics() {
     resetState();
+    lastFluidProcessMs = 0;
+    lastFluidProcessedCells = 0;
+    lastWaterMeshBuildMs = 0;
+    lastWaterMeshesBuilt = 0;
+}
+
+export function getWaterPerformanceStats() {
+    return {
+        waterCells: water.size,
+        activeCells: Math.max(0, activeQueue.length - queueHead),
+        dirtyChunks: dirtyChunks.size,
+        loadedWaterChunks: loadedChunks.size,
+        fluidProcessedCells: lastFluidProcessedCells,
+        fluidProcessMs: lastFluidProcessMs,
+        meshBuildMs: lastWaterMeshBuildMs,
+        meshBuilds: lastWaterMeshesBuilt
+    };
 }
 
 export function setupWaterPhysics(sceneRef) {
