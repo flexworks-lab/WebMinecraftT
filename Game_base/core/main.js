@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
-import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "../world/world.js";
+import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, setBlockAt, getBlockTypes, isPointInWater, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, SEA_LEVEL } from "../world/world.js";
 import { setupControls, resetView, keys } from "../player/controls.js";
 import { updatePlayer } from "../player/player.js";
 import { setupInteraction } from "../player/interaction.js";
@@ -1084,7 +1084,7 @@ const devPerformanceLab = createDevPerformanceLab({
     createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
     setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
     setupWaterPhysics, updateWaterPhysics, resetWaterPhysics,
-    updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, updateNerdStats,
+    updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, setBlockAt, updateNerdStats,
     onResume: () => { lastTime = performance.now(); fpsTime = lastTime; fpsFrames = 0; frameTimeSamples = []; }
 });
 window.__webminecraftDevPerformanceLab = devPerformanceLab;

@@ -4,7 +4,7 @@ export function createDevPerformanceLab(deps) {
         createWorld, clearWorld, updateChunkVisibility, getPerformanceStats,
         setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, CHUNK_SIZE,
         setupWaterPhysics, updateWaterPhysics, resetWaterPhysics,
-        updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes,
+        updatePlayer, keys, spawnBlockBreakParticles, getBlockTypes, setBlockAt,
         onResume
     } = deps;
 
@@ -79,6 +79,7 @@ export function createDevPerformanceLab(deps) {
     let currentStageIndex = -1;
     let totalStageCount = 7;
     let lastParticleBurst = 0;
+    let lastBlockEdit = 0;
     let lastHudUpdate = 0;
     let runStartedAt = 0;
     let reportText = "";
@@ -88,6 +89,7 @@ export function createDevPerformanceLab(deps) {
         { name: "Chunk generation + meshing", detail: "Runs the real terrain generator, chunk scheduler and chunk mesh builder.", duration: 8500 },
         { name: "Chunk visibility + streaming", detail: "Moves the simulation camera through chunk boundaries and measures streaming work.", duration: 4500 },
         { name: "Water simulation", detail: "Runs the real water-cell update and dynamic water mesh rebuild loop.", duration: 4500 },
+        { name: "Block edits + chunk remeshing", detail: "Places and breaks blocks through the real world setter to measure queued chunk mesh rebuilds.", duration: 4200 },
         { name: "Block-break particles", detail: "Spawns the game's instanced block-fragment effects and measures their render/update cost.", duration: 3600 },
         { name: "Player collision + movement", detail: "Runs the real player movement and block-collision update against the simulation terrain.", duration: 4400 },
         { name: "Combined gameplay load", detail: "Runs streaming, water, movement, particles and rendering together.", duration: 5600 }
@@ -157,7 +159,7 @@ export function createDevPerformanceLab(deps) {
         el("devBenchFrame").textContent = avg > 0 ? avg.toFixed(2) + " ms" : "-- ms";
         el("devBenchWorst").textContent = currentSamples.length ? Math.max(...currentSamples.slice(-90)).toFixed(1) + " ms" : "-- ms";
         el("devBenchChunks").textContent = String(world.loadedChunks ?? 0);
-        el("devBenchQueue").textContent = String(world.queuedChunks ?? 0) + "  (gen " + String(world.queuedGenerationChunks ?? 0) + ")";
+        el("devBenchQueue").textContent = String(world.queuedChunks ?? 0) + "  (gen " + String(world.queuedGenerationChunks ?? 0) + " / mesh " + String(world.queuedMeshRebuilds ?? 0) + ")";
         el("devBenchMesh").textContent = Number(world.chunkProcessMs || 0).toFixed(2) + " ms";
         el("devBenchCalls").textContent = String(render.calls ?? 0);
         el("devBenchTriangles").textContent = Number(render.triangles || 0).toLocaleString();
@@ -261,6 +263,7 @@ export function createDevPerformanceLab(deps) {
         const terrain = getTerrainProfile(0, 0);
         setCameraForWorld(0, 0, Math.max(terrain.height + 24, 34));
         lastParticleBurst = 0;
+        lastBlockEdit = 0;
     }
 
     function stageWorkload(stageName, now, dt, elapsed) {
@@ -280,6 +283,17 @@ export function createDevPerformanceLab(deps) {
         } else if (stageName === "Water simulation") {
             updateWaterPhysics();
             benchCamera.rotation.y += dt * 0.08;
+        } else if (stageName === "Block edits + chunk remeshing") {
+            if (now - lastBlockEdit > 115) {
+                lastBlockEdit = now;
+                const x = Math.floor(Math.sin(elapsed * 2.1) * 6);
+                const z = Math.floor(Math.cos(elapsed * 1.7) * 6);
+                const y = Math.floor(getTerrainProfile(x, z).height) + 1;
+                const block = getBlockTypes();
+                const nextType = getBlockAt(x, y, z) === block.AIR ? block.STONE : block.AIR;
+                setBlockAt(x, y, z, nextType);
+                window.dispatchEvent(new CustomEvent("webminecraft:blockchange", { detail: { x, y, z, type: nextType } }));
+            }
         } else if (stageName === "Block-break particles") {
             if (now - lastParticleBurst > 820) {
                 lastParticleBurst = now;
