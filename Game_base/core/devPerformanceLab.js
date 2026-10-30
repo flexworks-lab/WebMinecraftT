@@ -197,7 +197,19 @@ export function createDevPerformanceLab(deps) {
     }
 
     function summarize(samples) {
-        if (!samples.length) samples = [1000];
+        if (samples.length < 12) {
+            const fallback = samples.length ? Math.max(...samples) : 1000;
+            return {
+                frames: samples.length,
+                avgMs: fallback,
+                p99Ms: fallback,
+                worstMs: fallback,
+                fps: 0,
+                low: 0,
+                grade: { label: "Insufficient samples", color: "#e2c77f" },
+                reliable: false
+            };
+        }
         const sorted = samples.slice().sort((a, b) => a - b);
         const total = samples.reduce((sum, n) => sum + n, 0);
         const avgMs = total / samples.length;
@@ -210,25 +222,28 @@ export function createDevPerformanceLab(deps) {
 
     function renderResults() {
         const rows = results.map(item => {
-            const bar = Math.max(2, Math.min(100, item.fps / 60 * 100));
+            const bar = item.stats.reliable === false ? 2 : Math.max(2, Math.min(100, item.stats.fps / 60 * 100));
             return '<div style="padding:9px 10px;background:#1c251f;border:1px solid #35443a">' +
                 '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
                 '<span style="font-size:10px;font-weight:800;color:#e4ebe5">' + item.name + '</span>' +
                 '<span style="font-size:9px;font-weight:900;color:' + item.stats.grade.color + '">' + item.stats.grade.label + '</span></div>' +
                 '<div style="height:5px;margin-top:7px;background:#303b33;overflow:hidden"><div style="height:100%;width:' + bar.toFixed(1) + '%;background:' + item.stats.grade.color + '"></div></div>' +
                 '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px;color:#9ca99f;font-size:9px;font-variant-numeric:tabular-nums">' +
-                '<span>' + item.stats.fps.toFixed(1) + ' avg FPS · ' + item.stats.low.toFixed(1) + ' 1% low</span>' +
+                '<span>' + (item.stats.reliable === false ? 'Not enough frames to grade' : item.stats.fps.toFixed(1) + ' avg FPS · ' + item.stats.low.toFixed(1) + ' 1% low') + '</span>' +
                 '<span>' + item.stats.avgMs.toFixed(1) + ' ms · ' + item.stats.frames + ' frames</span></div></div>';
         }).join("");
         el("devBenchResults").innerHTML = rows || '<div style="color:#78867c;font-size:10px">No completed stages yet.</div>';
         if (results.length === stages.length) {
-            const overallFps = results.reduce((sum, item) => sum + item.stats.fps, 0) / results.length;
-            const overallLow = results.reduce((sum, item) => sum + item.stats.low, 0) / results.length;
-            const grade = gradeFor(overallFps, overallLow);
+            const reliableResults = results.filter(item => item.stats.reliable !== false);
+            const overallFps = reliableResults.length ? reliableResults.reduce((sum, item) => sum + item.stats.fps, 0) / reliableResults.length : 0;
+            const overallLow = reliableResults.length ? reliableResults.reduce((sum, item) => sum + item.stats.low, 0) / reliableResults.length : 0;
+            const grade = reliableResults.length ? gradeFor(overallFps, overallLow) : { label: "Insufficient data", color: "#e2c77f" };
             el("devBenchFinal").style.display = "block";
-            el("devBenchOverall").textContent = grade.label + " · " + overallFps.toFixed(1) + " average FPS";
+            el("devBenchOverall").textContent = reliableResults.length ? grade.label + " · " + overallFps.toFixed(1) + " average FPS" : "Insufficient data";
             el("devBenchOverall").style.color = grade.color;
-            el("devBenchSummary").textContent = "Mean 1% low: " + overallLow.toFixed(1) + " FPS. Compare each stage above to identify which system causes the largest drop. This is a browser-side frame-count benchmark, not a hardware certification.";
+            el("devBenchSummary").textContent = reliableResults.length
+                ? "Mean 1% low: " + overallLow.toFixed(1) + " FPS across " + reliableResults.length + " reliable stages. Stages marked insufficient had too few frames to grade, usually because one operation blocked the browser for too long."
+                : "No stage produced enough frame samples for a reliable grade. Check for a system blocking the browser main thread.";
         } else {
             el("devBenchFinal").style.display = "none";
         }
@@ -238,7 +253,7 @@ export function createDevPerformanceLab(deps) {
             "Cores: " + String(navigator.hardwareConcurrency || "unknown"),
             "Device memory: " + String(navigator.deviceMemory || "unknown") + " GB",
             "Renderer pixel ratio: " + renderer.getPixelRatio().toFixed(2),
-            ...results.map(item => item.name + ": " + item.stats.fps.toFixed(1) + " average FPS, " + item.stats.low.toFixed(1) + " 1% low, " + item.stats.avgMs.toFixed(2) + " ms average frame, " + item.stats.worstMs.toFixed(2) + " ms worst frame, " + item.stats.frames + " frames (" + item.stats.grade.label + ")")
+            ...results.map(item => item.name + ": " + (item.stats.reliable === false ? "INSUFFICIENT SAMPLES, " : item.stats.fps.toFixed(1) + " average FPS, " + item.stats.low.toFixed(1) + " 1% low, ") + item.stats.avgMs.toFixed(2) + " ms average frame, " + item.stats.worstMs.toFixed(2) + " ms worst frame, " + item.stats.frames + " frames (" + item.stats.grade.label + ")")
         ].join("\\n");
     }
 

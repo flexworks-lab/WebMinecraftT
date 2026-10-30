@@ -13,8 +13,11 @@ import { waterTexture } from "./blocks.js";
 const SOURCE_LEVEL = 0;
 const MAX_LEVEL = 7;
 const FLOW_INTERVAL = 25;
-const MAX_CELLS_PER_TICK = 20000;
-const MAX_CHUNK_REBUILDS_PER_TICK = 8;
+// Fluid work is budgeted in time as well as cell count so a flood cannot
+// monopolize a browser frame. Static ocean fill cells are never put on this queue.
+const MAX_CELLS_PER_TICK = 700;
+const MAX_FLUID_MS_PER_TICK = 1.6;
+const MAX_CHUNK_REBUILDS_PER_TICK = 1;
 const MAX_WATER_CELLS = 600000;
 const ACTIVE_QUEUE_LIMIT = 750000;
 
@@ -247,14 +250,16 @@ function seedOceanChunk(ck) {
                 const current = getWater(x, y, z);
                 if (current?.source) continue;
 
-                if (addCell(x, y, z, makeState(SOURCE_LEVEL, false, true, false), false, false)) {
+                const oceanState = makeState(SOURCE_LEVEL, false, true, false);
+                oceanState.oceanFill = true;
+                if (addCell(x, y, z, oceanState, false, false)) {
                     seededWater = true;
                 }
             }
 
-            // Only wake the surface row. The water below is already present,
-            // so it must not cascade down from the top as separate falling cells.
-            if (getWater(x, SEA_LEVEL, z)) enqueue(x, SEA_LEVEL, z);
+            // This complete static column is already at rest. Leave it out of
+            // the simulation queue; block edits and incoming flowing water wake
+            // only the local cells that actually need fluid calculations.
         }
     }
 
@@ -334,7 +339,10 @@ function wakeChunkBoundary(chunkX, chunkZ) {
                 (side === "north" && z === startZ + CHUNK_SIZE);
 
             if (!onBoundary) continue;
-
+            // Pre-filled ocean voxels are already in their final state. Waking
+            // every one on each neighboring chunk load needlessly floods the
+            // fluid queue with thousands of idle source cells.
+            if (water.get(cellKey)?.oceanFill) continue;
             enqueue(x, y, z);
             activateNeighbors(x, y, z);
         }
@@ -570,9 +578,14 @@ function evaluateCell(x, y, z, proposals) {
 
 function runFluidTick() {
     const proposals = new Map();
+    const tickStarted = performance.now();
     let processed = 0;
 
-    while (processed < MAX_CELLS_PER_TICK && queueHead < activeQueue.length) {
+    while (
+        processed < MAX_CELLS_PER_TICK &&
+        queueHead < activeQueue.length &&
+        performance.now() - tickStarted < MAX_FLUID_MS_PER_TICK
+    ) {
         const k = activeQueue[queueHead++];
         activeSet.delete(k);
         const [x, y, z] = parseKey(k);
