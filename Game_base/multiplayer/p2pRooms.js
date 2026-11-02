@@ -223,6 +223,7 @@ class P2PRoomSession {
         this.name = "Player";
         this.isHost = false;
         this.started = false;
+        this.worldReady = false;
         this.leaving = false;
         this.generation = 1;
         this.hostUid = "";
@@ -260,6 +261,7 @@ class P2PRoomSession {
                 throw new Error("Only the room creator can start this player-hosted world.");
             }
             this.isHost = true;
+            this.worldReady = true;
             const replica = readReplica(this.roomId, this.roomData.worldSeed);
             this.roomData.worldSeed = replica.seed || (Number(this.roomData.worldSeed) >>> 0);
             replica.changes.forEach(change => this.rememberBlockChange(change, false));
@@ -313,8 +315,10 @@ class P2PRoomSession {
         this.heartbeatTimer = setInterval(() => {
             if (this.leaving) return;
             const now = Date.now();
+            const presence = { lastSeen: now };
+            if (this.isHost || this.worldReady) presence.status = "connected";
             void this.roomRef.collection("participants").doc(this.uid)
-                .set({ lastSeen: now, status: "connected" }, { merge: true }).catch(() => {});
+                .set(presence, { merge: true }).catch(() => {});
             if (this.isHost) {
                 void this.roomRef.update({
                     lastHeartbeat: now, players: Math.max(1, this.players.size),
@@ -372,6 +376,7 @@ class P2PRoomSession {
     async becomeHostAfterTakeover() {
         if (this.leaving || this.isHost) return;
         this.isHost = true;
+        this.worldReady = true;
         this.hostUid = this.uid;
         this.roomData.backupUid = "";
         this.closePeerConnections();
@@ -587,6 +592,8 @@ class P2PRoomSession {
             const message = parseMessage(event.data);
             if (!message || this.isHost) return;
             if (message.type === "world_sync_complete") {
+                this.worldReady = true;
+                writeReplica(this.roomId, this.roomData.worldSeed, this.blockChanges);
                 void this.roomRef.collection("participants").doc(this.uid)
                     .set({ status: "connected", lastSeen: Date.now() }, { merge: true }).catch(() => {});
                 return;
