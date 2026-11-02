@@ -186,7 +186,10 @@ class P2PMultiplayerSocket extends EventTarget {
         if (message.type === "join") {
             if (this.session) return;
             this.session = new P2PRoomSession(this);
-            void this.session.start(message).catch(error => this.emitError(error));
+            void this.session.start(message).catch(error => {
+                this.emitMessage({ type: "error", message: error?.message || "Could not join this player-hosted room." });
+                void this.session?.leave();
+            });
             return;
         }
         this.session?.sendLocal(message);
@@ -265,6 +268,7 @@ class P2PRoomSession {
                 joinedAt: Date.now(), lastSeen: Date.now()
             }, { merge: true });
             this.players.set(this.uid, makePlayer(this.uid, this.name, "operator"));
+            this.started = true;
             this.emitJoined();
             await this.startHostListeners();
         } else {
@@ -405,7 +409,6 @@ class P2PRoomSession {
                     this.broadcast({ type: "player_left", playerId: uid });
                 }
             }
-            const candidates = [...active.entries()];
             const connectedCandidates = [...connected.entries()];
             const backup = connectedCandidates.find(([uid]) => uid !== this.uid);
             if (backup && (!this.roomData.backupUid || !connected.has(String(this.roomData.backupUid)))) {
@@ -539,12 +542,10 @@ class P2PRoomSession {
 
     attachHostChannel(peer, channel) {
         peer.channel = channel;
-        channel.onopen = () => {
+        channel.onopen = async () => {
             if (this.leaving) return;
             const player = makePlayer(peer.uid, peer.name);
             this.players.set(peer.uid, player);
-            void this.roomRef.collection("participants").doc(peer.uid)
-                .set({ status: "connected", lastSeen: Date.now() }, { merge: true }).catch(() => {});
             const joined = {
                 type: "joined", playerId: peer.uid,
                 room: this.roomData.name, serverName: "Player-hosted world",
@@ -562,6 +563,8 @@ class P2PRoomSession {
                     worldChanges: changes.slice(offset, offset + 150)
                 });
             }
+            await this.roomRef.collection("participants").doc(peer.uid)
+                .set({ status: "connected", lastSeen: Date.now() }, { merge: true }).catch(() => {});
             this.emit({ type: "player_joined", player });
             this.broadcast({ type: "player_joined", player }, peer.uid);
             this.broadcastPlayerStates();
@@ -585,10 +588,19 @@ class P2PRoomSession {
         channel.onmessage = event => {
             const message = parseMessage(event.data);
             if (!message || this.isHost) return;
+            if (message.type === "joined") {
+                this.roomData.worldSeed = Number(message.worldSeed) >>> 0 || this.roomData.worldSeed;
+                for (const player of message.players || []) {
+                    if (player?.id) this.players.set(player.id, player);
+                }
+                for (const change of message.worldChanges || []) this.rememberBlockChange(change, false);
+                if (message.worldChanges?.length) writeReplica(this.roomId, this.roomData.worldSeed, this.blockChanges);
+            }
             if (message.type === "world_sync") {
+                this.roomData.worldSeed = Number(message.worldSeed) >>> 0 || this.roomData.worldSeed;
                 const changes = Array.isArray(message.worldChanges) ? message.worldChanges : [];
                 for (const change of changes) this.rememberBlockChange(change, false);
-                if (changes.length) writeReplica(this.roomId, message.worldSeed || this.roomData.worldSeed, this.blockChanges);
+                if (changes.length) writeReplica(this.roomId, this.roomData.worldSeed, this.blockChanges);
             }
             if (message.type === "block_change") this.rememberBlockChange(message);
             if (message.type === "block_changes") {
