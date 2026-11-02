@@ -877,28 +877,28 @@ async function startWorldWithSeed(seed, savedMode = null) {
 initSavedWorlds({ onOpenWorld: startWorldWithSeed });
 
 if (multiplayerButton) {
-    multiplayerButton.textContent = "Multiplayer (Temporarily Offline)";
-    multiplayerButton.disabled = true;
-    multiplayerButton.setAttribute("aria-disabled", "true");
-    multiplayerButton.title = "Multiplayer is temporarily disabled while WebMinecraft is being rebuilt.";
-    multiplayerButton.style.opacity = "0.55";
-    multiplayerButton.style.cursor = "not-allowed";
-    multiplayerButton.addEventListener("click", event => {
+    multiplayerButton.disabled = false;
+    multiplayerButton.removeAttribute("aria-disabled");
+    multiplayerButton.removeAttribute("title");
+    multiplayerButton.style.removeProperty("opacity");
+    multiplayerButton.style.removeProperty("cursor");
+    multiplayerButton.textContent = "Multiplayer";
+    multiplayerButton.addEventListener("click", async event => {
         event.preventDefault();
-        event.stopImmediatePropagation();
-    }, true);
+        event.stopPropagation();
+        if (multiplayerButton.disabled) return;
+        multiplayerButton.disabled = true;
+        try {
+            const { openMultiplayerMenu } = await import("../multiplayer/multiplayerClient.js");
+            openMultiplayerMenu();
+        } catch (error) {
+            console.error("Failed to open multiplayer menu:", error);
+            window.alert("Could not open Multiplayer. Check the browser console for details.");
+        } finally {
+            multiplayerButton.disabled = false;
+        }
+    });
 }
-/* Multiplayer entry is intentionally disabled for now.
-if (multiplayerButton) multiplayerButton.addEventListener("click", async event => {
-    event.preventDefault(); event.stopPropagation();
-    try {
-        const { openMultiplayerMenu } = await import("../multiplayer/multiplayerClient.js");
-        openMultiplayerMenu();
-    } catch (error) {
-        console.error("Failed to open multiplayer menu:", error);
-    }
-});
-*/
 if (openSeedButton) openSeedButton.addEventListener("click", event => {
     event.preventDefault(); event.stopPropagation();
     openSeedMenu("open");
