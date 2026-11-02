@@ -563,8 +563,7 @@ class P2PRoomSession {
                     worldChanges: changes.slice(offset, offset + 150)
                 });
             }
-            await this.roomRef.collection("participants").doc(peer.uid)
-                .set({ status: "connected", lastSeen: Date.now() }, { merge: true }).catch(() => {});
+            this.sendPeer(peer, { type: "world_sync_complete" });
             this.emit({ type: "player_joined", player });
             this.broadcast({ type: "player_joined", player }, peer.uid);
             this.broadcastPlayerStates();
@@ -581,13 +580,17 @@ class P2PRoomSession {
     attachClientChannel(peer, channel) {
         peer.channel = channel;
         channel.onopen = () => {
+            // The host marks this player ready only after the initial world snapshot arrives.
             if (this.leaving) return;
-            void this.roomRef.collection("participants").doc(this.uid)
-                .set({ status: "connected", lastSeen: Date.now() }, { merge: true }).catch(() => {});
         };
         channel.onmessage = event => {
             const message = parseMessage(event.data);
             if (!message || this.isHost) return;
+            if (message.type === "world_sync_complete") {
+                void this.roomRef.collection("participants").doc(this.uid)
+                    .set({ status: "connected", lastSeen: Date.now() }, { merge: true }).catch(() => {});
+                return;
+            }
             if (message.type === "joined") {
                 this.roomData.worldSeed = Number(message.worldSeed) >>> 0 || this.roomData.worldSeed;
                 for (const player of message.players || []) {
