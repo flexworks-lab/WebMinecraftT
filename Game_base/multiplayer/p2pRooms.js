@@ -387,12 +387,15 @@ class P2PRoomSession {
         const unsubscribe = this.roomRef.collection("participants").onSnapshot(snapshot => {
             if (!this.isHost || this.leaving) return;
             const active = new Map();
+            const connected = new Map();
             snapshot.forEach(doc => {
                 const participant = doc.data() || {};
                 const uid = String(doc.id);
                 if (uid === this.uid || participant.status === "disconnected") return;
                 if (Date.now() - (Number(participant.lastSeen) || 0) > 20000) return;
-                active.set(uid, cleanText(participant.name || "Player", 20));
+                const playerName = cleanText(participant.name || "Player", 20);
+                active.set(uid, playerName);
+                if (participant.status === "connected") connected.set(uid, playerName);
                 if (!this.peers.has(uid)) void this.createHostPeer(uid, participant.name);
             });
             for (const uid of [...this.players.keys()]) {
@@ -403,8 +406,9 @@ class P2PRoomSession {
                 }
             }
             const candidates = [...active.entries()];
-            const backup = candidates.find(([uid]) => uid !== this.uid);
-            if (backup && (!this.roomData.backupUid || !active.has(String(this.roomData.backupUid)))) {
+            const connectedCandidates = [...connected.entries()];
+            const backup = connectedCandidates.find(([uid]) => uid !== this.uid);
+            if (backup && (!this.roomData.backupUid || !connected.has(String(this.roomData.backupUid)))) {
                 this.roomData.backupUid = backup[0];
                 this.roomData.backupName = backup[1];
                 void this.roomRef.update({ backupUid: backup[0], backupName: backup[1], updatedAt: Date.now() }).catch(() => {});
@@ -581,6 +585,11 @@ class P2PRoomSession {
         channel.onmessage = event => {
             const message = parseMessage(event.data);
             if (!message || this.isHost) return;
+            if (message.type === "world_sync") {
+                const changes = Array.isArray(message.worldChanges) ? message.worldChanges : [];
+                for (const change of changes) this.rememberBlockChange(change, false);
+                if (changes.length) writeReplica(this.roomId, message.worldSeed || this.roomData.worldSeed, this.blockChanges);
+            }
             if (message.type === "block_change") this.rememberBlockChange(message);
             if (message.type === "block_changes") {
                 for (const change of message.changes || []) this.rememberBlockChange(change, false);
@@ -825,7 +834,9 @@ class P2PRoomSession {
                 const backupDoc = backupUid
                     ? await this.roomRef.collection("participants").doc(backupUid).get().catch(() => null)
                     : null;
-                if (backupUid && backupDoc?.exists && backupDoc.data()?.status !== "disconnected") {
+                if (backupUid && backupDoc?.exists
+                    && backupDoc.data()?.status === "connected"
+                    && Date.now() - (Number(backupDoc.data()?.lastSeen) || 0) < 20000) {
                     await this.roomRef.update({
                         hostUid: backupUid,
                         hostName: cleanText(backupDoc.data()?.name || this.roomData.backupName || "Player", 20),
