@@ -1,6 +1,7 @@
 import { setBlockAt, setWorldSeed, beginWorldEditBatch, endWorldEditBatch } from "../world/world.js";
 import { addItem } from "../inventory/inventory.js";
 import { hidePlayerDataSync, resetPlayerDataSyncCancellation, isPlayerDataSyncCancelled, setPlayerDataSyncProgress, showPlayerDataSync } from "../accounts/playerDataSyncUi.js";
+import { createP2PTransport, listP2PRooms, createP2PRoom, setNextP2PJoin } from "./p2pRooms.js";
 
 let overlay = null;
 let socket = null;
@@ -443,6 +444,7 @@ function makeStyle() {
         #multiplayerButtons{display:flex;gap:10px;padding:14px 24px 20px;background:#252b26;border-top:1px solid #151915}.multiplayerButton{min-height:42px;padding:9px 14px;border:2px solid #111;border-top-color:#879184;border-left-color:#879184;background:linear-gradient(#686f69,#505752);color:#fff;font-family:"MinecraftFont",monospace;font-size:11px;cursor:pointer;text-shadow:2px 2px 0 #222;box-shadow:0 3px 0 #171b18;transition:transform .1s,filter .1s,background .1s}.multiplayerButton:hover{filter:brightness(1.08)}.multiplayerButton:active{transform:translateY(2px);box-shadow:0 1px 0 #171b18}.multiplayerButton:disabled{opacity:.52;cursor:default;transform:none;filter:none}
         #multiplayerJoin{flex:1;background:linear-gradient(#719251,#57743e)}#multiplayerBack{min-width:170px}
         .multiplayerHint{color:#7f8980;font-size:9px;line-height:1.45;margin-top:4px}.multiplayerAdvanced{margin-top:4px;padding-top:12px;border-top:1px solid #3a433c}
+        @media(max-width:700px){#p2pRoomBrowser{margin:0 14px 12px;padding:10px}.p2pRoomHead{align-items:flex-start;flex-direction:column}.p2pRoomActions{width:100%}.p2pRoomActions button{flex:1}#p2pRoomList{grid-template-columns:1fr}.p2pRoomCard{padding:9px}}
         @media(max-width:700px){#multiplayerMenu{padding:10px}#multiplayerHero{padding:18px}.multiplayerLivePill{display:none}#multiplayerSteps{padding:10px 18px}#multiplayerContent{padding:16px 18px 18px}#multiplayerServerList,#multiplayerRoomList{grid-template-columns:1fr}#multiplayerButtons{padding:12px 18px 16px}.multiplayerCardName{font-size:13px}#multiplayerBack{min-width:0}}
         /* Worlds-style full server screen */
         #multiplayerPanel.servers-screen{width:100%;max-width:none;height:100%;max-height:none;overflow:auto;background:rgba(10,10,10,.58);border:0;box-shadow:none}
@@ -513,6 +515,24 @@ function makeStyle() {
             #multiplayerServerDetails .sw2-inline{align-items:stretch;flex-direction:column}
             #multiplayerServerDetails .sw2-btn{width:100%}
         }
+        #p2pRoomBrowser{margin:0 22px 16px;padding:12px;background:rgba(22,25,22,.94);border:2px solid #111;border-top-color:#777;border-left-color:#777}
+        .p2pRoomHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+        .p2pRoomHead h3{margin:0;color:#f1f1f1;font:14px "MinecraftFont",monospace}
+        .p2pRoomHead p{margin:5px 0 0;color:#aaa;font:10px Arial,sans-serif}
+        .p2pBetaTag{display:inline-block;margin-left:5px;padding:3px 5px;background:#425b35;color:#d9edc9;font:9px Arial,sans-serif}
+        .p2pRoomActions{display:flex;gap:6px;flex-wrap:wrap}
+        .p2pRoomActions button,.p2pRoomCardSide button{padding:7px 10px;background:linear-gradient(#555,#383838);color:#fff;border:2px solid #111;border-top-color:#888;border-left-color:#888;font:10px "MinecraftFont",monospace;cursor:pointer}
+        .p2pRoomActions button:disabled{opacity:.5;cursor:wait}
+        #p2pRoomStatus{margin:0 0 8px;padding:7px 9px;background:#202020;color:#aaa;border-left:3px solid #6d8e52;font:10px Arial,sans-serif}
+        #p2pRoomList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+        .p2pRoomCard{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;background:linear-gradient(#363b36,#282d29);border:1px solid #555;color:#eee}
+        .p2pRoomCardMain{display:flex;min-width:0;flex-direction:column;gap:4px}
+        .p2pRoomCardMain strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:12px "MinecraftFont",monospace}
+        .p2pRoomOwner,.p2pRoomCardMain small{color:#aaa;font:10px Arial,sans-serif}
+        .p2pRoomCardSide{display:flex;align-items:center;gap:8px;flex-shrink:0}
+        .p2pRoomPlayers{color:#c7d6bd;font:10px Arial,sans-serif}
+        .p2pRoomCardSide button{background:linear-gradient(#6c8f4e,#4d6b38)}
+        .p2pEmpty{grid-column:1/-1;padding:13px;background:#202020;color:#929a92;text-align:center;font:10px Arial,sans-serif}
         /* Worlds-style live server room page */
         #multiplayerPanel.rooms-screen{width:100%;max-width:none;height:100%;max-height:none;overflow:auto;background:rgba(10,10,10,.58);border:0;box-shadow:none}
         #multiplayerPanel.rooms-screen::before{display:none}
@@ -889,7 +909,126 @@ const getMultiplayerIdentity = () => {
         }
     };
 
-    const showRoomView = server => { closeServerDetails(); selectedServer = server || fallbackServer(); overlay.querySelector("#multiplayerPanel")?.classList.remove("servers-screen","create-server-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("rooms-screen"); roomView.classList.add("roomsStyle"); roomView.classList.remove("create-open"); identityFields.classList.remove("visible"); guestIdentity.classList.remove("visible"); serverView.style.display = "none"; roomView.style.display = "block"; stepServer.classList.remove("active"); stepRoom.classList.add("active"); serverInput.value = selectedServer.websocket || defaultServerUrl(); selectedInfo.innerHTML = `<strong>${escapeHtml(selectedServer.name || "Server")}</strong> · ${escapeHtml(selectedServer.description || "Multiplayer server")}`; renderRoomList(selectedServer); joinButton.disabled = false; setStatus(""); backButton.textContent = "Home"; };
+    let p2pRefreshBusy = false;
+    const installPlayerHostedRoomBrowser = () => {
+        if (overlay.querySelector("#p2pRoomBrowser")) return;
+        const section = document.createElement("section");
+        section.id = "p2pRoomBrowser";
+        section.innerHTML = `
+            <div class="p2pRoomHead">
+                <div><h3>Player-hosted worlds <span class="p2pBetaTag">BETA</span></h3><p>No dedicated game server. The room owner hosts from their browser.</p></div>
+                <div class="p2pRoomActions"><button type="button" id="p2pRefreshRooms">Refresh</button><button type="button" id="p2pCreateRoom">+ Host a world</button></div>
+            </div>
+            <div id="p2pRoomStatus" role="status">Loading player-hosted worlds...</div>
+            <div id="p2pRoomList"></div>`;
+        roomList.parentNode.insertBefore(section, roomList);
+        const list = section.querySelector("#p2pRoomList");
+        const statusLine = section.querySelector("#p2pRoomStatus");
+        const refreshButton = section.querySelector("#p2pRefreshRooms");
+        const createButton = section.querySelector("#p2pCreateRoom");
+
+        const render = rooms => {
+            list.replaceChildren();
+            if (!rooms.length) {
+                const empty = document.createElement("div");
+                empty.className = "p2pEmpty";
+                empty.textContent = "No player-hosted worlds are online. Create one to start the first room.";
+                list.appendChild(empty);
+                return;
+            }
+            for (const room of rooms) {
+                const card = document.createElement("article");
+                card.className = "p2pRoomCard";
+                const main = document.createElement("div");
+                main.className = "p2pRoomCardMain";
+                const title = document.createElement("strong");
+                title.textContent = room.name;
+                const owner = document.createElement("span");
+                owner.className = "p2pRoomOwner";
+                owner.textContent = "Owner: " + room.owner;
+                const meta = document.createElement("small");
+                meta.textContent = (room.mode === "creative" ? "Creative" : "Survival") + " • " + (room.backupReady ? "Backup host ready" : "Waiting for backup");
+                main.append(title, owner, meta);
+                const side = document.createElement("div");
+                side.className = "p2pRoomCardSide";
+                const count = document.createElement("span");
+                count.className = "p2pRoomPlayers";
+                count.textContent = room.players + "/" + room.maxPlayers;
+                const join = document.createElement("button");
+                join.type = "button";
+                join.textContent = "Join";
+                join.addEventListener("click", () => {
+                    setNextP2PJoin({ role: "join", roomId: room.id });
+                    serverInput.value = "p2p://";
+                    roomInput.value = room.id;
+                    selectedPrivate = false;
+                    joinButton.disabled = false;
+                    setStatus("Connecting directly to " + room.owner + "'s browser...");
+                    joinButton.click();
+                });
+                side.append(count, join);
+                card.append(main, side);
+                list.appendChild(card);
+            }
+        };
+
+        const refresh = async () => {
+            if (p2pRefreshBusy) return;
+            p2pRefreshBusy = true;
+            refreshButton.disabled = true;
+            statusLine.textContent = "Checking for player-hosted worlds...";
+            try {
+                const rooms = await listP2PRooms();
+                render(rooms);
+                statusLine.textContent = rooms.length
+                    ? rooms.length + " public player-hosted world" + (rooms.length === 1 ? "" : "s") + " online."
+                    : "Room directory is online. No player-hosted worlds are open.";
+            } catch (error) {
+                render([]);
+                statusLine.textContent = error?.message || "Could not load player-hosted worlds.";
+            } finally {
+                p2pRefreshBusy = false;
+                refreshButton.disabled = false;
+            }
+        };
+        refreshButton.addEventListener("click", () => void refresh());
+        createButton.addEventListener("click", async () => {
+            const roomName = window.prompt("Name your player-hosted world:", "My World");
+            if (roomName === null) return;
+            if (!roomName.trim()) {
+                statusLine.textContent = "Enter a room name first.";
+                return;
+            }
+            createButton.disabled = true;
+            statusLine.textContent = "Creating your player-hosted world...";
+            try {
+                const identity = getMultiplayerIdentity();
+                const ownerName = identity.nickname || identity.username || generatedGuestName || "Player";
+                const room = await createP2PRoom({
+                    name: roomName.trim(),
+                    ownerName,
+                    mode: window.__webminecraftMultiplayerMode === "creative" ? "creative" : "survival"
+                });
+                setNextP2PJoin({ role: "host", roomId: room.id });
+                serverInput.value = "p2p://";
+                roomInput.value = room.id;
+                selectedPrivate = false;
+                joinButton.disabled = false;
+                statusLine.textContent = "Room created. Starting your browser as the host...";
+                joinButton.click();
+            } catch (error) {
+                statusLine.textContent = error?.message || "Could not create the player-hosted world.";
+            } finally {
+                createButton.disabled = false;
+            }
+        });
+        void refresh();
+        window.setInterval(() => {
+            if (overlay?.style.display !== "none" && !document.hidden) void refresh();
+        }, 9000);
+    };
+
+    const showRoomView = server => { closeServerDetails(); selectedServer = server || fallbackServer(); overlay.querySelector("#multiplayerPanel")?.classList.remove("servers-screen","create-server-screen"); overlay.querySelector("#multiplayerPanel")?.classList.add("rooms-screen"); roomView.classList.add("roomsStyle"); roomView.classList.remove("create-open"); identityFields.classList.remove("visible"); guestIdentity.classList.remove("visible"); serverView.style.display = "none"; roomView.style.display = "block"; stepServer.classList.remove("active"); stepRoom.classList.add("active"); serverInput.value = selectedServer.websocket || defaultServerUrl(); selectedInfo.innerHTML = `<strong>${escapeHtml(selectedServer.name || "Server")}</strong> · ${escapeHtml(selectedServer.description || "Multiplayer server")}`; renderRoomList(selectedServer); installPlayerHostedRoomBrowser(); joinButton.disabled = false; setStatus(""); backButton.textContent = "Home"; };
     const openServerDetails = server => {
         if (!server || !serverDetails) return;
         selectedServer = server;
@@ -970,9 +1109,9 @@ const getMultiplayerIdentity = () => {
             generatedGuestName = sessionStorage.getItem("webminecraft-guest-name") || generatedGuestName || makeGuestName();
             sessionStorage.setItem("webminecraft-guest-name", generatedGuestName);
             name = generatedGuestName;
-        } if (room.toLowerCase() === "player") return setStatus("The room name \"player\" is reserved. Choose another room name.", true); if (!address) return setStatus("Enter a server address.", true); if (!/^wss?:\/\//i.test(address)) return setStatus("Server address must start with ws:// or wss://.", true); if (!room) return setStatus("Enter a room name.", true); if (socket) { try { socket.close(); } catch {} socket = null; } localStorage.setItem("webminecraft-player-name", name); localStorage.setItem("webminecraft-room", room); joinButton.disabled = true; joinButton.textContent = "Joining..."; setStatus("Connecting to server..."); beginPlayerDataSync(); try { socket = new WebSocket(address); } catch { playerDataSyncActive = false; hidePlayerDataSync(); joinButton.disabled = false; joinButton.textContent = "Join Room"; setStatus("Could not create the connection.", true); return; }
+        } if (room.toLowerCase() === "player") return setStatus("The room name \"player\" is reserved. Choose another room name.", true); if (!address) return setStatus("Enter a server address.", true); if (address !== "p2p://" && !/^wss?:\/\//i.test(address)) return setStatus("Server address must start with ws:// or wss://, or choose a player-hosted room.", true); if (!room) return setStatus("Enter a room name.", true); if (socket) { try { socket.close(); } catch {} socket = null; } localStorage.setItem("webminecraft-player-name", name); localStorage.setItem("webminecraft-room", room); joinButton.disabled = true; joinButton.textContent = "Joining..."; setStatus("Connecting to server..."); beginPlayerDataSync(); try { socket = address === "p2p://" ? createP2PTransport() : new WebSocket(address); } catch { playerDataSyncActive = false; hidePlayerDataSync(); joinButton.disabled = false; joinButton.textContent = "Join Room"; setStatus("Could not create the connection.", true); return; }
         socket.addEventListener("open", async () => { updatePlayerDataSync(28, "Connected. Sending your player data..."); if (isPlayerDataSyncCancelled()) return; setStatus("Connected. Joining room..."); const verifiedRole = await getGlobalVerifiedChatRole(); if (isPlayerDataSyncCancelled()) return; socket.send(JSON.stringify({ type: "join", room, name, username, nickname, authenticated: identity.loggedIn, verifiedRole, private: selectedPrivate, privateCode, keepOpen24h, keepOpenForever, mode: window.__webminecraftMultiplayerMode === "creative" ? "creative" : "survival", position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 }, action: "idle", skinTextures: readSavedCharacterTextures() })); });
-        socket.addEventListener("message", event => { let message; try { message = JSON.parse(event.data); } catch { return; } if (message.type === "server_info") setStatus(`Server online. ${message.maxPlayers || "?"} player slots available.`); else if (message.type === "joined") { if (updatePlayerDataSync(55, "Server accepted your player data. Syncing the world...")) return; window.__webminecraftMultiplayerMode = message.mode === "creative" ? "creative" : "survival"; window.webMinecraftSelectedWorldMode = window.__webminecraftMultiplayerMode; document.body.classList.toggle("webminecraft-survival", window.__webminecraftMultiplayerMode === "survival"); document.body.classList.toggle("webminecraft-creative", window.__webminecraftMultiplayerMode === "creative"); localPlayerId = message.playerId || null; localRole = String(message.role || "member").toLowerCase(); if (!["visitor","member","operator"].includes(localRole)) localRole = "member"; localIsHost = Boolean(message.isHost); remotePlayers = new Map((message.players || []).filter(player => player.id !== localPlayerId).map(player => [player.id, player])); window.__webminecraftMultiplayerRole = localRole; window.__webminecraftMultiplayerIsHost = localIsHost; window.__webminecraftMultiplayerActive = true; window.__webminecraftMultiplayerRoomInfo = { room: String(message.room || message.serverRoom || "default"), serverName: String(message.serverName || ""), ownerName: String(message.ownerName || ""), websocket: String(address), private: Boolean(message.private) }; window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-state-changed")); pendingWorldChanges.clear(); for (const change of message.worldChanges || []) queueWorldChange(change); updatePlayerDataSync(78, "Applying player and world data..."); if (isPlayerDataSyncCancelled()) return; for (const drop of message.worldDrops || []) window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-drop", { detail: drop })); const privateInfo = message.private ? ` · Private code: ${message.privateCode || "use the code you entered"}` : " · Public"; setStatus(`Joined server "${message.serverName || message.room}". Players: ${message.players?.length || 1}${privateInfo}.`); joinButton.textContent = "Connected"; startSharedWorld(Number(message.worldSeed) || 0); finishPlayerDataSync(); } else if (message.type === "block_change") { queueWorldChange(message); applyPendingWorldChanges(); } else if (message.type === "block_changes") { for (const change of message.changes || []) queueWorldChange(change); applyPendingWorldChanges(); } else if (message.type === "block_mining") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-mining", { detail: { playerId: String(message.playerId || ""), x: Math.floor(Number(message.x)), y: Math.floor(Number(message.y)), z: Math.floor(Number(message.z)), blockType: Math.floor(Number(message.blockType)), progress: Math.max(0, Math.min(1, Number(message.progress) || 0)) } })); } else if (message.type === "block_mining_stop") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-mining-stop", { detail: { playerId: String(message.playerId || ""), x: Math.floor(Number(message.x)), y: Math.floor(Number(message.y)), z: Math.floor(Number(message.z)) } })); } else if (message.type === "item_drop") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-drop", { detail: message })); } else if (message.type === "item_claimed") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-claimed", { detail: message })); } else if (message.type === "item_removed") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-removed", { detail: message })); } else if (message.type === "item_claim_denied") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-claim-denied", { detail: message })); } else if (message.type === "chat_system") { ensureChatUI(); window.__webminecraftChatShow?.(); window.__webminecraftChatAdd?.(String(message.text || ""), true); } else if (message.type === "chat_message") { ensureChatUI(); window.__webminecraftChatShow?.(); window.__webminecraftChatAdd?.(String(message.text || ""), false, String(message.name || "Player"), Boolean(message.isAdmin), String(message.verifiedRole || "")); } else if (message.type === "player_joined") { if (message.player?.id && message.player.id !== localPlayerId) { remotePlayers.set(message.player.id, message.player); window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-player-joined", { detail: { playerId: String(message.player.id), player: message.player } })); } } else if (message.type === "player_left") {
+        socket.addEventListener("message", event => { let message; try { message = JSON.parse(event.data); } catch { return; } if (message.type === "server_info") setStatus(`Server online. ${message.maxPlayers || "?"} player slots available.`); else if (message.type === "joined") { if (updatePlayerDataSync(55, "Server accepted your player data. Syncing the world...")) return; window.__webminecraftMultiplayerMode = message.mode === "creative" ? "creative" : "survival"; window.webMinecraftSelectedWorldMode = window.__webminecraftMultiplayerMode; document.body.classList.toggle("webminecraft-survival", window.__webminecraftMultiplayerMode === "survival"); document.body.classList.toggle("webminecraft-creative", window.__webminecraftMultiplayerMode === "creative"); localPlayerId = message.playerId || null; localRole = String(message.role || "member").toLowerCase(); if (!["visitor","member","operator"].includes(localRole)) localRole = "member"; localIsHost = Boolean(message.isHost); remotePlayers = new Map((message.players || []).filter(player => player.id !== localPlayerId).map(player => [player.id, player])); window.__webminecraftMultiplayerRole = localRole; window.__webminecraftMultiplayerIsHost = localIsHost; window.__webminecraftMultiplayerActive = true; window.__webminecraftMultiplayerRoomInfo = { room: String(message.room || message.serverRoom || "default"), serverName: String(message.serverName || ""), ownerName: String(message.ownerName || ""), websocket: String(address), private: Boolean(message.private), playerHosted: address === "p2p://" }; window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-state-changed")); pendingWorldChanges.clear(); for (const change of message.worldChanges || []) queueWorldChange(change); updatePlayerDataSync(78, "Applying player and world data..."); if (isPlayerDataSyncCancelled()) return; for (const drop of message.worldDrops || []) window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-drop", { detail: drop })); const privateInfo = message.private ? ` · Private code: ${message.privateCode || "use the code you entered"}` : " · Public"; setStatus(`Joined server "${message.serverName || message.room}". Players: ${message.players?.length || 1}${privateInfo}.`); joinButton.textContent = "Connected"; startSharedWorld(Number(message.worldSeed) || 0); finishPlayerDataSync(); } else if (message.type === "block_change") { queueWorldChange(message); applyPendingWorldChanges(); } else if (message.type === "block_changes") { for (const change of message.changes || []) queueWorldChange(change); applyPendingWorldChanges(); } else if (message.type === "block_mining") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-mining", { detail: { playerId: String(message.playerId || ""), x: Math.floor(Number(message.x)), y: Math.floor(Number(message.y)), z: Math.floor(Number(message.z)), blockType: Math.floor(Number(message.blockType)), progress: Math.max(0, Math.min(1, Number(message.progress) || 0)) } })); } else if (message.type === "block_mining_stop") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-mining-stop", { detail: { playerId: String(message.playerId || ""), x: Math.floor(Number(message.x)), y: Math.floor(Number(message.y)), z: Math.floor(Number(message.z)) } })); } else if (message.type === "item_drop") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-drop", { detail: message })); } else if (message.type === "item_claimed") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-claimed", { detail: message })); } else if (message.type === "item_removed") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-removed", { detail: message })); } else if (message.type === "item_claim_denied") { window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-item-claim-denied", { detail: message })); } else if (message.type === "chat_system") { ensureChatUI(); window.__webminecraftChatShow?.(); window.__webminecraftChatAdd?.(String(message.text || ""), true); } else if (message.type === "chat_message") { ensureChatUI(); window.__webminecraftChatShow?.(); window.__webminecraftChatAdd?.(String(message.text || ""), false, String(message.name || "Player"), Boolean(message.isAdmin), String(message.verifiedRole || "")); } else if (message.type === "player_joined") { if (message.player?.id && message.player.id !== localPlayerId) { remotePlayers.set(message.player.id, message.player); window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-player-joined", { detail: { playerId: String(message.player.id), player: message.player } })); } } else if (message.type === "player_left") {
                 if (message.playerId) { remotePlayers.delete(message.playerId); window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-player-left", { detail: { playerId: String(message.playerId) } })); }
             } else if (message.type === "player_renamed") {
                 const renamedId = String(message.playerId || "");
