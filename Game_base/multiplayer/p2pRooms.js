@@ -37,6 +37,9 @@ async function getFirebase(requireAuth = true) {
     }
     try {
         const { auth, db } = await firebasePromise;
+        if (requireAuth && typeof auth.authStateReady === "function") {
+            await auth.authStateReady().catch(() => {});
+        }
         let user = auth.currentUser;
         if (requireAuth && !user) {
             try {
