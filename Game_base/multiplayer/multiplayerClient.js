@@ -739,7 +739,7 @@ const getMultiplayerIdentity = () => {
         const user = window.firebase?.auth?.().currentUser || null;
         const username = String(localStorage.getItem("webminecraft-account-username") || "").trim().slice(0, 16);
         const nickname = String(user?.displayName || localStorage.getItem("webminecraft-account-nickname") || "").trim().slice(0, 20);
-        return { loggedIn: Boolean(user?.uid), username, nickname };
+        return { loggedIn: Boolean(user?.uid && user?.isAnonymous !== true), username, nickname };
     };
 
     const refreshCreateIdentityUi = () => {
@@ -1003,7 +1003,9 @@ const getMultiplayerIdentity = () => {
             statusLine.textContent = "Creating your player-hosted world...";
             try {
                 const identity = getMultiplayerIdentity();
-                const ownerName = identity.nickname || identity.username || generatedGuestName || "Player";
+                const ownerName = identity.loggedIn
+                    ? (identity.nickname || identity.username || "Player")
+                    : (generatedGuestName || "Player");
                 const room = await createP2PRoom({
                     name: roomName.trim(),
                     ownerName,
