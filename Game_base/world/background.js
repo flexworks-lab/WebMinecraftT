@@ -72,6 +72,11 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
     #newsButton{left:12px !important;bottom:18px !important;width:calc(50vw - 18px) !important}
     #friendsButton{left:calc(50vw + 6px) !important;bottom:18px !important;width:calc(50vw - 18px) !important}
 }
+@media(max-width:600px){
+    #globalPlayerCount{right:12px !important;bottom:76px !important;width:min(180px,calc(100vw - 24px)) !important}
+    #globalPlayerPanel{right:12px !important;bottom:144px !important;width:calc(100vw - 24px) !important;max-height:calc(100dvh - 160px) !important}
+    #globalPlayerList{max-height:calc(100dvh - 260px) !important}
+}
 `;
     document.head.appendChild(style);
 
