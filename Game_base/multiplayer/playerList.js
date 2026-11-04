@@ -56,7 +56,7 @@ function ensureUi() {
 .globalPlayerName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ddd}
 .globalPlayerMe{color:#a8d77b;font-weight:bold}
 .globalPlayerEmpty{padding:25px 14px;color:#999;text-align:center;font-size:11px;line-height:1.5}
-@media(max-width:600px){#globalPlayerCount{right:12px;bottom:40px;width:180px}#globalPlayerPanel{right:12px;bottom:105px;width:calc(100vw - 24px);max-height:calc(100vh - 125px)}#globalPlayerList{max-height:calc(100vh - 225px)}}
+@media(max-width:600px){#globalPlayerCount{right:12px;bottom:76px;width:min(180px,calc(100vw - 24px))}#globalPlayerPanel{right:12px;bottom:144px;width:calc(100vw - 24px);max-height:calc(100dvh - 160px)}#globalPlayerList{max-height:calc(100dvh - 260px)}}
 `;
     document.head.appendChild(style);
 
