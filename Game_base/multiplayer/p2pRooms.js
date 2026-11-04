@@ -124,6 +124,23 @@ export async function listP2PRooms() {
         .sort((a, b) => b.lastHeartbeat - a.lastHeartbeat);
 }
 
+function explainRoomDirectoryError(error) {
+    const code = String(error?.code || "").toLowerCase();
+    if (code.includes("permission-denied")) {
+        return new Error("Firebase blocked player-hosted room creation. The latest firestore.rules must be published to the webminecraft-f9064 project.");
+    }
+    if (code.includes("unauthenticated")) {
+        return new Error("Firebase did not authenticate this player session. Refresh WebMinecraft and try again.");
+    }
+    if (code.includes("unavailable") || code.includes("network-request-failed")) {
+        return new Error("The room directory is temporarily unreachable. Check your connection and try again.");
+    }
+    if (code.includes("failed-precondition")) {
+        return new Error("Firebase rejected the room setup because the Firestore project is not ready. Check the Firestore database setup.");
+    }
+    return new Error(error?.message || "Could not create the player-hosted world.");
+}
+
 export async function createP2PRoom({ name, ownerName, mode = "survival" } = {}) {
     const { db, user } = await getFirebase(true);
     const roomName = cleanText(name, 32);
@@ -133,17 +150,24 @@ export async function createP2PRoom({ name, ownerName, mode = "survival" } = {})
     const worldSeed = crypto.getRandomValues(new Uint32Array(1))[0] >>> 0;
     const now = Date.now();
     const roomRef = db.collection(ROOMS).doc(roomId);
-    await roomRef.set({
-        roomId, name: roomName, ownerUid: user.uid, ownerName: hostName,
-        hostUid: user.uid, hostName, backupUid: "", backupName: "",
-        visibility: "public", mode: mode === "creative" ? "creative" : "survival",
-        worldSeed, players: 1, maxPlayers: MAX_PLAYERS, status: "online",
-        generation: 1, lastHeartbeat: now, createdAt: now, updatedAt: now
-    });
-    await roomRef.collection("participants").doc(user.uid).set({
-        uid: user.uid, name: hostName, role: "owner", status: "connected",
-        joinedAt: now, lastSeen: now
-    });
+    try {
+        await roomRef.set({
+            roomId, name: roomName, ownerUid: user.uid, ownerName: hostName,
+            hostUid: user.uid, hostName, backupUid: "", backupName: "",
+            visibility: "public", mode: mode === "creative" ? "creative" : "survival",
+            worldSeed, players: 1, maxPlayers: MAX_PLAYERS, status: "online",
+            generation: 1, lastHeartbeat: now, createdAt: now, updatedAt: now
+        });
+        await roomRef.collection("participants").doc(user.uid).set({
+            uid: user.uid, name: hostName, role: "owner", status: "connected",
+            joinedAt: now, lastSeen: now
+        });
+    } catch (error) {
+        // Do not leave a public, apparently-online room behind if owner presence
+        // could not be created after the directory document was written.
+        await roomRef.delete().catch(() => {});
+        throw explainRoomDirectoryError(error);
+    }
     return { id: roomId, name: roomName, worldSeed };
 }
 
