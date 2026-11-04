@@ -33,6 +33,8 @@ body.mobile-mode.webminecraft-in-world #touchMovePad{transform:scale(.9);transfo
 .savedWorldCardDelete{background:linear-gradient(#8d5353,#6e4040) !important}
 
 /* Keep menu and gameplay controls in separate screen regions. */
+#seedPanel{padding-top:clamp(96px,10vh,132px)!important}
+@media(max-width:700px){#seedDecoration,#seedSpark{display:none!important}}
 #mainMenu{overflow-x:hidden!important;overflow-y:auto!important}
 #mainMenu #menuPanel{width:min(760px,96vw)!important;max-height:calc(100dvh - 32px)!important;overflow-x:hidden!important;overflow-y:auto!important;margin:16px auto 24px!important;padding:12px 10px 24px!important}
 @media(max-width:1260px){#menuUpdates{display:none!important}}
