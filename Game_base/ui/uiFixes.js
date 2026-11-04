@@ -31,6 +31,41 @@ body.mobile-mode.webminecraft-in-world #touchMovePad{transform:scale(.9);transfo
 #savedWorldDeleteAll{background:linear-gradient(#8d5353,#6e4040) !important}
 @media(max-width:700px){#savedWorldDeleteAll{width:100%}}
 .savedWorldCardDelete{background:linear-gradient(#8d5353,#6e4040) !important}
+
+/* Keep menu and gameplay controls in separate screen regions. */
+#mainMenu{overflow-x:hidden!important;overflow-y:auto!important}
+#mainMenu #menuPanel{width:min(760px,96vw)!important;max-height:calc(100dvh - 32px)!important;overflow-x:hidden!important;overflow-y:auto!important;margin:16px auto 24px!important;padding:12px 10px 24px!important}
+@media(max-width:1260px){#menuUpdates{display:none!important}}
+@media(max-height:660px){#menuFooter,#menuCopyright{display:none!important}#mainMenu{align-items:flex-start!important}#mainMenu #menuPanel{max-height:none!important;margin:16px auto 24px!important}}
+@media(max-width:600px){
+ #globalPlayerCount{right:12px!important;bottom:76px!important;width:min(180px,calc(100vw - 24px))!important}
+ #globalPlayerPanel{right:12px!important;bottom:144px!important;width:calc(100vw - 24px)!important;max-height:calc(100dvh - 160px)!important}
+ #globalPlayerList{max-height:calc(100dvh - 260px)!important}
+}
+/* Keep movement/action controls in the lower corners and the hotbar above them. */
+body.mobile-mode.webminecraft-in-world #touchControls{z-index:40!important}
+body.mobile-mode.webminecraft-in-world #touchMovePad{left:max(12px,env(safe-area-inset-left))!important;bottom:max(18px,env(safe-area-inset-bottom))!important;z-index:50!important;transform:scale(.78)!important;transform-origin:left bottom!important}
+body.mobile-mode.webminecraft-in-world #touchActions{right:max(12px,env(safe-area-inset-right))!important;bottom:max(18px,env(safe-area-inset-bottom))!important;z-index:50!important;transform:scale(.76)!important;transform-origin:right bottom!important}
+body.mobile-mode.webminecraft-in-world #hotbar{left:50%!important;bottom:194px!important;max-width:calc(100vw - 24px)!important;z-index:45!important;transform:translateX(-50%)!important}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{left:50%!important;bottom:194px!important;max-width:calc(100vw - 24px)!important;z-index:45!important;transform:translateX(-50%)!important}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:36px!important;height:36px!important;flex-basis:36px!important}
+body.mobile-mode.webminecraft-in-world #webMinecraftHealthHud{z-index:46!important}
+body.mobile-mode.webminecraft-in-world #mobilePauseButton{top:max(10px,env(safe-area-inset-top))!important;right:max(12px,env(safe-area-inset-right))!important;width:48px!important;height:48px!important;z-index:90!important}
+body.mobile-mode.webminecraft-in-world #touchChatButton{top:max(72px,calc(env(safe-area-inset-top) + 60px))!important;right:max(12px,env(safe-area-inset-right))!important;bottom:auto!important;width:48px!important;height:48px!important;z-index:91!important}
+body.mobile-mode.webminecraft-in-world #inventoryMobileButton{top:max(134px,calc(env(safe-area-inset-top) + 120px))!important;right:max(12px,env(safe-area-inset-right))!important;bottom:auto!important;left:auto!important;width:46px!important;height:46px!important;z-index:92!important}
+@media(max-width:400px){
+ body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:32px!important;height:32px!important;flex-basis:32px!important}
+}
+@media(orientation:landscape) and (max-height:500px){
+ body.mobile-mode.webminecraft-in-world #touchMovePad{bottom:8px!important;transform:scale(.62)!important}
+ body.mobile-mode.webminecraft-in-world #touchActions{bottom:8px!important;transform:scale(.62)!important}
+ body.mobile-mode.webminecraft-in-world #hotbar,
+ body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{bottom:148px!important}
+ body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:32px!important;height:32px!important;flex-basis:32px!important}
+ body.mobile-mode.webminecraft-in-world #mobilePauseButton{top:8px!important;width:42px!important;height:42px!important}
+ body.mobile-mode.webminecraft-in-world #touchChatButton{top:58px!important;width:42px!important;height:42px!important}
+ body.mobile-mode.webminecraft-in-world #inventoryMobileButton{top:108px!important;width:42px!important;height:42px!important}
+}
 `;
     document.head.appendChild(style);
 }
