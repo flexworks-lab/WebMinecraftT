@@ -193,7 +193,11 @@ body.mobile-mode.webminecraft-in-world #touchMovePad{width:132px !important;heig
 #mobileJoystickBase{position:absolute;left:0;bottom:0;width:132px;height:132px;border-radius:50%;box-sizing:border-box;border:3px solid rgba(255,255,255,.32);background:rgba(0,0,0,.32);box-shadow:inset 0 0 0 2px rgba(0,0,0,.35),0 3px 8px rgba(0,0,0,.45);pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
 #mobileJoystickBase.active{background:rgba(0,0,0,.4)}
 #mobileJoystickThumb{position:absolute;left:50%;top:50%;width:62px;height:62px;border-radius:50%;box-sizing:border-box;border:3px solid rgba(255,255,255,.55);background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 2px rgba(0,0,0,.28),0 2px 6px rgba(0,0,0,.45);pointer-events:none;transform:translate(-50%,-50%)}
-@media(max-width:700px){body.mobile-mode.webminecraft-in-world #touchMovePad{transform:none !important}}
+@media(max-width:700px){body.mobile-mode.webminecraft-in-world #touchMovePad{transform:scale(.78) !important;transform-origin:left bottom !important}}
+@media(orientation:landscape) and (max-height:500px) and (max-width:700px){body.mobile-mode.webminecraft-in-world #touchMovePad{transform:scale(.62) !important}}
+body.mobile-mode.webminecraft-in-world.settings-left-handed #touchMovePad{left:auto!important;right:max(12px,env(safe-area-inset-right))!important;transform-origin:right bottom!important}
+body.mobile-mode.webminecraft-in-world.settings-left-handed #touchActions{right:auto!important;left:max(12px,env(safe-area-inset-left))!important;transform-origin:left bottom!important}
+
 @media(orientation:portrait){body.mobile-mode.webminecraft-in-world #touchMovePad{width:118px !important;height:118px !important}#mobileJoystickBase{width:118px;height:118px}}
 `;
         document.head.appendChild(style);
