@@ -1,5 +1,5 @@
-const SERVER_HEALTH_URL = "https://webminecraftt-multiplayer-production.up.railway.app/health";
-const SERVER_LIST_URL = "https://webminecraftt-multiplayer-production.up.railway.app/servers";
+const SERVER_HEALTH_URL = "https://webminecraftt-multiplayer.onrender.com/health";
+const SERVER_LIST_URL = "https://webminecraftt-multiplayer.onrender.com/servers";
 const POLL_MS = 4000;
 
 let countEl = null;
