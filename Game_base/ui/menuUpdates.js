@@ -33,6 +33,8 @@ function addStyles() {
         #menuUpdates{display:none!important}
         #newsButton{position:fixed!important;left:28px!important;bottom:28px!important;width:48px!important;height:48px!important;min-height:48px!important;margin:0!important;padding:0!important;z-index:98!important;display:grid!important;place-items:center!important;pointer-events:auto!important;border-radius:0!important;background:linear-gradient(#737373,#565656)!important;border:2px solid #1b1b1b!important;border-top-color:#a4a4a4!important;border-left-color:#a4a4a4!important;outline:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62)!important;transition:none!important;animation:none!important;font-size:0!important;line-height:0!important}
 #newsButton svg{width:25px;height:25px;display:block;image-rendering:pixelated;shape-rendering:crispEdges}
+#newsButton{overflow:visible!important}
+#newsButton:not(.newsHasUnread)::after{content:none!important}
 #newsButton::before{content:attr(data-tooltip);position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);padding:6px 8px;background:#111;border:1px solid #aaa;color:#fff;font:11px/1.2 MinecraftFont,monospace;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;z-index:120;box-shadow:2px 2px 0 #000}
 #newsButton:hover::before,#newsButton:focus-visible::before{opacity:1;visibility:visible}
 #newsButton:hover,#newsButton:active{filter:none!important;transform:none!important}
