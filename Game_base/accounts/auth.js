@@ -54,30 +54,45 @@ function makeFriendCode(uid) {
 
 function getFriendCode() { return friendCode || (currentUser?.uid ? makeFriendCode(currentUser.uid) : ""); }
 
+async function retryCloudRequest(operation, retryMessage, progress) {
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        if (isPlayerDataSyncCancelled()) return null;
+        try {
+            return await operation();
+        } catch (error) {
+            lastError = error;
+            if (attempt === 2) break;
+            setPlayerDataSyncProgress(progress, retryMessage);
+            await new Promise(resolve => setTimeout(resolve, 400 * (attempt + 1)));
+        }
+    }
+    throw lastError || new Error("Cloud request failed.");
+}
+
 async function syncUserProfile(user, profileOverride = null) {
     if (!user?.uid || !user?.email || !window.firebase?.firestore) return;
     const db = window.firebase.firestore();
     const code = makeFriendCode(user.uid);
     friendCode = code;
     resetPlayerDataSyncCancellation();
-    showPlayerDataSync("Player data is syncing…");
+    showPlayerDataSync("Syncing your account…");
     try {
-        setPlayerDataSyncProgress(12, "Loading your player profile…");
-        if (isPlayerDataSyncCancelled()) return;
+        setPlayerDataSyncProgress(12, "Loading your saved profile…");
+        const existingSnap = await retryCloudRequest(
+            () => db.collection("profiles").doc(user.uid).get(),
+            "Connection is slow. Retrying profile download…",
+            12
+        );
+        if (isPlayerDataSyncCancelled() || !existingSnap) return;
 
-        let existing = {};
-        try {
-            const existingSnap = await db.collection("profiles").doc(user.uid).get();
-            if (existingSnap.exists) existing = existingSnap.data() || {};
-        } catch {}
-
+        const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
         const username = String(profileOverride?.username || existing.username || "").trim();
         const nickname = String(profileOverride?.nickname || existing.nickname || user.displayName || "Player").trim() || "Player";
         const usernameLower = username.toLowerCase();
+        const updatedAt = new Date();
 
-        setPlayerDataSyncProgress(45, "Saving your player profile…");
-        if (isPlayerDataSyncCancelled()) return;
-        await db.collection("profiles").doc(user.uid).set({
+        const profileData = {
             uid: user.uid,
             email: user.email,
             username,
@@ -85,12 +100,9 @@ async function syncUserProfile(user, profileOverride = null) {
             nickname,
             displayName: nickname,
             photoURL: user.photoURL || "",
-            updatedAt: new Date()
-        }, { merge: true });
-
-        setPlayerDataSyncProgress(72, "Saving your public player profile…");
-        if (isPlayerDataSyncCancelled()) return;
-        await db.collection("publicProfiles").doc(user.uid).set({
+            updatedAt
+        };
+        const publicProfileData = {
             uid: user.uid,
             username,
             usernameLower,
@@ -98,8 +110,25 @@ async function syncUserProfile(user, profileOverride = null) {
             displayName: nickname,
             photoURL: user.photoURL || "",
             friendCode: code,
-            updatedAt: new Date()
-        }, { merge: true });
+            updatedAt
+        };
+
+        setPlayerDataSyncProgress(45, "Saving your profile…");
+        if (isPlayerDataSyncCancelled()) return;
+        await retryCloudRequest(
+            () => db.collection("profiles").doc(user.uid).set(profileData, { merge: true }),
+            "Profile save paused. Retrying…",
+            45
+        );
+        if (isPlayerDataSyncCancelled()) return;
+
+        setPlayerDataSyncProgress(72, "Updating your public profile…");
+        await retryCloudRequest(
+            () => db.collection("publicProfiles").doc(user.uid).set(publicProfileData, { merge: true }),
+            "Public profile save paused. Retrying…",
+            72
+        );
+        if (isPlayerDataSyncCancelled()) return;
 
         try { if (user.displayName !== nickname) await user.updateProfile({ displayName: nickname }); } catch {}
         if (username) {
@@ -110,11 +139,12 @@ async function syncUserProfile(user, profileOverride = null) {
             } catch {}
         }
 
-        setPlayerDataSyncProgress(100, "Player data synced successfully.");
-        setTimeout(hidePlayerDataSync, 500);
+        setPlayerDataSyncProgress(100, "Your account is up to date.");
+        setTimeout(hidePlayerDataSync, 650);
     } catch (error) {
         console.warn("Could not sync account profile:", error);
-        setPlayerDataSyncProgress(100, "Player data could not be synced.");
+        setPlayerDataSyncProgress(0, "Cloud sync failed. Your existing profile was left untouched; try again when connected.");
+        setTimeout(hidePlayerDataSync, 2600);
     }
 }
 
