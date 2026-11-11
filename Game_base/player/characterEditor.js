@@ -625,9 +625,12 @@ window.addEventListener("webminecraft:multiplayer-state-changed", () => {
 });
 window.addEventListener("webminecraft:character-profile-loaded", event => {
   savedTextureData = event.detail?.textures && typeof event.detail.textures === "object" ? event.detail.textures : {};
-  if (!overlay.classList.contains("open")) return;
+  if (!previewAvatar) {
+    void buildPreview(true).then(resize);
+    return;
+  }
   void applyAvatarTextureData(currentTextures, savedTextureData).then(() => {
-    copySelectedTextureToEditor();
+    if (overlay.classList.contains("open")) copySelectedTextureToEditor();
     scheduleLivePreview();
   });
 });
