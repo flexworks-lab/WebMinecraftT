@@ -116,6 +116,25 @@ export function setupInteraction(scene, camera) {
         const number = Number(event.key);
         if (number >= 1 && number <= 9) { selectedSlot = number - 1; updateHotbar(); }
     });
+    // Match Minecraft: the mouse wheel cycles through the nine hotbar slots.
+    // Keep normal scrolling available inside inventory/menu controls.
+    document.addEventListener("wheel", event => {
+        if (document.body.classList.contains("mobile-mode")) return;
+        if (!document.body.classList.contains("webminecraft-in-world")) return;
+        if (document.body.classList.contains("inventory-open")) return;
+        if (document.body.classList.contains("crafting-table-open")) return;
+        if (event.target instanceof Element && event.target.closest(
+            "#inventoryScreen, #survivalInventoryScreen, #savedWorlds, input, textarea, select, [contenteditable='true']"
+        )) return;
+
+        const direction = Math.sign(event.deltaY);
+        if (!direction) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        selectedSlot = (selectedSlot + direction + 9) % 9;
+        updateHotbar();
+    }, { passive: false });
     document.querySelectorAll("#hotbar .slot").forEach((slot, index) => {
         slot.addEventListener("pointerdown", event => {
             event.preventDefault(); event.stopPropagation(); selectedSlot = index; updateHotbar();
