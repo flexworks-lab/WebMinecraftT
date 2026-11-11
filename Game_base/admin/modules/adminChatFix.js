@@ -1,5 +1,5 @@
 // Keeps Admin Controls server chat inputs stable while the server list polls.
-const ADMIN_CHAT_API = "https://webminecraftt-multiplayer-production.up.railway.app";
+const ADMIN_CHAT_API = "https://webminecraftt-multiplayer.onrender.com";
 let adminChatFixInstalled = false;
 const drafts = new Map();
 
