@@ -145,7 +145,7 @@ style.textContent = `
 #characterHelpPanel p,#characterHelpPanel li{color:#aab8cb;font-size:13px;line-height:1.7}
 #characterHelpPanel strong{color:#eff5ff}
 #characterClose{height:34px;width:40px;border:1px solid #45546a;background:#131b29;color:#fff;font-size:22px;cursor:pointer}
-#characterShowcase{position:fixed;left:calc(50% + 216px);right:auto;top:50%;bottom:auto;transform:translateY(4%);z-index:84;width:148px;height:210px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
+#characterShowcase{position:fixed;left:calc(50% + 216px);right:auto;top:50%;bottom:auto;transform:translateY(4%);z-index:84;width:196px;height:278px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
 #characterShowcase[hidden]{display:none!important}
 #characterShowcaseTitle{display:none!important}
 #characterShowcasePreview{position:relative;flex:1 1 auto;min-height:0;overflow:visible;background:transparent;touch-action:pan-y}
@@ -156,7 +156,7 @@ body.webminecraft-in-world #characterShowcase{display:none!important}
 body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
 body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(760px,96vw)!important;margin:0 auto!important}
 body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;transform:translateY(26px)!important}
-@media(max-width:1360px){#characterShowcase{left:calc(50% + 212px);width:138px;height:196px}}
+@media(max-width:1360px){#characterShowcase{left:calc(50% + 212px);width:180px;height:256px}}
 @media(max-width:900px){
  #characterEditorSidebar{flex-basis:56px;width:56px;padding:12px 6px}
  #characterEditorSidebar:hover,#characterEditorSidebar:focus-within{width:184px;flex-basis:184px}
@@ -176,7 +176,7 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
  body:not(.webminecraft-in-world) #mainMenu #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
  #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
  #menuSubtitle{font-size:8px!important;line-height:1.25!important;margin:6px 0 8px!important}
- #characterShowcase{left:auto;right:10px;top:50%;bottom:auto;transform:translateY(8%);width:112px;height:160px}
+ #characterShowcase{left:auto;right:10px;top:50%;bottom:auto;transform:translateY(8%);width:140px;height:200px}
  #characterEditorOpen{height:28px;flex-basis:28px;font-size:10px}
  #characterEditorTopbar{height:54px;min-height:54px}
  #characterEditorTopbarSub{display:none}
@@ -196,7 +196,7 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
  #characterEditorSidebar:hover,#characterEditorSidebar:focus-within{width:172px;flex-basis:172px}
 }
 @media(max-width:520px){
- #characterShowcase{right:8px;width:102px;height:146px}
+ #characterShowcase{right:8px;width:126px;height:180px}
 }
 
 
