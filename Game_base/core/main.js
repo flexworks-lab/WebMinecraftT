@@ -16,6 +16,7 @@ import "../world/background.js";
 import "./loadingScreen.js";
 import "../accounts/auth.js";
 import "../multiplayer/chat.js";
+import "../ui/menuTips.js";
 import { getWorldMode } from "../inventory/survivalMode.js";
 import "../inventory/survivalRules.js";
 
