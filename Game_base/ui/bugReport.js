@@ -50,11 +50,11 @@ function installStyles() {
     const style = document.createElement("style");
     style.id = "webMinecraftBugReportStyles";
     style.textContent = [
-        "#bugReportButton{position:fixed;top:max(18px,env(safe-area-inset-top));right:82px;width:48px;height:48px;display:none;align-items:center;justify-content:center;padding:0;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:linear-gradient(#737373,#555);color:#fff;z-index:500000;box-shadow:inset 2px 2px rgba(255,255,255,.14),inset -2px -2px rgba(0,0,0,.3),0 3px 0 #171717;cursor:pointer}",
+        "#bugReportButton{position:fixed;top:max(18px,env(safe-area-inset-top));left:max(18px,env(safe-area-inset-left));right:auto;width:48px;height:48px;display:none;align-items:center;justify-content:center;padding:0;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:linear-gradient(#737373,#555);color:#fff;z-index:500000;box-shadow:inset 2px 2px rgba(255,255,255,.14),inset -2px -2px rgba(0,0,0,.3),0 3px 0 #171717;cursor:pointer}",
         "#bugReportButton svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:square;stroke-linejoin:miter;shape-rendering:crispEdges}",
         "#bugReportButton:hover{filter:brightness(1.14)}",
         "body.webminecraft-in-world:not(.webminecraft-report-capture) #bugReportButton{display:flex!important}",
-        "body.mobile-mode.webminecraft-in-world:not(.webminecraft-report-capture) #bugReportButton{right:max(72px,calc(env(safe-area-inset-right) + 72px));top:max(10px,env(safe-area-inset-top));width:48px;height:48px}",
+        "body.mobile-mode.webminecraft-in-world:not(.webminecraft-report-capture) #bugReportButton{left:max(12px,env(safe-area-inset-left));right:auto;top:max(10px,env(safe-area-inset-top));width:48px;height:48px}",
         "#bugReportModal{position:fixed;inset:0;z-index:1000001;display:none;overflow:auto;background:rgba(12,14,12,.97);color:#fff;font-family:Arial,sans-serif}",
         "#bugReportModal.open{display:block}",
         "#bugReportModal *{box-sizing:border-box}",
