@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createPerspectiveCameraRig } from "../player/perspectiveCamera.js";
 import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
 import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockCollisionBoxes, setBlockAt, getBlockTypes, isPointInWater, setChunkLoadConcurrency, getChunkLoadConcurrency, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, setChunkShadowRendering, SEA_LEVEL } from "../world/world.js";
 import { setupControls, resetView, keys } from "../player/controls.js";
@@ -1101,52 +1102,19 @@ document.addEventListener("keydown", event => {
     nextCameraPerspective();
 }, true);
 
-function restorePlayerCameraFromPerspective() {
-    const previous = camera.userData.__webminecraftPerspectiveRender;
-    if (!previous) return;
-    camera.position.copy(previous.position);
-    camera.rotation.copy(previous.rotation);
-    camera.userData.__webminecraftPerspectiveRender = null;
+const perspectiveCameraRig = createPerspectiveCameraRig(camera);
+
+function applyCameraPerspective(deltaTime) {
+    perspectiveCameraRig.update({
+        mode: cameraPerspectiveMode,
+        yaw: Number(camera.userData.__webminecraftPlayerYaw) || 0,
+        pitch: Number(camera.userData.__webminecraftPlayerPitch) || 0,
+        deltaTime,
+        getBlockAt,
+        getBlockCollisionBoxes
+    });
 }
 
-function cameraClearance(origin, direction, maximum) {
-    for (let distance = 0.35; distance <= maximum; distance += 0.25) {
-        const point = origin.clone().addScaledVector(direction, distance);
-        const x = Math.floor(point.x + 0.5);
-        const y = Math.floor(point.y + 0.5);
-        const z = Math.floor(point.z + 0.5);
-        const boundsList = getBlockCollisionBoxes(getBlockAt(x, y, z), x, y, z) || [];
-        if (boundsList.some(bounds =>
-            point.x >= bounds.minX && point.x <= bounds.maxX &&
-            point.y >= bounds.minY && point.y <= bounds.maxY &&
-            point.z >= bounds.minZ && point.z <= bounds.maxZ
-        )) return Math.max(0.75, distance - 0.4);
-    }
-    return maximum;
-}
-
-function applyCameraPerspective() {
-    if (cameraPerspectiveMode === "first") return;
-    const playerPosition = camera.position.clone();
-    const playerRotation = camera.rotation.clone();
-    const yaw = Number(camera.userData.__webminecraftPlayerYaw) || playerRotation.y;
-    const pitch = Number(camera.userData.__webminecraftPlayerPitch) || 0;
-    const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)).normalize();
-    const lookingFront = cameraPerspectiveMode === "front";
-    const direction = lookingFront ? forward : forward.clone().negate();
-    const distance = cameraClearance(playerPosition, direction, 4.25);
-    const offset = direction.multiplyScalar(distance);
-    offset.y = 0.35;
-    camera.userData.__webminecraftPerspectiveRender = {
-        position: playerPosition,
-        rotation: playerRotation
-    };
-    camera.position.copy(playerPosition).add(offset);
-    camera.rotation.order = "YXZ";
-    camera.rotation.y = yaw + (lookingFront ? Math.PI : 0);
-    camera.rotation.x = lookingFront ? -pitch : pitch;
-    camera.updateMatrixWorld(true);
-}
 
 function updateNerdStats() {
     const benchmarkStats = window.__webminecraftDevBenchStats;
@@ -1322,7 +1290,6 @@ function animate() {
     requestAnimationFrame(animate);
     if (window.__webminecraftDevBenchActive) return;
     if (document.hidden) return;
-    restorePlayerCameraFromPerspective();
     const currentTime = performance.now();
     lastFrameTimeMs = currentTime - lastTime;
     frameTimeSamples.push(Math.min(1000, lastFrameTimeMs));
@@ -1333,7 +1300,7 @@ function animate() {
     if (gameStarted) {
         updatePlayer(camera, scene, deltaTime);
         updateLocalAvatar(scene, camera, cameraPerspectiveMode);
-        applyCameraPerspective();
+        applyCameraPerspective(deltaTime);
         updateChunkVisibility(camera.position, camera);
         window.__webMinecraftUpdateShortGrass?.(currentTime);
         updateSunPosition();
