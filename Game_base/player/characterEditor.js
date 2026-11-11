@@ -344,13 +344,14 @@ function getCurrentTextureOverrides() {
   return textures;
 }
 function scheduleLivePreview() {
-  if (livePreviewFrame) return;
+  if (selectedRosterSlot !== MAIN_PROFILE_SLOT || livePreviewFrame) return;
   livePreviewFrame = requestAnimationFrame(() => {
     livePreviewFrame = 0;
     window.dispatchEvent(new CustomEvent("webminecraft:character-live-preview", { detail: { textures: currentTextures } }));
   });
 }
 function scheduleOnlineSkinSync() {
+  if (selectedRosterSlot !== MAIN_PROFILE_SLOT) return;
   if (onlineSkinSyncTimer) clearTimeout(onlineSkinSyncTimer);
   onlineSkinSyncTimer = window.setTimeout(() => {
     onlineSkinSyncTimer = null;
@@ -439,16 +440,16 @@ for (const { key, label } of AVATAR_TEXTURE_PARTS) {
 function makeScene() {
   scene = new THREE.Scene();
   scene.background = null;
-  camera = new THREE.PerspectiveCamera(32, 1, 0.1, 80);
-  camera.position.set(3.8, 2.65, 6.8);
-  camera.lookAt(0, 1.12, 0);
+  camera = new THREE.PerspectiveCamera(34, 1, 0.1, 80);
+  camera.position.set(0, 2.55, 8.1);
+  camera.lookAt(0, 1.05, 0);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  overlay.querySelector("#characterEditorPreview").prepend(renderer.domElement);
+  overlay.querySelector("#characterShowcasePreview").prepend(renderer.domElement);
   const previewCanvas = renderer.domElement;
   previewCanvas.style.touchAction = "pan-y";
   previewCanvas.addEventListener("pointerdown", event => {
@@ -457,30 +458,23 @@ function makeScene() {
     previewCanvas.setPointerCapture(event.pointerId);
   });
   previewCanvas.addEventListener("pointermove", event => {
-    if (!previewAvatar) return;
-    const rect = previewCanvas.getBoundingClientRect();
-    const nx = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1));
-    const ny = Math.max(-1, Math.min(1, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1));
-    if (dragging) {
-      avatarYaw += (event.clientX - lastX) * 0.012;
-      lastX = event.clientX;
-      previewAvatar.group.rotation.y = avatarYaw;
-    }
-    const head = previewAvatar.parts?.head;
-    if (head) {
-      head.rotation.order = "YXZ";
-      head.rotation.y = nx * 0.58;
-      head.rotation.x = -ny * 0.34;
-    }
-  });
-  previewCanvas.addEventListener("pointerleave", () => {
-    if (!previewAvatar || dragging) return;
-    const head = previewAvatar.parts?.head;
-    if (head) { head.rotation.y = 0; head.rotation.x = 0; }
+    if (!dragging || !previewAvatar) return;
+    avatarYaw += (event.clientX - lastX) * 0.012;
+    lastX = event.clientX;
+    previewAvatar.group.rotation.y = avatarYaw;
   });
   const stopDragging = () => { dragging = false; };
   previewCanvas.addEventListener("pointerup", stopDragging);
   previewCanvas.addEventListener("pointercancel", stopDragging);
+  window.addEventListener("pointermove", event => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const anchorX = rect.width > 0 ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const anchorY = rect.height > 0 ? rect.top + rect.height * 0.43 : window.innerHeight / 2;
+    const spanX = Math.max(window.innerWidth * 0.42, rect.width * 0.55, 1);
+    const spanY = Math.max(window.innerHeight * 0.42, rect.height * 0.7, 1);
+    headLookX = THREE.MathUtils.clamp((event.clientX - anchorX) / spanX, -1, 1);
+    headLookY = THREE.MathUtils.clamp((event.clientY - anchorY) / spanY, -1, 1);
+  }, { passive: true });
   scene.add(new THREE.HemisphereLight("#e9f4ff", "#6b5946", 1.8));
   const key = new THREE.DirectionalLight("#fff1d8", 2.1);
   key.position.set(4, 8, 5);
@@ -491,41 +485,170 @@ function makeScene() {
   scene.add(rim);
 }
 
+function disposePreviewAvatar(avatar) {
+  if (!avatar?.group) return;
+  scene.remove(avatar.group);
+  const materials = new Set();
+  avatar.group.traverse(object => {
+    object.geometry?.dispose?.();
+    const list = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of list) {
+      if (!material) continue;
+      if (material.map) material.map.dispose?.();
+      materials.add(material);
+    }
+  });
+  for (const material of materials) material.dispose?.();
+}
+
+function updateRosterCards() {
+  overlay.querySelectorAll(".rosterCard").forEach((card, position) => {
+    const slot = rosterOrder[position];
+    card.dataset.slot = String(slot);
+    card.classList.toggle("isCenter", position === 2);
+    card.querySelector(".rosterCardNumber").textContent = String(slot + 1).padStart(2, "0");
+    card.querySelector(".rosterCardName").textContent = slot === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" : "PRESET " + (slot + 1);
+    const edit = card.querySelector(".rosterEditButton");
+    edit.dataset.slot = String(slot);
+    edit.setAttribute("aria-label", "Edit character slot " + (slot + 1));
+  });
+}
+
+function applyRosterLayout() {
+  rosterAvatars.forEach(entry => {
+    const position = rosterOrder.indexOf(entry.slotIndex);
+    entry.targetX = (position - 2) * 2.95;
+    entry.targetScale = position === 2 ? 1.16 : 0.88;
+    entry.group.visible = editorPage === "roster";
+  });
+  updateRosterCards();
+}
+
+function rememberActiveEditorState() {
+  if (!previewAvatar) return;
+  previewAvatar.savedTextureData = { ...savedTextureData };
+  previewAvatar.dirtyTextureKeys = new Set(dirtyTextureKeys);
+  previewAvatar.resetOverridesPending = resetOverridesPending;
+}
+
+function activateRosterSlot(slot) {
+  const entry = rosterAvatars[slot];
+  if (!entry) return;
+  if (previewAvatar && previewAvatar.slotIndex !== slot) {
+    pushEditorIntoTexture();
+    rememberActiveEditorState();
+  }
+  selectedRosterSlot = slot;
+  previewAvatar = entry;
+  currentTextures = entry.textures;
+  savedTextureData = { ...(entry.savedTextureData || {}) };
+  dirtyTextureKeys = new Set(entry.dirtyTextureKeys || []);
+  resetOverridesPending = Boolean(entry.resetOverridesPending);
+  baseSnapshots = entry.baseSnapshots || {};
+  avatarYaw = entry.group.rotation.y || 0;
+  undoStack = [];
+  copySelectedTextureToEditor();
+  overlay.querySelector("#characterEditingName").textContent = "EDITING CHARACTER " + (slot + 1) + (slot === MAIN_PROFILE_SLOT ? " · MAIN" : " · PRESET");
+  updateRosterCards();
+}
+
+function moveRoster(direction) {
+  if (editorPage !== "roster") return;
+  const current = rosterOrder.slice();
+  rosterOrder = direction > 0
+    ? [current[4], current[0], current[1], current[2], current[3]]
+    : [current[1], current[2], current[3], current[4], current[0]];
+  activateRosterSlot(rosterOrder[2]);
+  applyRosterLayout();
+}
+
+function setEditorPage(page) {
+  if (page === "paint" && !previewAvatar) activateRosterSlot(MAIN_PROFILE_SLOT);
+  editorPage = page;
+  overlay.querySelector("#characterRosterPage").hidden = page !== "roster";
+  overlay.querySelector("#characterPaintPage").hidden = page !== "paint";
+  overlay.querySelector("#characterHelpPage").hidden = page !== "guide";
+  overlay.querySelectorAll("[data-editor-page]").forEach(button => button.classList.toggle("active", button.dataset.editorPage === page));
+  const title = overlay.querySelector("#characterEditorTopbarTitle");
+  const sub = overlay.querySelector("#characterEditorTopbarSub");
+  const status = overlay.querySelector("#characterEditorStatus");
+  if (page === "roster") {
+    title.textContent = "CHARACTER SELECT";
+    sub.textContent = "Browse your five character slots and choose one to edit.";
+    status.textContent = "5 CHARACTER SLOTS";
+    const host = overlay.querySelector("#characterRosterStage");
+    if (renderer.domElement.parentElement !== host) host.prepend(renderer.domElement);
+    renderer.domElement.style.display = "block";
+    applyRosterLayout();
+    rosterAvatars.forEach(entry => { entry.group.visible = true; });
+    camera.position.set(0, 2.65, 15.2);
+    camera.lookAt(0, 1.02, 0);
+  } else if (page === "paint") {
+    title.textContent = "TEXTURE EDITOR";
+    sub.textContent = "Paint directly onto the generated texture maps.";
+    status.textContent = "EDITING SLOT " + (selectedRosterSlot + 1);
+    const host = overlay.querySelector("#characterEditorPreview");
+    if (renderer.domElement.parentElement !== host) host.prepend(renderer.domElement);
+    renderer.domElement.style.display = "block";
+    rosterAvatars.forEach(entry => {
+      entry.group.visible = entry.slotIndex === selectedRosterSlot;
+      if (entry.slotIndex === selectedRosterSlot) {
+        entry.group.position.set(0, 0, 0);
+        entry.group.scale.setScalar(1.12);
+      }
+    });
+    camera.position.set(3.1, 2.55, 7.6);
+    camera.lookAt(0, 1.12, 0);
+    copySelectedTextureToEditor();
+  } else {
+    title.textContent = "CHARACTER GUIDE";
+    sub.textContent = "Learn how the lineup and texture tools work.";
+    status.textContent = "HELP";
+    rosterAvatars.forEach(entry => { entry.group.visible = false; });
+  }
+  resize();
+}
+
 async function buildPreview(force = false) {
   const identity = getIdentity();
   const key = identity.id;
-  if (!force && previewAvatar && currentIdentity === key) return;
-  if (previewAvatar) {
-    scene.remove(previewAvatar.group);
-    const materials = new Set();
-    previewAvatar.group.traverse(object => {
-      object.geometry?.dispose?.();
-      const list = Array.isArray(object.material) ? object.material : [object.material];
-      for (const material of list) {
-        if (!material) continue;
-        if (material.map) material.map.dispose?.();
-        materials.add(material);
-      }
-    });
-    for (const material of materials) material.dispose?.();
+  if (!force && rosterAvatars.length === 5 && currentIdentity === key) return;
+  rosterAvatars.forEach(disposePreviewAvatar);
+  rosterAvatars = [];
+  previewAvatar = null;
+  currentIdentity = key;
+  const mainTextures = readSavedTextures() || {};
+  rosterTextureStore = readRosterTextureStore();
+  for (let slot = 0; slot < 5; slot++) {
+    const appearanceId = slot === MAIN_PROFILE_SLOT ? identity.appearanceId : identity.appearanceId + "-preset-" + (slot + 1);
+    const avatarId = identity.id + "-roster-" + (slot + 1);
+    const avatarName = slot === MAIN_PROFILE_SLOT ? identity.name : "Character " + (slot + 1);
+    const avatar = createAvatar(avatarId, avatarName, null, appearanceId);
+    avatar.group.traverse(object => { if (object.isSprite) object.visible = false; });
+    avatar.group.rotation.y = slot === MAIN_PROFILE_SLOT ? avatarYaw : 0;
+    avatar.group.position.set((slot - 2) * 2.95, 0, 0);
+    avatar.group.scale.setScalar(slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88);
+    avatar.group.visible = slot === MAIN_PROFILE_SLOT;
+    scene.add(avatar.group);
+    await avatar.textureReady;
+    const base = snapshotTextures(avatar.textures);
+    const stored = slot === MAIN_PROFILE_SLOT ? mainTextures : (rosterTextureStore.slots[slot] || {});
+    if (Object.keys(stored).length) await applyAvatarTextureData(avatar.textures, stored);
+    rosterAvatars[slot] = {
+      ...avatar,
+      slotIndex: slot,
+      baseSnapshots: base,
+      savedTextureData: { ...stored },
+      dirtyTextureKeys: new Set(),
+      resetOverridesPending: false,
+      targetX: (slot - 2) * 2.95,
+      targetScale: slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88
+    };
   }
   currentIdentity = key;
-  previewAvatar = createAvatar(identity.id, identity.name, null, identity.appearanceId);
-  currentTextures = previewAvatar.textures;
-  previewAvatar.group.traverse(object => { if (object.isSprite) object.visible = false; });
-  previewAvatar.group.rotation.y = avatarYaw;
-  scene.add(previewAvatar.group);
-  await previewAvatar.textureReady;
-  if (currentIdentity !== key) return;
-  baseSnapshots = snapshotTextures(currentTextures);
-  undoStack = [];
-  savedTextureData = readSavedTextures() || {};
-  dirtyTextureKeys = new Set();
-  resetOverridesPending = false;
-  if (Object.keys(savedTextureData).length) await applyAvatarTextureData(currentTextures, savedTextureData);
-  if (currentIdentity !== key) return;
-  copySelectedTextureToEditor();
-  refreshTextureButtons();
+  activateRosterSlot(MAIN_PROFILE_SLOT);
+  rosterAvatars.forEach(entry => { entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT; });
+  applyRosterLayout();
   scheduleLivePreview();
 }
 
@@ -647,16 +770,22 @@ function resize() {
 }
 async function show() {
   overlay.classList.add("open");
-  const editorHost = overlay.querySelector("#characterEditorPreview");
-  if (editorHost && renderer?.domElement.parentElement !== editorHost) editorHost.prepend(renderer.domElement);
   await buildPreview();
+  activateRosterSlot(rosterOrder[2] ?? MAIN_PROFILE_SLOT);
+  setEditorPage("roster");
   resize();
-  copySelectedTextureToEditor();
 }
 function close() {
+  rememberActiveEditorState();
   overlay.classList.remove("open");
+  editorPage = "roster";
+  activateRosterSlot(MAIN_PROFILE_SLOT);
+  rosterAvatars.forEach(entry => { entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT; });
   const showcaseHost = document.getElementById("characterShowcasePreview");
   if (showcaseHost && renderer?.domElement.parentElement !== showcaseHost) showcaseHost.appendChild(renderer.domElement);
+  renderer.domElement.style.display = "block";
+  camera.position.set(0, 2.55, 8.1);
+  camera.lookAt(0, 1.1, 0);
   resize();
 }
 
@@ -684,39 +813,53 @@ async function saveTextures() {
   if (!resetOverridesPending && dirtyTextureKeys.size === 0) {
     const button = overlay.querySelector("#characterSave");
     button.textContent = "ALREADY SAVED";
-    window.setTimeout(() => { button.textContent = "SAVE TEXTURES"; }, 1200);
+    window.setTimeout(() => { button.textContent = "SAVE CHARACTER"; }, 1200);
     return;
   }
-
-  // Only override the maps the player actually painted. The unedited maps
-  // remain the same seeded procedural textures on every device and in every room.
   const textures = resetOverridesPending ? {} : { ...savedTextureData };
   for (const key of dirtyTextureKeys) {
     const canvas = textureCanvas(key);
     if (canvas) textures[key] = canvas.toDataURL("image/png");
   }
   const savedAt = Date.now();
-  if (!writeCharacterTextureRecord(textures, savedAt)) {
-    alert("Unable to save these textures in this browser. Try exporting the individual maps instead.");
+  if (selectedRosterSlot === MAIN_PROFILE_SLOT) {
+    if (!writeCharacterTextureRecord(textures, savedAt)) {
+      alert("Unable to save these textures in this browser. Try exporting the individual maps instead.");
+      return;
+    }
+    sendCharacterSkin(Object.keys(textures).length ? textures : null);
+    window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures } }));
+  }
+  rosterTextureStore.slots[selectedRosterSlot] = textures;
+  if (!writeRosterTextureStore()) {
+    alert("Unable to save this character preset in this browser. Free some browser storage and try again.");
     return;
   }
-
-  sendCharacterSkin(Object.keys(textures).length ? textures : null);
   savedTextureData = textures;
   dirtyTextureKeys.clear();
   resetOverridesPending = false;
-  window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures } }));
-
+  rememberActiveEditorState();
+  if (previewAvatar) {
+    previewAvatar.savedTextureData = { ...textures };
+    previewAvatar.dirtyTextureKeys = new Set();
+    previewAvatar.resetOverridesPending = false;
+  }
+  const button = overlay.querySelector("#characterSave");
+  if (selectedRosterSlot !== MAIN_PROFILE_SLOT) {
+    button.textContent = "SAVED TO BROWSER ✓";
+    window.setTimeout(() => { button.textContent = "SAVE CHARACTER"; }, 1800);
+    return;
+  }
   let profileSaved = false;
   try {
     profileSaved = Boolean(await window.webMinecraftSaveCharacterProfile?.(textures, savedAt));
   } catch (error) {
     console.warn("Character textures were saved to this browser, but not to the cloud profile.", error);
   }
-  const button = overlay.querySelector("#characterSave");
   button.textContent = profileSaved ? "PROFILE + BROWSER SAVED ✓" : "BROWSER SAVED ✓";
-  window.setTimeout(() => { button.textContent = "SAVE TEXTURES"; }, 1800);
+  window.setTimeout(() => { button.textContent = "SAVE CHARACTER"; }, 1800);
 }
+
 function exportPng() {
   pushEditorIntoTexture();
   const canvas = textureCanvas(selectedTextureKey);
@@ -763,10 +906,26 @@ overlay.querySelector("#skinExport").addEventListener("click", exportPng);
 overlay.querySelector("#characterReset").addEventListener("click", resetTextures);
 overlay.querySelector("#characterSave").addEventListener("click", saveTextures);
 overlay.querySelector("#characterClose").addEventListener("click", close);
+overlay.querySelector("#characterBackRoster").addEventListener("click", () => setEditorPage("roster"));
+overlay.querySelector("#rosterPrev").addEventListener("click", () => moveRoster(-1));
+overlay.querySelector("#rosterNext").addEventListener("click", () => moveRoster(1));
+overlay.querySelectorAll(".rosterEditButton").forEach(button => button.addEventListener("click", () => {
+  activateRosterSlot(Number(button.dataset.slot));
+  setEditorPage("paint");
+}));
+overlay.querySelectorAll("[data-editor-page]").forEach(button => button.addEventListener("click", () => {
+  const page = button.dataset.editorPage;
+  if (page === "paint") activateRosterSlot(selectedRosterSlot);
+  setEditorPage(page);
+}));
 overlay.addEventListener("click", event => { if (event.target === overlay) close(); });
 window.addEventListener("keydown", event => {
   if (!overlay.classList.contains("open")) return;
   if (event.key === "Escape") close();
+  if (editorPage === "roster" && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+    event.preventDefault();
+    moveRoster(event.key === "ArrowRight" ? 1 : -1);
+  }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
     event.preventDefault();
     undo();
@@ -777,15 +936,19 @@ window.addEventListener("webminecraft:multiplayer-state-changed", () => {
   if (overlay.classList.contains("open")) void buildPreview();
 });
 window.addEventListener("webminecraft:character-profile-loaded", event => {
-  savedTextureData = event.detail?.textures && typeof event.detail.textures === "object" ? event.detail.textures : {};
-  if (!previewAvatar) {
+  const textures = event.detail?.textures && typeof event.detail.textures === "object" ? event.detail.textures : {};
+  if (rosterAvatars[MAIN_PROFILE_SLOT]) {
+    void applyAvatarTextureData(rosterAvatars[MAIN_PROFILE_SLOT].textures, textures).then(() => {
+      rosterAvatars[MAIN_PROFILE_SLOT].savedTextureData = { ...textures };
+      if (selectedRosterSlot === MAIN_PROFILE_SLOT) {
+        savedTextureData = { ...textures };
+        if (overlay.classList.contains("open") && editorPage === "paint") copySelectedTextureToEditor();
+        scheduleLivePreview();
+      }
+    });
+  } else if (!previewAvatar) {
     void buildPreview(true).then(resize);
-    return;
   }
-  void applyAvatarTextureData(currentTextures, savedTextureData).then(() => {
-    if (overlay.classList.contains("open")) copySelectedTextureToEditor();
-    scheduleLivePreview();
-  });
 });
 
 makeScene();
@@ -818,6 +981,19 @@ function render() {
     getComputedStyle(showcase).display !== "none" &&
     showcase.getBoundingClientRect().width > 0
   );
+  if (editorOpen && editorPage === "roster") {
+    rosterAvatars.forEach(entry => {
+      entry.group.position.x += (entry.targetX - entry.group.position.x) * 0.16;
+      const nextScale = entry.group.scale.x + (entry.targetScale - entry.group.scale.x) * 0.16;
+      entry.group.scale.setScalar(nextScale);
+    });
+  }
+  if (previewAvatar?.parts?.head) {
+    const head = previewAvatar.parts.head;
+    head.rotation.order = "YXZ";
+    head.rotation.y += (headLookX * 0.62 - head.rotation.y) * 0.16;
+    head.rotation.x += (headLookY * 0.36 - head.rotation.x) * 0.16;
+  }
   if ((editorOpen || showcaseVisible) && renderer && scene && camera && previewAvatar) renderer.render(scene, camera);
 }
 render();
