@@ -6,6 +6,8 @@ A small Minecraft-style voxel sandbox that runs in your browser.
 
 Still a work in progress. Expect unfinished features and bugs.
 
+HAS ONLINE GAMEPLAY 
+
 ## Run locally
 
 ```bash
