@@ -197,7 +197,7 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:48px auto 0!impor
 @media(max-width:520px){
  #characterShowcase{right:8px;width:102px;height:146px}
 }
-;
+`;
 document.head.appendChild(style);
 
 const overlay = document.createElement("section");
@@ -288,7 +288,7 @@ overlay.innerHTML = `
       </div>
     </section>
   </main>
-</div>;
+</div>`;
 document.body.appendChild(overlay);
 
 const skinCanvas = overlay.querySelector("#skinCanvas");
@@ -648,7 +648,7 @@ async function buildPreview(force = false) {
   currentIdentity = key;
   activateRosterSlot(MAIN_PROFILE_SLOT);
   rosterAvatars.forEach(entry => { entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT; });
-  applyRosterLayout();
+  updateRosterCards();
   scheduleLivePreview();
 }
 
@@ -780,7 +780,13 @@ function close() {
   overlay.classList.remove("open");
   editorPage = "roster";
   activateRosterSlot(MAIN_PROFILE_SLOT);
-  rosterAvatars.forEach(entry => { entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT; });
+  rosterAvatars.forEach(entry => {
+    entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT;
+    if (entry.slotIndex === MAIN_PROFILE_SLOT) {
+      entry.group.position.set(0, 0, 0);
+      entry.group.scale.setScalar(1.16);
+    }
+  });
   const showcaseHost = document.getElementById("characterShowcasePreview");
   if (showcaseHost && renderer?.domElement.parentElement !== showcaseHost) showcaseHost.appendChild(renderer.domElement);
   renderer.domElement.style.display = "block";
