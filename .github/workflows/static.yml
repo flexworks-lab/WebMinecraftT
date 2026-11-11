@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
 
+      - name: Verify perspective camera integration
+        run: |
+          test -s Game_base/player/perspectiveCamera.js
+          grep -q "createPerspectiveCameraRig" Game_base/core/main.js
+
       - name: Build Vite site
         run: npm run build
 
