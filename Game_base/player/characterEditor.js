@@ -559,14 +559,15 @@ function moveRoster(direction) {
   if (editorPage !== "roster") return;
   const current = rosterOrder.slice();
   rosterOrder = direction > 0
-    ? [current[4], current[0], current[1], current[2], current[3]]
-    : [current[1], current[2], current[3], current[4], current[0]];
+    ? [current[1], current[2], current[3], current[4], current[0]]
+    : [current[4], current[0], current[1], current[2], current[3]];
   activateRosterSlot(rosterOrder[2]);
   applyRosterLayout();
 }
 
 function setEditorPage(page) {
   if (page === "paint" && !previewAvatar) activateRosterSlot(MAIN_PROFILE_SLOT);
+  if (page === "roster" && previewAvatar && editorPage === "paint") activateRosterSlot(rosterOrder[2]);
   editorPage = page;
   overlay.querySelector("#characterRosterPage").hidden = page !== "roster";
   overlay.querySelector("#characterPaintPage").hidden = page !== "paint";
