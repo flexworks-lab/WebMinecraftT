@@ -502,11 +502,13 @@ function createInventoryUI() {
     const mobileButton = document.createElement("button");
     mobileButton.id = "inventoryMobileButton";
     mobileButton.type = "button";
-    mobileButton.textContent = "▣";
+    mobileButton.textContent = "•••";
     mobileButton.title = "Inventory";
-    mobileButton.setAttribute("aria-label", "Inventory");
+    mobileButton.setAttribute("aria-label", "Open inventory");
     mobileButton.addEventListener("click", openInventory);
-    document.body.appendChild(mobileButton);
+    const hotbar = document.getElementById("hotbar");
+    if (hotbar) hotbar.insertBefore(mobileButton, hotbar.firstChild);
+    else document.body.appendChild(mobileButton);
 
     const held = document.createElement("div");
     held.id = "heldBlock";
@@ -597,8 +599,10 @@ body.webminecraft-creative .slotCount,body.webminecraft-creative .hotbarCount{di
 .destroySlot,.offhandSlot{width:64px;height:64px;justify-self:center;display:flex;align-items:center;justify-content:center;font-size:38px;color:#d33;background:#7b4a4a;cursor:pointer}
 .destroySlot{color:#ff5a5a}.destroySlot:hover{background:#955252;filter:brightness(1.08)}.offhandSlot{color:#bbb;font-size:13px;cursor:default}
 .offhandSlot::after{content:"";position:absolute;inset:10px;border:2px dashed #aaa;opacity:.35}
-#inventoryMobileButton{display:none;position:fixed;right:18px;bottom:84px;width:46px;height:46px;z-index:10001;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#777;color:#fff;font-size:22px;box-shadow:0 3px 0 #171717;touch-action:manipulation}
-body.mobile-mode.webminecraft-in-world #inventoryMobileButton{display:block;left:calc(50% - min(252px,45vw) - 66px);right:auto;bottom:8px;z-index:10001}
+#inventoryMobileButton{display:none;position:relative;width:36px;height:36px;flex:0 0 36px;align-items:center;justify-content:center;margin:0;padding:0;border:2px solid #555;background:#222;color:#fff;font:700 12px/1 Arial,sans-serif;letter-spacing:1px;text-shadow:1px 1px 0 #000;box-shadow:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#inventoryMobileButton:active{filter:brightness(1.25)}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar > #inventoryMobileButton{display:flex!important;position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:min(36px,calc((100vw - 38px)/10))!important;height:min(36px,calc((100vw - 38px)/10))!important;flex:0 0 min(36px,calc((100vw - 38px)/10))!important;margin:0!important;padding:0!important;z-index:auto!important}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:min(36px,calc((100vw - 38px)/10))!important;height:min(36px,calc((100vw - 38px)/10))!important;flex-basis:min(36px,calc((100vw - 38px)/10))!important}
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{z-index:10000!important;bottom:8px!important}
 #heldBlock{display:none!important;pointer-events:none}
 @media(max-width:700px){#inventoryPanel{width:96vw;height:94vh;padding:7px}#catalogGrid{grid-template-columns:repeat(6,minmax(42px,1fr));touch-action:none}#creativeTabs{gap:4px}.inventoryTab{width:42px;height:38px}#catalogToolbar{align-items:flex-start;flex-direction:column;gap:6px}#catalogSearchWrap{width:100%}#catalogViewport{touch-action:none;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:auto;scrollbar-color:#58a846 #242424;padding-right:5px;overscroll-behavior-x:none}.catalogSlot{touch-action:none;user-select:none;-webkit-user-select:none;cursor:default}#catalogViewport::-webkit-scrollbar{width:16px}#catalogViewport::-webkit-scrollbar-track{background:#242424;border:2px solid #111;border-radius:2px}#catalogViewport::-webkit-scrollbar-thumb{background:linear-gradient(#74c35a,#3f8f32);border:2px solid #1d4718;box-shadow:inset 1px 1px 0 rgba(255,255,255,.28),inset -1px -1px 0 rgba(0,0,0,.3);border-radius:3px;min-height:48px}#catalogViewport::-webkit-scrollbar-thumb:hover{background:linear-gradient(#86d66a,#4ca83e)}#inventoryBottom{grid-template-columns:54px 1fr 54px;gap:5px}#hotbarInventory{grid-template-columns:repeat(9,minmax(27px,1fr));gap:3px}.destroySlot,.offhandSlot{width:50px;height:50px;font-size:30px}}
