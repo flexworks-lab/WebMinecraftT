@@ -16,12 +16,13 @@ export function createPerspectiveCameraRig(camera, options = {}) {
 
     const desired = new THREE.Vector3();
     const pivot = new THREE.Vector3();
-    const right = new THREE.Vector3();
     const probe = new THREE.Vector3();
     const current = new THREE.Vector3();
     let initialized = false;
     let activeMode = "first";
     let boomLength = distance;
+    let savedPosition = null;
+    let savedRotation = null;
 
     function pointBlocked(point, getBlockAt, getBlockCollisionBoxes) {
         const offsets = [
@@ -77,7 +78,9 @@ export function createPerspectiveCameraRig(camera, options = {}) {
 
         if (typeof getBlockAt !== "function" || typeof getBlockCollisionBoxes !== "function") return;
 
-        const eye = camera.position;
+        savedPosition = camera.position.clone();
+        savedRotation = camera.rotation.clone();
+        const eye = savedPosition;
         pivot.set(eye.x, eye.y - pivotHeight, eye.z);
 
         const front = mode === "front";
@@ -126,10 +129,20 @@ export function createPerspectiveCameraRig(camera, options = {}) {
         camera.updateMatrixWorld(true);
     }
 
+    function restore() {
+        if (!savedPosition || !savedRotation) return;
+        camera.position.copy(savedPosition);
+        camera.rotation.copy(savedRotation);
+        camera.updateMatrixWorld(true);
+        savedPosition = null;
+        savedRotation = null;
+    }
+
     function reset() {
+        restore();
         initialized = false;
         activeMode = "first";
     }
 
-    return { update, reset };
+    return { update, restore, reset };
 }
