@@ -787,6 +787,7 @@ function resize() {
 async function show() {
   overlay.classList.add("open");
   await buildPreview();
+  if (!overlay.classList.contains("open")) return;
   activateRosterSlot(rosterOrder[2] ?? MAIN_PROFILE_SLOT);
   setEditorPage("roster");
   resize();
