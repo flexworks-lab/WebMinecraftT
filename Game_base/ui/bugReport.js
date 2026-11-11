@@ -17,6 +17,7 @@ let recordingUrl = "";
 let activeRecorder = null;
 let activeStream = null;
 let recordingTimer = null;
+let recordingAutoStopTimer = null;
 let recordingStartedAt = 0;
 let recordingCancelled = false;
 let firebaseWaitPromise = null;
@@ -136,6 +137,7 @@ function createUI() {
     document.body.appendChild(captureLayer);
 
     descriptionInput = reportModal.querySelector("#bugReportDescription");
+    descriptionInput.addEventListener("input", refreshAttachments);
     categoryInput = reportModal.querySelector("#bugReportCategory");
     submitButton = reportModal.querySelector("#bugReportSubmit");
     reportStatus = reportModal.querySelector("#bugReportStatus");
@@ -310,6 +312,8 @@ async function startRecordingCapture() {
         activeRecorder.addEventListener("stop", () => {
             clearInterval(recordingTimer);
             recordingTimer = null;
+            clearTimeout(recordingAutoStopTimer);
+            recordingAutoStopTimer = null;
             activeStream?.getTracks?.().forEach(track => track.stop());
             activeStream = null;
             const recorder = activeRecorder;
@@ -343,7 +347,7 @@ async function startRecordingCapture() {
         showCapturePrompt("record");
         recordingTimer = window.setInterval(updateRecordingTimer, 200);
         updateRecordingTimer();
-        window.setTimeout(() => {
+        recordingAutoStopTimer = window.setTimeout(() => {
             if (activeRecorder?.state === "recording") stopRecordingCapture();
         }, MAX_RECORDING_MS);
     } catch (error) {
@@ -425,6 +429,8 @@ function cancelCapture() {
     recordingCancelled = true;
     clearInterval(recordingTimer);
     recordingTimer = null;
+    clearTimeout(recordingAutoStopTimer);
+    recordingAutoStopTimer = null;
     if (activeRecorder?.state === "recording") {
         try { activeRecorder.stop(); } catch {}
     } else {
