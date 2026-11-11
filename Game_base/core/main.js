@@ -646,6 +646,7 @@ function hasOpenMenuScreen() {
         "#accountModal",
         "#welcomeScreen",
         "#devControlsPanel"
+        "#bugReportModal"
     ];
     return selectors.some(selector => {
         const element = document.querySelector(selector);
