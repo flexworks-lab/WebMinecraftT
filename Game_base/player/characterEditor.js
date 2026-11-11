@@ -474,6 +474,16 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
   .rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton{height:27px;padding:0 1px;font-size:6px!important}
 }
 
+/* Keep roster actions exclusive to the character in the center slot. */
+.rosterCard:not(.isCenter) .rosterCardActions{
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+.rosterCard.isCenter .rosterCardActions{
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+
 `;
 document.head.appendChild(style);
 
@@ -1407,13 +1417,18 @@ function render() {
       entry.group.scale.setScalar(nextScale);
     });
   }
-  const headTargets = editorOpen && editorPage === "roster" ? rosterAvatars : [previewAvatar];
+  const rosterTracking = editorOpen && editorPage === "roster";
+  const centerAvatar = rosterTracking ? rosterAvatars[rosterOrder[2]] : null;
+  const headTargets = rosterTracking ? rosterAvatars : [previewAvatar];
   for (const avatar of headTargets) {
     if (!avatar?.parts?.head) continue;
     const head = avatar.parts.head;
+    const followsMouse = !rosterTracking || avatar === centerAvatar;
+    const targetYaw = followsMouse ? headLookX * 0.62 : 0;
+    const targetPitch = followsMouse ? -headLookY * 0.36 : 0;
     head.rotation.order = "YXZ";
-    head.rotation.y += (headLookX * 0.62 - head.rotation.y) * 0.16;
-    head.rotation.x += (-headLookY * 0.36 - head.rotation.x) * 0.16;
+    head.rotation.y += (targetYaw - head.rotation.y) * 0.16;
+    head.rotation.x += (targetPitch - head.rotation.x) * 0.16;
   }
   if ((editorOpen || showcaseVisible) && renderer && scene && camera && previewAvatar) renderer.render(scene, camera);
 }
