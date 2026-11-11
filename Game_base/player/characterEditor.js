@@ -520,9 +520,13 @@ function updateRosterCards() {
 }
 
 function applyRosterLayout() {
+  const stage = overlay.querySelector("#characterRosterStage");
+  const aspect = stage?.clientHeight ? stage.clientWidth / stage.clientHeight : 1.8;
+  const viewHalfWidth = camera ? Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z * aspect : 7.5;
+  const slotSpacing = viewHalfWidth * 0.36;
   rosterAvatars.forEach(entry => {
     const position = rosterOrder.indexOf(entry.slotIndex);
-    entry.targetX = (position - 2) * 2.95;
+    entry.targetX = (position - 2) * slotSpacing;
     entry.targetScale = position === 2 ? 1.16 : 0.88;
     entry.group.visible = editorPage === "roster";
   });
@@ -587,7 +591,7 @@ function setEditorPage(page) {
     renderer.domElement.style.display = "block";
     applyRosterLayout();
     rosterAvatars.forEach(entry => { entry.group.visible = true; });
-    camera.position.set(0, 2.65, 15.2);
+    camera.position.set(0, 2.65, 10.5);
     camera.lookAt(0, 1.02, 0);
   } else if (page === "paint") {
     title.textContent = "TEXTURE EDITOR";
@@ -783,6 +787,7 @@ function resize() {
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
+  if (overlay.classList.contains("open") && editorPage === "roster") applyRosterLayout();
 }
 async function show() {
   overlay.classList.add("open");
