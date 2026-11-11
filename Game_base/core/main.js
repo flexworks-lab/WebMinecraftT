@@ -645,7 +645,7 @@ function hasOpenMenuScreen() {
         "#newsCenter",
         "#accountModal",
         "#welcomeScreen",
-        "#devControlsPanel"
+        "#devControlsPanel",
         "#bugReportModal"
     ];
     return selectors.some(selector => {
