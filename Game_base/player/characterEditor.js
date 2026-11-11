@@ -5,6 +5,7 @@ import {
   applyAvatarTextureData
 } from "../multiplayer/multiplayerAvatars.js";
 import { sendCharacterSkin } from "../multiplayer/multiplayerClient.js";
+import { getCharacterAppearanceId, readCharacterTextureRecord, writeCharacterTextureRecord } from "./appearanceIdentity.js";
 
 const STORAGE_KEY = "webminecraft-procedural-character-textures-v1";
 const PALETTE = [
@@ -15,26 +16,20 @@ const PALETTE = [
 const TEXTURE_SIZE = 16;
 
 function getIdentity() {
-  const id = String(window.__webminecraftMultiplayerPlayerId || "").trim();
+  let user = null;
+  try { user = window.firebase?.auth?.()?.currentUser || null; } catch {}
   const username = String(
-    localStorage.getItem("webminecraft-account-username") ||
-    localStorage.getItem("webminecraft-account-nickname") ||
-    "Player"
+    user?.uid && user?.isAnonymous !== true
+      ? (localStorage.getItem("webminecraft-account-username") || user.displayName || "Player")
+      : (sessionStorage.getItem("webminecraft-guest-name") ||
+         localStorage.getItem("webminecraft-player-name") || "Player")
   ).trim().slice(0, 16) || "Player";
-  return {
-    id: id || `preview:${username.toLowerCase()}`,
-    name: username
-  };
+  const appearanceId = getCharacterAppearanceId();
+  return { id: appearanceId, appearanceId, name: username };
 }
 
 function readSavedTextures() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (parsed && parsed.version === 1 && parsed.textures && typeof parsed.textures === "object") {
-      return parsed.textures;
-    }
-  } catch {}
-  return null;
+  return readCharacterTextureRecord()?.textures || null;
 }
 
 function getTextureCanvas(textures, key) {
@@ -59,6 +54,7 @@ style.textContent = `
 #characterEditorPreview{position:relative;min-width:0;min-height:0;background:radial-gradient(ellipse at 50% 38%,#565656 0,#303030 45%,#171717 100%)}
 #characterEditorPreview>canvas{width:100%;height:100%;display:block}
 #characterEditorHint{position:absolute;left:14px;bottom:12px;color:#ddd;font-size:11px;letter-spacing:1px;text-transform:uppercase;pointer-events:none}
+#characterEditorStatus{position:absolute;top:14px;left:14px;padding:7px 9px;background:rgba(0,0,0,.48);border:1px solid #777;color:#d8efbd;font:bold 10px Arial,sans-serif;letter-spacing:.6px;pointer-events:none}
 #characterEditorControls{padding:18px;overflow:auto;background:#292929}
 #characterEditorTitle{margin:0 0 5px;font-size:23px;letter-spacing:.7px}
 #characterEditorSub{color:#bbb;font-size:12px;line-height:1.5;margin:0 0 12px}
@@ -93,7 +89,8 @@ overlay.innerHTML = `
 <div id="characterEditorPanel">
   <div id="characterEditorPreview">
     <button id="characterClose" type="button" aria-label="Close character editor">×</button>
-    <div id="characterEditorHint">Drag to rotate · Existing procedural avatar</div>
+    <div id="characterEditorStatus">LIVE PREVIEW · SAME PROCEDURAL MODEL</div>
+    <div id="characterEditorHint">Drag to rotate · F5 changes in-game view</div>
   </div>
   <div id="characterEditorControls">
     <h2 id="characterEditorTitle">CHARACTER TEXTURE STUDIO</h2>
@@ -161,6 +158,32 @@ let undoStack = [];
 let avatarYaw = -0.22;
 let dragging = false;
 let lastX = 0;
+let livePreviewFrame = 0;
+let onlineSkinSyncTimer = null;
+
+function getCurrentTextureOverrides() {
+  const textures = resetOverridesPending ? {} : { ...savedTextureData };
+  for (const key of dirtyTextureKeys) {
+    const canvas = textureCanvas(key);
+    if (canvas) textures[key] = canvas.toDataURL("image/png");
+  }
+  return textures;
+}
+function scheduleLivePreview() {
+  if (livePreviewFrame) return;
+  livePreviewFrame = requestAnimationFrame(() => {
+    livePreviewFrame = 0;
+    window.dispatchEvent(new CustomEvent("webminecraft:character-live-preview", { detail: { textures: currentTextures } }));
+  });
+}
+function scheduleOnlineSkinSync() {
+  if (onlineSkinSyncTimer) clearTimeout(onlineSkinSyncTimer);
+  onlineSkinSyncTimer = window.setTimeout(() => {
+    onlineSkinSyncTimer = null;
+    const textures = getCurrentTextureOverrides();
+    sendCharacterSkin(Object.keys(textures).length ? textures : null);
+  }, 320);
+}
 
 function setSelectedColor(color) {
   selectedColor = color;
@@ -221,6 +244,7 @@ function pushEditorIntoTexture() {
   ctx.drawImage(skinCanvas, 0, 0, TEXTURE_SIZE, TEXTURE_SIZE);
   texture.needsUpdate = true;
   refreshTextureButtons();
+  scheduleLivePreview();
 }
 function chooseTexture(key) {
   pushEditorIntoTexture();
@@ -303,7 +327,7 @@ async function buildPreview(force = false) {
     for (const material of materials) material.dispose?.();
   }
   currentIdentity = key;
-  previewAvatar = createAvatar(identity.id, identity.name);
+  previewAvatar = createAvatar(identity.id, identity.name, null, identity.appearanceId);
   currentTextures = previewAvatar.textures;
   previewAvatar.group.traverse(object => { if (object.isSprite) object.visible = false; });
   previewAvatar.group.rotation.y = avatarYaw;
@@ -319,6 +343,7 @@ async function buildPreview(force = false) {
   if (currentIdentity !== key) return;
   copySelectedTextureToEditor();
   refreshTextureButtons();
+  scheduleLivePreview();
 }
 
 function pixelFromEvent(event) {
@@ -391,6 +416,8 @@ function finishStroke() {
     undoStack.push(strokeSnapshot);
     if (undoStack.length > 40) undoStack.shift();
     strokeSnapshot = null;
+    scheduleLivePreview();
+    scheduleOnlineSkinSync();
   }
   painting = false;
   lastPixel = null;
@@ -408,6 +435,8 @@ function undo() {
   }
   skinCtx.putImageData(previous.image, 0, 0);
   pushEditorIntoTexture();
+  scheduleLivePreview();
+  scheduleOnlineSkinSync();
 }
 overlay.querySelector("#skinUndo").addEventListener("click", undo);
 overlay.querySelectorAll("[data-tool]").forEach(button => button.addEventListener("click", () => {
@@ -456,32 +485,28 @@ function resetTextures() {
   undoStack = [];
   copySelectedTextureToEditor();
   refreshTextureButtons();
+  scheduleLivePreview();
+  scheduleOnlineSkinSync();
 }
-function saveTextures() {
+async function saveTextures() {
   pushEditorIntoTexture();
   if (!resetOverridesPending && dirtyTextureKeys.size === 0) {
     const button = overlay.querySelector("#characterSave");
-    button.textContent = "NO CHANGES";
+    button.textContent = "ALREADY SAVED";
     window.setTimeout(() => { button.textContent = "SAVE TEXTURES"; }, 1200);
     return;
   }
 
-  // Store only texture maps the player actually edited. The rest remain the
-  // seeded random-generated maps for that player's procedural model.
+  // Only override the maps the player actually painted. The unedited maps
+  // remain the same seeded procedural textures on every device and in every room.
   const textures = resetOverridesPending ? {} : { ...savedTextureData };
   for (const key of dirtyTextureKeys) {
     const canvas = textureCanvas(key);
     if (canvas) textures[key] = canvas.toDataURL("image/png");
   }
-  try {
-    if (Object.keys(textures).length) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, textures }));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch (error) {
+  const savedAt = Date.now();
+  if (!writeCharacterTextureRecord(textures, savedAt)) {
     alert("Unable to save these textures in this browser. Try exporting the individual maps instead.");
-    console.warn("Could not save procedural character textures.", error);
     return;
   }
 
@@ -490,9 +515,16 @@ function saveTextures() {
   dirtyTextureKeys.clear();
   resetOverridesPending = false;
   window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures } }));
+
+  let profileSaved = false;
+  try {
+    profileSaved = Boolean(await window.webMinecraftSaveCharacterProfile?.(textures, savedAt));
+  } catch (error) {
+    console.warn("Character textures were saved to this browser, but not to the cloud profile.", error);
+  }
   const button = overlay.querySelector("#characterSave");
-  button.textContent = "SAVED ✓";
-  window.setTimeout(() => { button.textContent = "SAVE TEXTURES"; }, 1200);
+  button.textContent = profileSaved ? "PROFILE + BROWSER SAVED ✓" : "BROWSER SAVED ✓";
+  window.setTimeout(() => { button.textContent = "SAVE TEXTURES"; }, 1800);
 }
 function exportPng() {
   pushEditorIntoTexture();
@@ -522,6 +554,8 @@ function importPng(file) {
     dirtyTextureKeys.add(selectedTextureKey);
     URL.revokeObjectURL(url);
     copySelectedTextureToEditor();
+    scheduleLivePreview();
+    scheduleOnlineSkinSync();
   };
   image.onerror = () => {
     URL.revokeObjectURL(url);
@@ -550,6 +584,14 @@ window.addEventListener("keydown", event => {
 window.addEventListener("resize", resize);
 window.addEventListener("webminecraft:multiplayer-state-changed", () => {
   if (overlay.classList.contains("open")) void buildPreview();
+});
+window.addEventListener("webminecraft:character-profile-loaded", event => {
+  savedTextureData = event.detail?.textures && typeof event.detail.textures === "object" ? event.detail.textures : {};
+  if (!overlay.classList.contains("open")) return;
+  void applyAvatarTextureData(currentTextures, savedTextureData).then(() => {
+    copySelectedTextureToEditor();
+    scheduleLivePreview();
+  });
 });
 
 makeScene();

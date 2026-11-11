@@ -16,6 +16,44 @@ let startupPlayerSyncUserId = null;
 let pendingSignupProfile = null;
 let activeOAuthPopup = null;
 const USERNAME_CHANGE_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000;
+const CHARACTER_TEXTURE_STORAGE_KEY = "webminecraft-procedural-character-textures-v1";
+
+function readCachedCharacterTextures() {
+    try {
+        const record = JSON.parse(localStorage.getItem(CHARACTER_TEXTURE_STORAGE_KEY) || "null");
+        if (!record || ![1, 2].includes(Number(record.version)) || !record.textures || typeof record.textures !== "object") return null;
+        return { textures: record.textures, savedAt: Math.max(0, Number(record.savedAt) || 0) };
+    } catch { return null; }
+}
+function writeCachedCharacterTextures(textures, savedAt = Date.now()) {
+    try {
+        if (!textures || typeof textures !== "object" || !Object.keys(textures).length) {
+            localStorage.removeItem(CHARACTER_TEXTURE_STORAGE_KEY);
+            return true;
+        }
+        localStorage.setItem(CHARACTER_TEXTURE_STORAGE_KEY, JSON.stringify({
+            version: 2,
+            savedAt: Math.max(0, Number(savedAt) || Date.now()),
+            textures
+        }));
+        return true;
+    } catch { return false; }
+}
+async function saveCharacterTexturesToProfile(textures, savedAt = Date.now()) {
+    if (!currentUser?.uid || !window.firebase?.firestore) return false;
+    try {
+        await window.firebase.firestore().collection("profiles").doc(currentUser.uid).set({
+            characterTextures: textures && Object.keys(textures).length ? textures : null,
+            characterTexturesVersion: 1,
+            characterTexturesUpdatedAt: new Date(Math.max(0, Number(savedAt) || Date.now()))
+        }, { merge: true });
+        return true;
+    } catch (error) {
+        console.warn("Could not save character textures to the account profile.", error);
+        return false;
+    }
+}
+window.webMinecraftSaveCharacterProfile = saveCharacterTexturesToProfile;
 
 function loadFirebaseScript(src) {
     if (!window.__webMinecraftFirebaseLoads) window.__webMinecraftFirebaseLoads = new Map();
@@ -87,6 +125,27 @@ async function syncUserProfile(user, profileOverride = null) {
         if (isPlayerDataSyncCancelled() || !existingSnap) return;
 
         const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
+        window.__webMinecraftAccountUid = user.uid;
+        const cachedCharacter = readCachedCharacterTextures();
+        const cloudTextures = existing.characterTextures && typeof existing.characterTextures === "object"
+            ? existing.characterTextures
+            : null;
+        const cloudTimeValue = existing.characterTexturesUpdatedAt;
+        const cloudSavedAt = Number(
+            cloudTimeValue?.toMillis?.() ||
+            (cloudTimeValue?.seconds ? cloudTimeValue.seconds * 1000 : 0) ||
+            (cloudTimeValue instanceof Date ? cloudTimeValue.getTime() : 0)
+        ) || 0;
+        let chosenCharacter = cachedCharacter;
+        if (cloudTextures && (!cachedCharacter || cloudSavedAt > cachedCharacter.savedAt)) {
+            writeCachedCharacterTextures(cloudTextures, cloudSavedAt || Date.now());
+            chosenCharacter = { textures: cloudTextures, savedAt: cloudSavedAt };
+        } else if (cachedCharacter?.textures && (!cloudTextures || cachedCharacter.savedAt > cloudSavedAt)) {
+            await saveCharacterTexturesToProfile(cachedCharacter.textures, cachedCharacter.savedAt || Date.now());
+        }
+        window.dispatchEvent(new CustomEvent("webminecraft:character-profile-loaded", {
+            detail: { textures: chosenCharacter?.textures || {} }
+        }));
         const username = String(profileOverride?.username || existing.username || "").trim();
         const nickname = String(profileOverride?.nickname || existing.nickname || user.displayName || "Player").trim() || "Player";
         const usernameLower = username.toLowerCase();
@@ -189,6 +248,7 @@ async function initFirebase() {
         }
         auth.onAuthStateChanged(user => {
             currentUser = user || null;
+            window.__webMinecraftAccountUid = currentUser?.uid || "";
             startupAuthStateResolved = true;
             if (user && user.uid && user.uid !== startupPlayerSyncUserId) {
                 startupPlayerSyncUserId = user.uid;

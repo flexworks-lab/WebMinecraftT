@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
-import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, setBlockAt, getBlockTypes, isPointInWater, setChunkLoadConcurrency, getChunkLoadConcurrency, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, setChunkShadowRendering, SEA_LEVEL } from "../world/world.js";
+import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockCollisionBoxes, setBlockAt, getBlockTypes, isPointInWater, setChunkLoadConcurrency, getChunkLoadConcurrency, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, setChunkShadowRendering, SEA_LEVEL } from "../world/world.js";
 import { setupControls, resetView, keys } from "../player/controls.js";
 import { updatePlayer } from "../player/player.js";
 import { setupInteraction } from "../player/interaction.js";
@@ -109,6 +109,10 @@ if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
 let worldLoadingForStart = false;
+let cameraPerspectiveMode = ["first", "back", "front"].includes(localStorage.getItem("webminecraft-camera-perspective"))
+    ? localStorage.getItem("webminecraft-camera-perspective")
+    : "first";
+window.__webminecraftCameraPerspective = cameraPerspectiveMode;
 const defaults = { shadows: !IS_TOUCH_DEVICE && !IS_LOW_POWER_DEVICE, shadowQuality: IS_LOW_POWER_DEVICE ? 512 : 1024, pixelRatio: BASE_PIXEL_RATIO, lightingQuality: IS_LOW_POWER_DEVICE ? "balanced" : "high", brightness: 1 };
 let settings;
 try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || "null"); settings = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) }; }
@@ -1057,6 +1061,93 @@ let shownFps = 0;
 let frameTimeSamples = [];
 let lastNerdStatsUpdate = 0;
 
+function showPerspectiveNotice() {
+    let notice = document.getElementById("webminecraftPerspectiveNotice");
+    if (!notice) {
+        notice = document.createElement("div");
+        notice.id = "webminecraftPerspectiveNotice";
+        notice.style.cssText = "position:fixed;left:50%;bottom:94px;transform:translateX(-50%);z-index:1200;padding:8px 12px;background:rgba(25,25,25,.9);border:2px solid #777;color:#fff;font:12px Arial,sans-serif;text-shadow:1px 1px 0 #000;pointer-events:none;opacity:0;transition:opacity .12s";
+        document.body.appendChild(notice);
+    }
+    notice.textContent = cameraPerspectiveMode === "first"
+        ? "First-person view"
+        : cameraPerspectiveMode === "back"
+            ? "Third-person view · Behind"
+            : "Third-person view · Front";
+    notice.style.opacity = "1";
+    clearTimeout(notice.__hideTimer);
+    notice.__hideTimer = setTimeout(() => { notice.style.opacity = "0"; }, 1100);
+}
+
+function nextCameraPerspective() {
+    cameraPerspectiveMode = cameraPerspectiveMode === "first"
+        ? "back"
+        : cameraPerspectiveMode === "back"
+            ? "front"
+            : "first";
+    try { localStorage.setItem("webminecraft-camera-perspective", cameraPerspectiveMode); } catch {}
+    window.__webminecraftCameraPerspective = cameraPerspectiveMode;
+    window.dispatchEvent(new CustomEvent("webminecraft:perspective-changed", { detail: { mode: cameraPerspectiveMode } }));
+    showPerspectiveNotice();
+}
+
+document.addEventListener("keydown", event => {
+    if (event.code !== "F5" || event.repeat || !gameStarted) return;
+    const target = event.target;
+    if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || ""))) return;
+    if (hasOpenMenuScreen() || document.getElementById("characterEditor")?.classList.contains("open")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    nextCameraPerspective();
+}, true);
+
+function restorePlayerCameraFromPerspective() {
+    const previous = camera.userData.__webminecraftPerspectiveRender;
+    if (!previous) return;
+    camera.position.copy(previous.position);
+    camera.rotation.copy(previous.rotation);
+    camera.userData.__webminecraftPerspectiveRender = null;
+}
+
+function cameraClearance(origin, direction, maximum) {
+    for (let distance = 0.35; distance <= maximum; distance += 0.25) {
+        const point = origin.clone().addScaledVector(direction, distance);
+        const x = Math.floor(point.x + 0.5);
+        const y = Math.floor(point.y + 0.5);
+        const z = Math.floor(point.z + 0.5);
+        const boundsList = getBlockCollisionBoxes(getBlockAt(x, y, z), x, y, z) || [];
+        if (boundsList.some(bounds =>
+            point.x >= bounds.minX && point.x <= bounds.maxX &&
+            point.y >= bounds.minY && point.y <= bounds.maxY &&
+            point.z >= bounds.minZ && point.z <= bounds.maxZ
+        )) return Math.max(0.75, distance - 0.4);
+    }
+    return maximum;
+}
+
+function applyCameraPerspective() {
+    if (cameraPerspectiveMode === "first") return;
+    const playerPosition = camera.position.clone();
+    const playerRotation = camera.rotation.clone();
+    const yaw = Number(camera.userData.__webminecraftPlayerYaw) || playerRotation.y;
+    const pitch = Number(camera.userData.__webminecraftPlayerPitch) || 0;
+    const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)).normalize();
+    const lookingFront = cameraPerspectiveMode === "front";
+    const direction = lookingFront ? forward : forward.clone().negate();
+    const distance = cameraClearance(playerPosition, direction, 4.25);
+    const offset = direction.multiplyScalar(distance);
+    offset.y = 0.35;
+    camera.userData.__webminecraftPerspectiveRender = {
+        position: playerPosition,
+        rotation: playerRotation
+    };
+    camera.position.copy(playerPosition).add(offset);
+    camera.rotation.order = "YXZ";
+    camera.rotation.y = yaw + (lookingFront ? Math.PI : 0);
+    camera.rotation.x = lookingFront ? -pitch : pitch;
+    camera.updateMatrixWorld(true);
+}
+
 function updateNerdStats() {
     const benchmarkStats = window.__webminecraftDevBenchStats;
     const samples = benchmarkStats?.samples?.length ? benchmarkStats.samples : frameTimeSamples;
@@ -1231,6 +1322,7 @@ function animate() {
     requestAnimationFrame(animate);
     if (window.__webminecraftDevBenchActive) return;
     if (document.hidden) return;
+    restorePlayerCameraFromPerspective();
     const currentTime = performance.now();
     lastFrameTimeMs = currentTime - lastTime;
     frameTimeSamples.push(Math.min(1000, lastFrameTimeMs));
@@ -1240,6 +1332,8 @@ function animate() {
     updateAdaptiveQuality(currentTime);
     if (gameStarted) {
         updatePlayer(camera, scene, deltaTime);
+        updateLocalAvatar(scene, camera, cameraPerspectiveMode);
+        applyCameraPerspective();
         updateChunkVisibility(camera.position, camera);
         window.__webMinecraftUpdateShortGrass?.(currentTime);
         updateSunPosition();

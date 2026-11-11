@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { getRemotePlayers, isMultiplayerActive } from "./multiplayerClient.js";
 import * as blockMaterials from "../world/blocks.js";
+import { getCharacterAppearanceId, readCharacterTextureRecord } from "../player/appearanceIdentity.js";
 
 const avatars = new Map();
 let animationStarted = false;
@@ -327,19 +328,21 @@ function makeMaterial(textureOrColor, options = {}) {
     return new THREE.MeshLambertMaterial({ color: textureOrColor, ...options });
 }
 
-export function createAvatar(id, name, savedTextures = null) {
-    const rng = makeRng(hashString(id));
+export function createAvatar(id, name, savedTextures = null, appearanceId = id) {
+    const appearanceSeed = String(appearanceId || id);
+    const seededHash = hashString(appearanceSeed);
+    const rng = makeRng(seededHash);
     const skinColor = SKIN_COLORS[Math.floor(rng() * SKIN_COLORS.length)];
     const hairColor = HAIR_COLORS[Math.floor(rng() * HAIR_COLORS.length)];
     const shirtColor = SHIRT_COLORS[Math.floor(rng() * SHIRT_COLORS.length)];
     const pantsColor = PANTS_COLORS[Math.floor(rng() * PANTS_COLORS.length)];
     const shoeColor = SHOE_COLORS[Math.floor(rng() * SHOE_COLORS.length)];
-    const faceTexture = makeFaceTexture(hashString(id), skinColor, hairColor);
-    const headBack = makeHeadTexture(hashString(id), skinColor, hairColor, 0);
-    const headSide = makeHeadTexture(hashString(id), skinColor, hairColor, 1);
-    const headTop = makeHeadTexture(hashString(id), skinColor, hairColor, 2);
-    const shirtTexture = makeClothTexture(hashString(id), `#${new THREE.Color(shirtColor).getHexString()}`, 1);
-    const pantsTexture = makeClothTexture(hashString(id), `#${new THREE.Color(pantsColor).getHexString()}`, 2);
+    const faceTexture = makeFaceTexture(seededHash, skinColor, hairColor);
+    const headBack = makeHeadTexture(seededHash, skinColor, hairColor, 0);
+    const headSide = makeHeadTexture(seededHash, skinColor, hairColor, 1);
+    const headTop = makeHeadTexture(seededHash, skinColor, hairColor, 2);
+    const shirtTexture = makeClothTexture(seededHash, `#${new THREE.Color(shirtColor).getHexString()}`, 1);
+    const pantsTexture = makeClothTexture(seededHash, `#${new THREE.Color(pantsColor).getHexString()}`, 2);
     const skinTexture = makeSolidTexture(skinColor);
     const shoeTexture = makeSolidTexture(shoeColor);
     const textures = {
@@ -487,7 +490,7 @@ export function updateMultiplayerAvatars(scene) {
         if (!player?.position) continue;
         let entry = avatars.get(id);
         if (!entry) {
-            const avatar = createAvatar(id, player.name, player.skinTextures);
+            const avatar = createAvatar(id, player.name, player.skinTextures, player.appearanceId || id);
             scene.add(avatar.group);
             window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-avatar-created", { detail: { avatar: avatar.group, playerId: String(id) } }));
             entry = {
@@ -547,6 +550,106 @@ window.addEventListener("webminecraft:player-skin-changed", event => {
     resetAvatarTextureData(entry.textures);
     void applyAvatarTextureData(entry.textures, event.detail?.textures);
 });
+
+let localAvatarEntry = null;
+let localAvatarScene = null;
+let localAvatarIdentity = "";
+
+function localCharacterName() {
+    let user = null;
+    try { user = window.firebase?.auth?.()?.currentUser || null; } catch {}
+    return String(
+        user?.uid && user?.isAnonymous !== true
+            ? (localStorage.getItem("webminecraft-account-username") || user.displayName || "Player")
+            : (sessionStorage.getItem("webminecraft-guest-name") ||
+               localStorage.getItem("webminecraft-player-name") || "Player")
+    ).trim().slice(0, 16) || "Player";
+}
+
+function disposeLocalAvatar() {
+    if (!localAvatarEntry) return;
+    localAvatarScene?.remove(localAvatarEntry.group);
+    disposeAvatar(localAvatarEntry.group);
+    localAvatarEntry = null;
+    localAvatarIdentity = "";
+}
+
+function copyLiveAvatarTextures(sourceTextures) {
+    if (!localAvatarEntry || !sourceTextures) return;
+    for (const { key } of AVATAR_TEXTURE_PARTS) {
+        const sourceCanvas = sourceTextures[key]?.userData?.canvas;
+        const targetTexture = localAvatarEntry.textures?.[key];
+        const targetCanvas = targetTexture?.userData?.canvas;
+        if (!sourceCanvas || !targetCanvas) continue;
+        const context = targetCanvas.getContext("2d", { willReadFrequently: true });
+        context.clearRect(0, 0, 16, 16);
+        context.imageSmoothingEnabled = false;
+        context.drawImage(sourceCanvas, 0, 0, 16, 16);
+        targetTexture.needsUpdate = true;
+    }
+}
+
+window.addEventListener("webminecraft:character-live-preview", event => {
+    copyLiveAvatarTextures(event.detail?.textures);
+});
+window.addEventListener("webminecraft:character-changed", event => {
+    if (!localAvatarEntry) return;
+    resetAvatarTextureData(localAvatarEntry.textures);
+    void applyAvatarTextureData(localAvatarEntry.textures, event.detail?.textures);
+});
+window.addEventListener("webminecraft:character-profile-loaded", event => {
+    if (!localAvatarEntry) return;
+    resetAvatarTextureData(localAvatarEntry.textures);
+    void applyAvatarTextureData(localAvatarEntry.textures, event.detail?.textures);
+});
+
+export function updateLocalAvatar(scene, camera, perspective = "first") {
+    if (!camera?.position) return;
+    if (perspective === "first") {
+        if (localAvatarEntry) localAvatarEntry.group.visible = false;
+        return;
+    }
+
+    const name = localCharacterName();
+    const appearanceId = getCharacterAppearanceId(name);
+    if (!localAvatarEntry || localAvatarScene !== scene || localAvatarIdentity !== appearanceId) {
+        disposeLocalAvatar();
+        localAvatarScene = scene;
+        localAvatarIdentity = appearanceId;
+        const cached = readCharacterTextureRecord();
+        const avatar = createAvatar("local:" + appearanceId, name, cached?.textures || null, appearanceId);
+        const now = performance.now();
+        localAvatarEntry = {
+            ...avatar,
+            lastPosition: new THREE.Vector3(Number(camera.position.x) || 0, (Number(camera.position.y) || 0) - 1.8, Number(camera.position.z) || 0),
+            lastTime: now,
+            lastTimeDelta: 1 / 60,
+            walkPhase: hashString(appearanceId) % 1000,
+            actionStarted: now,
+            lastAction: "idle",
+            bodyYaw: Number(camera.userData.__webminecraftPlayerYaw) || 0,
+            heldBlock: null
+        };
+        localAvatarEntry.group.traverse(object => { if (object.isSprite) object.visible = false; });
+        localAvatarEntry.group.visible = true;
+        localAvatarScene.add(localAvatarEntry.group);
+    }
+
+    const group = localAvatarEntry.group;
+    group.visible = true;
+    group.position.set(
+        Number(camera.position.x) || 0,
+        (Number(camera.position.y) || 0) - 1.8,
+        Number(camera.position.z) || 0
+    );
+    localAvatarEntry.bodyYaw = Number(camera.userData.__webminecraftPlayerYaw) || 0;
+    animateAvatar(localAvatarEntry, {
+        position: { x: group.position.x, y: group.position.y + 1.8, z: group.position.z },
+        sneaking: Boolean(window.__webminecraftPlayerSneaking),
+        action: "idle"
+    }, performance.now());
+    group.rotation.y = localAvatarEntry.bodyYaw;
+}
 
 export function initMultiplayerAvatars(scene) {
     if (animationStarted) return;

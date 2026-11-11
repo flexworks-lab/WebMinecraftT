@@ -11,7 +11,7 @@ const MAX_ROOMS = Math.max(10, Number(process.env.MAX_ROOMS) || 500);
 const TICK_RATE = 20;
 const BROADCAST_INTERVAL = 1000 / TICK_RATE;
 const MAX_NAME_LENGTH = 16;
-const MAX_MESSAGE_SIZE = 16 * 1024;
+const MAX_MESSAGE_SIZE = 128 * 1024;
 const MAX_CHAT_LENGTH = 400;
 const EMPTY_ROOM_RETENTION_MS = 24 * 60 * 60 * 1000;
 const ROOM_STATE_FILE = process.env.ROOM_STATE_FILE || "./data/rooms.json";
@@ -235,10 +235,16 @@ function numberOr(value, fallback = 0) {
     return Number.isFinite(number) ? number : fallback;
 }
 
+function sanitizeAppearanceId(value, fallback = "skin-default") {
+    const cleaned = String(value ?? fallback).trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 48);
+    return cleaned || String(fallback || "skin-default").slice(0, 48);
+}
+
 function publicPlayer(player) {
     return {
         id: player.id,
         name: player.name,
+        appearanceId: sanitizeAppearanceId(player.appearanceId, player.name),
         position: player.position,
         rotation: player.rotation,
         heldItemId: Number.isFinite(player.heldItemId) ? player.heldItemId : 0,
@@ -454,6 +460,7 @@ function handleMessage(ws, raw, state) {
         const player = {
             id: randomUUID(),
             name: safeName,
+            appearanceId: sanitizeAppearanceId(message.appearanceId, safeName),
             room: roomId,
             ws,
             position: { x: numberOr(message.position?.x), y: numberOr(message.position?.y), z: numberOr(message.position?.z) },

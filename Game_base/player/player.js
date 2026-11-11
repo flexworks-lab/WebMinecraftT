@@ -477,6 +477,9 @@ export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     updateSneakCamera(camera, deltaTime);
     camera.rotation.y = yaw;
     camera.rotation.x = pitch;
+    camera.userData.__webminecraftPlayerYaw = yaw;
+    camera.userData.__webminecraftPlayerPitch = pitch;
+    window.__webminecraftPlayerSneaking = isSneaking();
     syncMultiplayerState(camera);
     updateMultiplayerAvatars(scene);
     syncWorldChanges();

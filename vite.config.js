@@ -139,7 +139,7 @@ function startLooseGravelScan() {
         if (id.endsWith("/Game_base/core/main.js")) {
             code = code.replace(
                 'import * as THREE from "three";',
-                'import * as THREE from "three";\nimport { initMultiplayerAvatars } from "../multiplayer/multiplayerAvatars.js";\nimport { initShortGrass } from "../world/shortGrass.js";'
+                'import * as THREE from "three";\nimport { initMultiplayerAvatars, updateLocalAvatar } from "../multiplayer/multiplayerAvatars.js";\nimport { initShortGrass } from "../world/shortGrass.js";'
             );
             code = code.replace(
                 "const scene = new THREE.Scene();",
