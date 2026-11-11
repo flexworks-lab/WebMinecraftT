@@ -2,9 +2,8 @@
 node_modules/
 **/node_modules/
 
-# Generated Vite and Electron output
+# Generated Vite output
 dist/
-release/
 
 # Test and coverage output
 coverage/

@@ -1,6 +1,6 @@
 # Game_base
 
-This folder contains the organized WebMinecraftT game source. Keep gameplay code and game-owned assets inside these feature folders; leave repository/build entry points at the repository root because Vite, GitHub Pages, npm, and Electron expect them there.
+This folder contains the organized WebMinecraftT game source. Keep gameplay code and game-owned assets inside these feature folders; leave repository/build entry points at the repository root because Vite, GitHub Pages, and npm expect them there.
 
 ## Folder map
 

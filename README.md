@@ -122,7 +122,6 @@ The game is actively being developed. Multiplayer, world generation, mobile cont
 - **Three.js** — 3D rendering
 - **Vite** — web development and builds
 - **Node.js + WebSocket** — multiplayer server
-- **Electron** — optional Windows desktop version
 
 ---
 
@@ -148,7 +147,6 @@ npm run dev
 ```text
 WebMinecraftT/
 ├── Game_base/       Organized game source (world, player, UI, accounts, multiplayer, server)
-├── electron/        Desktop build entry point
 ├── public/          Static assets and textures
 ├── index.html       Main game page
 ├── vite.config.js   Build transforms and configuration
