@@ -421,7 +421,8 @@ function showReview(kind, blob) {
     });
     captureLayer.querySelector("#bugReviewRetake").addEventListener("click", () => {
         URL.revokeObjectURL(url);
-        showCapturePrompt(kind);
+        if (kind === "screenshot") showCapturePrompt(kind);
+        else startRecordingCapture();
     });
     captureLayer.querySelector("#bugReviewCancel").addEventListener("click", () => {
         URL.revokeObjectURL(url);
