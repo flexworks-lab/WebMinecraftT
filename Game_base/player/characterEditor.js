@@ -198,6 +198,249 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
 @media(max-width:520px){
  #characterShowcase{right:8px;width:102px;height:146px}
 }
+
+
+/* Minecraft-style Character Studio: square stone panels, bevelled controls, pixel type. */
+#characterEditor{
+  background:
+    linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.76)),
+    radial-gradient(ellipse at 50% 35%,#343434 0,#171717 58%,#090909 100%)!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  image-rendering:pixelated;
+}
+#characterEditorShell{
+  background:
+    linear-gradient(90deg,rgba(0,0,0,.22),transparent 18%,rgba(0,0,0,.12)),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 2px,transparent 2px 4px),
+    #242424!important;
+}
+#characterEditorSidebar{
+  background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 2px,transparent 2px 5px),
+    linear-gradient(90deg,#303030,#242424)!important;
+  border-right:3px solid #111!important;
+  box-shadow:inset -2px 0 #777,4px 0 0 rgba(0,0,0,.32)!important;
+  transition:width .16s steps(3,end),flex-basis .16s steps(3,end)!important;
+}
+#characterEditorSidebar:hover,#characterEditorSidebar:focus-within{
+  width:218px!important;flex-basis:218px!important;
+}
+#characterEditorBrand{
+  border-bottom:2px solid #111!important;
+  box-shadow:0 1px 0 #777!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  letter-spacing:.4px!important;
+}
+#characterEditorBrandMark{
+  background:linear-gradient(135deg,#888,#555)!important;
+  border:2px solid #111!important;
+  box-shadow:inset 2px 2px #c6c6c6,inset -2px -2px #333!important;
+  color:#fff!important;
+}
+.characterNavButton{
+  border:2px solid #111!important;
+  border-top-color:#999!important;
+  border-left-color:#999!important;
+  background:linear-gradient(#686868,#505050)!important;
+  color:#e8e8e8!important;
+  font-family:"MinecraftFont",monospace!important;
+  font-size:10px!important;
+  text-shadow:2px 2px #333!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.13),inset -2px -2px rgba(0,0,0,.3)!important;
+}
+.characterNavButton svg{
+  stroke:#fff!important;stroke-width:2.3!important;stroke-linecap:square!important;stroke-linejoin:miter!important;
+  shape-rendering:crispEdges!important;
+}
+.characterNavButton:hover,.characterNavButton.active{
+  background:linear-gradient(#78934f,#526e36)!important;
+  border-color:#111!important;border-top-color:#c2d29b!important;border-left-color:#c2d29b!important;
+  color:#fff!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.18),inset -2px -2px rgba(0,0,0,.3),0 2px #111!important;
+}
+#characterClose{
+  border:2px solid #111!important;border-top-color:#aaa!important;border-left-color:#aaa!important;
+  background:linear-gradient(#777,#555)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.12),inset -2px -2px rgba(0,0,0,.3)!important;
+}
+#characterEditorTopbar{
+  background:linear-gradient(#555,#3a3a3a)!important;
+  border-bottom:3px solid #111!important;
+  box-shadow:inset 0 2px #999,0 2px #777!important;
+}
+#characterEditorTopbarTitle{
+  font-family:"MinecraftFont",monospace!important;
+  font-size:13px!important;letter-spacing:.5px!important;
+  text-shadow:2px 2px #222!important;
+}
+#characterEditorTopbarSub{
+  color:#d0d0d0!important;font-family:Arial,sans-serif!important;
+}
+#characterEditorStatus{
+  border:2px solid #111!important;border-top-color:#aaa!important;border-left-color:#aaa!important;
+  background:linear-gradient(#626262,#454545)!important;
+  color:#e2f4c5!important;font-family:"MinecraftFont",monospace!important;
+  text-shadow:2px 2px #222!important;
+}
+#characterRosterPage{
+  background:
+    radial-gradient(ellipse at 50% 48%,rgba(110,110,110,.14),transparent 55%),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 2px,transparent 2px 32px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.014) 0 2px,transparent 2px 32px),
+    #202020!important;
+}
+#characterRosterIntro h1{
+  font-family:"MinecraftFont",monospace!important;
+  font-size:clamp(20px,2.7vw,32px)!important;
+  font-weight:400!important;letter-spacing:.2px!important;
+  color:#fff!important;text-shadow:3px 3px #222,5px 5px #080808!important;
+}
+#characterRosterIntro p{
+  color:#d1d1d1!important;font-family:Arial,sans-serif!important;
+  text-shadow:1px 1px #111!important;
+}
+#characterRosterStage{
+  background:
+    linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.52)),
+    radial-gradient(ellipse at 50% 74%,rgba(145,145,145,.16),transparent 48%),
+    repeating-linear-gradient(90deg,transparent 0 63px,rgba(255,255,255,.025) 63px 64px),
+    #252525!important;
+  border:3px solid #111!important;
+  box-shadow:inset 3px 3px #777,inset -3px -3px #080808,0 3px #555!important;
+}
+#characterRosterCards{padding-bottom:14px!important}
+.rosterCard{gap:7px!important}
+.rosterCardNumber{
+  border:2px solid #111!important;border-top-color:#999!important;border-left-color:#999!important;
+  background:linear-gradient(#666,#444)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;text-shadow:2px 2px #222!important;
+  box-shadow:inset 1px 1px rgba(255,255,255,.12)!important;
+}
+.rosterCardName{
+  color:#d6d6d6!important;font-family:"MinecraftFont",monospace!important;
+  font-size:9px!important;text-shadow:2px 2px #111!important;
+}
+.rosterCard.isCenter .rosterCardNumber{
+  border-top-color:#c5dda2!important;border-left-color:#c5dda2!important;
+  background:linear-gradient(#789b4e,#526f36)!important;color:#fff!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.2),0 2px #111!important;
+}
+.rosterCard.isCenter .rosterCardName{color:#e7f7d1!important}
+.rosterEditButton{
+  border:2px solid #111!important;border-top-color:#bbb!important;border-left-color:#bbb!important;
+  background:linear-gradient(#777,#555)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;font-size:10px!important;
+  text-shadow:2px 2px #292929!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.14),inset -2px -2px rgba(0,0,0,.32),0 2px #111!important;
+}
+.rosterEditButton:hover{
+  background:linear-gradient(#88a85c,#5f7f3d)!important;filter:none!important;
+}
+.rosterArrow{
+  border:2px solid #111!important;border-top-color:#aaa!important;border-left-color:#aaa!important;
+  background:linear-gradient(#777,#505050)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;text-shadow:2px 2px #222!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.13),inset -2px -2px rgba(0,0,0,.3),0 3px #111!important;
+}
+.rosterArrow:hover{
+  background:linear-gradient(#8cae5a,#668742)!important;border-top-color:#d5e6b4!important;border-left-color:#d5e6b4!important;
+}
+#characterRosterInstructions{
+  border:2px solid #111!important;border-top-color:#888!important;border-left-color:#888!important;
+  background:linear-gradient(#393939,#252525)!important;color:#dedede!important;
+  font-family:Arial,sans-serif!important;box-shadow:inset 2px 2px rgba(255,255,255,.06),0 2px #111!important;
+}
+#characterRosterInstructions strong{color:#c7e5a4!important}
+#characterPaintPage{background:#202020!important}
+#characterPaintHeader{
+  background:linear-gradient(#555,#393939)!important;border-bottom:3px solid #111!important;
+  box-shadow:inset 0 2px #999!important;
+}
+#characterBackRoster,.skinTool,.characterAction,#characterSave{
+  border:2px solid #111!important;border-top-color:#bbb!important;border-left-color:#bbb!important;
+  border-radius:0!important;background:linear-gradient(#777,#555)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;font-size:10px!important;text-shadow:2px 2px #222!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.14),inset -2px -2px rgba(0,0,0,.34),0 2px #111!important;
+}
+#characterBackRoster:hover,.skinTool:hover,.characterAction:hover{background:linear-gradient(#898989,#626262)!important}
+.skinTool.active,.characterAction.primary,#characterSave{
+  background:linear-gradient(#789b4e,#526f36)!important;border-top-color:#c5dda2!important;border-left-color:#c5dda2!important;
+}
+#characterEditorPreview{
+  background:
+    radial-gradient(ellipse at 50% 45%,rgba(145,145,145,.17),transparent 53%),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 2px,transparent 2px 34px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 2px,transparent 2px 34px),
+    #171717!important;
+}
+#characterEditorHint{
+  border:2px solid #111!important;border-top-color:#888!important;border-left-color:#888!important;
+  background:linear-gradient(#444,#292929)!important;color:#e6e6e6!important;
+  font-family:"MinecraftFont",monospace!important;font-size:9px!important;
+  text-shadow:2px 2px #111!important;
+}
+#characterEditorControls{
+  background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 2px,transparent 2px 5px),
+    linear-gradient(#3b3b3b,#292929)!important;
+  border-left:3px solid #111!important;box-shadow:inset 2px 0 #777!important;
+}
+#characterEditorTitle{
+  color:#fff!important;font-family:"MinecraftFont",monospace!important;
+  font-size:17px!important;font-weight:400!important;text-shadow:2px 2px #171717!important;
+}
+#characterEditorSub{color:#dedede!important;font-family:Arial,sans-serif!important}
+.characterLabel{
+  color:#f0f0f0!important;font-family:"MinecraftFont",monospace!important;
+  font-size:9px!important;letter-spacing:.3px!important;text-shadow:2px 2px #222!important;
+}
+.avatarTextureChoice{
+  border:2px solid #111!important;border-top-color:#888!important;border-left-color:#888!important;
+  border-radius:0!important;background:linear-gradient(#5c5c5c,#414141)!important;
+  color:#fff!important;font-family:"MinecraftFont",monospace!important;
+  box-shadow:inset 1px 1px rgba(255,255,255,.1),inset -1px -1px rgba(0,0,0,.28)!important;
+}
+.avatarTextureChoice.active{
+  outline:2px solid #b5d98a!important;outline-offset:1px!important;
+  background:linear-gradient(#6f9148,#4c682f)!important;
+}
+#skinCanvasWrap{
+  border:3px solid #111!important;
+  box-shadow:inset 2px 2px #999,0 0 0 1px #666!important;
+}
+#skinBrushSize{
+  border:2px solid #111!important;border-top-color:#999!important;border-left-color:#999!important;
+  border-radius:0!important;background:#555!important;color:#fff!important;
+}
+#skinCustomColor{border:2px solid #111!important;border-radius:0!important}
+#skinPalette .skinColor{outline-offset:0!important}
+#characterHelpPanel{
+  border:3px solid #111!important;border-top-color:#999!important;border-left-color:#999!important;
+  border-radius:0!important;background:linear-gradient(#454545,#292929)!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.08),inset -2px -2px rgba(0,0,0,.3),0 4px #111!important;
+}
+#characterHelpPanel h1{
+  font-family:"MinecraftFont",monospace!important;font-weight:400!important;
+  text-shadow:3px 3px #111!important;
+}
+#characterHelpPanel p{font-family:Arial,sans-serif!important;color:#ddd!important}
+#characterHelpPanel strong{color:#c7e5a4!important}
+#characterEditor button,#characterEditor select{border-radius:0!important}
+#characterEditor button:focus-visible{outline:2px solid #c7e5a4!important;outline-offset:2px!important}
+#characterShowcase #characterEditorOpen{
+  border:2px solid #111!important;border-top-color:#bbb!important;border-left-color:#bbb!important;
+  border-radius:0!important;background:linear-gradient(#777,#555)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;box-shadow:inset 2px 2px rgba(255,255,255,.14),inset -2px -2px rgba(0,0,0,.34),0 2px #111!important;
+}
+@media(max-width:620px){
+  #characterEditorSidebar{background:linear-gradient(#303030,#202020)!important}
+  #characterEditorTopbar{padding:0 9px!important}
+  #characterRosterInstructions{font-size:9px!important}
+  #characterEditorControls{border-top:3px solid #111!important}
+}
 `;
 document.head.appendChild(style);
 
