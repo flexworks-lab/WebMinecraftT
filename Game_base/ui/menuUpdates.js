@@ -31,8 +31,11 @@ function addStyles() {
     style.id = "newsButtonStyles";
     style.textContent = `
         #menuUpdates{display:none!important}
-        #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:98 !important;display:block !important;pointer-events:auto !important;border-radius:0 !important;background:linear-gradient(#737373,#565656) !important;border:2px solid #1b1b1b !important;border-top-color:#a4a4a4 !important;border-left-color:#a4a4a4 !important;outline:none !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62) !important;transition:none !important;animation:none !important}
-#newsButton:hover,#newsButton:active{filter:none !important;transform:none !important}
+        #newsButton{position:fixed!important;left:28px!important;bottom:28px!important;width:48px!important;height:48px!important;min-height:48px!important;margin:0!important;padding:0!important;z-index:98!important;display:grid!important;place-items:center!important;pointer-events:auto!important;border-radius:0!important;background:linear-gradient(#737373,#565656)!important;border:2px solid #1b1b1b!important;border-top-color:#a4a4a4!important;border-left-color:#a4a4a4!important;outline:none!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62)!important;transition:none!important;animation:none!important;font-size:0!important;line-height:0!important}
+#newsButton svg{width:25px;height:25px;display:block;image-rendering:pixelated;shape-rendering:crispEdges}
+#newsButton::before{content:attr(data-tooltip);position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);padding:6px 8px;background:#111;border:1px solid #aaa;color:#fff;font:11px/1.2 MinecraftFont,monospace;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;z-index:120;box-shadow:2px 2px 0 #000}
+#newsButton:hover::before,#newsButton:focus-visible::before{opacity:1;visibility:visible}
+#newsButton:hover,#newsButton:active{filter:none!important;transform:none!important}
         #newsButton.newsHasUnread::after{content:"";position:absolute;top:7px;right:7px;width:10px;height:10px;border-radius:50%;background:#e33;border:2px solid #4b0000;box-shadow:0 0 0 1px rgba(0,0,0,.65),0 0 8px rgba(255,40,40,.55)}
         #newsCenter{position:fixed;inset:0;display:none;background:linear-gradient(180deg,#1b1b1b,#111);z-index:240;color:#fff;overflow:hidden}
         #newsPanel{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;display:grid;grid-template-columns:minmax(260px,31vw) minmax(0,1fr);grid-template-rows:100%;background:#1a1a1a;overflow:hidden}
@@ -94,7 +97,9 @@ function createNewsUi(){
     button.id="newsButton";
     button.className="menuButton";
     button.type="button";
-    button.textContent="News";
+    button.setAttribute("aria-label","News and updates");
+    button.dataset.tooltip="News and updates";
+    button.innerHTML=`<svg viewBox="0 0 16 16" width="25" height="25" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="1" width="11" height="14" fill="#f3f0dc"/><rect x="1" y="3" width="2" height="11" fill="#a6a08a"/><rect x="4" y="3" width="7" height="3" fill="#75934d"/><rect x="4" y="8" width="7" height="1" fill="#555"/><rect x="4" y="10" width="6" height="1" fill="#777"/><rect x="4" y="12" width="7" height="1" fill="#777"/><rect x="12" y="2" width="2" height="2" fill="#fff"/></svg>`;
     document.body.appendChild(button);
     const center=document.createElement("div");
     center.id="newsCenter";
