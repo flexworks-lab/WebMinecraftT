@@ -954,10 +954,13 @@ function createHeld3D(camera) {
 
 function updateHeldBlock() {
     const inWorld = document.body.classList.contains("webminecraft-in-world") && !inventoryOpen;
+    const firstPerson = !window.__webminecraftCameraPerspective || window.__webminecraftCameraPerspective === "first";
     const slotIndex = Number.isInteger(window.webMinecraftSelectedSlot) ? window.webMinecraftSelectedSlot : 0;
     const item = inventory[slotIndex];
     if (!held3D) return;
-    if (!inWorld || !item) { held3D.root.visible = false; return; }
+    // The hand/held item is attached to the first-person camera. Hide the
+    // entire viewmodel whenever the player switches to either third-person view.
+    if (!inWorld || !firstPerson || !item) { held3D.root.visible = false; return; }
     const info = getItem(item.itemId);
     const textureName = item.texture || info?.texture;
     if (!info || !textureName) { held3D.root.visible = false; return; }
@@ -987,6 +990,7 @@ export function setupInventory(camera) {
         window.webMinecraftSelectedSlot = event.detail?.slot ?? 0;
         updateHeldBlock();
     });
+    window.addEventListener("webminecraft:perspective-changed", updateHeldBlock);
     window.addEventListener("webminecraft:inventorychanged", () => {
         loadInventory();
         renderInventory();
