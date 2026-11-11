@@ -1290,6 +1290,7 @@ function animate() {
     requestAnimationFrame(animate);
     if (window.__webminecraftDevBenchActive) return;
     if (document.hidden) return;
+    perspectiveCameraRig.restore();
     const currentTime = performance.now();
     lastFrameTimeMs = currentTime - lastTime;
     frameTimeSamples.push(Math.min(1000, lastFrameTimeMs));
