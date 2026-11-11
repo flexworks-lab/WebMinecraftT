@@ -18,6 +18,7 @@ import "./loadingScreen.js";
 import "../accounts/auth.js";
 import "../multiplayer/chat.js";
 import "../ui/menuTips.js";
+import "../ui/bugReport.js";
 import { getWorldMode } from "../inventory/survivalMode.js";
 import "../inventory/survivalRules.js";
 
@@ -51,6 +52,70 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.appendChild(renderer.domElement);
 window.__webminecraftRenderer = renderer;
 window.__webminecraftCamera = camera;
+window.__webminecraftScene = scene;
+
+// Capture a game-only frame through an off-screen render target. This keeps
+// preserveDrawingBuffer disabled on the live renderer, avoiding a permanent
+// performance cost while still producing a clean screenshot for bug reports.
+window.__webminecraftCaptureFrame = async function(options = {}) {
+    const sourceWidth = Math.max(1, renderer.domElement.width || window.innerWidth);
+    const sourceHeight = Math.max(1, renderer.domElement.height || window.innerHeight);
+    const maxWidth = Math.max(320, Math.min(1920, Number(options.maxWidth) || 1280));
+    const scale = Math.min(1, maxWidth / sourceWidth);
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+    const target = new THREE.WebGLRenderTarget(width, height, {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType,
+        depthBuffer: true,
+        stencilBuffer: false
+    });
+    target.texture.colorSpace = THREE.SRGBColorSpace;
+    target.texture.generateMipmaps = false;
+
+    const previousTarget = renderer.getRenderTarget();
+    const previousViewport = renderer.getViewport(new THREE.Vector4());
+    const previousScissor = renderer.getScissor(new THREE.Vector4());
+    const previousScissorTest = renderer.getScissorTest();
+    const pixels = new Uint8Array(width * height * 4);
+    try {
+        renderer.setRenderTarget(target);
+        renderer.setViewport(0, 0, width, height);
+        renderer.setScissorTest(false);
+        renderer.clear(true, true, true);
+        renderer.render(scene, camera);
+        renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
+    } finally {
+        renderer.setRenderTarget(previousTarget);
+        renderer.setViewport(previousViewport);
+        renderer.setScissor(previousScissor);
+        renderer.setScissorTest(previousScissorTest);
+        target.dispose();
+    }
+
+    const imageCanvas = document.createElement("canvas");
+    imageCanvas.width = width;
+    imageCanvas.height = height;
+    const context = imageCanvas.getContext("2d", { alpha: false });
+    if (!context) throw new Error("Could not prepare the screenshot image.");
+    const imageData = context.createImageData(width, height);
+    for (let y = 0; y < height; y++) {
+        const sourceStart = (height - 1 - y) * width * 4;
+        const destinationStart = y * width * 4;
+        imageData.data.set(pixels.subarray(sourceStart, sourceStart + width * 4), destinationStart);
+    }
+    context.putImageData(imageData, 0, 0);
+    const quality = THREE.MathUtils.clamp(Number(options.quality) || 0.74, 0.4, 0.92);
+    return await new Promise((resolve, reject) => {
+        imageCanvas.toBlob(blob => {
+            if (blob) resolve(blob);
+            else reject(new Error("The browser could not encode the screenshot."));
+        }, "image/jpeg", quality);
+    });
+};
+window.dispatchEvent(new Event("webminecraft:runtime-ready"));
 
 const skyLight = new THREE.HemisphereLight(skyLightColor, groundLightColor, 0.82);
 scene.add(skyLight);
