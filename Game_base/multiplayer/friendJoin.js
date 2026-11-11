@@ -1,5 +1,5 @@
 const FIREBASE_VERSION = "12.18.0";
-const SERVER_LIST_URL = "https://webminecraftt-multiplayer-production.up.railway.app/servers";
+const SERVER_LIST_URL = "https://webminecraftt-multiplayer.onrender.com/servers";
 const FRIEND_JOIN_STYLE_ID = "friendJoinStyles";
 
 let database = null;
@@ -124,7 +124,7 @@ function findFriendLocation(servers, friendName) {
             if (!names.some(name => String(name || "").trim().toLowerCase() === target)) continue;
             return {
                 serverName: String(server.name || "Server"),
-                websocket: String(server.websocket || "wss://webminecraftt-multiplayer-production.up.railway.app/multiplayer"),
+                websocket: String(server.websocket || "wss://webminecraftt-multiplayer.onrender.com/multiplayer"),
                 roomId: String(room.id || room.name || "default"),
                 roomName: String(room.name || room.id || "default"),
                 isPrivate: Boolean(room.private || room.isPrivate)
