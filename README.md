@@ -137,7 +137,7 @@ The game is actively being developed. Multiplayer, world generation, mobile cont
 ```bash
 git clone https://github.com/flexworks-lab/WebMinecraftT.git
 cd WebMinecraftT
-npm install
+npm ci
 npm run dev
 ```
 
@@ -147,12 +147,13 @@ npm run dev
 
 ```text
 WebMinecraftT/
-├── src/          Game source
-├── server/       Multiplayer server
-├── electron/     Desktop build
-├── public/       Static assets
-├── index.html    Main game page
-└── package.json  Project configuration
+├── Game_base/       Organized game source (world, player, UI, accounts, multiplayer, server)
+├── electron/        Desktop build entry point
+├── public/          Static assets and textures
+├── index.html       Main game page
+├── vite.config.js   Build transforms and configuration
+├── package.json     Scripts and dependencies
+└── package-lock.json Reproducible dependency lockfile
 ```
 
 ---

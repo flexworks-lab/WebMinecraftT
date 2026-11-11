@@ -51,17 +51,6 @@ const gameplayUiPlugin = {
             return { code, map: null };
         }
 
-        if (id.endsWith("/Game_base/inventory/survivalMining.js")) {
-            code = code.replace(
-                "function getTarget() {\n    if (!sceneRef || !cameraRef) return null;",
-                "function getTarget() {\n    sceneRef ||= window.__webminecraftMiningScene || null;\n    cameraRef ||= window.__webminecraftMiningCamera || window.__webminecraftCamera || null;\n    if (!sceneRef || !cameraRef) return null;"
-            );
-            code = code.replace(
-                "function updateDrops(time) {\n    if (!sceneRef || !cameraRef || !isSurvivalWorld()) return;",
-                "function updateDrops(time) {\n    sceneRef ||= window.__webminecraftMiningScene || null;\n    cameraRef ||= window.__webminecraftMiningCamera || window.__webminecraftCamera || null;\n    if (!sceneRef || !cameraRef || !isSurvivalWorld()) return;"
-            );
-            return { code, map: null };
-        }
 
         if (id.endsWith("/Game_base/inventory/inventory.js")) {
             code = code.replace(

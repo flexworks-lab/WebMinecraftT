@@ -1,5 +1,5 @@
 # Assets
 
-Textures, images, fonts, icons, and other static game assets.
+This folder contains JavaScript-backed game asset helpers that are imported by runtime systems.
 
-> Organization note: files should only be moved here after their imports, asset paths, build configuration, and deployment references have been updated and tested.
+Static files such as fonts, logos, textures, and previews live in the root `public/` directory so Vite copies them into the production build.

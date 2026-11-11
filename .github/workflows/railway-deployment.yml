@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "server/**"
+      - "Game_base/server/**"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/railway-deployment.yml"
