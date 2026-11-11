@@ -20,12 +20,12 @@ function ensurePlayerDataSyncUi() {
     width:min(430px,92vw);
     box-sizing:border-box;
     padding:26px 24px 22px;
-    background:linear-gradient(#343434,#202020);
+    background:#303030;
     color:#fff;
     border:2px solid #111;
     border-top-color:#8a8a8a;
     border-left-color:#8a8a8a;
-    box-shadow:7px 7px 0 rgba(0,0,0,.55);
+    box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -2px -2px 0 #111,6px 6px 0 rgba(0,0,0,.5);
     text-align:center;
     font-family:Arial,sans-serif;
 }
@@ -96,8 +96,8 @@ function ensurePlayerDataSyncUi() {
     overlay.setAttribute("aria-live", "polite");
     overlay.innerHTML = `
 <div id="playerDataSyncPanel">
-    <h2 id="playerDataSyncTitle">Player Data Is Syncing</h2>
-    <p id="playerDataSyncText">Please wait while your player data is synchronized.</p>
+    <h2 id="playerDataSyncTitle">Syncing Account</h2>
+    <p id="playerDataSyncText">Checking your saved profile and syncing it to the cloud.</p>
     <div id="playerDataSyncProgressOuter" aria-label="Player data sync progress">
         <div id="playerDataSyncProgress"></div>
     </div>
