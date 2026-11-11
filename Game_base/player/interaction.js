@@ -116,23 +116,53 @@ export function setupInteraction(scene, camera) {
         const number = Number(event.key);
         if (number >= 1 && number <= 9) { selectedSlot = number - 1; updateHotbar(); }
     });
-    // Match Minecraft: the mouse wheel cycles through the nine hotbar slots.
-    // Keep normal scrolling available inside inventory/menu controls.
-    document.addEventListener("wheel", event => {
-        if (document.body.classList.contains("mobile-mode")) return;
-        if (!document.body.classList.contains("webminecraft-in-world")) return;
-        if (document.body.classList.contains("inventory-open")) return;
-        if (document.body.classList.contains("crafting-table-open")) return;
-        if (event.target instanceof Element && event.target.closest(
-            "#inventoryScreen, #survivalInventoryScreen, #savedWorlds, input, textarea, select, [contenteditable='true']"
-        )) return;
+    // Match Minecraft's hotbar scrolling while smoothing trackpad input.
+    // Small trackpad deltas accumulate; a normal mouse-wheel notch changes one slot.
+    let wheelRemainder = 0;
+    let wheelDirection = 0;
+    const WHEEL_STEP = 80;
 
-        const direction = Math.sign(event.deltaY);
+    document.addEventListener("wheel", event => {
+        const body = document.body;
+        if (body.classList.contains("mobile-mode")
+            || !body.classList.contains("webminecraft-in-world")
+            || body.classList.contains("inventory-open")
+            || body.classList.contains("crafting-table-open")) {
+            wheelRemainder = 0;
+            wheelDirection = 0;
+            return;
+        }
+
+        if (event.target instanceof Element) {
+            const target = event.target;
+            if (target.closest(
+                "#inventoryScreen, #survivalInventoryScreen, #savedWorlds, " +
+                "#globalPlayerPanel, #globalPlayerList, #discussionModal, " +
+                "button, a, input, textarea, select, [contenteditable='true'], [role='dialog']"
+            )) return;
+            const scrollPanel = target.closest("[data-wheel-scroll], [data-scrollable]");
+            if (scrollPanel && scrollPanel.scrollHeight > scrollPanel.clientHeight) return;
+        }
+
+        // deltaMode 0 = pixels, 1 = lines, 2 = pages.
+        const multiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+        const delta = event.deltaY * multiplier;
+        const direction = Math.sign(delta);
         if (!direction) return;
 
         event.preventDefault();
         event.stopPropagation();
-        selectedSlot = (selectedSlot + direction + 9) % 9;
+
+        // Reset the partial movement when the user reverses direction.
+        if (wheelDirection && direction !== wheelDirection) wheelRemainder = 0;
+        wheelDirection = direction;
+        wheelRemainder += delta;
+
+        const steps = Math.min(4, Math.floor(Math.abs(wheelRemainder) / WHEEL_STEP));
+        if (!steps) return;
+
+        wheelRemainder -= direction * steps * WHEEL_STEP;
+        selectedSlot = (selectedSlot + direction * steps + 9) % 9;
         updateHotbar();
     }, { passive: false });
     document.querySelectorAll("#hotbar .slot").forEach((slot, index) => {
