@@ -349,6 +349,89 @@ function setReplyTarget(data, id) {
     input?.focus();
 }
 
+function addReportAttachmentStyles() {
+    if (document.getElementById("discussionReportAttachmentStyles")) return;
+    const style = document.createElement("style");
+    style.id = "discussionReportAttachmentStyles";
+    style.textContent = [
+        ".discussionReportAttachments{display:flex;flex-wrap:wrap;gap:10px;margin-top:11px}",
+        ".discussionReportEvidence{display:flex;flex-direction:column;gap:5px;max-width:290px;padding:7px;border:1px solid #515151;background:#171717;color:#ddd;font-size:10px}",
+        ".discussionReportEvidence img,.discussionReportEvidence video{display:block;width:min(270px,62vw);height:150px;object-fit:contain;background:#080808;border:1px solid #444}",
+        ".discussionReportEvidence img{cursor:zoom-in}",
+        "#discussionReportEvidenceViewer{position:fixed;inset:0;z-index:10000000;display:none;place-items:center;padding:18px;background:rgba(0,0,0,.96)}",
+        "#discussionReportEvidenceViewer img{display:block;max-width:96vw;max-height:92vh;object-fit:contain}",
+        "#discussionReportEvidenceClose{position:absolute;top:12px;right:12px;width:44px;height:44px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#555;color:#fff;font-size:26px;cursor:pointer}"
+    ].join("\n");
+    document.head.appendChild(style);
+}
+
+function openReportScreenshot(src) {
+    addReportAttachmentStyles();
+    let viewer = document.getElementById("discussionReportEvidenceViewer");
+    if (!viewer) {
+        viewer = document.createElement("div");
+        viewer.id = "discussionReportEvidenceViewer";
+        viewer.setAttribute("role", "dialog");
+        viewer.setAttribute("aria-modal", "true");
+        viewer.setAttribute("aria-label", "Bug report screenshot");
+        document.body.appendChild(viewer);
+    }
+    const image = document.createElement("img");
+    image.src = src;
+    image.alt = "Full-size bug report screenshot";
+    const close = document.createElement("button");
+    close.id = "discussionReportEvidenceClose";
+    close.type = "button";
+    close.textContent = "×";
+    close.setAttribute("aria-label", "Close screenshot");
+    close.addEventListener("click", () => { viewer.style.display = "none"; }, { once: true });
+    viewer.replaceChildren(close, image);
+    viewer.style.display = "grid";
+}
+
+function appendBugReportAttachments(wrapper, data) {
+    if (data.reportType !== "in-game") return;
+    const imageData = typeof data.screenshotDataUrl === "string"
+        && /^data:image\/jpeg;base64,[a-z0-9+/=]+$/i.test(data.screenshotDataUrl)
+        ? data.screenshotDataUrl
+        : "";
+    const videoData = typeof data.recordingDataUrl === "string"
+        && /^data:video\/(?:webm|mp4)(?:;[^,]*)?;base64,[a-z0-9+/=]+$/i.test(data.recordingDataUrl)
+        ? data.recordingDataUrl
+        : "";
+    if (!imageData && !videoData) return;
+    addReportAttachmentStyles();
+    const host = document.createElement("div");
+    host.className = "discussionReportAttachments";
+    if (imageData) {
+        const card = document.createElement("div");
+        card.className = "discussionReportEvidence";
+        const label = document.createElement("strong");
+        label.textContent = "SCREENSHOT";
+        const image = document.createElement("img");
+        image.src = imageData;
+        image.alt = "Bug report screenshot (click to enlarge)";
+        image.loading = "lazy";
+        image.addEventListener("click", () => openReportScreenshot(imageData));
+        card.append(label, image);
+        host.appendChild(card);
+    }
+    if (videoData) {
+        const card = document.createElement("div");
+        card.className = "discussionReportEvidence";
+        const label = document.createElement("strong");
+        label.textContent = "GAMEPLAY RECORDING";
+        const video = document.createElement("video");
+        video.src = videoData;
+        video.controls = true;
+        video.preload = "metadata";
+        video.playsInline = true;
+        card.append(label, video);
+        host.appendChild(card);
+    }
+    wrapper.appendChild(host);
+}
+
 function renderMessage(doc) {
     const data = doc.data() || {};
     const wrapper = document.createElement("article");
@@ -373,6 +456,7 @@ function renderMessage(doc) {
         replyQuote +
         '<div class="discussionMessageText">' + escapeHtml(censorUserText(data.text || "")) + '</div>' +
         '<div class="discussionMessageActions"><button class="discussionReplyButton" type="button">Reply</button></div>';
+    appendBugReportAttachments(wrapper, data);
     wrapper.querySelector(".discussionReplyButton")?.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
