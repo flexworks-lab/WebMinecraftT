@@ -21,40 +21,6 @@ jobs:
       name: railway-multiplayer
       url: https://webminecraftt-multiplayer-production.up.railway.app
     steps:
-      - name: Remove old webminecraft-server deployment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-
-            const deployments = await github.paginate(
-              github.rest.repos.listDeployments,
-              { owner, repo, per_page: 100 }
-            );
-
-            let removed = 0;
-
-            for (const deployment of deployments) {
-              const environment = String(deployment.environment || '').trim().toLowerCase();
-              const ref = String(deployment.ref || '').trim();
-
-              if (environment !== 'webminecraft-server') continue;
-              if (ref && ref !== 'main') continue;
-
-              core.info(`Removing old deployment ${deployment.id}: ${deployment.ref} - ${deployment.environment}`);
-
-              await github.rest.repos.deleteDeployment({
-                owner,
-                repo,
-                deployment_id: deployment.id
-              });
-
-              removed += 1;
-            }
-
-            core.info(`Removed ${removed} old webminecraft-server deployment(s).`);
-
       - name: Check Railway multiplayer server
         run: |
           set -e
