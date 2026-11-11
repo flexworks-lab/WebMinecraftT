@@ -75,14 +75,16 @@ function createCrosshair() {
     crosshair = document.createElement("div");
     crosshair.id = "webMinecraftCrosshair";
     crosshair.setAttribute("aria-hidden", "true");
-    crosshair.innerHTML = "<span></span><span></span>";
-    crosshair.style.cssText = "position:fixed;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none;z-index:9999;";
+    crosshair.innerHTML = `<span class="wmCrosshairArm wmCrosshairTop"></span><span class="wmCrosshairArm wmCrosshairRight"></span><span class="wmCrosshairArm wmCrosshairBottom"></span><span class="wmCrosshairArm wmCrosshairLeft"></span>`;
+    crosshair.style.cssText = "position:fixed;left:50%;top:50%;width:15px;height:15px;transform:translate(-50%,-50%);pointer-events:none;z-index:9999;";
     const style = document.createElement("style");
     style.id = "webMinecraftCrosshairStyles";
     style.textContent = `
-#webMinecraftCrosshair span{position:absolute;display:block;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.8)}
-#webMinecraftCrosshair span:first-child{left:1px;right:1px;top:8px;height:2px}
-#webMinecraftCrosshair span:last-child{top:1px;bottom:1px;left:8px;width:2px}
+#webMinecraftCrosshair .wmCrosshairArm{position:absolute;display:block;background:#fff;box-shadow:0 0 0 1px #111,1px 1px 0 rgba(0,0,0,.65)}
+#webMinecraftCrosshair .wmCrosshairTop{left:6px;top:0;width:3px;height:5px}
+#webMinecraftCrosshair .wmCrosshairRight{right:0;top:6px;width:5px;height:3px}
+#webMinecraftCrosshair .wmCrosshairBottom{left:6px;bottom:0;width:3px;height:5px}
+#webMinecraftCrosshair .wmCrosshairLeft{left:0;top:6px;width:5px;height:3px}
 body.webminecraft-in-world #webMinecraftCrosshair{display:block}
 body:not(.webminecraft-in-world) #webMinecraftCrosshair{display:none}
 body.mobile-mode #webMinecraftCrosshair{display:none!important}
