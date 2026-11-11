@@ -88,6 +88,10 @@ style.textContent = `
 #characterEditorOpen{width:100%;height:44px;flex:0 0 44px;margin:0;padding:0 6px;border:0;border-top:2px solid #999;background:linear-gradient(#747474,#555);color:#fff;font:12px MinecraftFont,monospace;text-shadow:2px 2px 0 #222;cursor:pointer}
 #characterEditorOpen:active{filter:brightness(.86)}
 body.webminecraft-in-world #characterShowcase{display:none!important}
+@media(max-width:1360px){
+  #menuPanel{width:min(760px,calc(100vw - 280px))!important;margin:0 auto 0 24px!important}
+  #characterShowcase{right:clamp(16px,4vw,60px);width:min(214px,20vw)}
+}
 @media(max-width:760px){
   #menuPanel{width:calc(100vw - 148px)!important;max-width:420px!important;margin:0 auto 0 8px!important}
   #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
