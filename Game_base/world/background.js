@@ -32,7 +32,7 @@ function setupMenuAndMobileUi() {
     const style = document.createElement("style");
     style.id = "webMinecraftMenuUiFixes";
     style.textContent = `
-#newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:118px !important;margin:0 !important;z-index:97 !important}
+#newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:48px !important;height:48px !important;margin:0 !important;z-index:97 !important}
 #friendsButton{position:fixed !important;left:158px !important;bottom:28px !important;width:118px !important;height:48px !important;margin:0 !important;z-index:97 !important}
 #globalPlayerCount{left:auto !important;right:28px !important;bottom:28px !important;width:142px !important;min-height:48px !important;text-align:center !important}
 #globalPlayerPanel{left:auto !important;right:28px !important;bottom:88px !important}
@@ -69,7 +69,7 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
 #webMinecraftMovingClouds{display:none !important}
 #touchMovePad{overflow:visible}
 @media(max-width:560px){
-    #newsButton{left:12px !important;bottom:18px !important;width:calc(50vw - 18px) !important}
+    #newsButton{left:12px !important;bottom:18px !important;width:48px !important;height:48px !important}
     #friendsButton{left:calc(50vw + 6px) !important;bottom:18px !important;width:calc(50vw - 18px) !important}
 }
 @media(max-width:600px){
@@ -97,7 +97,8 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
         button.style.position = "fixed";
         button.style.left = mobile ? "12px" : "28px";
         button.style.bottom = mobile ? "18px" : "28px";
-        button.style.width = mobile ? "calc(50vw - 18px)" : "118px";
+        button.style.width = "48px";
+        button.style.height = "48px";
         button.style.margin = "0";
         button.style.zIndex = "97";
     };
