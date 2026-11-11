@@ -556,7 +556,7 @@ function createMobileSettingsButton() {
     transform:translateY(2px);
 }
 body.mobile-mode.webminecraft-in-world #mobilePauseButton{
-    display:none !important;
+    display:flex !important;
 }
 body.mobile-mode #settingsButton{
     display:flex !important;
