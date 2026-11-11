@@ -79,6 +79,32 @@ style.textContent = `
 .characterAction.primary{background:#668746}
 #characterClose{position:absolute;top:9px;right:9px;z-index:3;width:38px;height:38px;border:1px solid #888;background:#222;color:#fff;font-size:23px;cursor:pointer}
 @media(max-width:760px){#characterEditor{padding:0}#characterEditorPanel{width:100%;height:100%;min-height:0;grid-template-columns:1fr;grid-template-rows:minmax(180px,30vh) 1fr}#characterEditorControls{padding:13px}#characterEditorTitle{font-size:20px}#characterEditorSub{margin-bottom:8px}#avatarTextureList{grid-template-columns:repeat(4,minmax(0,1fr))}#skinCanvasWrap{width:min(100%,280px)}.characterLabel{margin-top:10px}}
+/* Main-menu character showcase uses this same procedural avatar and renderer. */
+#characterShowcase{position:fixed;right:clamp(18px,5.5vw,88px);bottom:clamp(32px,7vh,72px);z-index:84;width:214px;height:318px;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#393939,#202020);border:2px solid #111;border-top-color:#999;border-left-color:#999;box-shadow:5px 5px 0 rgba(0,0,0,.55),inset 1px 1px 0 rgba(255,255,255,.08);color:#fff;pointer-events:auto}
+#characterShowcase[hidden]{display:none!important}
+#characterShowcaseTitle{height:30px;flex:0 0 30px;display:flex;align-items:center;justify-content:center;background:#292929;border-bottom:2px solid #111;color:#ddd;font:11px MinecraftFont,monospace;letter-spacing:1px;text-shadow:2px 2px 0 #000}
+#characterShowcasePreview{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#555 0,#303030 52%,#171717 100%);touch-action:pan-y}
+#characterShowcasePreview>canvas{display:block;width:100%;height:100%;touch-action:pan-y}
+#characterEditorOpen{width:100%;height:44px;flex:0 0 44px;margin:0;padding:0 6px;border:0;border-top:2px solid #999;background:linear-gradient(#747474,#555);color:#fff;font:12px MinecraftFont,monospace;text-shadow:2px 2px 0 #222;cursor:pointer}
+#characterEditorOpen:active{filter:brightness(.86)}
+body.webminecraft-in-world #characterShowcase{display:none!important}
+@media(max-width:760px){
+  #menuPanel{width:calc(100vw - 148px)!important;max-width:420px!important;margin:0 auto 0 8px!important}
+  #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
+  #menuSubtitle{font-size:8px!important;line-height:1.25!important;margin:6px 0 8px!important}
+  #menuSplash{width:100%!important;max-width:100%!important;font-size:clamp(9px,2.8vw,12px)!important;margin:2px auto 8px!important;padding:5px 6px!important}
+  #menuButtons{width:100%!important}
+  #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
+  #characterShowcase{right:8px;bottom:max(58px,env(safe-area-inset-bottom));width:min(34vw,132px);height:min(32vh,220px);min-height:168px}
+  #characterShowcaseTitle{height:24px;flex-basis:24px;font-size:9px}
+  #characterEditorOpen{height:37px;flex-basis:37px;font-size:10px}
+}
+@media(max-height:520px) and (max-width:900px){
+  #characterShowcase{height:155px;min-height:155px;bottom:10px}
+  #characterShowcaseTitle{height:20px;flex-basis:20px}
+  #characterEditorOpen{height:32px;flex-basis:32px}
+  #menuPanel{margin-top:0!important}
+}
 `;
 document.head.appendChild(style);
 
@@ -454,7 +480,8 @@ gridButton.addEventListener("click", () => {
 
 function resize() {
   if (!renderer || !camera) return;
-  const host = overlay.querySelector("#characterEditorPreview");
+  const host = renderer.domElement.parentElement;
+  if (!host) return;
   const width = Math.max(1, host.clientWidth);
   const height = Math.max(1, host.clientHeight);
   renderer.setSize(width, height, false);
@@ -463,11 +490,18 @@ function resize() {
 }
 async function show() {
   overlay.classList.add("open");
+  const editorHost = overlay.querySelector("#characterEditorPreview");
+  if (editorHost && renderer?.domElement.parentElement !== editorHost) editorHost.prepend(renderer.domElement);
   await buildPreview();
   resize();
   copySelectedTextureToEditor();
 }
-function close() { overlay.classList.remove("open"); }
+function close() {
+  overlay.classList.remove("open");
+  const showcaseHost = document.getElementById("characterShowcasePreview");
+  if (showcaseHost && renderer?.domElement.parentElement !== showcaseHost) showcaseHost.appendChild(renderer.domElement);
+  resize();
+}
 
 function resetTextures() {
   pushEditorIntoTexture();
@@ -597,23 +631,34 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
 makeScene();
 
 function addMenuButton() {
-  const host = document.querySelector("#menuButtons");
-  if (!host || document.querySelector("#characterEditorOpen")) return;
-  const button = document.createElement("button");
-  button.className = "menuButton";
-  button.id = "characterEditorOpen";
-  button.type = "button";
-  button.textContent = "CHARACTER TEXTURE";
-  button.addEventListener("click", show);
-  const settings = host.querySelector("#menuSettingsButton");
-  if (settings) host.insertBefore(button, settings);
-  else host.appendChild(button);
+  if (document.getElementById("characterShowcase")) return;
+  const showcase = document.createElement("aside");
+  showcase.id = "characterShowcase";
+  showcase.setAttribute("aria-label", "Your character");
+  showcase.innerHTML = `
+    <div id="characterShowcaseTitle">YOUR CHARACTER</div>
+    <div id="characterShowcasePreview" aria-label="Drag to rotate your character"></div>
+    <button id="characterEditorOpen" type="button">CUSTOMIZE</button>
+  `;
+  showcase.querySelector("#characterEditorOpen").addEventListener("click", show);
+  document.body.appendChild(showcase);
+  const previewHost = showcase.querySelector("#characterShowcasePreview");
+  if (renderer?.domElement && renderer.domElement.parentElement !== previewHost) previewHost.appendChild(renderer.domElement);
+  void buildPreview().then(resize).catch(error => console.warn("Could not build the character showcase:", error));
 }
 addMenuButton();
 window.addEventListener("DOMContentLoaded", addMenuButton, { once: true });
 
 function render() {
   requestAnimationFrame(render);
-  if (overlay.classList.contains("open") && renderer && scene && camera) renderer.render(scene, camera);
+  const editorOpen = overlay.classList.contains("open");
+  const showcase = document.getElementById("characterShowcase");
+  const showcaseVisible = Boolean(
+    showcase &&
+    !document.body.classList.contains("webminecraft-in-world") &&
+    getComputedStyle(showcase).display !== "none" &&
+    showcase.getBoundingClientRect().width > 0
+  );
+  if ((editorOpen || showcaseVisible) && renderer && scene && camera && previewAvatar) renderer.render(scene, camera);
 }
 render();
