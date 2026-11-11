@@ -9,6 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  statuses: write
 
 concurrency:
   group: "webminecraft-pages"
@@ -31,20 +32,25 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        id: install
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Verify perspective camera integration
+        id: verify
         run: |
           test -s Game_base/player/perspectiveCamera.js
           grep -q "createPerspectiveCameraRig" Game_base/core/main.js
 
       - name: Build Vite site
+        id: build
         run: npm run build
 
       - name: Setup Pages
+        id: setup_pages
         uses: actions/configure-pages@v5
 
       - name: Upload Vite build
+        id: upload
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
@@ -53,3 +59,36 @@ jobs:
         id: deployment
         timeout-minutes: 15
         uses: actions/deploy-pages@v5
+
+      - name: Publish GitHub Pages status
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          SETUP_OUTCOME: ${{ steps.setup_pages.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
+          DEPLOY_OUTCOME: ${{ steps.deployment.outcome }}
+        with:
+          script: |
+            const outcomes = [
+              process.env.INSTALL_OUTCOME,
+              process.env.VERIFY_OUTCOME,
+              process.env.BUILD_OUTCOME,
+              process.env.SETUP_OUTCOME,
+              process.env.UPLOAD_OUTCOME,
+              process.env.DEPLOY_OUTCOME
+            ];
+            const failed = outcomes.some(value => value === "failure" || value === "cancelled");
+            const succeeded = outcomes.every(value => value === "success");
+            const state = failed ? "failure" : succeeded ? "success" : "error";
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state,
+              context: "WebMinecraft Pages",
+              description: succeeded ? "GitHub Pages build and deployment succeeded" : "GitHub Pages build or deployment did not complete",
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
