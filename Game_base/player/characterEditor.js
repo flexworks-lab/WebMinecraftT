@@ -80,17 +80,17 @@ style.textContent = `
 #characterClose{position:absolute;top:9px;right:9px;z-index:3;width:38px;height:38px;border:1px solid #888;background:#222;color:#fff;font-size:23px;cursor:pointer}
 @media(max-width:760px){#characterEditor{padding:0}#characterEditorPanel{width:100%;height:100%;min-height:0;grid-template-columns:1fr;grid-template-rows:minmax(180px,30vh) 1fr}#characterEditorControls{padding:13px}#characterEditorTitle{font-size:20px}#characterEditorSub{margin-bottom:8px}#avatarTextureList{grid-template-columns:repeat(4,minmax(0,1fr))}#skinCanvasWrap{width:min(100%,280px)}.characterLabel{margin-top:10px}}
 /* Main-menu character showcase uses this same procedural avatar and renderer. */
-#characterShowcase{position:fixed;right:clamp(18px,5.5vw,88px);bottom:clamp(32px,7vh,72px);z-index:84;width:214px;height:318px;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#393939,#202020);border:2px solid #111;border-top-color:#999;border-left-color:#999;box-shadow:5px 5px 0 rgba(0,0,0,.55),inset 1px 1px 0 rgba(255,255,255,.08);color:#fff;pointer-events:auto}
+#characterShowcase{position:fixed;left:clamp(250px,calc(24px + min(760px,100vw - 280px) + 10px),calc(100vw - 104px));right:auto;bottom:clamp(26px,6vh,56px);z-index:84;width:104px;height:142px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
 #characterShowcase[hidden]{display:none!important}
-#characterShowcaseTitle{height:30px;flex:0 0 30px;display:flex;align-items:center;justify-content:center;background:#292929;border-bottom:2px solid #111;color:#ddd;font:11px MinecraftFont,monospace;letter-spacing:1px;text-shadow:2px 2px 0 #000}
-#characterShowcasePreview{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#555 0,#303030 52%,#171717 100%);touch-action:pan-y}
-#characterShowcasePreview>canvas{display:block;width:100%;height:100%;touch-action:pan-y}
-#characterEditorOpen{width:100%;height:44px;flex:0 0 44px;margin:0;padding:0 6px;border:0;border-top:2px solid #999;background:linear-gradient(#747474,#555);color:#fff;font:12px MinecraftFont,monospace;text-shadow:2px 2px 0 #222;cursor:pointer}
+#characterShowcaseTitle{display:none!important}
+#characterShowcasePreview{position:relative;flex:1 1 auto;min-height:0;overflow:visible;background:transparent;touch-action:pan-y}
+#characterShowcasePreview>canvas{display:block;width:100%;height:100%;touch-action:pan-y;background:transparent}
+#characterEditorOpen{width:100%;height:28px;flex:0 0 28px;margin:0;padding:0 4px;border:2px solid #111;border-top-color:#999;border-left-color:#999;background:linear-gradient(#747474,#555);color:#fff;font:11px MinecraftFont,monospace;text-shadow:2px 2px 0 #222;cursor:pointer;box-shadow:2px 2px 0 #0008}
 #characterEditorOpen:active{filter:brightness(.86)}
 body.webminecraft-in-world #characterShowcase{display:none!important}
 @media(max-width:1360px){
   #menuPanel{width:min(760px,calc(100vw - 280px))!important;margin:0 auto 0 24px!important}
-  #characterShowcase{right:clamp(16px,4vw,60px);width:min(214px,20vw)}
+  #characterShowcase{left:clamp(250px,calc(24px + min(760px,100vw - 280px) + 8px),calc(100vw - 104px));width:96px;height:132px}
 }
 @media(max-width:760px){
   #menuPanel{width:calc(100vw - 148px)!important;max-width:420px!important;margin:0 auto 0 8px!important}
@@ -99,14 +99,12 @@ body.webminecraft-in-world #characterShowcase{display:none!important}
   #menuSplash{width:100%!important;max-width:100%!important;font-size:clamp(9px,2.8vw,12px)!important;margin:2px auto 8px!important;padding:5px 6px!important}
   #menuButtons{width:100%!important}
   #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
-  #characterShowcase{right:8px;bottom:max(58px,env(safe-area-inset-bottom));width:min(34vw,132px);height:min(32vh,220px);min-height:168px}
-  #characterShowcaseTitle{height:24px;flex-basis:24px;font-size:9px}
-  #characterEditorOpen{height:37px;flex-basis:37px;font-size:10px}
+  #characterShowcase{left:auto;right:8px;bottom:max(58px,env(safe-area-inset-bottom));width:82px;height:112px}
+  #characterEditorOpen{height:26px;flex-basis:26px;font-size:10px}
 }
 @media(max-height:520px) and (max-width:900px){
-  #characterShowcase{height:155px;min-height:155px;bottom:10px}
-  #characterShowcaseTitle{height:20px;flex-basis:20px}
-  #characterEditorOpen{height:32px;flex-basis:32px}
+  #characterShowcase{height:96px;bottom:10px}
+  #characterEditorOpen{height:23px;flex-basis:23px}
   #menuPanel{margin-top:0!important}
 }
 `;
@@ -294,11 +292,12 @@ for (const { key, label } of AVATAR_TEXTURE_PARTS) {
 
 function makeScene() {
   scene = new THREE.Scene();
-  scene.background = new THREE.Color("#303030");
+  scene.background = null;
   camera = new THREE.PerspectiveCamera(32, 1, 0.1, 80);
   camera.position.set(3.8, 2.65, 6.8);
   camera.lookAt(0, 1.12, 0);
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
@@ -312,10 +311,26 @@ function makeScene() {
     previewCanvas.setPointerCapture(event.pointerId);
   });
   previewCanvas.addEventListener("pointermove", event => {
-    if (!dragging || !previewAvatar) return;
-    avatarYaw += (event.clientX - lastX) * 0.012;
-    lastX = event.clientX;
-    previewAvatar.group.rotation.y = avatarYaw;
+    if (!previewAvatar) return;
+    const rect = previewCanvas.getBoundingClientRect();
+    const nx = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1));
+    const ny = Math.max(-1, Math.min(1, ((event.clientY - rect.top) / Math.max(1, rect.height)) * 2 - 1));
+    if (dragging) {
+      avatarYaw += (event.clientX - lastX) * 0.012;
+      lastX = event.clientX;
+      previewAvatar.group.rotation.y = avatarYaw;
+    }
+    const head = previewAvatar.parts?.head;
+    if (head) {
+      head.rotation.order = "YXZ";
+      head.rotation.y = nx * 0.58;
+      head.rotation.x = -ny * 0.34;
+    }
+  });
+  previewCanvas.addEventListener("pointerleave", () => {
+    if (!previewAvatar || dragging) return;
+    const head = previewAvatar.parts?.head;
+    if (head) { head.rotation.y = 0; head.rotation.x = 0; }
   });
   const stopDragging = () => { dragging = false; };
   previewCanvas.addEventListener("pointerup", stopDragging);
@@ -328,14 +343,6 @@ function makeScene() {
   const rim = new THREE.DirectionalLight("#9bbfff", 1);
   rim.position.set(-4, 4, -3);
   scene.add(rim);
-  const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(2.4, 32),
-    new THREE.MeshLambertMaterial({ color: "#414141" })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.02;
-  ground.receiveShadow = true;
-  scene.add(ground);
 }
 
 async function buildPreview(force = false) {
@@ -643,9 +650,8 @@ function addMenuButton() {
   showcase.id = "characterShowcase";
   showcase.setAttribute("aria-label", "Your character");
   showcase.innerHTML = `
-    <div id="characterShowcaseTitle">YOUR CHARACTER</div>
-    <div id="characterShowcasePreview" aria-label="Drag to rotate your character"></div>
-    <button id="characterEditorOpen" type="button">CUSTOMIZE</button>
+    <div id="characterShowcasePreview" aria-label="Move your mouse to look around"></div>
+    <button id="characterEditorOpen" type="button">CHARACTER</button>
   `;
   showcase.querySelector("#characterEditorOpen").addEventListener("click", show);
   document.body.appendChild(showcase);
