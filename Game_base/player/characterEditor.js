@@ -88,16 +88,16 @@ style.textContent = `
 #characterEditorOpen{width:100%;height:30px;flex:0 0 30px;margin:0;padding:0 4px;border:2px solid #111;border-top-color:#999;border-left-color:#999;background:linear-gradient(#747474,#555);color:#fff;font:11px MinecraftFont,monospace;text-shadow:2px 2px 0 #222;cursor:pointer;box-shadow:2px 2px 0 #0008}
 #characterEditorOpen:active{filter:brightness(.86)}
 body.webminecraft-in-world #characterShowcase{display:none!important}
-/* Keep the button stack centered, with the character beside its right edge. */
+/* Keep the menu panel centered; only increase the space before its buttons. */
+body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
 body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(760px,96vw)!important;margin:0 auto!important}
-body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:28px auto 0!important}
+body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:48px auto 0!important}
 @media(max-width:1360px){
   #characterShowcase{left:calc(50% + 176px);width:138px;height:196px}
 }
 @media(max-width:760px){
-  body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
-  body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(420px,calc(100vw - 128px))!important;max-width:420px!important;max-height:calc(100dvh - 20px)!important;margin:10px auto 10px 10px!important;padding:8px 6px 16px!important;overflow-x:hidden!important;overflow-y:auto!important}
-  body:not(.webminecraft-in-world) #mainMenu #menuButtons{width:100%!important;margin:18px auto 0!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(420px,calc(100vw - 128px))!important;max-width:420px!important;max-height:calc(100dvh - 20px)!important;margin:10px auto!important;padding:8px 6px 16px!important;overflow-x:hidden!important;overflow-y:auto!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuButtons{width:100%!important;margin:34px auto 0!important}
   body:not(.webminecraft-in-world) #mainMenu #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
   #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
   #menuSubtitle{font-size:8px!important;line-height:1.25!important;margin:6px 0 8px!important}
@@ -109,9 +109,9 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:28px auto 0!impor
   #characterShowcase{right:8px;width:102px;height:146px}
 }
 @media(max-height:660px){
-  body:not(.webminecraft-in-world) #mainMenu{align-items:flex-start!important}
-  body:not(.webminecraft-in-world) #mainMenu #menuPanel{max-height:calc(100dvh - 16px)!important;margin:8px auto 8px 10px!important;padding-top:6px!important}
-  body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin-top:14px!important}
+  body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuPanel{max-height:calc(100dvh - 16px)!important;margin:8px auto!important;padding-top:6px!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin-top:24px!important}
   #characterShowcase{top:50%;transform:translateY(-8%);height:168px;width:124px}
 }
 @media(max-height:520px) and (max-width:900px){
