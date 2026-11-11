@@ -843,8 +843,7 @@ const getMultiplayerIdentity = () => {
             ? "Your browser hosts this world. Keep this tab open while others play."
             : "Hosted on the WebMinecraft multiplayer server.";
         if (playerHosted) {
-            selectedPrivate = false;
-            privateCodeInput.value = "";
+            setServerType(false);
             setKeepOpen24h(false);
             setKeepOpenForever(false);
         }
