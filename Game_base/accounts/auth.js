@@ -143,7 +143,7 @@ async function syncUserProfile(user, profileOverride = null) {
         setTimeout(hidePlayerDataSync, 650);
     } catch (error) {
         console.warn("Could not sync account profile:", error);
-        setPlayerDataSyncProgress(0, "Cloud sync failed. Your existing profile was left untouched; try again when connected.");
+        setPlayerDataSyncProgress(0, "Cloud sync did not finish. Sign in again when connected to retry.");
         setTimeout(hidePlayerDataSync, 2600);
     }
 }
