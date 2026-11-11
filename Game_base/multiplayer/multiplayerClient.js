@@ -117,8 +117,8 @@ function installPlayerDataSyncCancelHandler() {
 installPlayerDataSyncCancelHandler();
 ensureRoomOwnerControls();
 
-const PRODUCTION_SERVER_URL = "wss://webminecraftt-multiplayer-production.up.railway.app/multiplayer";
-const PRODUCTION_API_URL = "https://webminecraftt-multiplayer-production.up.railway.app";
+const PRODUCTION_SERVER_URL = "wss://webminecraftt-multiplayer.onrender.com/multiplayer";
+const PRODUCTION_API_URL = "https://webminecraftt-multiplayer.onrender.com";
 
 function queueWorldChange(change) {
     const x = Math.floor(Number(change?.x));
