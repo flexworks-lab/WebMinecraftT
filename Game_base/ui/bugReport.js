@@ -181,6 +181,9 @@ function closeReport() {
     reportModal.classList.remove("open");
     reportModal.style.display = "none";
     if (reportStatus) reportStatus.textContent = screenshotBlob ? "Screenshot attached." : "Attach a screenshot to continue.";
+    if (document.body.classList.contains("webminecraft-in-world") && !document.body.classList.contains("mobile-mode")) {
+        window.setTimeout(() => document.body.requestPointerLock?.(), 0);
+    }
 }
 
 function refreshAttachments() {
