@@ -98,6 +98,7 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:28px auto 0!impor
   body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
   body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(420px,calc(100vw - 128px))!important;max-width:420px!important;max-height:calc(100dvh - 20px)!important;margin:10px auto 10px 10px!important;padding:8px 6px 16px!important;overflow-x:hidden!important;overflow-y:auto!important}
   body:not(.webminecraft-in-world) #mainMenu #menuButtons{width:100%!important;margin:18px auto 0!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
   #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
   #menuSubtitle{font-size:8px!important;line-height:1.25!important;margin:6px 0 8px!important}
   #characterShowcase{left:auto;right:10px;top:50%;bottom:auto;transform:translateY(8%);width:112px;height:160px}
