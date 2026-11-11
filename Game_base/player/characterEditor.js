@@ -28,6 +28,26 @@ function getIdentity() {
   return { id: appearanceId, appearanceId, name: username };
 }
 
+function readRosterTextureStore() {
+  try {
+    const record = JSON.parse(localStorage.getItem(ROSTER_STORAGE_KEY) || "null");
+    if (!record || Number(record.version) !== 1 || !Array.isArray(record.slots)) return { slots: [{}, {}, {}, {}, {}] };
+    return { slots: Array.from({ length: 5 }, (_, index) =>
+      record.slots[index] && typeof record.slots[index] === "object" ? record.slots[index] : {}
+    ) };
+  } catch {
+    return { slots: [{}, {}, {}, {}, {}] };
+  }
+}
+function writeRosterTextureStore() {
+  try {
+    localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify({ version: 1, slots: rosterTextureStore.slots }));
+    return true;
+  } catch (error) {
+    console.warn("Could not save character presets in this browser.", error);
+    return false;
+  }
+}
 function readSavedTextures() {
   return readCharacterTextureRecord()?.textures || null;
 }
@@ -48,39 +68,83 @@ function snapshotTextures(textures) {
 
 const style = document.createElement("style");
 style.textContent = `
-#characterEditor{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(8,10,12,.92);color:#f5f5f5;font-family:Arial,sans-serif}
-#characterEditor.open{display:flex}#characterEditor *{box-sizing:border-box}
-#characterEditorPanel{position:relative;width:min(1200px,100%);height:min(790px,94vh);min-height:490px;display:grid;grid-template-columns:minmax(0,1fr) minmax(370px,.86fr);overflow:hidden;background:#292929;border:2px solid #777;box-shadow:0 18px 60px #000b}
-#characterEditorPreview{position:relative;min-width:0;min-height:0;background:radial-gradient(ellipse at 50% 38%,#565656 0,#303030 45%,#171717 100%)}
+#characterEditor{position:fixed;inset:0;z-index:500;display:none;overflow:hidden;background:radial-gradient(ellipse at 58% 42%,rgba(18,27,42,.82),rgba(4,6,11,.96) 58%,#020307 100%);color:#f5f7fb;font-family:Arial,sans-serif}
+#characterEditor.open{display:block}#characterEditor *{box-sizing:border-box}
+#characterEditorShell{width:100%;height:100%;height:100dvh;display:flex;min-width:0;background:linear-gradient(115deg,rgba(20,28,42,.18),transparent 45%)}
+#characterEditorSidebar{position:relative;z-index:5;flex:0 0 68px;width:68px;display:flex;flex-direction:column;gap:9px;padding:18px 9px;background:rgba(5,8,14,.94);border-right:1px solid rgba(160,180,210,.18);overflow:hidden;transition:width .2s ease,flex-basis .2s ease}
+#characterEditorSidebar:hover,#characterEditorSidebar:focus-within{width:212px;flex-basis:212px}
+#characterEditorBrand{height:42px;flex:0 0 42px;display:flex;align-items:center;gap:13px;padding:0 8px 12px;color:#fff;border-bottom:1px solid rgba(180,195,220,.16);font-size:12px;font-weight:800;letter-spacing:1.2px;white-space:nowrap}
+#characterEditorBrandMark{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;background:#202d42;border:1px solid #536783;color:#dce9ff;font-size:17px}
+.characterNavButton{height:46px;min-height:46px;width:100%;display:flex;align-items:center;gap:15px;padding:0 10px;border:1px solid transparent;background:transparent;color:#aab5c6;text-align:left;white-space:nowrap;font-size:12px;font-weight:700;cursor:pointer}
+.characterNavButton svg{width:24px;height:24px;flex:0 0 24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.characterNavButton span{opacity:0;transition:opacity .12s ease}
+#characterEditorSidebar:hover .characterNavButton span,#characterEditorSidebar:focus-within .characterNavButton span{opacity:1}
+.characterNavButton:hover,.characterNavButton.active{background:#182438;border-color:#334965;color:#fff}
+#characterSidebarSpacer{flex:1}
+#characterClose{width:100%;height:42px;border:1px solid #45546a;background:#131b29;color:#fff;font-size:22px;cursor:pointer}
+#characterEditorMain{position:relative;display:flex;flex:1;min-width:0;min-height:0;flex-direction:column}
+#characterEditorTopbar{height:62px;min-height:62px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 28px;border-bottom:1px solid rgba(160,180,210,.16);background:rgba(4,7,12,.52)}
+#characterEditorTopbarTitle{font-size:13px;font-weight:800;letter-spacing:2px;color:#f0f4fb}
+#characterEditorTopbarSub{margin-top:4px;color:#8996aa;font-size:11px}
+#characterEditorStatus{padding:7px 10px;border:1px solid #34465f;background:#111b2a;color:#b8d7ff;font-size:10px;font-weight:700;letter-spacing:.7px}
+.characterEditorPage{flex:1;min-height:0;min-width:0;overflow:auto}
+.characterEditorPage[hidden]{display:none!important}
+#characterRosterPage{display:flex;flex-direction:column;align-items:stretch;padding:clamp(18px,3vh,34px) clamp(18px,3vw,44px) 18px}
+#characterRosterIntro{text-align:center;flex:0 0 auto}
+#characterRosterIntro h1{margin:0;color:#fff;font-size:clamp(22px,3vw,36px);font-weight:800;letter-spacing:1.2px}
+#characterRosterIntro p{max-width:720px;margin:9px auto 0;color:#9ca9bb;font-size:13px;line-height:1.55}
+#characterRosterStage{position:relative;flex:1 1 auto;min-height:330px;height:58vh;max-height:680px;margin:10px 0 0;overflow:hidden}
+#characterRosterStage>canvas{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:pan-y}
+#characterRosterCards{position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:end;padding:0 5.2% 12px;pointer-events:none}
+.rosterCard{height:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;pointer-events:none}
+.rosterCardNumber{padding:4px 9px;border:1px solid rgba(150,170,200,.35);background:rgba(5,9,16,.68);color:#aab9cf;font-size:11px;font-weight:800;letter-spacing:1px}
+.rosterCardName{min-height:14px;color:#c3cede;font-size:10px;font-weight:800;letter-spacing:1px;text-align:center}
+.rosterCard.isCenter .rosterCardNumber{border-color:#8bb7ed;background:#203653;color:#fff}
+.rosterCard.isCenter .rosterCardName{color:#fff}
+.rosterEditButton{width:min(108px,90%);height:36px;border:1px solid #607b9d;border-top-color:#9eb5d0;background:linear-gradient(#3c587b,#263b58);color:#fff;font-size:11px;font-weight:800;letter-spacing:1px;cursor:pointer;pointer-events:auto}
+.rosterEditButton:hover{filter:brightness(1.18)}
+.rosterArrow{position:absolute;top:47%;z-index:2;width:42px;height:54px;border:1px solid #455975;background:rgba(7,12,20,.86);color:#e5efff;font-size:32px;line-height:1;cursor:pointer}
+.rosterArrow:hover{background:#1c2c42;border-color:#8ba8ce}
+#rosterPrev{left:0}#rosterNext{right:0}
+#characterRosterInstructions{flex:0 0 auto;max-width:900px;margin:4px auto 0;padding:12px 18px;border:1px solid rgba(130,155,190,.18);background:rgba(8,13,22,.6);color:#98a7bc;font-size:11px;line-height:1.6;text-align:center}
+#characterRosterInstructions strong{color:#e5edf9}
+#characterPaintPage{display:flex;flex-direction:column;overflow:hidden}
+#characterPaintHeader{height:48px;min-height:48px;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid rgba(160,180,210,.15);background:rgba(7,11,18,.8)}
+#characterBackRoster{height:30px;padding:0 12px;border:1px solid #3d506b;background:#162235;color:#dbe8f8;font-size:11px;font-weight:700;cursor:pointer}
+#characterEditingName{color:#fff;font-size:12px;font-weight:800;letter-spacing:1px}
+#characterEditorWorkspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,420px);flex:1;min-height:0;overflow:hidden}
+#characterEditorPreview{position:relative;min-width:0;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,rgba(28,39,57,.44),rgba(3,5,9,.96) 72%),#05070b}
 #characterEditorPreview>canvas{width:100%;height:100%;display:block}
-#characterEditorHint{position:absolute;left:14px;bottom:12px;color:#ddd;font-size:11px;letter-spacing:1px;text-transform:uppercase;pointer-events:none}
-#characterEditorStatus{position:absolute;top:14px;left:14px;padding:7px 9px;background:rgba(0,0,0,.48);border:1px solid #777;color:#d8efbd;font:bold 10px Arial,sans-serif;letter-spacing:.6px;pointer-events:none}
-#characterEditorControls{padding:18px;overflow:auto;background:#292929}
-#characterEditorTitle{margin:0 0 5px;font-size:23px;letter-spacing:.7px}
-#characterEditorSub{color:#bbb;font-size:12px;line-height:1.5;margin:0 0 12px}
-.characterLabel{display:block;margin:13px 0 7px;color:#ddd;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+#characterEditorHint{position:absolute;left:18px;bottom:14px;padding:7px 10px;background:rgba(4,8,14,.72);border:1px solid rgba(145,165,195,.25);color:#aebbd0;font-size:10px;letter-spacing:.7px;text-transform:uppercase;pointer-events:none}
+#characterEditorControls{padding:20px 18px 28px;overflow:auto;background:rgba(7,11,18,.96);border-left:1px solid rgba(150,170,200,.16)}
+#characterEditorTitle{margin:0 0 5px;font-size:21px;letter-spacing:.7px}
+#characterEditorSub{color:#9eabc0;font-size:12px;line-height:1.55;margin:0 0 12px}
+.characterLabel{display:block;margin:13px 0 7px;color:#d2dceb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 #avatarTextureList{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-.avatarTextureChoice{min-width:0;padding:6px 3px 5px;border:1px solid #151515;border-top-color:#666;border-left-color:#666;background:#444;color:#eee;font-size:10px;font-weight:700;cursor:pointer}
-.avatarTextureChoice.active{outline:2px solid #fff;outline-offset:1px;background:#626262}
-.avatarTextureChoice canvas{display:block;width:38px;height:38px;margin:0 auto 5px;image-rendering:pixelated; background-color:#777}
-#skinCanvasWrap{width:min(100%,330px);aspect-ratio:1;background-color:#ddd;background-image:linear-gradient(45deg,#aaa 25%,transparent 25%),linear-gradient(-45deg,#aaa 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#aaa 75%),linear-gradient(-45deg,transparent 75%,#aaa 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;border:2px solid #888;touch-action:none}
+.avatarTextureChoice{min-width:0;padding:6px 3px 5px;border:1px solid #26364d;background:#121d2d;color:#e4ecf8;font-size:10px;font-weight:700;cursor:pointer}
+.avatarTextureChoice.active{outline:2px solid #8cb6ec;outline-offset:1px;background:#243a56}
+.avatarTextureChoice canvas{display:block;width:38px;height:38px;margin:0 auto 5px;image-rendering:pixelated;background-color:#777}
+#skinCanvasWrap{width:min(100%,330px);aspect-ratio:1;background-color:#ddd;background-image:linear-gradient(45deg,#aaa 25%,transparent 25%),linear-gradient(-45deg,#aaa 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#aaa 75%),linear-gradient(-45deg,transparent 75%,#aaa 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;border:2px solid #50617b;touch-action:none}
 #skinCanvas{display:block;width:100%;height:100%;image-rendering:pixelated;cursor:crosshair;touch-action:none}
 #skinTools{display:flex;gap:6px;flex-wrap:wrap}
-.skinTool{min-height:30px;padding:0 9px;border:1px solid #111;border-top-color:#999;border-left-color:#999;background:#555;color:#fff;font-weight:700;font-size:10px;cursor:pointer}
-.skinTool.active{outline:2px solid #fff;outline-offset:1px;background:#777}
+.skinTool{min-height:30px;padding:0 9px;border:1px solid #283b56;background:#1c2c42;color:#fff;font-weight:700;font-size:10px;cursor:pointer}
+.skinTool.active{outline:2px solid #9bbce7;outline-offset:1px;background:#344e70}
 #skinPalette{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
-.skinColor{aspect-ratio:1;border:2px solid #111;outline:1px solid #777;cursor:pointer;min-width:0}
+.skinColor{aspect-ratio:1;border:2px solid #111;outline:1px solid #62748d;cursor:pointer;min-width:0}
 .skinColor[aria-pressed=true]{outline:3px solid white;outline-offset:1px}
-#skinColorRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:#ccc}
-#skinCustomColor{width:38px;height:28px;padding:0;border:1px solid #aaa;background:transparent;cursor:pointer}
-#skinBrushSize{background:#444;color:#fff;border:1px solid #888;padding:5px}
+#skinColorRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:#b9c6d8}
+#skinCustomColor{width:38px;height:28px;padding:0;border:1px solid #647994;background:transparent;cursor:pointer}
+#skinBrushSize{background:#101a28;color:#fff;border:1px solid #526680;padding:5px}
 #characterActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:15px}
-.characterAction{min-height:38px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#626262;color:white;font-weight:700;font-size:10px;cursor:pointer}
-.characterAction.primary{background:#668746}
-#characterClose{position:absolute;top:9px;right:9px;z-index:3;width:38px;height:38px;border:1px solid #888;background:#222;color:#fff;font-size:23px;cursor:pointer}
-@media(max-width:760px){#characterEditor{padding:0}#characterEditorPanel{width:100%;height:100%;min-height:0;grid-template-columns:1fr;grid-template-rows:minmax(180px,30vh) 1fr}#characterEditorControls{padding:13px}#characterEditorTitle{font-size:20px}#characterEditorSub{margin-bottom:8px}#avatarTextureList{grid-template-columns:repeat(4,minmax(0,1fr))}#skinCanvasWrap{width:min(100%,280px)}.characterLabel{margin-top:10px}}
-/* Main-menu character showcase uses this same procedural avatar and renderer. */
-#characterShowcase{position:fixed;left:calc(50% + 180px);right:auto;top:50%;bottom:auto;transform:translateY(4%);z-index:84;width:148px;height:210px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
+.characterAction{min-height:38px;border:1px solid #425775;background:#263a55;color:white;font-weight:700;font-size:10px;cursor:pointer}
+.characterAction.primary{background:#52733f;border-color:#78985c}
+#characterHelpPage{padding:clamp(20px,4vw,52px);overflow:auto}
+#characterHelpPanel{max-width:850px;margin:0 auto;padding:clamp(20px,4vw,40px);border:1px solid rgba(145,170,205,.25);background:rgba(8,13,22,.72)}
+#characterHelpPanel h1{margin:0 0 10px;font-size:26px;color:#fff}
+#characterHelpPanel p,#characterHelpPanel li{color:#aab8cb;font-size:13px;line-height:1.7}
+#characterHelpPanel strong{color:#eff5ff}
+#characterClose{height:34px;width:40px;border:1px solid #45546a;background:#131b29;color:#fff;font-size:22px;cursor:pointer}
+#characterShowcase{position:fixed;left:calc(50% + 198px);right:auto;top:50%;bottom:auto;transform:translateY(4%);z-index:84;width:148px;height:210px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
 #characterShowcase[hidden]{display:none!important}
 #characterShowcaseTitle{display:none!important}
 #characterShowcasePreview{position:relative;flex:1 1 auto;min-height:0;overflow:visible;background:transparent;touch-action:pan-y}
@@ -88,81 +152,143 @@ style.textContent = `
 #characterEditorOpen{width:100%;height:30px;flex:0 0 30px;margin:0;padding:0 4px;border:2px solid #111;border-top-color:#999;border-left-color:#999;background:linear-gradient(#747474,#555);color:#fff;font:11px MinecraftFont,monospace;text-shadow:2px 2px 0 #222;cursor:pointer;box-shadow:2px 2px 0 #0008}
 #characterEditorOpen:active{filter:brightness(.86)}
 body.webminecraft-in-world #characterShowcase{display:none!important}
-/* Keep the menu panel centered; only increase the space before its buttons. */
 body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
 body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(760px,96vw)!important;margin:0 auto!important}
 body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:48px auto 0!important}
-@media(max-width:1360px){
-  #characterShowcase{left:calc(50% + 176px);width:138px;height:196px}
+@media(max-width:1360px){#characterShowcase{left:calc(50% + 194px);width:138px;height:196px}}
+@media(max-width:900px){
+ #characterEditorSidebar{flex-basis:56px;width:56px;padding:12px 6px}
+ #characterEditorSidebar:hover,#characterEditorSidebar:focus-within{width:184px;flex-basis:184px}
+ #characterEditorTopbar{padding:0 12px}
+ #characterRosterPage{padding:16px 10px}
+ #characterRosterStage{height:54vh;min-height:290px}
+ #characterRosterCards{padding-left:7%;padding-right:7%}
+ .rosterArrow{width:34px;height:46px;font-size:27px}
+ #characterRosterInstructions{font-size:10px;padding:9px}
+ #characterEditorWorkspace{grid-template-columns:minmax(0,1fr) minmax(300px,38vw)}
+ #characterEditorControls{padding:14px 12px}
+ #skinCanvasWrap{width:min(100%,260px)}
 }
 @media(max-width:760px){
-  body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(420px,calc(100vw - 128px))!important;max-width:420px!important;max-height:calc(100dvh - 20px)!important;margin:10px auto!important;padding:8px 6px 16px!important;overflow-x:hidden!important;overflow-y:auto!important}
-  body:not(.webminecraft-in-world) #mainMenu #menuButtons{width:100%!important;margin:34px auto 0!important}
-  body:not(.webminecraft-in-world) #mainMenu #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
-  #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
-  #menuSubtitle{font-size:8px!important;line-height:1.25!important;margin:6px 0 8px!important}
-  #characterShowcase{left:auto;right:10px;top:50%;bottom:auto;transform:translateY(8%);width:112px;height:160px}
-  #characterEditorOpen{height:28px;flex-basis:28px;font-size:10px}
+ body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(420px,calc(100vw - 128px))!important;max-width:420px!important}
+ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin-top:34px!important}
+ body:not(.webminecraft-in-world) #mainMenu #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
+ #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
+ #menuSubtitle{font-size:8px!important;line-height:1.25!important;margin:6px 0 8px!important}
+ #characterShowcase{left:auto;right:10px;top:50%;bottom:auto;transform:translateY(8%);width:112px;height:160px}
+ #characterEditorOpen{height:28px;flex-basis:28px;font-size:10px}
+ #characterEditorTopbar{height:54px;min-height:54px}
+ #characterEditorTopbarSub{display:none}
+ #characterEditorStatus{font-size:9px;padding:5px}
+ #characterRosterIntro p{font-size:11px}
+ #characterRosterStage{height:50vh;min-height:260px}
+ #characterRosterCards{padding-left:5%;padding-right:5%}
+ .rosterCardNumber{font-size:9px;padding:3px 5px}
+ .rosterCardName{font-size:8px}
+ .rosterEditButton{height:30px;font-size:9px}
+ .rosterArrow{width:27px;height:40px;font-size:23px}
+ #characterEditorWorkspace{grid-template-columns:1fr;grid-template-rows:minmax(180px,36vh) minmax(0,1fr);overflow:auto}
+ #characterEditorControls{border-left:0;border-top:1px solid rgba(150,170,200,.16)}
+ #characterEditorPreview{min-height:180px}
+ #characterPaintPage{overflow:auto}
+ #characterEditorControls{overflow:visible}
+ #characterEditorSidebar:hover,#characterEditorSidebar:focus-within{width:172px;flex-basis:172px}
 }
 @media(max-width:520px){
-  body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:calc(100vw - 122px)!important}
-  #characterShowcase{right:8px;width:102px;height:146px}
+ #characterShowcase{right:8px;width:102px;height:146px}
 }
-@media(max-height:660px){
-  body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
-  body:not(.webminecraft-in-world) #mainMenu #menuPanel{max-height:calc(100dvh - 16px)!important;margin:8px auto!important;padding-top:6px!important}
-  body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin-top:24px!important}
-  #characterShowcase{top:50%;transform:translateY(-8%);height:168px;width:124px}
-}
-@media(max-height:520px) and (max-width:900px){
-  #characterShowcase{height:128px;width:96px;top:50%;bottom:auto}
-  #characterEditorOpen{height:24px;flex-basis:24px}
-}
-`;
+;
 document.head.appendChild(style);
 
 const overlay = document.createElement("section");
 overlay.id = "characterEditor";
 overlay.setAttribute("aria-label", "Procedural character texture editor");
 overlay.innerHTML = `
-<div id="characterEditorPanel">
-  <div id="characterEditorPreview">
-    <button id="characterClose" type="button" aria-label="Close character editor">×</button>
-    <div id="characterEditorStatus">LIVE PREVIEW · SAME PROCEDURAL MODEL</div>
-    <div id="characterEditorHint">Drag to rotate · F5 changes in-game view</div>
-  </div>
-  <div id="characterEditorControls">
-    <h2 id="characterEditorTitle">CHARACTER TEXTURE STUDIO</h2>
-    <p id="characterEditorSub">These are the game's actual generated character textures. Paint pixels on each texture; the procedural model and its proportions stay locked.</p>
-    <span class="characterLabel">Generated texture maps</span>
-    <div id="avatarTextureList"></div>
-    <span class="characterLabel" id="activeTextureLabel">Face · 16 × 16</span>
-    <div id="skinCanvasWrap"><canvas id="skinCanvas" width="16" height="16"></canvas></div>
-    <span class="characterLabel">Paint tools</span>
-    <div id="skinTools">
-      <button class="skinTool active" type="button" data-tool="paint">PAINT</button>
-      <button class="skinTool" type="button" data-tool="erase">ERASER</button>
-      <button class="skinTool" type="button" data-tool="pick">PICK COLOR</button>
-      <button class="skinTool" type="button" id="skinUndo">UNDO</button>
-      <button class="skinTool" type="button" id="skinGrid" aria-pressed="true">PIXEL GRID: ON</button>
-    </div>
-    <div id="skinColorRow">Brush
-      <select id="skinBrushSize" aria-label="Brush size">
-        <option value="1">1 px</option><option value="2">2 px</option>
-        <option value="3">3 px</option><option value="4">4 px</option>
-      </select>
-      <label for="skinCustomColor">Custom</label><input id="skinCustomColor" type="color" value="#3974bd">
-    </div>
-    <span class="characterLabel">Color palette</span><div id="skinPalette"></div>
-    <div id="characterActions">
-      <button class="characterAction" id="skinImport" type="button">IMPORT MAP PNG</button>
-      <button class="characterAction" id="skinExport" type="button">EXPORT MAP PNG</button>
-      <button class="characterAction" id="characterReset" type="button">RESET GENERATED TEXTURES</button>
-      <button class="characterAction primary" id="characterSave" type="button">SAVE TEXTURES</button>
-    </div>
-    <input id="skinFileInput" type="file" accept="image/png,image/webp,image/jpeg" hidden>
-  </div>
-</div>`;
+<div id="characterEditorShell">
+  <aside id="characterEditorSidebar" aria-label="Character studio navigation">
+    <div id="characterEditorBrand"><b id="characterEditorBrandMark">✦</b><span>CHARACTER STUDIO</span></div>
+    <button class="characterNavButton active" type="button" data-editor-page="roster" title="Characters">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="7" r="3"/><circle cx="17" cy="8" r="2.5"/><path d="M2.5 20c.4-4 2.2-6 5.5-6s5.2 2 5.5 6M14 15c3.8-1.2 6.8.7 7.5 4.5"/></svg><span>Characters</span>
+    </button>
+    <button class="characterNavButton" type="button" data-editor-page="paint" title="Texture editor">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16 10-10 4 4L8 20H4z"/><path d="m12 8 4 4M4 20l4-1M17 3l4 4"/></svg><span>Texture editor</span>
+    </button>
+    <button class="characterNavButton" type="button" data-editor-page="guide" title="Instructions">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 4.2 1.6c-1.2 1.1-1.9 1.4-1.9 3M12 17.5h.01"/></svg><span>Instructions</span>
+    </button>
+    <div id="characterSidebarSpacer"></div>
+    <button id="characterClose" type="button" aria-label="Close character studio" title="Close">×</button>
+  </aside>
+  <main id="characterEditorMain">
+    <header id="characterEditorTopbar">
+      <div><div id="characterEditorTopbarTitle">CHARACTER SELECT</div><div id="characterEditorTopbarSub">Browse your five character slots and choose one to edit.</div></div>
+      <div id="characterEditorStatus">ROSTER READY</div>
+    </header>
+    <section id="characterRosterPage" class="characterEditorPage">
+      <div id="characterRosterIntro"><h1>CHOOSE YOUR CHARACTER</h1><p>Move through the lineup with the arrows. Each character has its own texture maps and an Edit button.</p></div>
+      <div id="characterRosterStage">
+        <button class="rosterArrow" id="rosterPrev" type="button" aria-label="Move previous character to center">‹</button>
+        <div id="characterRosterCards">
+          <div class="rosterCard" data-roster-position="0"><div class="rosterCardNumber">01</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
+          <div class="rosterCard" data-roster-position="1"><div class="rosterCardNumber">02</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
+          <div class="rosterCard" data-roster-position="2"><div class="rosterCardNumber">03</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
+          <div class="rosterCard" data-roster-position="3"><div class="rosterCardNumber">04</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
+          <div class="rosterCard" data-roster-position="4"><div class="rosterCardNumber">05</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
+        </div>
+        <button class="rosterArrow" id="rosterNext" type="button" aria-label="Move next character to center">›</button>
+      </div>
+      <div id="characterRosterInstructions"><strong>How the lineup works:</strong> The center character is highlighted. Press an arrow to slide the next character into the center. Choose <strong>EDIT</strong> under any character to paint its face, skin, shirt, pants, or shoes. Slot 3 is your live in-game character; the other four are browser-saved presets.</div>
+    </section>
+    <section id="characterPaintPage" class="characterEditorPage" hidden>
+      <div id="characterPaintHeader"><button id="characterBackRoster" type="button">← BACK TO LINEUP</button><span id="characterEditingName">EDITING CHARACTER 3</span></div>
+      <div id="characterEditorWorkspace">
+        <div id="characterEditorPreview"><div id="characterEditorHint">Paint a map on the right · Changes preview on the model</div></div>
+        <div id="characterEditorControls">
+          <h2 id="characterEditorTitle">TEXTURE EDITOR</h2>
+          <p id="characterEditorSub">Pick a map, choose a colour, then paint directly onto the 16 × 16 pixels. Your character model and proportions stay the same.</p>
+          <span class="characterLabel">Choose a texture map</span>
+          <div id="avatarTextureList"></div>
+          <span class="characterLabel" id="activeTextureLabel">Face · 16 × 16</span>
+          <div id="skinCanvasWrap"><canvas id="skinCanvas" width="16" height="16"></canvas></div>
+          <span class="characterLabel">Paint tools</span>
+          <div id="skinTools">
+            <button class="skinTool active" type="button" data-tool="paint">PAINT</button>
+            <button class="skinTool" type="button" data-tool="erase">ERASER</button>
+            <button class="skinTool" type="button" data-tool="pick">PICK COLOR</button>
+            <button class="skinTool" type="button" id="skinUndo">UNDO</button>
+            <button class="skinTool" type="button" id="skinGrid" aria-pressed="true">PIXEL GRID: ON</button>
+          </div>
+          <div id="skinColorRow">Brush
+            <select id="skinBrushSize" aria-label="Brush size">
+              <option value="1">1 px</option><option value="2">2 px</option>
+              <option value="3">3 px</option><option value="4">4 px</option>
+            </select>
+            <label for="skinCustomColor">Custom</label><input id="skinCustomColor" type="color" value="#3974bd">
+          </div>
+          <span class="characterLabel">Color palette</span><div id="skinPalette"></div>
+          <div id="characterActions">
+            <button class="characterAction" id="skinImport" type="button">IMPORT MAP PNG</button>
+            <button class="characterAction" id="skinExport" type="button">EXPORT MAP PNG</button>
+            <button class="characterAction" id="characterReset" type="button">RESET GENERATED TEXTURES</button>
+            <button class="characterAction primary" id="characterSave" type="button">SAVE CHARACTER</button>
+          </div>
+          <input id="skinFileInput" type="file" accept="image/png,image/webp,image/jpeg" hidden>
+        </div>
+      </div>
+    </section>
+    <section id="characterHelpPage" class="characterEditorPage" hidden>
+      <div id="characterHelpPanel">
+        <h1>CHARACTER STUDIO GUIDE</h1>
+        <p><strong>Browse the roster:</strong> There are five slots arranged from left to right. Use the arrows outside the lineup. The neighbour on that side slides into the center and the rest of the lineup shifts with it.</p>
+        <p><strong>Edit a character:</strong> Press the EDIT button below a character. The texture editor opens for that exact slot. Use the left sidebar to return to Characters, open the Texture editor, or view these instructions.</p>
+        <p><strong>Paint textures:</strong> Choose Face, Head Back, Head Side, Head Top, Skin, Shirt, Pants, or Shoes. Select a palette colour or use Custom. PAINT adds pixels, ERASER removes them, PICK COLOR samples a pixel, and UNDO reverses your last stroke.</p>
+        <p><strong>Save rules:</strong> Slot 3 is the character used in your game and online rooms. Saving slot 3 also updates your browser and account profile when available. Slots 1, 2, 4, and 5 are separate presets saved in this browser only; they do not replace your online character.</p>
+        <p><strong>Import and export:</strong> PNG files are resized to 16 × 16 pixels for the selected texture map. Export each map separately to keep a backup.</p>
+        <p><strong>Tips:</strong> The 3D character follows your mouse anywhere on the screen. You can drag across the preview to rotate the whole model. Press ESC to close the studio or Ctrl+Z to undo a paint stroke.</p>
+      </div>
+    </section>
+  </main>
+</div>;
 document.body.appendChild(overlay);
 
 const skinCanvas = overlay.querySelector("#skinCanvas");
@@ -188,6 +314,15 @@ let resetOverridesPending = false;
 let currentIdentity = "";
 let selectedTextureKey = "face";
 let selectedColor = PALETTE[5];
+const ROSTER_STORAGE_KEY = "webminecraft-character-roster-v1";
+const MAIN_PROFILE_SLOT = 2;
+let rosterAvatars = [];
+let rosterOrder = [0, 1, 2, 3, 4];
+let selectedRosterSlot = MAIN_PROFILE_SLOT;
+let editorPage = "roster";
+let rosterTextureStore = readRosterTextureStore();
+let headLookX = 0;
+let headLookY = 0;
 let tool = "paint";
 let brushSize = 1;
 let painting = false;
