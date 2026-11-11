@@ -19,5 +19,6 @@
   },
   "devDependencies": {
     "vite": "^7.1.5"
-  }
+  },
+  "homepage": "https://flexworks-lab.github.io/WebMinecraftT/"
 }
