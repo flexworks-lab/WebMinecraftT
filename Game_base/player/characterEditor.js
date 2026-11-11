@@ -318,6 +318,7 @@ let selectedColor = PALETTE[5];
 const ROSTER_STORAGE_KEY = "webminecraft-character-roster-v1";
 const MAIN_PROFILE_SLOT = 2;
 let rosterAvatars = [];
+let rosterBuildPromise = null;
 let rosterOrder = [0, 1, 2, 3, 4];
 let selectedRosterSlot = MAIN_PROFILE_SLOT;
 let editorPage = "roster";
@@ -618,43 +619,53 @@ async function buildPreview(force = false) {
   const identity = getIdentity();
   const key = identity.id;
   if (!force && rosterAvatars.length === 5 && currentIdentity === key) return;
-  rosterAvatars.forEach(disposePreviewAvatar);
-  rosterAvatars = [];
-  previewAvatar = null;
-  currentIdentity = key;
-  const mainTextures = readSavedTextures() || {};
-  rosterTextureStore = readRosterTextureStore();
-  for (let slot = 0; slot < 5; slot++) {
-    const appearanceId = slot === MAIN_PROFILE_SLOT ? identity.appearanceId : identity.appearanceId + "-preset-" + (slot + 1);
-    const avatarId = identity.id + "-roster-" + (slot + 1);
-    const avatarName = slot === MAIN_PROFILE_SLOT ? identity.name : "Character " + (slot + 1);
-    const avatar = createAvatar(avatarId, avatarName, null, appearanceId);
-    avatar.group.traverse(object => { if (object.isSprite) object.visible = false; });
-    avatar.group.rotation.y = slot === MAIN_PROFILE_SLOT ? avatarYaw : 0;
-    avatar.group.position.set((slot - 2) * 2.95, 0, 0);
-    avatar.group.scale.setScalar(slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88);
-    avatar.group.visible = slot === MAIN_PROFILE_SLOT;
-    scene.add(avatar.group);
-    await avatar.textureReady;
-    const base = snapshotTextures(avatar.textures);
-    const stored = slot === MAIN_PROFILE_SLOT ? mainTextures : (rosterTextureStore.slots[slot] || {});
-    if (Object.keys(stored).length) await applyAvatarTextureData(avatar.textures, stored);
-    rosterAvatars[slot] = {
-      ...avatar,
-      slotIndex: slot,
-      baseSnapshots: base,
-      savedTextureData: { ...stored },
-      dirtyTextureKeys: new Set(),
-      resetOverridesPending: false,
-      targetX: (slot - 2) * 2.95,
-      targetScale: slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88
-    };
+  if (rosterBuildPromise) return rosterBuildPromise;
+
+  const buildTask = (async () => {
+    rosterAvatars.forEach(disposePreviewAvatar);
+    rosterAvatars = [];
+    previewAvatar = null;
+    currentIdentity = key;
+    const mainTextures = readSavedTextures() || {};
+    rosterTextureStore = readRosterTextureStore();
+    for (let slot = 0; slot < 5; slot++) {
+      const appearanceId = slot === MAIN_PROFILE_SLOT ? identity.appearanceId : identity.appearanceId + "-preset-" + (slot + 1);
+      const avatarId = identity.id + "-roster-" + (slot + 1);
+      const avatarName = slot === MAIN_PROFILE_SLOT ? identity.name : "Character " + (slot + 1);
+      const avatar = createAvatar(avatarId, avatarName, null, appearanceId);
+      avatar.group.traverse(object => { if (object.isSprite) object.visible = false; });
+      avatar.group.rotation.y = slot === MAIN_PROFILE_SLOT ? avatarYaw : 0;
+      avatar.group.position.set((slot - 2) * 2.95, 0, 0);
+      avatar.group.scale.setScalar(slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88);
+      avatar.group.visible = slot === MAIN_PROFILE_SLOT;
+      scene.add(avatar.group);
+      await avatar.textureReady;
+      const base = snapshotTextures(avatar.textures);
+      const stored = slot === MAIN_PROFILE_SLOT ? mainTextures : (rosterTextureStore.slots[slot] || {});
+      if (Object.keys(stored).length) await applyAvatarTextureData(avatar.textures, stored);
+      rosterAvatars[slot] = {
+        ...avatar,
+        slotIndex: slot,
+        baseSnapshots: base,
+        savedTextureData: { ...stored },
+        dirtyTextureKeys: new Set(),
+        resetOverridesPending: false,
+        targetX: (slot - 2) * 2.95,
+        targetScale: slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88
+      };
+    }
+    currentIdentity = key;
+    activateRosterSlot(MAIN_PROFILE_SLOT);
+    rosterAvatars.forEach(entry => { entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT; });
+    updateRosterCards();
+    scheduleLivePreview();
+  })();
+  rosterBuildPromise = buildTask;
+  try {
+    await buildTask;
+  } finally {
+    if (rosterBuildPromise === buildTask) rosterBuildPromise = null;
   }
-  currentIdentity = key;
-  activateRosterSlot(MAIN_PROFILE_SLOT);
-  rosterAvatars.forEach(entry => { entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT; });
-  updateRosterCards();
-  scheduleLivePreview();
 }
 
 function pixelFromEvent(event) {
@@ -948,17 +959,22 @@ window.addEventListener("webminecraft:multiplayer-state-changed", () => {
 });
 window.addEventListener("webminecraft:character-profile-loaded", event => {
   const textures = event.detail?.textures && typeof event.detail.textures === "object" ? event.detail.textures : {};
+  const applyMainProfile = async () => {
+    const main = rosterAvatars[MAIN_PROFILE_SLOT];
+    if (!main) return;
+    await applyAvatarTextureData(main.textures, textures);
+    main.savedTextureData = { ...textures };
+    if (selectedRosterSlot === MAIN_PROFILE_SLOT) {
+      savedTextureData = { ...textures };
+      if (overlay.classList.contains("open") && editorPage === "paint") copySelectedTextureToEditor();
+      scheduleLivePreview();
+    }
+    resize();
+  };
   if (rosterAvatars[MAIN_PROFILE_SLOT]) {
-    void applyAvatarTextureData(rosterAvatars[MAIN_PROFILE_SLOT].textures, textures).then(() => {
-      rosterAvatars[MAIN_PROFILE_SLOT].savedTextureData = { ...textures };
-      if (selectedRosterSlot === MAIN_PROFILE_SLOT) {
-        savedTextureData = { ...textures };
-        if (overlay.classList.contains("open") && editorPage === "paint") copySelectedTextureToEditor();
-        scheduleLivePreview();
-      }
-    });
-  } else if (!previewAvatar) {
-    void buildPreview(true).then(resize);
+    void applyMainProfile();
+  } else {
+    void buildPreview().then(applyMainProfile);
   }
 });
 
