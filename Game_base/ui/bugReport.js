@@ -167,6 +167,7 @@ function openReport() {
     document.exitPointerLock?.();
     reportModal.classList.add("open");
     reportModal.style.display = "block";
+    submitButton.textContent = "SUBMIT REPORT";
     reportStatus.textContent = screenshotBlob ? "Screenshot attached. Describe the issue and submit." : "Attach a screenshot to continue.";
     refreshAttachments();
     descriptionInput.focus({ preventScroll: true });
