@@ -33,7 +33,7 @@ function setupMenuAndMobileUi() {
     style.id = "webMinecraftMenuUiFixes";
     style.textContent = `
 #newsButton{position:fixed !important;left:28px !important;bottom:28px !important;width:48px !important;height:48px !important;margin:0 !important;z-index:97 !important}
-#friendsButton{position:fixed !important;left:158px !important;bottom:28px !important;width:118px !important;height:48px !important;margin:0 !important;z-index:97 !important}
+#friendsButton{position:fixed!important;left:84px!important;bottom:28px!important;width:48px!important;height:48px!important;margin:0!important;z-index:98!important}
 #globalPlayerCount{left:auto !important;right:28px !important;bottom:28px !important;width:142px !important;min-height:48px !important;text-align:center !important}
 #globalPlayerPanel{left:auto !important;right:28px !important;bottom:88px !important}
 #mobileModeButton{margin-top:12px !important;background:linear-gradient(#536b82,#3e5265) !important;border-color:#111 !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.12),inset -2px -3px 0 rgba(0,0,0,.3),0 3px 0 rgba(0,0,0,.72) !important}
@@ -70,7 +70,7 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
 #touchMovePad{overflow:visible}
 @media(max-width:560px){
     #newsButton{left:12px !important;bottom:18px !important;width:48px !important;height:48px !important}
-    #friendsButton{left:calc(50vw + 6px) !important;bottom:18px !important;width:calc(50vw - 18px) !important}
+    #friendsButton{left:68px!important;bottom:18px!important;width:48px!important;height:48px!important}
 }
 @media(max-width:600px){
     #globalPlayerCount{right:12px !important;bottom:76px !important;width:min(180px,calc(100vw - 24px)) !important}
@@ -115,7 +115,10 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
         const button = document.createElement("button");
         button.id = "friendsButton";
         button.type = "button";
-        button.textContent = "Friends";
+        button.setAttribute("aria-label", "Friends");
+        button.title = "Friends";
+        button.dataset.tooltip = "Friends";
+        button.innerHTML = '<svg viewBox="0 0 16 16" width="25" height="25" shape-rendering="crispEdges" aria-hidden="true"><rect x="3" y="1" width="4" height="4" fill="#f0f0f0"/><rect x="9" y="2" width="4" height="4" fill="#c9c9c9"/><rect x="1" y="6" width="8" height="8" fill="#f0f0f0"/><rect x="8" y="7" width="7" height="7" fill="#c9c9c9"/><rect x="4" y="8" width="2" height="2" fill="#555"/><rect x="11" y="9" width="2" height="2" fill="#555"/></svg>';
         button.addEventListener("click", () => {
             const accountButton = document.getElementById("accountButton");
             if (accountButton) accountButton.click();
