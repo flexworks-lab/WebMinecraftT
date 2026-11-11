@@ -110,9 +110,10 @@ if (mobileMode) document.body.classList.add("mobile-mode");
 
 let gameStarted = false;
 let worldLoadingForStart = false;
-let cameraPerspectiveMode = ["first", "back", "front"].includes(localStorage.getItem("webminecraft-camera-perspective"))
-    ? localStorage.getItem("webminecraft-camera-perspective")
-    : "first";
+// Every fresh page load starts in first person. F5 can still change the
+// perspective for the current session, but that choice never affects spawning.
+let cameraPerspectiveMode = "first";
+try { localStorage.setItem("webminecraft-camera-perspective", "first"); } catch {}
 window.__webminecraftCameraPerspective = cameraPerspectiveMode;
 const defaults = { shadows: !IS_TOUCH_DEVICE && !IS_LOW_POWER_DEVICE, shadowQuality: IS_LOW_POWER_DEVICE ? 512 : 1024, pixelRatio: BASE_PIXEL_RATIO, lightingQuality: IS_LOW_POWER_DEVICE ? "balanced" : "high", brightness: 1 };
 let settings;
@@ -792,6 +793,13 @@ async function waitForInitialWorldRender(timeoutMs = 15000) {
 }
 
 async function startWorldWithSeed(seed, savedMode = null) {
+    // Reset the view for every world entry, including multiplayer joins and
+    // opening a different saved world without reloading the page.
+    cameraPerspectiveMode = "first";
+    try { localStorage.setItem("webminecraft-camera-perspective", "first"); } catch {}
+    window.__webminecraftCameraPerspective = cameraPerspectiveMode;
+    perspectiveCameraRig.reset();
+    window.dispatchEvent(new CustomEvent("webminecraft:perspective-changed", { detail: { mode: "first" } }));
     window.__webminecraftShowWorldLoading?.("Loading world data...");
     worldLoadingForStart = true;
     clearHotbar();
