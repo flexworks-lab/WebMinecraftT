@@ -74,6 +74,7 @@ style.textContent = `
 #characterEditorSidebar{position:relative;z-index:5;flex:0 0 68px;width:68px;display:flex;flex-direction:column;gap:9px;padding:18px 9px;background:rgba(5,8,14,.94);border-right:1px solid rgba(160,180,210,.18);overflow:hidden;transition:width .2s ease,flex-basis .2s ease}
 #characterEditorSidebar:hover,#characterEditorSidebar:focus-within{width:212px;flex-basis:212px}
 #characterEditorBrand{height:42px;flex:0 0 42px;display:flex;align-items:center;gap:13px;padding:0 8px 12px;color:#fff;border-bottom:1px solid rgba(180,195,220,.16);font-size:12px;font-weight:800;letter-spacing:1.2px;white-space:nowrap}
+#characterEditorBrand>span{opacity:0;transition:opacity .12s ease}#characterEditorSidebar:hover #characterEditorBrand>span,#characterEditorSidebar:focus-within #characterEditorBrand>span{opacity:1}
 #characterEditorBrandMark{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;background:#202d42;border:1px solid #536783;color:#dce9ff;font-size:17px}
 .characterNavButton{height:46px;min-height:46px;width:100%;display:flex;align-items:center;gap:15px;padding:0 10px;border:1px solid transparent;background:transparent;color:#aab5c6;text-align:left;white-space:nowrap;font-size:12px;font-weight:700;cursor:pointer}
 .characterNavButton svg{width:24px;height:24px;flex:0 0 24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -144,7 +145,7 @@ style.textContent = `
 #characterHelpPanel p,#characterHelpPanel li{color:#aab8cb;font-size:13px;line-height:1.7}
 #characterHelpPanel strong{color:#eff5ff}
 #characterClose{height:34px;width:40px;border:1px solid #45546a;background:#131b29;color:#fff;font-size:22px;cursor:pointer}
-#characterShowcase{position:fixed;left:calc(50% + 198px);right:auto;top:50%;bottom:auto;transform:translateY(4%);z-index:84;width:148px;height:210px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
+#characterShowcase{position:fixed;left:calc(50% + 216px);right:auto;top:50%;bottom:auto;transform:translateY(4%);z-index:84;width:148px;height:210px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
 #characterShowcase[hidden]{display:none!important}
 #characterShowcaseTitle{display:none!important}
 #characterShowcasePreview{position:relative;flex:1 1 auto;min-height:0;overflow:visible;background:transparent;touch-action:pan-y}
@@ -154,8 +155,8 @@ style.textContent = `
 body.webminecraft-in-world #characterShowcase{display:none!important}
 body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
 body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(760px,96vw)!important;margin:0 auto!important}
-body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:48px auto 0!important}
-@media(max-width:1360px){#characterShowcase{left:calc(50% + 194px);width:138px;height:196px}}
+body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;transform:translateY(26px)!important}
+@media(max-width:1360px){#characterShowcase{left:calc(50% + 212px);width:138px;height:196px}}
 @media(max-width:900px){
  #characterEditorSidebar{flex-basis:56px;width:56px;padding:12px 6px}
  #characterEditorSidebar:hover,#characterEditorSidebar:focus-within{width:184px;flex-basis:184px}
@@ -171,7 +172,7 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:48px auto 0!impor
 }
 @media(max-width:760px){
  body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(420px,calc(100vw - 128px))!important;max-width:420px!important}
- body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin-top:34px!important}
+ body:not(.webminecraft-in-world) #mainMenu #menuButtons{transform:translateY(18px)!important}
  body:not(.webminecraft-in-world) #mainMenu #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
  #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
  #menuSubtitle{font-size:8px!important;line-height:1.25!important;margin:6px 0 8px!important}
@@ -567,7 +568,7 @@ function moveRoster(direction) {
 
 function setEditorPage(page) {
   if (page === "paint" && !previewAvatar) activateRosterSlot(MAIN_PROFILE_SLOT);
-  if (page === "roster" && previewAvatar && editorPage === "paint") activateRosterSlot(rosterOrder[2]);
+  if (page === "roster" && previewAvatar && previewAvatar.slotIndex !== rosterOrder[2]) activateRosterSlot(rosterOrder[2]);
   editorPage = page;
   overlay.querySelector("#characterRosterPage").hidden = page !== "roster";
   overlay.querySelector("#characterPaintPage").hidden = page !== "paint";
@@ -962,6 +963,17 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
 });
 
 makeScene();
+
+if (typeof ResizeObserver !== "undefined") {
+  const characterEditorResizeObserver = new ResizeObserver(() => {
+    const host = renderer?.domElement?.parentElement;
+    if (host?.clientWidth && host?.clientHeight) resize();
+  });
+  ["#characterEditorSidebar", "#characterRosterStage", "#characterEditorPreview"].forEach(selector => {
+    const element = overlay.querySelector(selector);
+    if (element) characterEditorResizeObserver.observe(element);
+  });
+}
 
 function addMenuButton() {
   if (document.getElementById("characterShowcase")) return;
