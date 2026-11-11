@@ -1,0 +1,18 @@
+{
+  "id": "/WebMinecraftT/",
+  "name": "WebMinecraftT",
+  "short_name": "WebMinecraftT",
+  "start_url": "/WebMinecraftT/",
+  "scope": "/WebMinecraftT/",
+  "display": "standalone",
+  "background_color": "#171717",
+  "theme_color": "#202020",
+  "icons": [
+    {
+      "src": "/WebMinecraftT/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
