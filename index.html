@@ -1,9 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="icon" type="image/svg+xml" href="/WebMinecraftT/favicon.svg" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="A Minecraft-style voxel sandbox that runs in your browser.">
+    <meta name="theme-color" content="#202020">
+    <link rel="canonical" href="https://flexworks-lab.github.io/WebMinecraftT/">
+    <meta property="og:url" content="https://flexworks-lab.github.io/WebMinecraftT/">
+    <meta property="og:title" content="WebMinecraftT">
+    <meta property="og:description" content="A Minecraft-style voxel sandbox that runs in your browser.">
     <link rel="icon" type="image/svg+xml" href="./favicon.svg">
     <link rel="apple-touch-icon" href="./favicon.svg">
     <link rel="manifest" href="./site.webmanifest">
@@ -1006,6 +1011,25 @@ body select:focus-visible {
   outline-offset:1px!important;
 }
 </style>
+<style id="webMinecraftPixelPolish">
+svg{shape-rendering:crispEdges}
+#menuPanel{position:relative}
+#menuSplash{
+ position:absolute!important;top:-24px!important;right:7%!important;left:auto!important;z-index:5!important;
+ display:block!important;width:max-content!important;max-width:58%!important;min-height:0!important;
+ margin:0!important;padding:2px 5px!important;color:#fff51c!important;
+ font:14px/1.1 MinecraftFont,monospace!important;white-space:nowrap!important;
+ text-shadow:2px 2px 0 #463e00,3px 3px 0 #000!important;
+ transform:rotate(-20deg)!important;pointer-events:none!important;animation:none!important;
+}
+#menuTitle{position:relative;z-index:1}
+#settingsButton{display:grid;place-items:center;padding:0!important}
+#settingsButton svg{display:block;image-rendering:pixelated;shape-rendering:crispEdges}
+#crosshair{display:none!important}
+@media(max-width:600px){
+ #menuSplash{top:-18px!important;right:3%!important;max-width:68%!important;font-size:11px!important}
+}
+</style>
 </head>
 <body>
 
@@ -1079,9 +1103,9 @@ body select:focus-visible {
     </script>
     <div id="mainMenu">
         <div id="menuPanel">
+            <div id="menuSplash" aria-live="polite">Loading tip...</div>
             <h1 id="menuTitle">MINECRAFT</h1>
             <div id="menuSubtitle">WEB EDITION</div>
-            <div id="menuSplash">Loading tip...</div>
             <div id="menuButtons">
                 <button id="playButton" class="menuButton">Singleplayer</button>
                 <button id="multiplayerButton" class="menuButton">Multiplayer</button>
@@ -1121,7 +1145,7 @@ body select:focus-visible {
     <div id="menuCopyright">WebMinecraftT</div>
     <div id="crosshair">+</div>
     <div id="hotbar"><div class="slot selected">1<br>Grass</div><div class="slot">2<br>Dirt</div><div class="slot">3<br>Stone</div><div class="slot">4<br>Sand</div><div class="slot">5<br>Oak</div><div class="slot">6<br>Leaves</div><div class="slot">7<br>Grass</div><div class="slot">8<br>Dirt</div><div class="slot">9<br>Stone</div></div>
-    <button id="settingsButton" aria-label="Settings">⚙</button>
+    <button id="settingsButton" type="button" aria-label="Settings" data-tooltip="Settings"><svg viewBox="0 0 16 16" width="22" height="22" shape-rendering="crispEdges" aria-hidden="true"><rect x="6" y="0" width="4" height="2" fill="#fff"/><rect x="6" y="14" width="4" height="2" fill="#fff"/><rect x="0" y="6" width="2" height="4" fill="#fff"/><rect x="14" y="6" width="2" height="4" fill="#fff"/><rect x="2" y="2" width="3" height="3" fill="#fff"/><rect x="11" y="2" width="3" height="3" fill="#fff"/><rect x="2" y="11" width="3" height="3" fill="#fff"/><rect x="11" y="11" width="3" height="3" fill="#fff"/><rect x="4" y="4" width="8" height="8" fill="#d5d5d5"/><rect x="6" y="6" width="4" height="4" fill="#555"/></svg></button>
 
     <div id="settingsMenu">
         <div id="settingsPanel">
