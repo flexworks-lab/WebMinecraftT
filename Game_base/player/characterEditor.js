@@ -345,9 +345,11 @@ function getCurrentTextureOverrides() {
 }
 function scheduleLivePreview() {
   if (selectedRosterSlot !== MAIN_PROFILE_SLOT || livePreviewFrame) return;
+  const textures = currentTextures;
   livePreviewFrame = requestAnimationFrame(() => {
     livePreviewFrame = 0;
-    window.dispatchEvent(new CustomEvent("webminecraft:character-live-preview", { detail: { textures: currentTextures } }));
+    if (selectedRosterSlot !== MAIN_PROFILE_SLOT) return;
+    window.dispatchEvent(new CustomEvent("webminecraft:character-live-preview", { detail: { textures } }));
   });
 }
 function scheduleOnlineSkinSync() {
@@ -355,6 +357,7 @@ function scheduleOnlineSkinSync() {
   if (onlineSkinSyncTimer) clearTimeout(onlineSkinSyncTimer);
   onlineSkinSyncTimer = window.setTimeout(() => {
     onlineSkinSyncTimer = null;
+    if (selectedRosterSlot !== MAIN_PROFILE_SLOT) return;
     const textures = getCurrentTextureOverrides();
     sendCharacterSkin(Object.keys(textures).length ? textures : null);
   }, 320);
@@ -449,7 +452,7 @@ function makeScene() {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  overlay.querySelector("#characterShowcasePreview").prepend(renderer.domElement);
+  overlay.querySelector("#characterEditorPreview").prepend(renderer.domElement);
   const previewCanvas = renderer.domElement;
   previewCanvas.style.touchAction = "pan-y";
   previewCanvas.addEventListener("pointerdown", event => {
