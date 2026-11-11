@@ -100,7 +100,10 @@ function addStyles() {
     const style = document.createElement("style");
     style.id = "discussionStyles";
     style.textContent = `
-#discussionButton{position:fixed;left:28px;bottom:82px;width:118px;min-height:48px;z-index:97;border:2px solid #1b1b1b;border-top-color:#a4a4a4;border-left-color:#a4a4a4;border-radius:0;background:linear-gradient(#737373,#565656);color:#fff;font-family:MinecraftFont,monospace;font-size:12px;cursor:pointer;text-shadow:2px 2px 0 #333;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62);outline:none;transition:none}
+#discussionButton{position:fixed;left:28px;bottom:82px;width:48px;height:48px;min-height:48px;padding:0;display:grid;place-items:center;z-index:97;border:2px solid #1b1b1b;border-top-color:#a4a4a4;border-left-color:#a4a4a4;border-radius:0;background:linear-gradient(#737373,#565656);color:#fff;cursor:pointer;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62);outline:none;transition:none;font-size:0;line-height:0}
+#discussionButton svg{width:25px;height:25px;display:block;image-rendering:pixelated;shape-rendering:crispEdges}
+#discussionButton::before{content:attr(data-tooltip);position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);padding:6px 8px;background:#111;border:1px solid #aaa;color:#fff;font:11px/1.2 MinecraftFont,monospace;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;z-index:120;box-shadow:2px 2px 0 #000}
+#discussionButton:hover::before,#discussionButton:focus-visible::before{opacity:1;visibility:visible}
 #discussionButton:hover,#discussionButton:active{filter:none;transform:none}
 #discussionButton .discussionUnreadBadge{
 position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;
@@ -258,7 +261,9 @@ function createUi() {
     const button = document.createElement("button");
     button.id = "discussionButton";
     button.type = "button";
-    button.textContent = "Discussions";
+    button.setAttribute("aria-label", "Discussions");
+    button.dataset.tooltip = "Discussions";
+    button.innerHTML = `<svg viewBox="0 0 16 16" width="25" height="25" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="2" width="12" height="9" fill="#f0f0f0"/><rect x="4" y="4" width="8" height="1" fill="#555"/><rect x="4" y="6" width="6" height="1" fill="#777"/><rect x="4" y="8" width="7" height="1" fill="#777"/><rect x="2" y="10" width="4" height="3" fill="#f0f0f0"/><rect x="1" y="12" width="2" height="2" fill="#f0f0f0"/></svg>`;
     button.addEventListener("click", openDiscussions);
     document.body.appendChild(button);
 
