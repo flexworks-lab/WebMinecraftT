@@ -18,6 +18,6 @@ This folder contains the organized WebMinecraftT game source. Keep gameplay code
 ## Build and runtime notes
 
 - Keep ES module imports relative to the file that imports them; update import paths whenever source files move.
-- The root `index.html`, `package.json`, `package-lock.json`, `vite.config.js`, Electron configuration, and deployment workflows remain at the repository root because they are project entry/configuration files, not gameplay modules.
+- The root `index.html`, `package.json`, `package-lock.json`, `vite.config.js`, and deployment workflows remain at the repository root because they are project entry/configuration files, not gameplay modules.
 - The root `public/` directory is Vite's static-asset source. Its files are served from the site root (for example, `/textures/...`) and copied into the production build. Do not move it unless `vite.config.js`, asset URL assumptions, and deployment verification are updated together.
 - Run `npm run build` after structural changes before considering the reorganization complete.
