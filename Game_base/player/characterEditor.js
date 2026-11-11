@@ -80,32 +80,42 @@ style.textContent = `
 #characterClose{position:absolute;top:9px;right:9px;z-index:3;width:38px;height:38px;border:1px solid #888;background:#222;color:#fff;font-size:23px;cursor:pointer}
 @media(max-width:760px){#characterEditor{padding:0}#characterEditorPanel{width:100%;height:100%;min-height:0;grid-template-columns:1fr;grid-template-rows:minmax(180px,30vh) 1fr}#characterEditorControls{padding:13px}#characterEditorTitle{font-size:20px}#characterEditorSub{margin-bottom:8px}#avatarTextureList{grid-template-columns:repeat(4,minmax(0,1fr))}#skinCanvasWrap{width:min(100%,280px)}.characterLabel{margin-top:10px}}
 /* Main-menu character showcase uses this same procedural avatar and renderer. */
-#characterShowcase{position:fixed;left:clamp(250px,calc(24px + min(760px,100vw - 280px) + 10px),calc(100vw - 104px));right:auto;bottom:clamp(26px,6vh,56px);z-index:84;width:104px;height:142px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
+#characterShowcase{position:fixed;left:calc(50% + 180px);right:auto;top:50%;bottom:auto;transform:translateY(4%);z-index:84;width:148px;height:210px;display:flex;flex-direction:column;overflow:visible;background:transparent;border:0;box-shadow:none;color:#fff;pointer-events:auto}
 #characterShowcase[hidden]{display:none!important}
 #characterShowcaseTitle{display:none!important}
 #characterShowcasePreview{position:relative;flex:1 1 auto;min-height:0;overflow:visible;background:transparent;touch-action:pan-y}
 #characterShowcasePreview>canvas{display:block;width:100%;height:100%;touch-action:pan-y;background:transparent}
-#characterEditorOpen{width:100%;height:28px;flex:0 0 28px;margin:0;padding:0 4px;border:2px solid #111;border-top-color:#999;border-left-color:#999;background:linear-gradient(#747474,#555);color:#fff;font:11px MinecraftFont,monospace;text-shadow:2px 2px 0 #222;cursor:pointer;box-shadow:2px 2px 0 #0008}
+#characterEditorOpen{width:100%;height:30px;flex:0 0 30px;margin:0;padding:0 4px;border:2px solid #111;border-top-color:#999;border-left-color:#999;background:linear-gradient(#747474,#555);color:#fff;font:11px MinecraftFont,monospace;text-shadow:2px 2px 0 #222;cursor:pointer;box-shadow:2px 2px 0 #0008}
 #characterEditorOpen:active{filter:brightness(.86)}
 body.webminecraft-in-world #characterShowcase{display:none!important}
+/* Keep the button stack centered, with the character beside its right edge. */
+body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(760px,96vw)!important;margin:0 auto!important}
+body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:28px auto 0!important}
 @media(max-width:1360px){
-  #menuPanel{width:min(760px,calc(100vw - 280px))!important;margin:0 auto 0 24px!important}
-  #characterShowcase{left:clamp(250px,calc(24px + min(760px,100vw - 280px) + 8px),calc(100vw - 104px));width:96px;height:132px}
+  #characterShowcase{left:calc(50% + 176px);width:138px;height:196px}
 }
 @media(max-width:760px){
-  #menuPanel{width:calc(100vw - 148px)!important;max-width:420px!important;margin:0 auto 0 8px!important}
+  body:not(.webminecraft-in-world) #mainMenu{align-items:center!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:min(420px,calc(100vw - 128px))!important;max-width:420px!important;max-height:calc(100dvh - 20px)!important;margin:10px auto 10px 10px!important;padding:8px 6px 16px!important;overflow-x:hidden!important;overflow-y:auto!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuButtons{width:100%!important;margin:18px auto 0!important}
   #menuTitle{font-size:clamp(22px,6.4vw,38px)!important;letter-spacing:-1px!important;-webkit-text-stroke:1.5px #111!important}
   #menuSubtitle{font-size:8px!important;line-height:1.25!important;margin:6px 0 8px!important}
-  #menuSplash{width:100%!important;max-width:100%!important;font-size:clamp(9px,2.8vw,12px)!important;margin:2px auto 8px!important;padding:5px 6px!important}
-  #menuButtons{width:100%!important}
-  #menuButtons .menuButton{height:clamp(38px,6.2vh,46px)!important;margin:6px auto!important;padding:5px 3px!important;font-size:clamp(10px,2.9vw,13px)!important}
-  #characterShowcase{left:auto;right:8px;bottom:max(58px,env(safe-area-inset-bottom));width:82px;height:112px}
-  #characterEditorOpen{height:26px;flex-basis:26px;font-size:10px}
+  #characterShowcase{left:auto;right:10px;top:50%;bottom:auto;transform:translateY(8%);width:112px;height:160px}
+  #characterEditorOpen{height:28px;flex-basis:28px;font-size:10px}
+}
+@media(max-width:520px){
+  body:not(.webminecraft-in-world) #mainMenu #menuPanel{width:calc(100vw - 122px)!important}
+  #characterShowcase{right:8px;width:102px;height:146px}
+}
+@media(max-height:660px){
+  body:not(.webminecraft-in-world) #mainMenu{align-items:flex-start!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuPanel{max-height:calc(100dvh - 16px)!important;margin:8px auto 8px 10px!important;padding-top:6px!important}
+  body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin-top:14px!important}
+  #characterShowcase{top:50%;transform:translateY(-8%);height:168px;width:124px}
 }
 @media(max-height:520px) and (max-width:900px){
-  #characterShowcase{height:96px;bottom:10px}
-  #characterEditorOpen{height:23px;flex-basis:23px}
-  #menuPanel{margin-top:0!important}
+  #characterShowcase{height:128px;width:96px;top:50%;bottom:auto}
+  #characterEditorOpen{height:24px;flex-basis:24px}
 }
 `;
 document.head.appendChild(style);
