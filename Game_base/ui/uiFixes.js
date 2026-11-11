@@ -10,7 +10,7 @@ function addGameplayLayoutStyles() {
     const style = document.createElement("style");
     style.id = "webMinecraftGameplayLayoutFixes";
     style.textContent = `
-body.mobile-mode.webminecraft-in-world #settingsButton{display:flex !important;align-items:center !important;justify-content:center !important;top:18px !important;right:18px !important;z-index:90 !important}
+body.mobile-mode.webminecraft-in-world #settingsButton{display:flex !important;position:fixed !important;align-items:center !important;justify-content:center !important;top:max(10px,env(safe-area-inset-top)) !important;left:calc(50% - 48px) !important;right:auto !important;width:44px !important;height:44px !important;z-index:190 !important}
 body.mobile-mode.webminecraft-in-world #hotbar{z-index:40 !important}
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{z-index:40 !important}
 body.mobile-mode.webminecraft-in-world #webMinecraftHealthHud{z-index:41 !important}
@@ -54,8 +54,8 @@ body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{left:50%!importan
 body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:36px!important;height:36px!important;flex-basis:36px!important}
 body.mobile-mode.webminecraft-in-world #webMinecraftHealthHud{z-index:46!important}
 body.mobile-mode.webminecraft-in-world #mobilePauseButton{top:max(10px,env(safe-area-inset-top))!important;right:max(12px,env(safe-area-inset-right))!important;width:48px!important;height:48px!important;z-index:90!important}
-body.mobile-mode.webminecraft-in-world #touchChatButton{top:max(72px,calc(env(safe-area-inset-top) + 60px))!important;right:max(12px,env(safe-area-inset-right))!important;bottom:auto!important;width:48px!important;height:48px!important;z-index:91!important}
-body.mobile-mode.webminecraft-in-world #inventoryMobileButton{top:max(134px,calc(env(safe-area-inset-top) + 120px))!important;right:max(12px,env(safe-area-inset-right))!important;bottom:auto!important;left:auto!important;width:46px!important;height:46px!important;z-index:92!important}
+body.mobile-mode.webminecraft-in-world #touchChatButton{display:flex!important;position:fixed!important;top:max(10px,env(safe-area-inset-top))!important;left:calc(50% + 4px)!important;right:auto!important;bottom:auto!important;width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;z-index:191!important}
+body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar > #inventoryMobileButton{position:relative!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;z-index:auto!important}
 @media(max-width:400px){
  body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:32px!important;height:32px!important;flex-basis:32px!important}
 }
@@ -65,9 +65,8 @@ body.mobile-mode.webminecraft-in-world #inventoryMobileButton{top:max(134px,calc
  body.mobile-mode.webminecraft-in-world #hotbar,
  body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar{bottom:148px!important}
  body.mobile-mode.webminecraft-in-world #hotbar.textured-hotbar .slot{width:32px!important;height:32px!important;flex-basis:32px!important}
- body.mobile-mode.webminecraft-in-world #mobilePauseButton{top:8px!important;width:42px!important;height:42px!important}
- body.mobile-mode.webminecraft-in-world #touchChatButton{top:58px!important;width:42px!important;height:42px!important}
- body.mobile-mode.webminecraft-in-world #inventoryMobileButton{top:108px!important;width:42px!important;height:42px!important}
+ body.mobile-mode.webminecraft-in-world #settingsButton{top:8px!important;left:calc(50% - 46px)!important;width:42px!important;height:42px!important}
+ body.mobile-mode.webminecraft-in-world #touchChatButton{top:8px!important;left:calc(50% + 4px)!important;width:42px!important;height:42px!important;min-height:42px!important}
 }
 `;
     document.head.appendChild(style);
