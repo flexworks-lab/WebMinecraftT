@@ -556,10 +556,10 @@ function createMobileSettingsButton() {
     transform:translateY(2px);
 }
 body.mobile-mode.webminecraft-in-world #mobilePauseButton{
-    display:flex !important;
+    display:none !important;
 }
 body.mobile-mode #settingsButton{
-    display:none !important;
+    display:flex !important;
 }
 `;
     document.head.appendChild(style);
