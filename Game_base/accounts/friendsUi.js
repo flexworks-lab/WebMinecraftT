@@ -95,11 +95,13 @@ function addStyles() {
     const style = document.createElement("style");
     style.id = FRIENDS_STYLE_ID;
     style.textContent = `
-#friendsButton{position:fixed !important;left:158px !important;bottom:28px !important;width:126px !important;height:48px !important;margin:0 !important;z-index:98 !important;display:flex !important;align-items:center !important;justify-content:center !important;gap:8px !important;padding:0 14px !important;border:2px solid #1b1b1b !important;border-top-color:#a4a4a4 !important;border-left-color:#a4a4a4 !important;border-radius:0 !important;background:linear-gradient(#737373,#565656) !important;color:#fff !important;font:bold 13px Arial,sans-serif !important;letter-spacing:.2px !important;cursor:pointer !important;text-shadow:2px 2px 0 #333 !important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62) !important;transition:none !important;outline:none !important}
-#friendsButton::before{content:"♟";font-size:17px;line-height:1;transform:rotate(180deg);display:inline-block;opacity:.95}
-#friendsButton:hover,#friendsButton:active{filter:none !important;transform:none !important}
+#friendsButton{position:fixed!important;left:84px!important;bottom:28px!important;width:48px!important;height:48px!important;margin:0!important;padding:0!important;z-index:98!important;display:grid!important;place-items:center!important;border:2px solid #1b1b1b!important;border-top-color:#a4a4a4!important;border-left-color:#a4a4a4!important;border-radius:0!important;background:linear-gradient(#737373,#565656)!important;color:#fff!important;cursor:pointer!important;box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -3px 0 rgba(0,0,0,.3),0 4px 0 rgba(0,0,0,.62)!important;transition:none!important;outline:none!important;font-size:0!important;line-height:0!important}
+#friendsButton svg{width:25px;height:25px;display:block;image-rendering:pixelated;shape-rendering:crispEdges}
+#friendsButton::before{content:attr(data-tooltip);position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);padding:6px 8px;background:#111;border:1px solid #aaa;color:#fff;font:11px/1.2 MinecraftFont,monospace;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;z-index:120;box-shadow:2px 2px 0 #000}
+#friendsButton:hover::before,#friendsButton:focus-visible::before{opacity:1;visibility:visible}
+#friendsButton:hover,#friendsButton:active{filter:none!important;transform:none!important}
 #friendsButton.friendAlert{animation:none !important}
-#friendsButton .friendsBadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border:2px solid #111;border-radius:2px;background:#b83d3d;color:#fff;font:bold 10px Arial,sans-serif;box-shadow:1px 1px 0 #000;text-shadow:none}
+#friendsButton .friendsBadge{position:absolute;top:-7px;right:-7px;display:flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border:2px solid #151515;border-radius:999px;background:#d93636;color:#fff;font:900 10px/1 Arial,sans-serif;text-shadow:1px 1px 0 #5b1010;box-shadow:0 2px 5px rgba(0,0,0,.45);pointer-events:none;z-index:5}
 @keyframes friendsButtonPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
 #accountUser #friendCodeBox,#accountUser .friendSection{display:none !important}
 #friendsModal{position:fixed;inset:0;z-index:450;display:none;background:rgba(8,10,12,.94);font-family:Arial,sans-serif;color:#fff;overflow:auto}
@@ -127,7 +129,7 @@ function addStyles() {
 .friendFullRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;margin:7px 0;background:#303030;border:1px solid #4d4d4d}
 .friendFullName{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.friendFullMeta{font-size:10px;color:#999;margin-top:3px}.friendFullActions{display:flex;gap:6px;flex:0 0 auto}.friendSmallAction{min-height:32px;padding:5px 10px;background:#4d4d4d;border:1px solid #777;color:#fff;cursor:pointer}.friendSmallAction.accept{background:#5e8242}.friendSmallAction.decline,.friendSmallAction.unfriend{background:#6a3f3f}.friendSmallAction:disabled{opacity:.55;cursor:default}.friendEmpty{padding:16px;color:#888;background:#181818;border:1px solid #333;font-size:12px;text-align:center}
 @media(max-width:850px){#friendsPage{padding:18px 14px 30px}#friendsGrid{grid-template-columns:1fr}#friendsSections{grid-template-columns:1fr}#friendsTop{align-items:flex-start}.friendsCard{padding:17px}}
-@media(max-width:560px){#friendsButton{left:calc(50vw + 6px) !important;bottom:18px !important;width:calc(50vw - 18px) !important;height:46px !important}.friendsBadge{min-width:17px !important;height:17px !important}}
+@media(max-width:560px){#friendsButton{left:68px!important;bottom:18px!important;width:48px!important;height:48px!important}}
 `;
     document.head.appendChild(style);
 }
