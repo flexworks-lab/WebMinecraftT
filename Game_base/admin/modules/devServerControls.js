@@ -1,5 +1,5 @@
 const DEV_EMAIL = "worthmarcus19@gmail.com";
-const SERVER_API = "https://webminecraftt-multiplayer-production.up.railway.app";
+const SERVER_API = "https://webminecraftt-multiplayer.onrender.com";
 
 let installed = false;
 let pollTimer = null;
