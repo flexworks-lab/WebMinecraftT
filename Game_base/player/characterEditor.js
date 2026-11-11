@@ -440,7 +440,40 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
   #characterEditorTopbar{padding:0 9px!important}
   #characterRosterInstructions{font-size:9px!important}
   #characterEditorControls{border-top:3px solid #111!important}
+
 }
+
+/* Final roster cleanup: a floating lineup, with actions directly below each avatar. */
+#characterEditorStatus{display:none!important}
+#characterRosterPage{background:transparent!important}
+#characterRosterStage{background:transparent!important;border:0!important;box-shadow:none!important}
+#characterRosterInstructions{display:none!important}
+.rosterCardActions{display:flex;align-items:center;justify-content:center;gap:4px;width:min(190px,96%);pointer-events:auto}
+.rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton{
+  flex:1 1 0;min-width:0;width:auto!important;height:34px;padding:0 3px;
+  font-size:clamp(7px,.72vw,10px)!important;letter-spacing:0!important;
+}
+.rosterCardActions .rosterSelectButton{
+  border:2px solid #111!important;border-top-color:#b9d69a!important;border-left-color:#b9d69a!important;
+  background:linear-gradient(#789b4e,#526f36)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;text-shadow:2px 2px #222!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.14),inset -2px -2px rgba(0,0,0,.32),0 2px #111!important;
+}
+.rosterCardActions .rosterSelectButton:hover:not(:disabled){background:linear-gradient(#8cac5c,#62803f)!important}
+.rosterCardActions .rosterSelectButton:disabled{
+  opacity:1!important;cursor:default!important;filter:none!important;
+  border-top-color:#b9d69a!important;border-left-color:#b9d69a!important;
+  background:linear-gradient(#789b4e,#526f36)!important;color:#fff!important;
+}
+@media(max-width:900px){
+  .rosterCardActions{gap:3px;width:96%}
+  .rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton{height:30px;font-size:7px!important}
+}
+@media(max-width:620px){
+  .rosterCardActions{gap:2px;width:100%}
+  .rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton{height:27px;padding:0 1px;font-size:6px!important}
+}
+
 `;
 document.head.appendChild(style);
 
@@ -465,23 +498,22 @@ overlay.innerHTML = `
   </aside>
   <main id="characterEditorMain">
     <header id="characterEditorTopbar">
-      <div><div id="characterEditorTopbarTitle">CHARACTER SELECT</div><div id="characterEditorTopbarSub">Browse your five character slots and choose one to edit.</div></div>
+      <div><div id="characterEditorTopbarTitle">CHARACTER SELECT</div><div id="characterEditorTopbarSub">Browse characters and choose one to edit.</div></div>
       <div id="characterEditorStatus">ROSTER READY</div>
     </header>
     <section id="characterRosterPage" class="characterEditorPage">
-      <div id="characterRosterIntro"><h1>CHOOSE YOUR CHARACTER</h1><p>Move through the lineup with the arrows. Each character has its own texture maps and an Edit button.</p></div>
+      <div id="characterRosterIntro"><h1>CHOOSE YOUR CHARACTER</h1></div>
       <div id="characterRosterStage">
         <button class="rosterArrow" id="rosterPrev" type="button" aria-label="Move previous character to center">‹</button>
         <div id="characterRosterCards">
-          <div class="rosterCard" data-roster-position="0"><div class="rosterCardNumber">01</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
-          <div class="rosterCard" data-roster-position="1"><div class="rosterCardNumber">02</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
-          <div class="rosterCard" data-roster-position="2"><div class="rosterCardNumber">03</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
-          <div class="rosterCard" data-roster-position="3"><div class="rosterCardNumber">04</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
-          <div class="rosterCard" data-roster-position="4"><div class="rosterCardNumber">05</div><div class="rosterCardName"></div><button class="rosterEditButton" type="button">EDIT</button></div>
+          <div class="rosterCard" data-roster-position="0"><div class="rosterCardNumber">01</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
+          <div class="rosterCard" data-roster-position="1"><div class="rosterCardNumber">02</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
+          <div class="rosterCard" data-roster-position="2"><div class="rosterCardNumber">03</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
+          <div class="rosterCard" data-roster-position="3"><div class="rosterCardNumber">04</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
+          <div class="rosterCard" data-roster-position="4"><div class="rosterCardNumber">05</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
         </div>
         <button class="rosterArrow" id="rosterNext" type="button" aria-label="Move next character to center">›</button>
       </div>
-      <div id="characterRosterInstructions"><strong>How the lineup works:</strong> The center character is highlighted. Press an arrow to slide the next character into the center. Choose <strong>EDIT</strong> under any character to paint its face, skin, shirt, pants, or shoes. Slot 3 is your live in-game character; the other four are browser-saved presets.</div>
     </section>
     <section id="characterPaintPage" class="characterEditorPage" hidden>
       <div id="characterPaintHeader"><button id="characterBackRoster" type="button">← BACK TO LINEUP</button><span id="characterEditingName">EDITING CHARACTER 3</span></div>
@@ -524,11 +556,10 @@ overlay.innerHTML = `
       <div id="characterHelpPanel">
         <h1>CHARACTER STUDIO GUIDE</h1>
         <p><strong>Browse the roster:</strong> There are five slots arranged from left to right. Use the arrows outside the lineup. The neighbour on that side slides into the center and the rest of the lineup shifts with it.</p>
-        <p><strong>Edit a character:</strong> Press the EDIT button below a character. The texture editor opens for that exact slot. Use the left sidebar to return to Characters, open the Texture editor, or view these instructions.</p>
+        <p><strong>Edit or select:</strong> Press EDIT to paint a character. Press SELECT to make that appearance your live in-game character; your previous live appearance is kept in the preset you selected.</p>
         <p><strong>Paint textures:</strong> Choose Face, Head Back, Head Side, Head Top, Skin, Shirt, Pants, or Shoes. Select a palette colour or use Custom. PAINT adds pixels, ERASER removes them, PICK COLOR samples a pixel, and UNDO reverses your last stroke.</p>
-        <p><strong>Save rules:</strong> Slot 3 is the character used in your game and online rooms. Saving slot 3 also updates your browser and account profile when available. Slots 1, 2, 4, and 5 are separate presets saved in this browser only; they do not replace your online character.</p>
+        <p><strong>Save rules:</strong> The active character is shown in the center. Saving it updates your browser and account profile when available. The other four slots are browser-saved presets; selecting one swaps it with the active appearance while keeping both looks.</p>
         <p><strong>Import and export:</strong> PNG files are resized to 16 × 16 pixels for the selected texture map. Export each map separately to keep a backup.</p>
-        <p><strong>Tips:</strong> The 3D character follows your mouse anywhere on the screen. You can drag across the preview to rotate the whole model. Press ESC to close the studio or Ctrl+Z to undo a paint stroke.</p>
       </div>
     </section>
   </main>
@@ -574,7 +605,7 @@ let painting = false;
 let lastPixel = null;
 let strokeSnapshot = null;
 let undoStack = [];
-let avatarYaw = -0.22;
+let avatarYaw = Math.PI;
 let dragging = false;
 let lastX = 0;
 let livePreviewFrame = 0;
@@ -632,6 +663,14 @@ brushSelect.addEventListener("change", () => { brushSize = Number(brushSelect.va
 
 function textureCanvas(key) {
   return getTextureCanvas(currentTextures, key);
+}
+function captureFullTextureData(avatar) {
+  const textures = {};
+  for (const { key } of AVATAR_TEXTURE_PARTS) {
+    const canvas = getTextureCanvas(avatar?.textures, key);
+    if (canvas) textures[key] = canvas.toDataURL("image/png");
+  }
+  return textures;
 }
 function refreshTextureButtons() {
   for (const button of textureList.children) {
@@ -759,6 +798,13 @@ function updateRosterCards() {
     const edit = card.querySelector(".rosterEditButton");
     edit.dataset.slot = String(slot);
     edit.setAttribute("aria-label", "Edit character slot " + (slot + 1));
+    const select = card.querySelector(".rosterSelectButton");
+    select.dataset.slot = String(slot);
+    select.disabled = slot === MAIN_PROFILE_SLOT;
+    select.textContent = slot === MAIN_PROFILE_SLOT ? "ACTIVE" : "SELECT";
+    select.setAttribute("aria-label", slot === MAIN_PROFILE_SLOT
+      ? "Character slot " + (slot + 1) + " is active"
+      : "Select character slot " + (slot + 1) + " for gameplay");
   });
 }
 
@@ -804,6 +850,89 @@ function activateRosterSlot(slot) {
   updateRosterCards();
 }
 
+async function selectRosterCharacter(slot) {
+  const selected = rosterAvatars[slot];
+  const main = rosterAvatars[MAIN_PROFILE_SLOT];
+  if (!selected || !main || slot === MAIN_PROFILE_SLOT) return;
+
+  const selectButtons = [...overlay.querySelectorAll(".rosterSelectButton")];
+  selectButtons.forEach(button => { button.disabled = true; });
+  const clickedButton = selectButtons.find(button => Number(button.dataset.slot) === slot);
+  if (clickedButton) clickedButton.textContent = "APPLYING";
+
+  const selectedTextures = captureFullTextureData(selected);
+  const previousMainTextures = captureFullTextureData(main);
+  if (!Object.keys(selectedTextures).length || !Object.keys(previousMainTextures).length) {
+    updateRosterCards();
+    return;
+  }
+
+  const previousSlots = rosterTextureStore.slots.map(record => ({ ...record }));
+  const savedAt = Date.now();
+  rosterTextureStore.slots[MAIN_PROFILE_SLOT] = { ...selectedTextures };
+  rosterTextureStore.slots[slot] = { ...previousMainTextures };
+
+  if (!writeRosterTextureStore()) {
+    rosterTextureStore.slots = previousSlots;
+    alert("This browser could not save the character swap. Free some browser storage and try again.");
+    updateRosterCards();
+    return;
+  }
+  if (!writeCharacterTextureRecord(selectedTextures, savedAt)) {
+    rosterTextureStore.slots = previousSlots;
+    writeRosterTextureStore();
+    alert("This browser could not save the active character. Your previous character is unchanged.");
+    updateRosterCards();
+    return;
+  }
+
+  try {
+    await Promise.all([
+      applyAvatarTextureData(main.textures, selectedTextures),
+      applyAvatarTextureData(selected.textures, previousMainTextures)
+    ]);
+  } catch (error) {
+    console.warn("Character textures were saved, but the preview could not refresh immediately.", error);
+  }
+
+  main.savedTextureData = { ...selectedTextures };
+  main.dirtyTextureKeys = new Set(Object.keys(selectedTextures));
+  main.resetOverridesPending = false;
+  selected.savedTextureData = { ...previousMainTextures };
+  selected.dirtyTextureKeys = new Set(Object.keys(previousMainTextures));
+  selected.resetOverridesPending = false;
+  main.group.rotation.y = Math.PI;
+  selected.group.rotation.y = Math.PI;
+
+  rosterOrder = [0, 1, 2, 3, 4];
+  avatarYaw = Math.PI;
+  previewAvatar = main;
+  activateRosterSlot(MAIN_PROFILE_SLOT);
+  applyRosterLayout();
+  sendCharacterSkin(selectedTextures);
+  window.dispatchEvent(new CustomEvent("webminecraft:character-changed", {
+    detail: { textures: selectedTextures }
+  }));
+
+  let profileSaved = false;
+  try {
+    profileSaved = Boolean(await window.webMinecraftSaveCharacterProfile?.(selectedTextures, savedAt));
+  } catch (error) {
+    console.warn("The active character was saved in this browser, but not to the cloud profile.", error);
+  }
+
+  const sub = overlay.querySelector("#characterEditorTopbarSub");
+  if (sub) {
+    sub.textContent = profileSaved
+      ? "Selected character is now active and saved to your profile."
+      : "Selected character is now active on this browser.";
+    window.setTimeout(() => {
+      if (editorPage === "roster") sub.textContent = "Browse characters and choose one to edit.";
+    }, 2600);
+  }
+  updateRosterCards();
+}
+
 function moveRoster(direction) {
   if (editorPage !== "roster") return;
   const current = rosterOrder.slice();
@@ -827,8 +956,8 @@ function setEditorPage(page) {
   const status = overlay.querySelector("#characterEditorStatus");
   if (page === "roster") {
     title.textContent = "CHARACTER SELECT";
-    sub.textContent = "Browse your five character slots and choose one to edit.";
-    status.textContent = "5 CHARACTER SLOTS";
+    sub.textContent = "Browse characters and choose one to edit.";
+    status.textContent = "";
     const host = overlay.querySelector("#characterRosterStage");
     if (renderer.domElement.parentElement !== host) host.prepend(renderer.domElement);
     renderer.domElement.style.display = "block";
@@ -881,7 +1010,7 @@ async function buildPreview(force = false) {
       const avatarName = slot === MAIN_PROFILE_SLOT ? identity.name : "Character " + (slot + 1);
       const avatar = createAvatar(avatarId, avatarName, null, appearanceId);
       avatar.group.traverse(object => { if (object.isSprite) object.visible = false; });
-      avatar.group.rotation.y = slot === MAIN_PROFILE_SLOT ? avatarYaw : 0;
+      avatar.group.rotation.y = Math.PI;
       avatar.group.position.set((slot - 2) * 2.95, 0, 0);
       avatar.group.scale.setScalar(slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88);
       avatar.group.visible = slot === MAIN_PROFILE_SLOT;
@@ -1184,6 +1313,9 @@ overlay.querySelectorAll(".rosterEditButton").forEach(button => button.addEventL
   activateRosterSlot(Number(button.dataset.slot));
   setEditorPage("paint");
 }));
+overlay.querySelectorAll(".rosterSelectButton").forEach(button => button.addEventListener("click", () => {
+  void selectRosterCharacter(Number(button.dataset.slot));
+}));
 overlay.querySelectorAll("[data-editor-page]").forEach(button => button.addEventListener("click", () => {
   const page = button.dataset.editorPage;
   if (page === "paint") activateRosterSlot(selectedRosterSlot);
@@ -1275,11 +1407,13 @@ function render() {
       entry.group.scale.setScalar(nextScale);
     });
   }
-  if (previewAvatar?.parts?.head) {
-    const head = previewAvatar.parts.head;
+  const headTargets = editorOpen && editorPage === "roster" ? rosterAvatars : [previewAvatar];
+  for (const avatar of headTargets) {
+    if (!avatar?.parts?.head) continue;
+    const head = avatar.parts.head;
     head.rotation.order = "YXZ";
     head.rotation.y += (headLookX * 0.62 - head.rotation.y) * 0.16;
-    head.rotation.x += (headLookY * 0.36 - head.rotation.x) * 0.16;
+    head.rotation.x += (-headLookY * 0.36 - head.rotation.x) * 0.16;
   }
   if ((editorOpen || showcaseVisible) && renderer && scene && camera && previewAvatar) renderer.render(scene, camera);
 }
