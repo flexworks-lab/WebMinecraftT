@@ -119,10 +119,6 @@ body.webminecraft-in-world #globalPlayerCount{display:none !important}
         button.title = "Friends";
         button.dataset.tooltip = "Friends";
         button.innerHTML = '<svg viewBox="0 0 16 16" width="25" height="25" shape-rendering="crispEdges" aria-hidden="true"><rect x="3" y="1" width="4" height="4" fill="#f0f0f0"/><rect x="9" y="2" width="4" height="4" fill="#c9c9c9"/><rect x="1" y="6" width="8" height="8" fill="#f0f0f0"/><rect x="8" y="7" width="7" height="7" fill="#c9c9c9"/><rect x="4" y="8" width="2" height="2" fill="#555"/><rect x="11" y="9" width="2" height="2" fill="#555"/></svg>';
-        button.addEventListener("click", () => {
-            const accountButton = document.getElementById("accountButton");
-            if (accountButton) accountButton.click();
-        });
         document.body.appendChild(button);
     };
 
