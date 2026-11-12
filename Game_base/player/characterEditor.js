@@ -132,7 +132,7 @@ function readRosterTextureStore() {
       if (raw) localStorage.setItem(storageKey, raw);
     }
     const record = JSON.parse(raw || "null");
-    if (!record || ![1, 2].includes(Number(record.version)) || !Array.isArray(record.slots)) return { slots: [null, null, null, null, null], savedAt: 0 };
+    if (!record || ![1, 2, 3].includes(Number(record.version)) || !Array.isArray(record.slots)) return { slots: [null, null, null, null, null], deletedIds: [], savedAt: 0 };
     const savedAt = Math.max(0, Number(record.savedAt) || 0);
     const length = Math.min(MAX_ROSTER_CHARACTERS, Math.max(5, record.slots.length));
     const slots = Array.from({ length }, (_, i) => {
