@@ -192,6 +192,8 @@ function saveSingleplayerWorldState(force = false) {
     try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
 }
 
+window.__webminecraftSaveSingleplayerWorldState = () => saveSingleplayerWorldState(true);
+
 function startSingleplayerWorldStateSync() {
     if (stateSyncStarted) return;
     stateSyncStarted = true;
