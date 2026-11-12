@@ -115,22 +115,30 @@ function readRosterTextureStore() {
       if (source?.__characterId) return { __characterId: String(source.__characterId), __characterName: String(source.__characterName || "Character " + (i + 1)).slice(0, 24), __savedAt: 0 };
       return null;
     });
-    return { slots, savedAt };
-  } catch { return { slots: [null, null, null, null, null], savedAt: 0 }; }
+    const deletedIds = Array.from(new Set((Array.isArray(record.deletedIds) ? record.deletedIds : [])
+      .filter(id => typeof id === "string" && id.length > 0 && id.length <= 128)));
+    const deleted = new Set(deletedIds);
+    return { slots: slots.map(item => deleted.has(item?.__characterId) ? null : item), deletedIds, savedAt };
+  } catch { return { slots: [null, null, null, null, null], deletedIds: [], savedAt: 0 }; }
 }
 function writeRosterTextureStore(savedAt = Date.now()) {
   try {
     const timestamp = Math.max(0, Number(savedAt) || Date.now());
     const length = Math.min(MAX_ROSTER_CHARACTERS, Math.max(5, rosterTextureStore.slots.length));
+    const deletedIds = Array.from(new Set((Array.isArray(rosterTextureStore.deletedIds) ? rosterTextureStore.deletedIds : [])
+      .filter(id => typeof id === "string" && id.length > 0 && id.length <= 128)));
+    const deleted = new Set(deletedIds);
     const slots = Array.from({ length }, (_, i) => {
       const source = rosterTextureStore.slots[i];
+      if (deleted.has(source?.__characterId)) return null;
       if (hasTextureMaps(source)) return makeRosterRecord(source, source);
       if (source?.__characterId) return { __characterId: String(source.__characterId), __characterName: String(source.__characterName || "Character " + (i + 1)).slice(0, 24), __savedAt: 0 };
       return null;
     });
     rosterTextureStore.savedAt = timestamp;
+    rosterTextureStore.deletedIds = deletedIds;
     rosterTextureStore.slots = slots;
-    localStorage.setItem(getRosterStorageKey(), JSON.stringify({ version: 2, savedAt: timestamp, slots }));
+    localStorage.setItem(getRosterStorageKey(), JSON.stringify({ version: 2, savedAt: timestamp, slots, deletedIds }));
     return true;
   } catch (error) { console.warn("Could not save character presets in this browser.", error); return false; }
 }
@@ -547,10 +555,18 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
 #characterRosterStage{background:transparent!important;border:0!important;box-shadow:none!important}
 #characterRosterInstructions{display:none!important}
 .rosterCardActions{display:flex;align-items:center;justify-content:center;gap:4px;width:min(190px,96%);pointer-events:auto}
-.rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton{
-  flex:1 1 0;min-width:0;width:auto!important;height:34px;padding:0 3px;
-  font-size:clamp(7px,.72vw,10px)!important;letter-spacing:0!important;
+.rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton,.rosterCardActions .rosterDeleteButton{
+  flex:1 1 0;min-width:0;width:auto!important;height:34px;padding:0 2px;
+  font-size:clamp(6px,.62vw,9px)!important;letter-spacing:0!important;
 }
+.rosterCardActions .rosterDeleteButton{
+  border:2px solid #111!important;border-top-color:#d5aaaa!important;border-left-color:#d5aaaa!important;
+  background:linear-gradient(#984c4c,#713535)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;text-shadow:2px 2px #321717!important;
+  box-shadow:inset 2px 2px rgba(255,255,255,.12),inset -2px -2px rgba(0,0,0,.32),0 2px #111!important;
+}
+.rosterCardActions .rosterDeleteButton:hover:not(:disabled){background:linear-gradient(#b85b5b,#873d3d)!important}
+.rosterCardActions .rosterDeleteButton:disabled{opacity:.42!important;cursor:default!important;filter:none!important}
 .rosterCardActions .rosterSelectButton{
   border:2px solid #111!important;border-top-color:#b9d69a!important;border-left-color:#b9d69a!important;
   background:linear-gradient(#789b4e,#526f36)!important;color:#fff!important;
@@ -565,11 +581,11 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
 }
 @media(max-width:900px){
   .rosterCardActions{gap:3px;width:96%}
-  .rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton{height:30px;font-size:7px!important}
+  .rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton,.rosterCardActions .rosterDeleteButton{height:30px;font-size:6px!important}
 }
 @media(max-width:620px){
   .rosterCardActions{gap:2px;width:100%}
-  .rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton{height:27px;padding:0 1px;font-size:6px!important}
+  .rosterCardActions .rosterEditButton,.rosterCardActions .rosterSelectButton,.rosterCardActions .rosterDeleteButton{height:27px;padding:0 1px;font-size:5px!important}
 }
 
 /* Keep roster actions exclusive to the character in the center slot. */
@@ -618,11 +634,11 @@ overlay.innerHTML = `
       <div id="characterRosterStage">
         <button class="rosterArrow" id="rosterPrev" type="button" aria-label="Move previous character to center">‹</button>
         <div id="characterRosterCards">
-          <div class="rosterCard" data-roster-position="0"><div class="rosterCardNumber">01</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
-          <div class="rosterCard" data-roster-position="1"><div class="rosterCardNumber">02</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
-          <div class="rosterCard" data-roster-position="2"><div class="rosterCardNumber">03</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
-          <div class="rosterCard" data-roster-position="3"><div class="rosterCardNumber">04</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
-          <div class="rosterCard" data-roster-position="4"><div class="rosterCardNumber">05</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button></div></div>
+          <div class="rosterCard" data-roster-position="0"><div class="rosterCardNumber">01</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="1"><div class="rosterCardNumber">02</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="2"><div class="rosterCardNumber">03</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="3"><div class="rosterCardNumber">04</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="4"><div class="rosterCardNumber">05</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
         </div>
         <button class="rosterArrow" id="rosterNext" type="button" aria-label="Move next character to center">›</button>
       </div>
@@ -926,6 +942,10 @@ function updateRosterCards() {
     select.disabled = slot === MAIN_PROFILE_SLOT || !isSaved;
     select.textContent = slot === MAIN_PROFILE_SLOT ? "ACTIVE" : (isSaved ? "SELECT" : "EDIT FIRST");
     select.setAttribute("aria-label", slot === MAIN_PROFILE_SLOT ? "This is your active character" : (isSaved ? "Select " + name + " for gameplay" : "Edit and save this character before selecting it"));
+    const remove = card.querySelector(".rosterDeleteButton");
+    remove.dataset.slot = String(slot);
+    remove.disabled = slot === MAIN_PROFILE_SLOT || !isSaved;
+    remove.setAttribute("aria-label", slot === MAIN_PROFILE_SLOT ? "The active character cannot be deleted" : "Delete " + name);
   });
 }
 function applyRosterLayout() {
@@ -1048,13 +1068,61 @@ async function selectRosterCharacter(slot) {
   try {
     [profileSaved, rosterSaved] = await Promise.all([
       Promise.resolve(window.webMinecraftSaveCharacterProfile?.(selectedTextures, savedAt)).then(Boolean).catch(() => false),
-      Promise.resolve(window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt)).then(Boolean).catch(() => false)
+      Promise.resolve(window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt, rosterTextureStore.deletedIds || [])).then(Boolean).catch(() => false)
     ]);
   } catch (error) { console.warn("The active character was saved in this browser, but account sync did not finish.", error); }
   const sub = overlay.querySelector("#characterEditorTopbarSub");
   if (sub) {
     sub.textContent = profileSaved && rosterSaved ? "Selected character and roster synced to your account." : "Selected character is active on this browser. Account sync is unavailable.";
     window.setTimeout(() => { if (editorPage === "roster") sub.textContent = "Browse your saved characters."; }, 2600);
+  }
+  updateRosterCards();
+}
+
+async function deleteRosterCharacter(slot) {
+  if (!Number.isInteger(slot) || slot < 0 || slot === MAIN_PROFILE_SLOT) return;
+  const record = rosterTextureStore.slots[slot];
+  if (!hasTextureMaps(record)) return;
+  const name = record.__characterName || "Character " + (slot + 1);
+  if (!window.confirm("Delete " + name + " from your character roster? This also removes it from your other signed-in devices.")) return;
+
+  const characterId = String(record.__characterId || "");
+  if (!characterId) return;
+  const previousSlots = rosterTextureStore.slots.slice();
+  const previousDeletedIds = [...(rosterTextureStore.deletedIds || [])];
+  rosterTextureStore.slots[slot] = null;
+  rosterTextureStore.deletedIds = Array.from(new Set([...previousDeletedIds, characterId]));
+  const savedAt = Date.now();
+  if (!writeRosterTextureStore(savedAt)) {
+    rosterTextureStore.slots = previousSlots;
+    rosterTextureStore.deletedIds = previousDeletedIds;
+    alert("This browser could not update the roster. Free some browser storage and try again.");
+    return;
+  }
+
+  // A deleted preset becomes an empty local preview slot, never a saved skin.
+  try {
+    const center = rosterOrder[2] ?? MAIN_PROFILE_SLOT;
+    await buildPreview(true);
+    setRosterWindow(Math.min(center, rosterAvatars.length - 1));
+    activateRosterSlot(rosterOrder[2]);
+    applyRosterLayout();
+  } catch (error) {
+    console.warn("Deleted character locally, but the preview could not refresh.", error);
+  }
+
+  let synced = false;
+  try {
+    synced = Boolean(await window.webMinecraftSaveCharacterRoster?.(
+      rosterTextureStore.slots, savedAt, rosterTextureStore.deletedIds
+    ));
+  } catch (error) {
+    console.warn("Character was deleted in this browser, but account sync did not finish.", error);
+  }
+  const sub = overlay.querySelector("#characterEditorTopbarSub");
+  if (sub) {
+    sub.textContent = synced ? name + " deleted from your account." : name + " deleted on this device; account sync is unavailable.";
+    window.setTimeout(() => { if (editorPage === "roster") sub.textContent = "Browse your saved characters."; }, 2400);
   }
   updateRosterCards();
 }
@@ -1399,7 +1467,7 @@ async function saveTextures() {
   const button = overlay.querySelector("#characterSave");
   let rosterSaved = false;
   try {
-    rosterSaved = Boolean(await window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt));
+    rosterSaved = Boolean(await window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt, rosterTextureStore.deletedIds || []));
   } catch (error) {
     console.warn("Character presets are saved in this browser, but not to the account profile.", error);
   }
@@ -1479,6 +1547,9 @@ overlay.querySelectorAll(".rosterEditButton").forEach(button => {
 overlay.querySelectorAll(".rosterSelectButton").forEach(button => button.addEventListener("click", () => {
   void selectRosterCharacter(Number(button.dataset.slot));
 }));
+overlay.querySelectorAll(".rosterDeleteButton").forEach(button => button.addEventListener("click", () => {
+  void deleteRosterCharacter(Number(button.dataset.slot));
+}));
 overlay.querySelectorAll("[data-editor-page]").forEach(button => button.addEventListener("click", () => {
   const page = button.dataset.editorPage;
   if (page === "paint") activateRosterSlot(selectedRosterSlot);
@@ -1516,6 +1587,8 @@ window.addEventListener("webminecraft:account-identity-changed", () => {
 
 window.addEventListener("webminecraft:character-profile-loaded", event => {
   const textures = event.detail?.textures && typeof event.detail.textures === "object" ? event.detail.textures : {};
+  const incomingDeletedIds = Array.from(new Set((Array.isArray(event.detail?.deletedCharacterIds) ? event.detail.deletedCharacterIds : [])
+    .filter(id => typeof id === "string" && id.length > 0 && id.length <= 128)));
   const incomingRoster = Array.isArray(event.detail?.roster)
     ? Array.from({ length: Math.min(MAX_ROSTER_CHARACTERS, Math.max(5, event.detail.roster.length)) }, (_, index) => {
         const source = event.detail.roster[index], textures = extractTextureMapData(source);
@@ -1531,7 +1604,10 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
   const applyAccountProfile = async () => {
     await rebuildRosterForCurrentAccount();
     const cachedRoster = readRosterTextureStore();
-    const rosterToApply = incomingRoster ? mergeRosterSlots(cachedRoster.slots, incomingRoster) : cachedRoster.slots;
+    const deletedIds = Array.from(new Set([...(cachedRoster.deletedIds || []), ...incomingDeletedIds]));
+    const deleted = new Set(deletedIds);
+    const mergedRoster = incomingRoster ? mergeRosterSlots(cachedRoster.slots, incomingRoster) : cachedRoster.slots;
+    const rosterToApply = mergedRoster.map(record => deleted.has(record?.__characterId) ? null : record);
     const activeTextures = extractTextureMapData(textures);
     if (Object.keys(activeTextures).length) {
       const previousMain = rosterToApply[MAIN_PROFILE_SLOT];
@@ -1542,7 +1618,7 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
       });
       writeCharacterTextureRecord(activeTextures, rosterSavedAt || Date.now());
     }
-    rosterTextureStore = { slots: rosterToApply, savedAt: Math.max(cachedRoster.savedAt || 0, rosterSavedAt) };
+    rosterTextureStore = { slots: rosterToApply, deletedIds, savedAt: Math.max(cachedRoster.savedAt || 0, rosterSavedAt) };
     writeRosterTextureStore(rosterTextureStore.savedAt || Date.now());
     await buildPreview(true);
     setRosterWindow(MAIN_PROFILE_SLOT);
