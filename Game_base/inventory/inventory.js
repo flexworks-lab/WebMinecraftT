@@ -193,9 +193,15 @@ const CATALOG_TAB_ITEMS = {
         195, 196, 197
     ],
     colored: [
-        // Concrete first, followed by other color-dependent building blocks.
-        ...idsBetween(169, 184),
-        ...idsBetween(206, 217)
+        // Vanilla-style color order: white through black, then each matching
+        // color family in the same sequence.
+        183, 179, 178, 175, 184, 177, 180, 173, 176, 172, 181, 170, 171, 174, 182, 169,
+        207, 206,
+        209, 208,
+        211, 210,
+        213, 212,
+        215, 214,
+        217, 216
     ],
     natural: [
         // Terrain, soil, sand, snow and ice.
@@ -209,7 +215,7 @@ const CATALOG_TAB_ITEMS = {
         192, 204, 220
     ],
     functional: [
-        15, 17, 32, 50, 168, 205, 218, 219, 221, 222, 223
+        168, 50, 32, 219, 218, 221, 222, 223, 17, 15, 205
     ],
     tools: [
         16, 185, 186, 187, 188, 189, 190
@@ -563,7 +569,7 @@ body.inventory-open #hotbar.textured-hotbar{display:none!important}
 #inventoryTopBar{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 4px 6px;flex:0 0 auto}
 #inventoryTitle{font-size:22px;font-weight:700;text-shadow:2px 2px 0 #171717}
 #inventoryClose{width:32px;height:30px;border:2px solid #111;border-top-color:#aaa;border-left-color:#aaa;background:#8a8a8a;color:#fff;font-size:22px;line-height:19px;cursor:pointer;box-shadow:inset -2px -2px 0 #444}#inventoryScreen button:not(.inventoryTab){box-sizing:border-box;transform:scale(.86);transform-origin:center center}
-#creativeTabs{display:flex;gap:6px;flex:0 0 auto;padding:0 3px 8px;border-bottom:2px solid #171717}
+#creativeTabs{display:flex;flex-wrap:wrap;gap:6px;flex:0 0 auto;padding:0 3px 8px;border-bottom:2px solid #171717}
 .inventoryTab{width:46px;height:40px;border:2px solid #161616;border-top-color:#8b8b8b;border-left-color:#8b8b8b;background:#777;color:#ddd;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:inset -2px -2px 0 #444;position:relative}
 .inventoryTab:hover{filter:brightness(1.14)}.inventoryTab.active{background:#9b9b9b;border-color:#f0f0f0;color:#fff;transform:translateY(1px)}
 .inventoryTab svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:square;stroke-linejoin:miter}.inventoryTab:nth-child(2) svg{fill:currentColor;stroke:currentColor}
