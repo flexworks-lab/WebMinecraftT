@@ -1365,6 +1365,12 @@ function animate() {
     requestAnimationFrame(animate);
     if (window.__webminecraftDevBenchActive) return;
     if (document.hidden) return;
+    // The pause menu is a DOM overlay; keep the last game frame and skip
+    // expensive player, chunk, lighting, and WebGL work until gameplay resumes.
+    if (document.body.classList.contains("webminecraft-game-paused")) {
+        lastTime = performance.now();
+        return;
+    }
     perspectiveCameraRig.restore();
     const currentTime = performance.now();
     lastFrameTimeMs = currentTime - lastTime;
