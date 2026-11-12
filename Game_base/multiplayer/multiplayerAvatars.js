@@ -169,7 +169,7 @@ function makeSolidTexture(hex) {
 export const AVATAR_TEXTURE_PARTS = [
     { key: "face", label: "Face" },
     { key: "headBack", label: "Head back" },
-    { key: "headSide", label: "Head sides" },
+    { key: "headSide", label: "Head side" },
     { key: "headTop", label: "Hair / top" },
     { key: "skin", label: "Skin" },
     { key: "hand", label: "Hands" },
