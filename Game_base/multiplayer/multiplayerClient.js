@@ -311,7 +311,7 @@ async function saveExportedRoomWorld(message) {
             const y = Math.floor(Number(change?.y));
             const z = Math.floor(Number(change?.z));
             const type = Math.floor(Number(change?.type ?? change?.blockType));
-            if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 184) continue;
+            if (![x, y, z, type].every(Number.isFinite) || y < -32 || y > 95 || type < 0 || type > 223) continue;
             blocks[`${x},${y},${z}`] = type;
         }
         const worldStorage = await import("../world/worldsV2.js");
