@@ -510,13 +510,13 @@ function animateAvatar(entry, player, time) {
         let punchAngle;
         if (progress < 0.22) {
             const t = progress / 0.22;
-            punchAngle = THREE.MathUtils.lerp(0, 0.58, t * t);
+            punchAngle = THREE.MathUtils.lerp(0, -0.58, t * t);
         } else if (progress < 0.55) {
             const t = (progress - 0.22) / 0.33;
-            punchAngle = THREE.MathUtils.lerp(0.58, -1.72, t * (2 - t));
+            punchAngle = THREE.MathUtils.lerp(-0.58, 1.72, t * (2 - t));
         } else {
             const t = (progress - 0.55) / 0.45;
-            punchAngle = THREE.MathUtils.lerp(-1.72, 0, t * t * (3 - 2 * t));
+            punchAngle = THREE.MathUtils.lerp(1.72, 0, t * t * (3 - 2 * t));
         }
         parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, punchAngle, 0.78);
         parts.rightArm.rotation.z = THREE.MathUtils.lerp(parts.rightArm.rotation.z, -0.12, 0.55);
