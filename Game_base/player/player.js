@@ -3,7 +3,7 @@ import { keys, yaw, pitch, touchInput, isFlying } from "./controls.js";
 import { getKeybind } from "./keybinds.js";
 import { getBlockAt, getBlockCollisionBounds, getBlockCollisionBoxes } from "../world/world.js";
 import { isDoorBlocking } from "../world/door.js";
-import { getRemotePlayers, isMultiplayerActive, sendPlayerState, syncWorldChanges } from "../multiplayer/multiplayerClient.js";
+import { isMultiplayerActive, sendPlayerState, syncWorldChanges } from "../multiplayer/multiplayerClient.js";
 import { getSelectedItemId } from "../inventory/inventory.js";
 
 let velocityX = 0;
@@ -357,90 +357,6 @@ function physicsStep(camera, dt) {
     updateGround(camera);
 }
 
-function avatarColor(id) {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
-    const hue = ((hash >>> 0) % 360) / 360;
-    return new THREE.Color().setHSL(hue, 0.8, 0.58);
-}
-
-function createMultiplayerNameplate(name) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 384;
-    canvas.height = 80;
-    const context = canvas.getContext("2d");
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.font = "bold 34px Arial";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.lineWidth = 10;
-    context.strokeStyle = "rgba(0,0,0,0.9)";
-    context.fillStyle = "#ffffff";
-    const text = String(name || "Player").slice(0, 16);
-    context.strokeText(text, canvas.width / 2, canvas.height / 2);
-    context.fillText(text, canvas.width / 2, canvas.height / 2);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
-    const sprite = new THREE.Sprite(material);
-    const width = Math.max(1.15, Math.min(2.7, text.length * 0.13 + 0.9));
-    sprite.scale.set(width, 0.38, 1);
-    sprite.position.set(0, PLAYER_HEIGHT + 0.15, 0);
-    return sprite;
-}
-
-function createNameplate(name) {
-    const canvas=document.createElement("canvas"); canvas.width=384; canvas.height=72; const ctx=canvas.getContext("2d");
-    const text=String(name||"Player").slice(0,16); ctx.clearRect(0,0,384,72); ctx.font="bold 32px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineWidth=9; ctx.strokeStyle="rgba(0,0,0,.9)"; ctx.fillStyle="white"; ctx.strokeText(text,192,36); ctx.fillText(text,192,36);
-    const texture=new THREE.CanvasTexture(canvas); texture.colorSpace=THREE.SRGBColorSpace; const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false})); sprite.scale.set(Math.max(1.1,Math.min(2.8,.8+text.length*.13)),.36,1); sprite.position.y=2; return sprite;
-}
-
-function updateMultiplayerAvatars(scene) {
-    if (!isMultiplayerActive()) {
-        for (const avatar of avatarDots.values()) scene.remove(avatar);
-        avatarDots.clear();
-        return;
-    }
-
-    const players = getRemotePlayers();
-    for (const [id, player] of players) {
-        if (!player?.position) continue;
-        let avatar = avatarDots.get(id);
-        if (!avatar) {
-            avatar = new THREE.Group();
-            const skinTexture = createCharacterTexture();
-            const body = createCharacterModel(skinTexture);
-            body.userData.multiplayerAvatar = true;
-            avatar.userData.multiplayerPlayerId = id;
-            avatar.add(body);
-            const nameplate = createMultiplayerNameplate(player.name);
-            avatar.add(nameplate);
-            scene.add(avatar);
-            avatarDots.set(id, avatar);
-        }
-        avatar.position.set(
-            Number(player.position.x) || 0,
-            (Number(player.position.y) || 0) - PLAYER_HEIGHT,
-            Number(player.position.z) || 0,
-        );
-    }
-
-    for (const [id, avatar] of avatarDots) {
-        if (!players.has(id)) {
-            scene.remove(avatar);
-            avatar.traverse(child => {
-                if (child.geometry) child.geometry.dispose();
-                if (child.material) {
-                    if (child.material.map) child.material.map.dispose();
-                    child.material.dispose();
-                }
-            });
-            avatarDots.delete(id);
-        }
-    }
-}
 
 function syncMultiplayerState(camera) {
     if (!isMultiplayerActive()) return;
@@ -482,7 +398,6 @@ export function updatePlayer(camera, scene, deltaTime = 1 / 60) {
     camera.userData.__webminecraftPlayerPitch = pitch;
     window.__webminecraftPlayerSneaking = isSneaking();
     syncMultiplayerState(camera);
-    updateMultiplayerAvatars(scene);
     syncWorldChanges();
 }
 
