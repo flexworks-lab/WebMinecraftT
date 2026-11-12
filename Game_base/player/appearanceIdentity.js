@@ -47,7 +47,16 @@ function getTextureStorageKey() {
 
 export function readCharacterTextureRecord() {
     try {
-        const record = JSON.parse(localStorage.getItem(getTextureStorageKey()) || "null");
+        const storageKey = getTextureStorageKey();
+        let raw = localStorage.getItem(storageKey);
+        // Migrate pre-account browser saves into the signed-in account once.
+        // This keeps the skin already visible in the menu instead of replacing
+        // it with a freshly generated account appearance.
+        if (!raw && getAccountUid()) {
+            raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) localStorage.setItem(storageKey, raw);
+        }
+        const record = JSON.parse(raw || "null");
         if (!record || ![1, 2].includes(Number(record.version)) ||
             !record.textures || typeof record.textures !== "object" || Array.isArray(record.textures)) return null;
         return {
