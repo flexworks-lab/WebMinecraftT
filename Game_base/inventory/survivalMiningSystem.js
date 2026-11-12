@@ -40,7 +40,11 @@ const HARDNESS = {
     75: 750, 76: 750, 77: 750, 78: 750, 79: 750, 80: 750, 81: 750, 82: 750, 83: 750, 84: 750,
     85: 750, 86: 750, 87: 750, 88: 750, 89: 750, 90: 750, 91: 750, 92: 750, 93: 750, 94: 750,
     95: 750, 96: 750, 97: 750, 98: 750, 99: 750, 100: 750, 101: 750, 102: 750, 103: 750, 104: 750,
-    105: 750, 106: 750, 107: 750, 108: 750, 109: 750, 110: 750, 111: 750, 112: 750, 113: 750, 114: 750
+    105: 750, 106: 750, 107: 750, 108: 750, 109: 750, 110: 750, 111: 750, 112: 750, 113: 750, 114: 750,
+    191: 430, 192: 500, 193: 650, 194: 1100, 195: 850, 196: 850, 197: 750, 198: 1150,
+    199: 1200, 200: 1000, 201: 1000, 202: 1000, 203: 1050, 204: 750, 205: 1300, 206: 650,
+    207: 650, 208: 850, 209: 850, 210: 900, 211: 900, 212: 350, 213: 350, 214: 800,
+    215: 800, 216: 500, 217: 500, 218: 850, 219: 700, 220: 900, 221: 900, 222: 750, 223: 700
 };
 
 const TEXTURES = {
@@ -74,7 +78,40 @@ const TEXTURES = {
     165: "stripped_jungle_log.png", 166: "stripped_mangrove_log.png", 167: "stripped_spruce_log.png", 168: "crafting_table_front.png",
     169: "black_concrete.png", 170: "blue_concrete.png", 171: "brown_concrete.png", 172: "cyan_concrete.png", 173: "gray_concrete.png", 174: "green_concrete.png",
     175: "light_blue_concrete.png", 176: "light_gray_concrete.png", 177: "lime_concrete.png", 178: "magenta_concrete.png", 179: "orange_concrete.png",
-    180: "pink_concrete.png", 181: "purple_concrete.png", 182: "red_concrete.png", 183: "white_concrete.png", 184: "yellow_concrete.png"
+    180: "pink_concrete.png", 181: "purple_concrete.png", 182: "red_concrete.png", 183: "white_concrete.png", 184: "yellow_concrete.png",
+    191: "coarse_dirt.png",
+    192: "clay.png",
+    193: "blue_ice.png",
+    194: "blackstone.png",
+    195: "coal_block.png",
+    196: "bone_block_side.png",
+    197: "bookshelf.png",
+    198: "chiseled_nether_bricks.png",
+    199: "chiseled_polished_blackstone.png",
+    200: "chiseled_quartz_block.png",
+    201: "chiseled_red_sandstone.png",
+    202: "chiseled_sandstone.png",
+    203: "chiseled_stone_bricks.png",
+    204: "carved_pumpkin.png",
+    205: "chain_command_block_side.png",
+    206: "black_concrete_powder.png",
+    207: "blue_concrete_powder.png",
+    208: "black_glazed_terracotta.png",
+    209: "blue_glazed_terracotta.png",
+    210: "black_shulker_box.png",
+    211: "blue_shulker_box.png",
+    212: "black_stained_glass.png",
+    213: "blue_stained_glass.png",
+    214: "black_terracotta.png",
+    215: "blue_terracotta.png",
+    216: "black_wool.png",
+    217: "blue_wool.png",
+    218: "chiseled_bookshelf_empty.png",
+    219: "cartography_table_top.png",
+    220: "bee_nest_front.png",
+    221: "beehive_front.png",
+    222: "bell_side.png",
+    223: "cauldron_side.png"
 };
 
 const COLORS = {
