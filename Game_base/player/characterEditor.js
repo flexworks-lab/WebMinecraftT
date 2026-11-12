@@ -15,6 +15,25 @@ const PALETTE = [
 ];
 const TEXTURE_SIZE = 16;
 const MAX_ROSTER_CHARACTERS = 60;
+const LOCKER_CATEGORIES = ["HATS", "FACES", "TOPS", "MUSCLES", "PANTS", "HANDS"];
+const LOCKER_ITEMS = [
+  { id:"cap-cobalt", name:"Cobalt Cap", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#285b9c", accent:"#8dc8ff", pattern:"cap", tag:"HEADWEAR" },
+  { id:"beanie-violet", name:"Violet Beanie", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#60438e", accent:"#c7a8ff", pattern:"beanie", tag:"HEADWEAR" },
+  { id:"crown-gold", name:"Gold Crown", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#b98520", accent:"#ffe28a", pattern:"crown", tag:"HEADWEAR" },
+  { id:"visor-ice", name:"Ice Visor", category:"FACES", slot:"face", keys:["face"], base:"#253d57", accent:"#9be8ff", pattern:"visor", tag:"FACE" },
+  { id:"warpaint-ember", name:"Ember Warpaint", category:"FACES", slot:"face", keys:["face"], base:"#c68c67", accent:"#a62f29", pattern:"warpaint", tag:"FACE" },
+  { id:"shadow-mask", name:"Shadow Mask", category:"FACES", slot:"face", keys:["face"], base:"#c68c67", accent:"#232832", pattern:"mask", tag:"FACE" },
+  { id:"arctic-jacket", name:"Arctic Jacket", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#354f70", accent:"#a8d5ee", pattern:"jacket", tag:"OUTFIT" },
+  { id:"ember-armor", name:"Ember Armor", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#773c35", accent:"#e7a34c", pattern:"armor", tag:"OUTFIT" },
+  { id:"night-hoodie", name:"Night Hoodie", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#242b39", accent:"#7689aa", pattern:"hoodie", tag:"OUTFIT" },
+  { id:"power-build", name:"Power Build", category:"MUSCLES", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#b87954", accent:"#704533", pattern:"muscles", tag:"BODY" },
+  { id:"athletic-build", name:"Athletic Build", category:"MUSCLES", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#d09a72", accent:"#875a43", pattern:"athletic", tag:"BODY" },
+  { id:"cargo-olive", name:"Olive Cargo", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#526344", accent:"#a9b982", pattern:"cargo", tag:"LEGS" },
+  { id:"denim-dark", name:"Dark Denim", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#273d5c", accent:"#819cb9", pattern:"denim", tag:"LEGS" },
+  { id:"track-neon", name:"Neon Track Pants", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#282f3b", accent:"#72d6b8", pattern:"track", tag:"LEGS" },
+  { id:"onyx-gloves", name:"Onyx Gloves", category:"HANDS", slot:"hands", keys:["hand"], base:"#202631", accent:"#8297b3", pattern:"gloves", tag:"HANDS" },
+  { id:"ember-wraps", name:"Ember Wraps", category:"HANDS", slot:"hands", keys:["hand"], base:"#673b35", accent:"#d78b62", pattern:"wraps", tag:"HANDS" }
+];
 function extractTextureMapData(value) {
   const source = value?.textures && typeof value.textures === "object" ? value.textures : value;
   const result = {};
@@ -810,6 +829,8 @@ let rosterBuildPromise = null;
 let rosterOrder = [0, 1, 2, 3, 4];
 let selectedRosterSlot = MAIN_PROFILE_SLOT;
 let editorPage = "roster";
+let lockerSelectedSlot = null;
+let lockerSelectedCategory = "HATS";
 let rosterTextureStore = readRosterTextureStore();
 let headLookX = 0;
 let headLookY = 0;
