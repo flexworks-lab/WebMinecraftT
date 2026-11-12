@@ -369,23 +369,34 @@ function ensureChatUI() {
     const style = document.createElement("style");
     style.id = "multiplayerChatStyles";
     style.textContent = `
-        #multiplayerChat{position:fixed;top:12px;left:12px;width:min(380px,calc(100vw - 24px));z-index:180;display:none;font-family:Arial,sans-serif;text-shadow:1px 1px 2px #000;pointer-events:none}
-        #multiplayerChatFeed{box-sizing:border-box;max-height:230px;overflow-y:auto;padding:8px 9px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.16);scrollbar-width:thin}
-        .multiplayerChatLine{font-size:13px;line-height:1.4;color:#fff;overflow-wrap:anywhere;margin:2px 0}
-        .multiplayerChatSystem{color:#c6c6c6;font-style:italic}
+        #multiplayerChat{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;box-sizing:border-box;z-index:50000;display:none;flex-direction:column;background:rgba(0,0,0,.78);font-family:Arial,sans-serif;color:#fff;text-shadow:2px 2px 0 #000;pointer-events:auto}
+        #webMinecraftChatHeader{height:48px;min-height:48px;box-sizing:border-box;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 12px;background:#c6c6c6;color:#262626;border-bottom:3px solid #555;text-shadow:none;font-size:16px}
+        #webMinecraftChatHeader button,#webMinecraftChatControls button{height:34px;min-width:86px;padding:0 12px;background:#777;color:#fff;border:2px solid #222;border-top-color:#eee;border-left-color:#eee;font-weight:700;text-shadow:1px 1px 0 #222;cursor:pointer}
+        #webMinecraftChatHeader button:active,#webMinecraftChatControls button:active{border-color:#222;border-top-color:#333;border-left-color:#333;background:#555}
+        #webMinecraftChatTitle{font-weight:700;color:#262626;white-space:nowrap}
+        #webMinecraftChatSettings{justify-self:end}
+        #multiplayerChatFeed{box-sizing:border-box;width:100%;flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 18px;background:rgba(0,0,0,.22);border:0;scrollbar-width:thin;scrollbar-color:#aaa #333}
+        .multiplayerChatLine{font-size:clamp(14px,1.5vw,18px);line-height:1.45;color:#fff;overflow-wrap:anywhere;margin:3px 0;text-shadow:2px 2px 0 #000}
+        .multiplayerChatSystem{color:#d0d0d0;font-style:italic}
         .multiplayerChatName{font-weight:700}
         .multiplayerChatName.multiplayerChatAdmin{color:#55ff55}
-        .multiplayerVerifiedBadge{display:inline-flex;align-items:center;gap:3px;margin-left:0;margin-right:4px;padding:2px 5px;border-radius:999px;font:900 9px/1 Arial,sans-serif;white-space:nowrap;text-shadow:1px 1px 0 rgba(0,0,0,.35);vertical-align:1px}
+        .multiplayerVerifiedBadge{display:inline-flex;align-items:center;gap:3px;margin-left:0;margin-right:4px;padding:2px 5px;border-radius:0;font:900 9px/1 Arial,sans-serif;white-space:nowrap;text-shadow:1px 1px 0 rgba(0,0,0,.35);vertical-align:1px}
         .multiplayerVerifiedDeveloper{background:#7d2020;border:1px solid #ff6b5f;color:#fff0ed}
         .multiplayerVerifiedMain{background:#6f5217;border:1px solid #d8ae48;color:#fff3bd}
         .multiplayerVerifiedAdmin{background:#245a96;border:1px solid #5ea9ff;color:#eaf5ff}
-        #multiplayerChatInput{box-sizing:border-box;width:100%;height:34px;margin-top:6px;padding:6px 9px;background:rgba(0,0,0,.72);color:#fff;border:1px solid rgba(255,255,255,.2);outline:none;pointer-events:auto;font:13px Arial,sans-serif}
+        #webMinecraftChatControls{box-sizing:border-box;display:grid;grid-template-columns:48px minmax(0,1fr) 54px;gap:4px;padding:5px;background:#777;border-top:3px solid #333}
+        #webMinecraftChatControls button{height:42px;min-width:0;font-size:17px}
+        #multiplayerChatInput{box-sizing:border-box;width:100%;height:42px;min-width:0;margin:0;padding:8px 12px;background:#242424;color:#fff;border:2px solid #111;border-top-color:#444;border-left-color:#444;outline:none;pointer-events:auto;font:16px Arial,sans-serif;text-shadow:1px 1px 0 #000}
         #multiplayerChatInput::placeholder{color:#aaa}
+        #multiplayerChatInput:focus{border-color:#ddd}
+        #webMinecraftChatSettingsPanel{display:none;position:absolute;top:56px;right:12px;z-index:2;padding:12px 16px;background:#555;border:2px solid #222;border-top-color:#aaa;border-left-color:#aaa;color:#fff;text-shadow:1px 1px #222;font-size:13px}
+        #webMinecraftChatSettingsPanel.open{display:block}
+        @media(max-width:600px){#webMinecraftChatHeader{height:44px;min-height:44px;padding:0 7px;font-size:14px}#webMinecraftChatHeader button{min-width:64px;padding:0 7px;font-size:12px}#multiplayerChatFeed{padding:10px}#webMinecraftChatControls{grid-template-columns:40px minmax(0,1fr) 48px;padding:4px}#multiplayerChatInput{font-size:14px}}
     `;
     document.head.appendChild(style);
     const chat = document.createElement("div");
     chat.id = "multiplayerChat";
-    chat.innerHTML = `<div id="multiplayerChatFeed" aria-live="polite"></div><input id="multiplayerChatInput" maxlength="120" autocomplete="off" placeholder="Press Enter to chat...">`;
+    chat.innerHTML = `<header id="webMinecraftChatHeader"><button id="webMinecraftChatExit" type="button">‹ Exit</button><div id="webMinecraftChatTitle">Chat and Commands</div><button id="webMinecraftChatSettings" type="button">Chat Settings</button></header><div id="webMinecraftChatSettingsPanel">Chat is visible to players in this room.<br><small>Press T to chat · / to enter a command · Esc to close</small></div><div id="multiplayerChatFeed" aria-live="polite"></div><div id="webMinecraftChatControls"><button id="webMinecraftChatSlash" type="button" aria-label="Insert command slash">/</button><input id="multiplayerChatInput" maxlength="120" autocomplete="off" placeholder="Type a message or command..."><button id="webMinecraftChatSend" type="button" aria-label="Send message">➜</button></div>`;
     document.body.appendChild(chat);
     const feed = chat.querySelector("#multiplayerChatFeed");
     const input = chat.querySelector("#multiplayerChatInput");
@@ -414,21 +425,32 @@ function ensureChatUI() {
         while (feed.children.length > 30) feed.firstElementChild.remove();
         feed.scrollTop = feed.scrollHeight;
     };
-    window.__webminecraftChatShow = () => { chat.style.display = "block"; };
-    window.__webminecraftChatHide = () => { chat.style.display = "none"; input.blur(); };
+    window.__webminecraftChatShow = () => { chat.style.display = "flex"; };
+    window.__webminecraftChatHide = () => { chat.style.display = "none"; input.blur(); chat.querySelector("#webMinecraftChatSettingsPanel").classList.remove("open"); };
+    const sendMessage = () => {
+        const text = input.value.trim();
+        if (!text) { input.focus(); return; }
+        if (text.startsWith("/")) {
+            window.dispatchEvent(new CustomEvent("webminecraft:chat-command", { detail: { command: text } }));
+            if (text.toLowerCase() === "/help") window.__webminecraftChatAdd?.("Commands: /help, /seed, /clear, /ping", true);
+            else if (text.toLowerCase() === "/seed") window.__webminecraftChatAdd?.(`Seed: ${window.__webminecraftSeed ?? "unknown"}`, true);
+            else if (text.toLowerCase() === "/clear") feed.innerHTML = "";
+            else if (text.toLowerCase() === "/ping") window.__webminecraftChatAdd?.("Pong!", true);
+            else window.__webminecraftChatAdd?.(`Unknown command: ${text}`, true);
+        } else if (isMultiplayerActive()) {
+            try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {}
+        }
+        input.value = "";
+        input.focus();
+    };
+    chat.querySelector("#webMinecraftChatSend").addEventListener("click", sendMessage);
+    chat.querySelector("#webMinecraftChatSlash").addEventListener("click", () => { input.value = "/" + input.value; input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
+    chat.querySelector("#webMinecraftChatExit").addEventListener("click", () => window.__webminecraftCloseChat?.());
+    chat.querySelector("#webMinecraftChatSettings").addEventListener("click", () => chat.querySelector("#webMinecraftChatSettingsPanel").classList.toggle("open"));
     input.addEventListener("keydown", event => {
         event.stopPropagation();
-        if (event.key === "Enter") {
-            const text = input.value.trim();
-            if (text && isMultiplayerActive()) { try { socket.send(JSON.stringify({ type: "chat_message", text })); } catch {} }
-            input.value = "";
-            input.blur();
-            event.preventDefault();
-        } else if (event.key === "Escape") {
-            input.value = "";
-            input.blur();
-            event.preventDefault();
-        }
+        if (event.key === "Enter") { event.preventDefault(); sendMessage(); }
+        else if (event.key === "Escape") { input.value = ""; input.blur(); event.preventDefault(); }
     });
 }
 
