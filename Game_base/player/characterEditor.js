@@ -2061,7 +2061,9 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
       rosterToApply[MAIN_PROFILE_SLOT] = makeRosterRecord(activeTextures, {
         id: previousMain?.__characterId || "main-" + getIdentity().id,
         name: previousMain?.__characterName || "Main Character",
-        savedAt: rosterSavedAt || Date.now()
+        savedAt: rosterSavedAt || Date.now(),
+        __lockerItems: previousMain?.__lockerItems || {},
+        __lockerBaseTextures: previousMain?.__lockerBaseTextures || {}
       });
       writeCharacterTextureRecord(activeTextures, rosterSavedAt || Date.now());
     }
@@ -2071,6 +2073,15 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
     setRosterWindow(MAIN_PROFILE_SLOT);
     activateRosterSlot(MAIN_PROFILE_SLOT);
     if (overlay.classList.contains("open") && editorPage === "paint") copySelectedTextureToEditor();
+    if (overlay.classList.contains("open") && editorPage === "locker") {
+      if (lockerSelectedSlot !== null && rosterAvatars[lockerSelectedSlot]) {
+        activateRosterSlot(lockerSelectedSlot);
+        setEditorPage("locker");
+      } else {
+        lockerSelectedSlot = null;
+        setEditorPage("locker");
+      }
+    }
     scheduleLivePreview(); updateRosterCards(); resize();
   };
 
