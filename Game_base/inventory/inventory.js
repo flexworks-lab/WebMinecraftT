@@ -4,8 +4,6 @@ const INVENTORY_SIZE = 36;
 const HOTBAR_SIZE = 9;
 const MAX_STACK = 64;
 const INVENTORY_VERSION = 6;
-const EXPANDED_CATALOG_GROUPS = new Set();
-
 const ITEM_TYPES = [
     { id: 1, name: "Grass Block", texture: "grass_block_side.png", category: "natural" },
     { id: 2, name: "Dirt", texture: "dirt.png", category: "natural" },
@@ -178,62 +176,57 @@ export const BUILD_BLOCK_IDS = new Set(
         .map(item => item.id)
 );
 
-const CATALOG_GROUPS = {
-    swords: {
-        id: "swords",
-        label: "Swords",
-        primaryId: 186,
-        variantIds: [186, 187, 188, 189, 190],
-    },
-    wood_planks: {
-        id: "wood_planks",
-        label: "Planks",
-        primaryId: 13,
-        variantIds: [13, 23, 24, 25, 26, 27, 28, 29, 30, 31],
-    },
-    wood_stairs: {
-        id: "wood_stairs",
-        label: "Stairs",
-        primaryId: 75,
-        variantIds: [75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
-    },
-    stone_deepslate: {
-        id: "stone_deepslate",
-        label: "Stone & Deepslate",
-        primaryId: 3,
-        variantIds: [3, 7, 18, 19, 20, 21, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49],
-    },
-    slabs: {
-        id: "slabs",
-        label: "Slabs",
-        primaryId: 51,
-        variantIds: [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74],
-    },
-    concrete: {
-        id: "concrete",
-        label: "Concrete",
-        primaryId: 169,
-        variantIds: [169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184],
-    },
-    decorative: {
-        id: "decorative",
-        label: "Decorative & Utility",
-        primaryId: 194,
-        variantIds: [191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 218, 219, 220, 221, 222, 223],
-    },
-    colored: {
-        id: "colored",
-        label: "Colored Blocks",
-        primaryId: 206,
-        variantIds: [206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217],
-    },
-    logs: {
-        id: "logs",
-        label: "Logs",
-        primaryId: 5,
-        variantIds: [5, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167],
-    }
+const idsBetween = (first, last) => Array.from({ length: last - first + 1 }, (_, index) => first + index);
+
+// Creative inventory order follows Minecraft-style tabs. Every available
+// catalog entry is assigned once, so no blocks disappear between categories.
+const CATALOG_TAB_ITEMS = {
+    building: [
+        // Wood planks, then stone and masonry blocks.
+        13, 30, 25, 28, 23, 27, 29, 24, 26, 31,
+        3, 7, 9, 18, 19, 20, 21,
+        33, 34, 37, 38, 35, 36, 47, 48, 49,
+        194, 198, 199, 200, 201, 202, 203,
+        // Slabs and stairs stay together in material order.
+        ...idsBetween(51, 74),
+        ...idsBetween(75, 84),
+        195, 196, 197
+    ],
+    colored: [
+        // Concrete first, followed by other color-dependent building blocks.
+        ...idsBetween(169, 184),
+        ...idsBetween(206, 217)
+    ],
+    natural: [
+        // Terrain, soil, sand, snow and ice.
+        1, 2, 22, 191, 4, 8, 14, 193,
+        // Logs and stripped logs, followed by leaves.
+        5, 160, 156, 158, 155, 157, 159,
+        161, 167, 163, 165, 162, 164, 166, 6,
+        // Bedrock and ores.
+        10, 11, 12, ...idsBetween(39, 46),
+        // Other natural blocks.
+        192, 204, 220
+    ],
+    functional: [
+        15, 17, 32, 50, 168, 205, 218, 219, 221, 222, 223
+    ],
+    tools: [
+        16, 185, 186, 187, 188, 189, 190
+    ]
 };
+
+const ALL_CATALOG_ITEM_IDS = Object.values(CATALOG_TAB_ITEMS).flat();
+
+const TAB_DEFS = [
+    { id: "building", label: "Building Blocks", icon: "building" },
+    { id: "colored", label: "Colored Blocks", icon: "colored" },
+    { id: "natural", label: "Natural Blocks", icon: "natural" },
+    { id: "functional", label: "Functional Blocks", icon: "functional" },
+    { id: "tools", label: "Tools & Utilities", icon: "tools" },
+    { id: "search", label: "Search", icon: "search" },
+    { id: "survival", label: "Survival Inventory", icon: "survival" }
+];
 
 let inventory = Array.from({ length: INVENTORY_SIZE }, () => null);
 let inventoryOpen = false;
@@ -341,55 +334,21 @@ function itemMatchesSearch(item) {
 }
 
 function itemsForCurrentTab() {
-    if (selectedTab === "search") return ITEM_TYPES.filter(itemMatchesSearch);
     if (selectedTab === "survival") return [];
-    if (selectedTab === "building") {
-        const groups = Object.values(CATALOG_GROUPS).filter(group => ["wood_planks", "wood_stairs", "slabs", "concrete", "decorative", "colored"].includes(group.id));
-        if (!searchQuery.trim()) return groups.map(group => ({ group: true, ...group, variants: group.variantIds.map(getItem).filter(Boolean) }));
-        return groups.flatMap(group => group.variantIds.map(getItem).filter(Boolean).filter(itemMatchesSearch));
-    }
-    if (selectedTab === "tools" && !searchQuery.trim()) {
-        const swordGroup = CATALOG_GROUPS.swords;
-        const nonSwordTools = ITEM_TYPES.filter(item =>
-            item.category === "tools" &&
-            ![186, 187, 188, 189, 190].includes(item.id) &&
-            itemMatchesSearch(item)
-        );
-        return [
-            ...nonSwordTools,
-            { group: true, ...swordGroup, variants: swordGroup.variantIds.map(getItem).filter(Boolean) }
-        ];
-    }
-    if (selectedTab === "natural" && !searchQuery.trim()) {
-        const stoneGroup = CATALOG_GROUPS.stone_deepslate;
-        const logGroup = CATALOG_GROUPS.logs;
-        const groupedIds = new Set([
-            ...stoneGroup.variantIds,
-            ...logGroup.variantIds,
-            ...CATALOG_GROUPS.slabs.variantIds,
-            ...CATALOG_GROUPS.decorative.variantIds,
-            ...CATALOG_GROUPS.colored.variantIds,
-        ]);
-        const concreteIds = new Set(CATALOG_GROUPS.concrete.variantIds);
-        const naturalItems = ITEM_TYPES.filter(item =>
-            item.category === selectedTab &&
-            !item.name.toLowerCase().includes("planks") &&
-            !groupedIds.has(item.id) &&
-            !concreteIds.has(item.id) &&
-            itemMatchesSearch(item)
-        );
-        return [
-            { group: true, ...stoneGroup, variants: stoneGroup.variantIds.map(getItem).filter(Boolean) },
-            { group: true, ...logGroup, variants: logGroup.variantIds.map(getItem).filter(Boolean) },
-            ...naturalItems
-        ];
-    }
-    return ITEM_TYPES.filter(item => item.category === selectedTab && !item.name.toLowerCase().includes("planks") && itemMatchesSearch(item));
+    const orderedIds = selectedTab === "search"
+        ? ALL_CATALOG_ITEM_IDS
+        : (CATALOG_TAB_ITEMS[selectedTab] || []);
+    return orderedIds
+        .map(getItem)
+        .filter(Boolean)
+        .filter(itemMatchesSearch);
 }
 
 function iconSvg(name) {
     if (name === "tools") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 5.2a5 5 0 0 0-6.1 6.1l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.1-6.1l-3 3-2-2 3-3Z"/><path d="m15 15 5.2 5.2M17.8 12.2l4-4M19.8 4.2l1.9 1.9"/></svg>';
     if (name === "natural") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c4.9 2.5 8 6.1 8 10.1A8 8 0 1 1 4 13.1C4 9.8 6.7 6 12 3Z"/><path d="M12 21c0-5 1.8-9 5.9-12"/></svg>';
+    if (name === "colored") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>';
+    if (name === "functional") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4zM7 8h10v5H7zM8 16h3M14 16h2M8 2v3M16 2v3"/></svg>';
     if (name === "building") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V8l8-5 8 5v12H4Z"/><path d="M8 20v-6h8v6M7 9h2M15 9h2M7 12h2M15 12h2"/></svg>';
     if (name === "search") return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.7"/><path d="m16 16 5 5"/></svg>';
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16v13H4z"/><path d="M7 6.5v-2h10v2M7 10h10M7 14h4"/></svg>';
@@ -752,9 +711,7 @@ function renderCatalog() {
     }
     document.getElementById("catalogPanel").style.display = "flex";
     document.getElementById("survivalPanel").hidden = true;
-    section.textContent = selectedTab === "search"
-        ? "All"
-        : (selectedTab === "tools" ? "Tools & Utilities" : (selectedTab === "building" ? "Build Blocks" : "Natural Blocks"));
+    section.textContent = TAB_DEFS.find(tab => tab.id === selectedTab)?.label || "Blocks";
     if (searchWrap) searchWrap.style.display = selectedTab === "search" || searchQuery ? "flex" : "none";
 
     const items = itemsForCurrentTab();
@@ -763,29 +720,8 @@ function renderCatalog() {
         return;
     }
 
-    const slotMarkup = (item, groupVariant = false) => `<div class="catalogSlot${groupVariant ? " catalogGroupVariant" : ""}" draggable="true" data-item-id="${item.id}" title="${item.name}">${itemVisual(item)}<span class="catalogName">${item.name}</span></div>`;
-    grid.innerHTML = items.map(item => {
-        if (!item.group) return slotMarkup(item);
-        const primary = getItem(item.primaryId);
-        if (!primary) return "";
-        const expanded = EXPANDED_CATALOG_GROUPS.has(item.id);
-        const groupButton = `<button type="button" class="catalogSlot catalogGroup" data-catalog-group="${item.id}" title="${expanded ? "Collapse" : "Expand"} ${item.label}" aria-expanded="${expanded}">${itemVisual(primary)}<span class="catalogGroupLabel">${item.label}</span><span class="catalogGroupBadge" aria-hidden="true">${expanded ? "−" : "+"}</span></button>`;
-        const variants = expanded
-            ? item.variants.map(variant => slotMarkup(variant, true)).join("")
-            : "";
-        return groupButton + variants;
-    }).join("");
-
-    grid.querySelectorAll(".catalogGroup").forEach(cell => {
-        cell.addEventListener("click", () => {
-            if (document.body.classList.contains("mobile-mode") && Date.now() < mobileCatalogIgnoreClickUntil) return;
-            const id = cell.dataset.catalogGroup;
-            if (!id) return;
-            if (EXPANDED_CATALOG_GROUPS.has(id)) EXPANDED_CATALOG_GROUPS.delete(id);
-            else EXPANDED_CATALOG_GROUPS.add(id);
-            renderCatalog();
-        });
-    });
+    const slotMarkup = item => `<div class="catalogSlot" draggable="true" data-item-id="${item.id}" title="${item.name}">${itemVisual(item)}<span class="catalogName">${item.name}</span></div>`;
+    grid.innerHTML = items.map(slotMarkup).join("");
 
     grid.querySelectorAll(".catalogSlot[data-item-id]").forEach(cell => {
         const itemId = Number(cell.dataset.itemId);
