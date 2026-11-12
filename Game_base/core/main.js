@@ -19,6 +19,7 @@ import "../accounts/auth.js";
 import "../multiplayer/chat.js";
 import "../ui/menuTips.js";
 import "../ui/bugReport.js";
+import "../ui/pauseMenu.js";
 import { getWorldMode } from "../inventory/survivalMode.js";
 import "../inventory/survivalRules.js";
 
@@ -687,7 +688,7 @@ function returnToHomeScreen() {
         element.style.display = "none";
         if (element.hasAttribute("aria-hidden")) element.setAttribute("aria-hidden","true");
     }
-    document.body.classList.remove("webminecraft-in-world","webminecraft-survival","webminecraft-creative","webminecraft-visitor");
+    document.body.classList.remove("webminecraft-in-world","webminecraft-survival","webminecraft-creative","webminecraft-visitor","webminecraft-game-paused");
     if (mainMenu) {
         mainMenu.style.display = "";
         mainMenu.setAttribute("aria-hidden","false");
