@@ -673,6 +673,97 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
 @media(max-width:850px){#lockerCustomizeWorkspace{grid-template-columns:minmax(0,1fr) minmax(285px,46%)}#lockerItemsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){#lockerRosterView{padding:14px 10px}#lockerRosterGrid{grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:8px}.lockerCharacterPortrait{height:96px}#lockerCustomizeWorkspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(220px,42vh) minmax(0,1fr);overflow:auto}#lockerItemsPanel{border-left:0;border-top:2px solid #080b10;padding:10px}#lockerItemsGrid{grid-template-columns:repeat(3,minmax(0,1fr))}#lockerCustomizeHeader{padding:0 9px;gap:8px}#lockerSelectedName{font-size:10px}#lockerCustomizeHeader>span{font-size:8px}}
 
+/* Minecraft inventory skin for the Item Locker */
+#characterLockerPage{
+  background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 2px,transparent 2px 4px),
+    linear-gradient(135deg,#777,#555 48%,#414141)!important;
+  color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  image-rendering:pixelated;
+}
+#lockerRosterView,#lockerCustomizeView{background:transparent!important}
+.lockerSectionHeading h1,.lockerSectionHeading p,#lockerCharacterCount,
+#lockerItemsHeading h2,#lockerItemsHeading span,#lockerEquippedStatus,
+#lockerPreviewHint,#lockerSelectedName{font-family:"MinecraftFont",monospace!important}
+.lockerSectionHeading h1{font-size:clamp(20px,2.7vw,30px)!important;letter-spacing:0!important;text-shadow:2px 2px #333}
+.lockerSectionHeading p{color:#f0f0f0!important;font-size:10px!important}
+#lockerCharacterCount{
+  border:2px solid #111!important;border-top-color:#ddd!important;border-left-color:#ddd!important;
+  background:#555!important;color:#fff!important;box-shadow:inset 2px 2px #888,inset -2px -2px #333!important;
+}
+.lockerCharacterCard{
+  padding:7px!important;border-radius:0!important;
+  border:2px solid #111!important;border-top-color:#e0e0e0!important;border-left-color:#e0e0e0!important;
+  background:linear-gradient(135deg,#a0a0a0,#777)!important;color:#fff!important;
+  box-shadow:inset 2px 2px #cfcfcf,inset -2px -2px #555,0 3px #222!important;
+}
+.lockerCharacterCard:hover,.lockerCharacterCard:focus-visible{
+  border-top-color:#fff!important;border-left-color:#fff!important;
+  background:linear-gradient(135deg,#b2b2b2,#888)!important;outline:2px solid #fff!important;
+  transform:none!important;
+}
+.lockerCharacterPortrait{
+  height:126px!important;object-fit:contain!important;image-rendering:auto!important;
+  background:
+    linear-gradient(45deg,#777 25%,transparent 25%,transparent 75%,#777 75%),
+    linear-gradient(45deg,#777 25%,transparent 25%,transparent 75%,#777 75%),
+    #999!important;
+  background-position:0 0,8px 8px!important;background-size:16px 16px!important;
+  border:2px solid #333!important;box-shadow:inset 2px 2px #555,inset -2px -2px #bbb!important;
+}
+.lockerCharacterCard strong{font-family:"MinecraftFont",monospace!important;font-size:9px!important;letter-spacing:0!important;color:#fff!important;text-shadow:2px 2px #333}
+.lockerCharacterCard small{font-family:"MinecraftFont",monospace!important;font-size:7px!important;color:#eeeeee!important}
+#lockerCustomizeHeader{
+  border-bottom:2px solid #111!important;background:#555!important;
+  box-shadow:inset 0 2px #aaa!important;
+}
+#lockerBackToRoster,.lockerCategoryTab,.lockerItemCard{
+  border-radius:0!important;border:2px solid #111!important;
+  border-top-color:#e0e0e0!important;border-left-color:#e0e0e0!important;
+  background:linear-gradient(#999,#747474)!important;color:#fff!important;
+  font-family:"MinecraftFont",monospace!important;
+  box-shadow:inset 2px 2px #cfcfcf,inset -2px -2px #555,0 2px #222!important;
+  text-shadow:2px 2px #444!important;
+}
+#lockerBackToRoster:hover,.lockerCategoryTab:hover,.lockerItemCard:hover{
+  filter:brightness(1.1)!important;border-top-color:#fff!important;border-left-color:#fff!important;
+}
+#lockerItemsPanel{
+  border-left:3px solid #111!important;
+  background:linear-gradient(135deg,#8c8c8c,#686868)!important;
+  box-shadow:inset 2px 2px #bbb,inset -2px -2px #333!important;
+}
+#lockerItemsHeading h2{font-size:16px!important;letter-spacing:0!important;text-shadow:2px 2px #333}
+#lockerItemsHeading span{color:#f1f1f1!important;font-size:7px!important}
+#lockerCategoryTabs{gap:4px!important}
+.lockerCategoryTab{height:31px!important;padding:0 8px!important;font-size:8px!important}
+.lockerCategoryTab.active{
+  background:linear-gradient(#dedede,#aaa)!important;color:#222!important;
+  border:2px solid #111!important;border-top-color:#fff!important;border-left-color:#fff!important;
+  text-shadow:1px 1px #fff!important;outline:1px solid #222!important;outline-offset:-4px;
+}
+#lockerItemsGrid{gap:7px!important}
+.lockerItemCard{
+  padding:6px!important;background:linear-gradient(#929292,#696969)!important;
+}
+.lockerItemCard.equipped{
+  background:linear-gradient(#d2d2d2,#999)!important;color:#222!important;
+  border-color:#111!important;border-top-color:#fff!important;border-left-color:#fff!important;
+  box-shadow:inset 2px 2px #fff,inset -2px -2px #555,0 0 0 2px #292929!important;
+  text-shadow:1px 1px #fff!important;
+}
+.lockerItemCard canvas{image-rendering:pixelated!important;border:2px solid #333!important;box-shadow:inset 2px 2px #555,inset -2px -2px #bbb!important}
+.lockerItemCard strong{font-family:"MinecraftFont",monospace!important;font-size:8px!important}
+.lockerItemCard small{font-family:"MinecraftFont",monospace!important;font-size:7px!important;color:#f0f0f0!important}
+#lockerEquippedStatus{border-top:2px solid #333!important;color:#fff!important;font-size:7px!important;text-shadow:1px 1px #333}
+#lockerCharacterStage{background:radial-gradient(ellipse at 50% 44%,#777 0,#4b4b4b 56%,#292929 100%)!important}
+#lockerPreviewHint{border:2px solid #111!important;border-top-color:#bbb!important;border-left-color:#bbb!important;background:#555!important;color:#fff!important;text-shadow:1px 1px #222}
+@media(max-width:620px){
+ .lockerCharacterPortrait{height:106px!important}
+ #lockerItemsPanel{border-top:3px solid #111!important;border-left:0!important}
+}
+
 `;
 document.head.appendChild(style);
 
