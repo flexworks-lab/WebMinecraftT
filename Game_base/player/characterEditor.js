@@ -80,6 +80,18 @@ function getTextureCanvas(textures, key) {
   return textures?.[key]?.userData?.canvas || null;
 }
 
+function restoreRosterAvatarBase(entry) {
+  if (!entry?.textures || !entry?.baseSnapshots) return;
+  for (const { key } of AVATAR_TEXTURE_PARTS) {
+    const canvas = getTextureCanvas(entry.textures, key);
+    const pixels = entry.baseSnapshots[key];
+    const context = canvas?.getContext("2d", { willReadFrequently: true });
+    if (!context || !pixels) continue;
+    context.putImageData(pixels, 0, 0);
+    entry.textures[key].needsUpdate = true;
+  }
+}
+
 function snapshotTextures(textures) {
   const snapshots = {};
   for (const { key } of AVATAR_TEXTURE_PARTS) {
@@ -1415,8 +1427,9 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
       for (let slot = 0; slot < 5; slot++) {
         const entry = rosterAvatars[slot];
         const stored = incomingRoster[slot] || {};
-        if (entry && Object.keys(stored).length) {
-          await applyAvatarTextureData(entry.textures, stored);
+        if (entry) {
+          if (Object.keys(stored).length) await applyAvatarTextureData(entry.textures, stored);
+          else restoreRosterAvatarBase(entry);
           entry.savedTextureData = { ...stored };
           entry.dirtyTextureKeys = new Set();
           entry.resetOverridesPending = false;
@@ -1429,7 +1442,8 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
     const mainTextures = Object.keys(textures).length
       ? textures
       : (incomingRoster?.[MAIN_PROFILE_SLOT] || main.savedTextureData || {});
-    await applyAvatarTextureData(main.textures, mainTextures);
+    if (Object.keys(mainTextures).length) await applyAvatarTextureData(main.textures, mainTextures);
+    else restoreRosterAvatarBase(main);
     main.savedTextureData = { ...mainTextures };
     main.dirtyTextureKeys = new Set();
     main.resetOverridesPending = false;
