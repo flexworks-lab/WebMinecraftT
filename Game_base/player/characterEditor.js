@@ -791,7 +791,8 @@ overlay.innerHTML = `
         <h1>CHARACTER STUDIO GUIDE</h1>
         <p><strong>Browse the roster:</strong> There are five slots arranged from left to right. Use the arrows outside the lineup. The neighbour on that side slides into the center and the rest of the lineup shifts with it.</p>
         <p><strong>Edit or select:</strong> Press EDIT to paint a character. Press SELECT to make that appearance your live in-game character; your previous live appearance is kept in the preset you selected.</p>
-        <p><strong>Paint textures:</strong> Choose Face, Head Back, Head Side, Head Top, Skin, Shirt, Pants, or Shoes. Select a palette colour or use Custom. PAINT adds pixels, ERASER removes them, PICK COLOR samples a pixel, and UNDO reverses your last stroke.</p>
+        <p><strong>Paint textures:</strong> Choose Face, Head Back, Head Side, Head Top, Skin, Hands, Chest, Left Arm, Right Arm, Left Leg, Right Leg, or Shoes. Each body part has its own 16 × 16 map.</p>
+        <p><strong>Item Locker:</strong> Open the Item Locker side tab, choose a character card, then equip or remove hats, faces, tops, muscle designs, pants, and hand items. Each loadout is saved to that character and syncs with your account.</p>
         <p><strong>Save rules:</strong> The active character is shown in the center. Saving updates this browser and, when signed in, your account profile. All five character slots sync to devices that sign into the same account. Guests keep browser-only saves.</p>
         <p><strong>Import and export:</strong> PNG files are resized to 16 × 16 pixels for the selected texture map. Export each map separately to keep a backup.</p>
       </div>
@@ -2151,6 +2152,7 @@ function render() {
     head.rotation.y += (targetYaw - head.rotation.y) * 0.16;
     head.rotation.x += (targetPitch - head.rotation.x) * 0.16;
   }
-  if ((editorOpen || showcaseVisible) && renderer && scene && camera && previewAvatar) renderer.render(scene, camera);
+  const lockerPreviewVisible = editorPage !== "locker" || lockerSelectedSlot !== null;
+  if (((editorOpen && lockerPreviewVisible) || showcaseVisible) && renderer && scene && camera && previewAvatar) renderer.render(scene, camera);
 }
 render();
