@@ -50,7 +50,9 @@ function makeRosterRecord(textures, metadata = {}) {
   return { ...clean,
     __characterId: String(metadata.__characterId || metadata.id || createCharacterId()),
     __characterName: String(metadata.__characterName || metadata.name || "Character").slice(0, 24),
-    __savedAt: Math.max(0, Number(metadata.__savedAt || metadata.savedAt) || Date.now())
+    __savedAt: Math.max(0, Number(metadata.__savedAt || metadata.savedAt) || Date.now()),
+    __lockerItems: metadata.__lockerItems && typeof metadata.__lockerItems === "object" ? { ...metadata.__lockerItems } : {},
+    __lockerBaseTextures: extractTextureMapData(metadata.__lockerBaseTextures || {})
   };
 }
 function mergeRosterSlots(localSlots, incomingSlots) {
@@ -120,7 +122,9 @@ function readRosterTextureStore() {
         ...textures,
         __characterId: String(source?.__characterId || "legacy-" + hashTextureMap(textures)),
         __characterName: String(source?.__characterName || (i === MAIN_PROFILE_SLOT ? "Main Character" : "Character " + (i + 1))).slice(0, 24),
-        __savedAt: Math.max(0, Number(source?.__savedAt) || savedAt)
+        __savedAt: Math.max(0, Number(source?.__savedAt) || savedAt),
+        __lockerItems: source?.__lockerItems && typeof source.__lockerItems === "object" ? { ...source.__lockerItems } : {},
+        __lockerBaseTextures: extractTextureMapData(source?.__lockerBaseTextures || {})
       };
       if (source?.__characterId) return { __characterId: String(source.__characterId), __characterName: String(source.__characterName || "Character " + (i + 1)).slice(0, 24), __savedAt: 0 };
       return null;
@@ -608,6 +612,47 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
   pointer-events:auto!important;
 }
 
+#characterLockerPage{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 12%,rgba(45,57,76,.18),transparent 60%),#10151e}
+#characterLockerPage[hidden]{display:none!important}
+#lockerRosterView{display:flex;flex:1;min-height:0;flex-direction:column;padding:clamp(18px,3vh,30px) clamp(16px,3vw,38px);overflow:auto}
+.lockerSectionHeading{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:18px}
+.lockerSectionHeading h1{margin:0;color:#fff;font-size:clamp(22px,3vw,34px);letter-spacing:1.6px}
+.lockerSectionHeading p{margin:7px 0 0;color:#9eacc0;font-size:12px}
+#lockerCharacterCount{padding:8px 11px;border:1px solid #40516a;background:#111c2b;color:#b9cdec;font-size:10px;font-weight:800;letter-spacing:1px;white-space:nowrap}
+#lockerRosterGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(142px,1fr));gap:12px;align-content:start;padding-bottom:20px}
+.lockerCharacterCard{min-width:0;display:flex;flex-direction:column;align-items:stretch;padding:8px;border:2px solid #343f51;border-top-color:#718096;background:linear-gradient(145deg,#303947,#171e29);color:#fff;text-align:left;cursor:pointer;box-shadow:inset 2px 2px rgba(255,255,255,.08),inset -2px -2px rgba(0,0,0,.3),0 3px #080b10}
+.lockerCharacterCard:hover,.lockerCharacterCard:focus-visible{border-color:#9ccaff;background:linear-gradient(145deg,#3e5874,#202d40);outline:none;transform:translateY(-2px)}
+.lockerCharacterPortrait{display:block;width:100%;height:118px;image-rendering:pixelated;background:radial-gradient(ellipse at 50% 40%,#59677a,#18202c 70%)}
+.lockerCharacterCard strong{padding:8px 2px 2px;font-size:11px;letter-spacing:.7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lockerCharacterCard small{padding:0 2px 5px;color:#9eacc0;font-size:9px}
+#lockerCustomizeView{display:flex;flex:1;min-height:0;flex-direction:column;overflow:hidden}
+#lockerCustomizeHeader{height:48px;min-height:48px;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid rgba(160,180,210,.18);background:#0a1019}
+#lockerBackToRoster{height:30px;padding:0 12px;border:1px solid #566982;background:linear-gradient(#43536a,#263346);color:#fff;font-size:10px;font-weight:800;cursor:pointer}
+#lockerSelectedName{font-size:12px;letter-spacing:1px;color:#fff}
+#lockerCustomizeHeader>span{margin-left:auto;color:#93a8c2;font-size:10px;font-weight:800;letter-spacing:1.5px}
+#lockerCustomizeWorkspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,43%);flex:1;min-height:0;overflow:hidden}
+#lockerCharacterStage{position:relative;min-width:0;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 48%,rgba(65,82,107,.45),rgba(5,8,13,.98) 72%)}
+#lockerCharacterPreview{position:absolute;inset:0;min-width:0;min-height:0}
+#lockerCharacterPreview>canvas{display:block;width:100%;height:100%;touch-action:pan-y}
+#lockerPreviewHint{position:absolute;left:16px;bottom:14px;padding:8px 10px;border:1px solid rgba(154,181,215,.25);background:rgba(4,8,14,.72);color:#aebfd5;font-size:9px;letter-spacing:1px;pointer-events:none}
+#lockerItemsPanel{display:flex;flex-direction:column;min-width:0;min-height:0;padding:16px 14px 12px;border-left:2px solid #080b10;background:linear-gradient(135deg,#252d39,#141a24)}
+#lockerItemsHeading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:12px}
+#lockerItemsHeading h2{margin:0;color:#fff;font-size:19px;letter-spacing:1.5px}
+#lockerItemsHeading span{color:#91a6c1;font-size:8px;font-weight:800;letter-spacing:.7px}
+#lockerCategoryTabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.lockerCategoryTab{height:29px;padding:0 9px;border:1px solid #414d5e;background:#151d29;color:#aebbd0;font-size:9px;font-weight:800;letter-spacing:.5px;cursor:pointer}
+.lockerCategoryTab.active{border-color:#a9cfff;background:#345071;color:#fff;box-shadow:0 0 0 1px #8fb5e6}
+#lockerItemsGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;align-content:start;overflow:auto;min-height:0;padding:2px 4px 14px 2px}
+.lockerItemCard{min-width:0;display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:7px;border:2px solid #3a4658;border-top-color:#77859a;background:linear-gradient(145deg,#343f4f,#1d2531);color:#fff;text-align:left;cursor:pointer;box-shadow:inset 1px 1px rgba(255,255,255,.08),inset -1px -1px rgba(0,0,0,.3)}
+.lockerItemCard:hover{border-color:#9ecbff;background:linear-gradient(145deg,#405a76,#202e40)}
+.lockerItemCard.equipped{border-color:#9fc8f5;background:linear-gradient(145deg,#395a7e,#20344c);box-shadow:0 0 0 1px #8ab8ed,inset 1px 1px rgba(255,255,255,.13)}
+.lockerItemCard canvas{display:block;width:100%;aspect-ratio:1;max-height:86px;image-rendering:pixelated;background:#151c28}
+.lockerItemCard strong{font-size:9px;line-height:1.25;min-height:22px}
+.lockerItemCard small{color:#a8bad1;font-size:8px;letter-spacing:.4px}
+#lockerEquippedStatus{flex:0 0 auto;padding:10px 3px 0;border-top:1px solid rgba(160,180,210,.16);color:#9fb3ce;font-size:8px;font-weight:800;letter-spacing:.8px}
+@media(max-width:850px){#lockerCustomizeWorkspace{grid-template-columns:minmax(0,1fr) minmax(285px,46%)}#lockerItemsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){#lockerRosterView{padding:14px 10px}#lockerRosterGrid{grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:8px}.lockerCharacterPortrait{height:96px}#lockerCustomizeWorkspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(220px,42vh) minmax(0,1fr);overflow:auto}#lockerItemsPanel{border-left:0;border-top:2px solid #080b10;padding:10px}#lockerItemsGrid{grid-template-columns:repeat(3,minmax(0,1fr))}#lockerCustomizeHeader{padding:0 9px;gap:8px}#lockerSelectedName{font-size:10px}#lockerCustomizeHeader>span{font-size:8px}}
+
 `;
 document.head.appendChild(style);
 
@@ -623,6 +668,9 @@ overlay.innerHTML = `
     </button>
     <button class="characterNavButton" type="button" data-editor-page="paint" title="Texture editor">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16 10-10 4 4L8 20H4z"/><path d="m12 8 4 4M4 20l4-1M17 3l4 4"/></svg><span>Texture editor</span>
+    </button>
+    <button class="characterNavButton" type="button" data-editor-page="locker" title="Item Locker">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v12H4zM3 8l2-4h14l2 4M9 12h6M8 16h8"/></svg><span>Item Locker</span>
     </button>
     <button class="characterNavButton" type="button" data-editor-page="guide" title="Instructions">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 4.2 1.6c-1.2 1.1-1.9 1.4-1.9 3M12 17.5h.01"/></svg><span>Instructions</span>
@@ -687,6 +735,34 @@ overlay.innerHTML = `
             <button class="characterAction primary" id="characterSave" type="button">SAVE CHARACTER</button>
           </div>
           <input id="skinFileInput" type="file" accept="image/png,image/webp,image/jpeg" hidden>
+        </div>
+      </div>
+    </section>
+    <section id="characterLockerPage" class="characterEditorPage" hidden>
+      <div id="lockerRosterView">
+        <div class="lockerSectionHeading">
+          <div><h1>ITEM LOCKER</h1><p>Choose a character to customize. Your loadout is saved separately for each character.</p></div>
+          <span id="lockerCharacterCount">0 CHARACTERS</span>
+        </div>
+        <div id="lockerRosterGrid"></div>
+      </div>
+      <div id="lockerCustomizeView" hidden>
+        <header id="lockerCustomizeHeader">
+          <button id="lockerBackToRoster" type="button">← ALL CHARACTERS</button>
+          <strong id="lockerSelectedName">CHARACTER</strong>
+          <span>ITEM LOCKER</span>
+        </header>
+        <div id="lockerCustomizeWorkspace">
+          <div id="lockerCharacterStage">
+            <div id="lockerCharacterPreview"></div>
+            <div id="lockerPreviewHint">FULL CHARACTER PREVIEW · DRAG TO ROTATE</div>
+          </div>
+          <aside id="lockerItemsPanel">
+            <div id="lockerItemsHeading"><h2>LOCKER</h2><span>SELECT AN ITEM TO EQUIP</span></div>
+            <nav id="lockerCategoryTabs" aria-label="Locker item categories"></nav>
+            <div id="lockerItemsGrid"></div>
+            <div id="lockerEquippedStatus">EQUIPMENT SAVES TO THIS CHARACTER</div>
+          </aside>
         </div>
       </div>
     </section>
@@ -1167,6 +1243,7 @@ function setEditorPage(page) {
   editorPage = page;
   overlay.querySelector("#characterRosterPage").hidden = page !== "roster";
   overlay.querySelector("#characterPaintPage").hidden = page !== "paint";
+  overlay.querySelector("#characterLockerPage").hidden = page !== "locker";
   overlay.querySelector("#characterHelpPage").hidden = page !== "guide";
   overlay.querySelectorAll("[data-editor-page]").forEach(button => button.classList.toggle("active", button.dataset.editorPage === page));
   const title = overlay.querySelector("#characterEditorTopbarTitle");
@@ -1199,6 +1276,37 @@ function setEditorPage(page) {
     camera.position.set(3.1, 2.55, 7.6);
     camera.lookAt(0, 1.12, 0);
     copySelectedTextureToEditor();
+  } else if (page === "locker") {
+    title.textContent = "ITEM LOCKER";
+    sub.textContent = lockerSelectedSlot === null
+      ? "Choose a character to customize."
+      : "Equip items and designs to this character.";
+    status.textContent = lockerSelectedSlot === null ? "CHARACTER SELECT" : "CUSTOMIZING";
+    const rosterView = overlay.querySelector("#lockerRosterView");
+    const customizeView = overlay.querySelector("#lockerCustomizeView");
+    rosterView.hidden = lockerSelectedSlot !== null;
+    customizeView.hidden = lockerSelectedSlot === null;
+    rosterAvatars.forEach(entry => {
+      const selected = lockerSelectedSlot !== null && entry.slotIndex === lockerSelectedSlot;
+      entry.group.visible = selected;
+      if (selected) {
+        entry.group.position.set(0, 0, 0);
+        entry.group.scale.setScalar(1.12);
+      }
+    });
+    if (lockerSelectedSlot !== null && previewAvatar) {
+      const host = overlay.querySelector("#lockerCharacterPreview");
+      if (renderer.domElement.parentElement !== host) host.prepend(renderer.domElement);
+      renderer.domElement.style.display = "block";
+      camera.position.set(3.1, 2.75, 8.3);
+      camera.lookAt(0, 1.18, 0);
+      const name = rosterTextureStore.slots[lockerSelectedSlot]?.__characterName || previewAvatar.characterName || "CHARACTER";
+      overlay.querySelector("#lockerSelectedName").textContent = name.toUpperCase();
+      renderLockerItems();
+    } else {
+      renderer.domElement.style.display = "none";
+      renderLockerRoster();
+    }
   } else {
     title.textContent = "CHARACTER GUIDE";
     sub.textContent = "Learn how the lineup and texture tools work.";
@@ -1246,6 +1354,8 @@ async function buildPreview(force = false) {
       if (Object.keys(stored).length) await applyAvatarTextureData(avatar.textures, stored);
       rosterAvatars[slot] = { ...avatar, slotIndex: slot, characterId, characterName: avatarName,
         baseSnapshots: base, savedTextureData: { ...stored }, dirtyTextureKeys: new Set(), resetOverridesPending: false,
+        lockerItems: { ...(record?.__lockerItems || {}) },
+        lockerBaseTextures: extractTextureMapData(record?.__lockerBaseTextures || {}),
         targetX: (slot - 2) * 2.95, targetScale: slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88 };
     }
     currentIdentity = key;
@@ -1455,7 +1565,9 @@ async function saveTextures() {
   const record = makeRosterRecord(textures, {
     id: currentRecord?.__characterId || entry?.characterId || createCharacterId(),
     name: currentRecord?.__characterName || entry?.characterName || (selectedRosterSlot === MAIN_PROFILE_SLOT ? "Main Character" : "Character " + (selectedRosterSlot + 1)),
-    savedAt
+    savedAt,
+    __lockerItems: entry?.lockerItems || currentRecord?.__lockerItems || {},
+    __lockerBaseTextures: entry?.lockerBaseTextures || currentRecord?.__lockerBaseTextures || {}
   });
   if (!record) { alert("This character has no saved texture changes yet."); return; }
   rosterTextureStore.slots[selectedRosterSlot] = record;
@@ -1465,7 +1577,12 @@ async function saveTextures() {
   }
   updateRosterCards();
   savedTextureData = extractTextureMapData(textures);
-  if (previewAvatar) { previewAvatar.characterId = record.__characterId; previewAvatar.characterName = record.__characterName; }
+  if (previewAvatar) {
+    previewAvatar.characterId = record.__characterId;
+    previewAvatar.characterName = record.__characterName;
+    previewAvatar.lockerItems = { ...(record.__lockerItems || {}) };
+    previewAvatar.lockerBaseTextures = extractTextureMapData(record.__lockerBaseTextures || {});
+  }
   dirtyTextureKeys.clear();
   resetOverridesPending = false;
   rememberActiveEditorState();
