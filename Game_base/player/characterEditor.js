@@ -1005,6 +1005,117 @@ function lockerItemById(id) {
   return LOCKER_ITEMS.find(item => item.id === id) || null;
 }
 
+function makeLockerHatMesh(item) {
+  const hat = new THREE.Group();
+  hat.name = "itemLockerHat";
+  hat.userData.lockerItemId = item.id;
+  const base = new THREE.MeshLambertMaterial({ color: item.base });
+  const accent = new THREE.MeshLambertMaterial({ color: item.accent });
+  const dark = new THREE.MeshLambertMaterial({ color: 0x27313c });
+  const bright = new THREE.MeshLambertMaterial({ color: 0xffe49b });
+  const box = (w, h, d, x, y, z, material) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    hat.add(mesh);
+    return mesh;
+  };
+  const pattern = item.pattern;
+  // Head cube is 0.62 units wide and its top is at y=0.31.
+  // All accessories sit just above that surface and remain children of the
+  // animated head pivot, so they rotate with the character.
+  if (pattern === "cap") {
+    box(.70, .18, .68, 0, .39, 0, base);
+    box(.76, .07, .76, 0, .32, 0, accent);
+    box(.75, .055, .30, 0, .29, -.39, base);
+    box(.18, .035, .045, 0, .495, -.02, accent);
+    box(.24, .025, .045, 0, .50, -.04, bright);
+  } else if (pattern === "beanie") {
+    box(.68, .16, .68, 0, .39, 0, base);
+    box(.72, .075, .72, 0, .325, 0, accent);
+    box(.56, .12, .56, 0, .515, 0, base);
+    box(.22, .10, .22, 0, .63, 0, accent);
+    box(.12, .07, .12, 0, .715, 0, bright);
+  } else if (pattern === "crown") {
+    box(.70, .12, .70, 0, .35, 0, accent);
+    box(.60, .22, .60, 0, .515, 0, base);
+    box(.12, .20, .12, -.22, .72, -.22, accent);
+    box(.12, .20, .12, .22, .72, -.22, accent);
+    box(.12, .20, .12, -.22, .72, .22, accent);
+    box(.12, .20, .12, .22, .72, .22, accent);
+    box(.12, .12, .12, 0, .68, 0, bright);
+    box(.18, .08, .035, 0, .50, -.315, bright);
+  }
+  return hat;
+}
+
+function syncLockerAccessories(entry) {
+  const head = entry?.parts?.head;
+  if (!head) return;
+  const previous = head.getObjectByName("itemLockerHat");
+  if (previous) {
+    head.remove(previous);
+    previous.traverse(object => {
+      object.geometry?.dispose();
+      if (object.material) object.material.dispose();
+    });
+  }
+  entry.lockerHatGroup = null;
+  const item = lockerItemById(entry.lockerItems?.headwear);
+  if (!item || item.category !== "HATS") return;
+  const hat = makeLockerHatMesh(item);
+  head.add(hat);
+  entry.lockerHatGroup = hat;
+}
+
+function captureLocker3DThumbnail(entry, width = 104, height = 126) {
+  if (!renderer || !scene || !camera || !entry?.group) return "";
+  const size = renderer.getSize(new THREE.Vector2());
+  const cameraPosition = camera.position.clone();
+  const cameraQuaternion = camera.quaternion.clone();
+  const cameraAspect = camera.aspect;
+  const cameraFov = camera.fov;
+  const saved = rosterAvatars.filter(Boolean).map(avatar => ({
+    avatar,
+    visible: avatar.group.visible,
+    position: avatar.group.position.clone(),
+    rotation: avatar.group.rotation.clone(),
+    scale: avatar.group.scale.clone()
+  }));
+  try {
+    for (const avatar of rosterAvatars) if (avatar) avatar.group.visible = avatar === entry;
+    entry.group.position.set(0, 0, 0);
+    entry.group.rotation.set(0, Math.PI, 0);
+    entry.group.scale.setScalar(.96);
+    camera.fov = 34;
+    camera.aspect = width / height;
+    camera.position.set(2.1, 2.0, 6.1);
+    camera.lookAt(0, 1.12, 0);
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height, false);
+    renderer.render(scene, camera);
+    return renderer.domElement.toDataURL("image/png");
+  } catch (error) {
+    console.warn("Could not render a 3D Item Locker thumbnail.", error);
+    return "";
+  } finally {
+    for (const state of saved) {
+      state.avatar.group.visible = state.visible;
+      state.avatar.group.position.copy(state.position);
+      state.avatar.group.rotation.copy(state.rotation);
+      state.avatar.group.scale.copy(state.scale);
+    }
+    camera.fov = cameraFov;
+    camera.aspect = cameraAspect;
+    camera.position.copy(cameraPosition);
+    camera.quaternion.copy(cameraQuaternion);
+    camera.updateProjectionMatrix();
+    renderer.setSize(Math.max(1, size.x), Math.max(1, size.y), false);
+    if (previewAvatar && renderer.domElement.parentElement) renderer.render(scene, camera);
+  }
+}
+
 function buildLockerTextureCanvas(item, key, avatar) {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 16;
@@ -1754,6 +1865,7 @@ async function buildPreview(force = false) {
         lockerItems: { ...(record?.__lockerItems || {}) },
         lockerBaseTextures: extractTextureMapData(record?.__lockerBaseTextures || {}),
         targetX: (slot - 2) * 2.95, targetScale: slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88 };
+      syncLockerAccessories(rosterAvatars[slot]);
     }
     currentIdentity = key;
     setRosterWindow(MAIN_PROFILE_SLOT);
