@@ -32,19 +32,22 @@ function normalizeCharacterRoster(slots) {
     });
 }
 
-function migrateLegacyCharacterStorage(uid) {
+function migrateLegacyCharacterStorage(uid, allow = {}) {
     if (!uid) return;
     try {
         if (localStorage.getItem(CHARACTER_CACHE_MIGRATION_KEY)) return;
-        for (const baseKey of [CHARACTER_TEXTURE_STORAGE_KEY, CHARACTER_ROSTER_STORAGE_KEY]) {
+        const migration = [
+            [CHARACTER_TEXTURE_STORAGE_KEY, allow.textures === true],
+            [CHARACTER_ROSTER_STORAGE_KEY, allow.roster === true]
+        ];
+        for (const [baseKey, mayMigrate] of migration) {
             const scopedKey = accountStorageKey(baseKey, uid);
             const legacyValue = localStorage.getItem(baseKey);
-            if (!localStorage.getItem(scopedKey) && legacyValue) {
+            if (mayMigrate && !localStorage.getItem(scopedKey) && legacyValue) {
                 localStorage.setItem(scopedKey, legacyValue);
             }
-            // The old keys were shared by every account on this browser. Remove
-            // them after a one-time migration so a later login cannot inherit
-            // another account's appearance or presets.
+            // Legacy keys have no account owner. Never leave them available
+            // for a later login by a different account on this browser.
             localStorage.removeItem(baseKey);
         }
         localStorage.setItem(CHARACTER_CACHE_MIGRATION_KEY, uid);
@@ -228,12 +231,20 @@ async function syncUserProfile(user, profileOverride = null) {
         if (currentUser?.uid !== user.uid) return;
         const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
         window.__webMinecraftAccountUid = user.uid;
-        migrateLegacyCharacterStorage(user.uid);
-
-        const cachedCharacter = readCachedCharacterTextures(user.uid);
         const cloudTextures = existing.characterTextures && typeof existing.characterTextures === "object"
             ? existing.characterTextures
             : null;
+        const cloudRosterData = existing.characterRoster && typeof existing.characterRoster === "object"
+            ? existing.characterRoster
+            : null;
+        const hasCloudRoster = Boolean(normalizeCharacterRoster(cloudRosterData?.slots));
+        const hasCloudTextures = Boolean(cloudTextures && Object.keys(cloudTextures).length);
+        migrateLegacyCharacterStorage(user.uid, {
+            textures: !hasCloudTextures && !hasCloudRoster,
+            roster: !hasCloudRoster
+        });
+
+        const cachedCharacter = readCachedCharacterTextures(user.uid);
         const cloudSavedAt = timestampToMs(existing.characterTexturesUpdatedAt);
         let chosenCharacter = cachedCharacter;
         if (cloudTextures && (!cachedCharacter || cloudSavedAt >= cachedCharacter.savedAt)) {
@@ -244,9 +255,6 @@ async function syncUserProfile(user, profileOverride = null) {
         }
 
         const cachedRoster = readCachedCharacterRoster(user.uid);
-        const cloudRosterData = existing.characterRoster && typeof existing.characterRoster === "object"
-            ? existing.characterRoster
-            : null;
         const cloudRosterSlots = normalizeCharacterRoster(cloudRosterData?.slots);
         const cloudRosterSavedAt = timestampToMs(existing.characterRosterUpdatedAt);
         let chosenRoster = cachedRoster;
@@ -261,10 +269,16 @@ async function syncUserProfile(user, profileOverride = null) {
         // Keep the main roster slot as the account's active appearance too.
         const rosterMainTextures = chosenRoster?.slots?.[2];
         if (rosterMainTextures && Object.keys(rosterMainTextures).length
-            && (!chosenCharacter || chosenRoster.savedAt > chosenCharacter.savedAt)) {
+            && (!chosenCharacter || (hasCloudRoster && chosenRoster.savedAt > chosenCharacter.savedAt))) {
             const activeSavedAt = Math.max(chosenRoster.savedAt || 0, Date.now());
             writeCachedCharacterTextures(user.uid, rosterMainTextures, activeSavedAt);
             chosenCharacter = { textures: rosterMainTextures, savedAt: activeSavedAt };
+        }
+        if (chosenRoster?.slots && chosenCharacter?.textures && Object.keys(chosenCharacter.textures).length) {
+            const synchronizedSlots = chosenRoster.slots.map(slot => ({ ...slot }));
+            synchronizedSlots[2] = { ...chosenCharacter.textures };
+            chosenRoster = { ...chosenRoster, slots: synchronizedSlots };
+            writeCachedCharacterRoster(user.uid, synchronizedSlots, chosenRoster.savedAt || Date.now());
         }
 
         if (currentUser?.uid !== user.uid) return;
