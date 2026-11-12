@@ -201,7 +201,8 @@ function resetHandTexture(texture, part) {
 }
 
 function syncHandAppearance(textures) {
-    syncHandTexture(handSkinTexture, textures?.skin, "skin");
+    // Prefer the dedicated Hand map; fall back to Skin for existing saved characters.
+    syncHandTexture(handSkinTexture, textures?.hand || textures?.skin, "skin");
     syncHandTexture(handSleeveTexture, textures?.shirt, "shirt");
 }
 
