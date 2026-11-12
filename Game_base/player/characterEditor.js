@@ -907,6 +907,285 @@ function captureFullTextureData(avatar) {
   }
   return textures;
 }
+
+function lockerItemById(id) {
+  return LOCKER_ITEMS.find(item => item.id === id) || null;
+}
+
+function buildLockerTextureCanvas(item, key, avatar) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 16;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const source = getTextureCanvas(avatar?.textures, key);
+  ctx.imageSmoothingEnabled = false;
+  if (source) ctx.drawImage(source, 0, 0, 16, 16);
+  else {
+    ctx.fillStyle = item.base;
+    ctx.fillRect(0, 0, 16, 16);
+  }
+  const base = item.base, accent = item.accent;
+  const px = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
+
+  if (item.pattern === "cap" || item.pattern === "beanie" || item.pattern === "crown") {
+    if (key === "headTop") {
+      px(1, 2, 14, 11, base);
+      px(3, 0, 10, 3, accent);
+      px(0, 10, 16, 3, accent);
+      if (item.pattern === "crown") {
+        px(1, 0, 3, 4, accent); px(6, 0, 4, 4, accent); px(12, 0, 3, 4, accent);
+        px(3, 5, 2, 2, "#fff0b0"); px(11, 5, 2, 2, "#fff0b0");
+      } else if (item.pattern === "beanie") {
+        px(2, 1, 12, 3, accent); px(6, 0, 4, 2, "#e7ddff");
+      } else {
+        px(2, 12, 12, 2, "#17202d"); px(10, 8, 5, 2, accent);
+      }
+    } else {
+      px(0, 0, 16, 5, base);
+      px(0, 4, 16, 2, accent);
+      if (item.pattern === "crown") { px(2, 0, 2, 3, accent); px(7, 0, 2, 3, accent); px(12, 0, 2, 3, accent); }
+      if (item.pattern === "beanie") { px(1, 0, 14, 2, accent); px(2, 6, 12, 1, accent); }
+    }
+  } else if (item.pattern === "visor" || item.pattern === "warpaint" || item.pattern === "mask") {
+    if (item.pattern === "visor") {
+      px(0, 5, 16, 5, base); px(1, 6, 14, 3, accent); px(2, 7, 4, 1, "#efffff"); px(10, 7, 4, 1, "#efffff");
+    } else if (item.pattern === "warpaint") {
+      px(2, 5, 3, 6, accent); px(11, 5, 3, 6, accent); px(6, 8, 4, 2, "#f2c49d");
+    } else {
+      px(0, 8, 16, 7, base); px(1, 7, 14, 4, accent); px(3, 8, 3, 2, "#80c4d7"); px(10, 8, 3, 2, "#80c4d7");
+    }
+  } else if (item.pattern === "jacket" || item.pattern === "armor" || item.pattern === "hoodie") {
+    px(0, 0, 16, 16, base);
+    px(0, 0, 3, 16, accent); px(13, 0, 3, 16, accent);
+    px(7, 0, 2, 16, "#172332");
+    px(6, 2, 4, 2, accent);
+    for (let y = 5; y < 15; y += 4) px(7, y, 2, 1, "#d5e3ef");
+    if (item.pattern === "armor") {
+      px(0, 1, 5, 4, "#a9b5c3"); px(11, 1, 5, 4, "#a9b5c3");
+      px(4, 6, 8, 2, accent); px(5, 10, 6, 5, "#313b4b");
+    } else if (item.pattern === "hoodie") {
+      px(4, 0, 8, 3, "#4b5669"); px(5, 11, 6, 4, "#111925");
+    }
+    if (key !== "chest") { px(0, 0, 16, 3, accent); px(0, 13, 16, 3, "#182434"); px(6, 7, 4, 2, base); }
+  } else if (item.pattern === "muscles" || item.pattern === "athletic") {
+    px(0, 0, 16, 16, base);
+    if (key === "chest") {
+      px(2, 2, 5, 5, accent); px(9, 2, 5, 5, accent);
+      px(3, 3, 3, 3, base); px(10, 3, 3, 3, base);
+      px(4, 8, 3, 3, accent); px(9, 8, 3, 3, accent);
+      px(5, 9, 2, 2, base); px(9, 9, 2, 2, base);
+      px(7, 3, 2, 11, "#523b34");
+      px(3, 13, 10, 2, "#5d4037");
+      if (item.pattern === "athletic") { px(1, 1, 2, 14, "#e1b08b"); px(13, 1, 2, 14, "#e1b08b"); }
+    } else {
+      px(0, 2, 3, 11, accent); px(13, 2, 3, 11, accent); px(2, 5, 2, 5, base); px(12, 5, 2, 5, base);
+    }
+  } else if (item.pattern === "cargo" || item.pattern === "denim" || item.pattern === "track") {
+    px(0, 0, 16, 16, base);
+    px(1, 0, 2, 16, accent); px(13, 0, 2, 16, accent);
+    px(6, 0, 1, 16, "#182431"); px(9, 0, 1, 16, "#182431");
+    if (item.pattern === "cargo") { px(3, 5, 3, 4, "#a4ad79"); px(10, 5, 3, 4, "#a4ad79"); px(3, 10, 3, 2, "#333f32"); px(10, 10, 3, 2, "#333f32"); }
+    if (item.pattern === "denim") { px(3, 2, 2, 12, "#526b8b"); px(11, 2, 2, 12, "#526b8b"); px(7, 1, 2, 2, accent); }
+    if (item.pattern === "track") { px(4, 0, 2, 16, accent); px(10, 0, 2, 16, accent); }
+  } else if (item.pattern === "gloves" || item.pattern === "wraps") {
+    px(0, 0, 16, 16, base);
+    px(1, 0, 14, 4, accent); px(2, 5, 12, 3, base);
+    px(2, 9, 12, 5, accent);
+    if (item.pattern === "gloves") { px(1, 13, 14, 3, "#111820"); px(4, 2, 2, 7, "#b5c7dc"); px(10, 2, 2, 7, "#b5c7dc"); }
+    else { px(0, 5, 16, 2, "#e9ad78"); px(0, 10, 16, 2, "#e9ad78"); }
+  }
+  return canvas;
+}
+
+function drawLockerCharacterPortrait(avatar, canvas) {
+  const ctx = canvas.getContext("2d");
+  const maps = avatar?.textures || {};
+  const drawMap = (key, x, y, w, h, fallback) => {
+    const source = getTextureCanvas(maps, key);
+    if (source) ctx.drawImage(source, x, y, w, h);
+    else { ctx.fillStyle = fallback; ctx.fillRect(x, y, w, h); }
+  };
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#182231"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#26374e"; ctx.fillRect(8, 8, canvas.width - 16, canvas.height - 16);
+  ctx.imageSmoothingEnabled = false;
+  drawMap("headTop", 29, 5, 38, 16, "#453020");
+  drawMap("headSide", 26, 13, 44, 22, "#453020");
+  drawMap("face", 31, 17, 34, 31, "#c58c68");
+  drawMap("leftArm", 13, 49, 15, 43, "#48688b");
+  drawMap("rightArm", 69, 49, 15, 43, "#48688b");
+  drawMap("chest", 28, 47, 41, 48, "#48688b");
+}
+
+function buildLockerItemCardPreview(item, avatar, canvas) {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#172130"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = buildLockerTextureCanvas(item, item.keys[0], avatar);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(texture, 8, 8, canvas.width - 16, canvas.height - 16);
+}
+
+function renderLockerRoster() {
+  const grid = overlay.querySelector("#lockerRosterGrid");
+  grid.replaceChildren();
+  const entries = rosterAvatars.filter(Boolean);
+  overlay.querySelector("#lockerCharacterCount").textContent = entries.length + " CHARACTERS";
+  for (const entry of entries) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "lockerCharacterCard";
+    button.dataset.slot = String(entry.slotIndex);
+    const portrait = document.createElement("canvas");
+    portrait.width = 96; portrait.height = 104;
+    portrait.className = "lockerCharacterPortrait";
+    drawLockerCharacterPortrait(entry, portrait);
+    const name = document.createElement("strong");
+    name.textContent = entry.slotIndex === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" :
+      (rosterTextureStore.slots[entry.slotIndex]?.__characterName || entry.characterName || "CHARACTER " + (entry.slotIndex + 1));
+    const saved = document.createElement("small");
+    saved.textContent = hasTextureMaps(rosterTextureStore.slots[entry.slotIndex]) ? "CUSTOM CHARACTER" : "UNMODIFIED PREVIEW";
+    button.append(portrait, name, saved);
+    button.addEventListener("click", () => {
+      pushEditorIntoTexture();
+      rememberActiveEditorState();
+      activateRosterSlot(entry.slotIndex);
+      lockerSelectedSlot = entry.slotIndex;
+      setEditorPage("locker");
+    });
+    grid.appendChild(button);
+  }
+}
+
+function renderLockerItems() {
+  const tabs = overlay.querySelector("#lockerCategoryTabs");
+  const grid = overlay.querySelector("#lockerItemsGrid");
+  tabs.replaceChildren();
+  grid.replaceChildren();
+  for (const category of LOCKER_CATEGORIES) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "lockerCategoryTab" + (category === lockerSelectedCategory ? " active" : "");
+    button.textContent = category;
+    button.addEventListener("click", () => { lockerSelectedCategory = category; renderLockerItems(); });
+    tabs.appendChild(button);
+  }
+  const entry = previewAvatar;
+  const equipped = entry?.lockerItems || {};
+  const visibleItems = LOCKER_ITEMS.filter(item => item.category === lockerSelectedCategory);
+  for (const item of visibleItems) {
+    const button = document.createElement("button");
+    button.type = "button";
+    const isEquipped = equipped[item.slot] === item.id;
+    button.className = "lockerItemCard" + (isEquipped ? " equipped" : "");
+    const preview = document.createElement("canvas");
+    preview.width = preview.height = 64;
+    buildLockerItemCardPreview(item, entry, preview);
+    const title = document.createElement("strong");
+    title.textContent = item.name;
+    const sub = document.createElement("small");
+    sub.textContent = isEquipped ? "EQUIPPED · CLICK TO REMOVE" : item.tag;
+    button.append(preview, title, sub);
+    button.addEventListener("click", () => { void equipLockerItem(item); });
+    grid.appendChild(button);
+  }
+  const equippedCount = Object.keys(equipped).length;
+  overlay.querySelector("#lockerEquippedStatus").textContent =
+    equippedCount + " ITEMS EQUIPPED · SAVED TO THIS CHARACTER";
+}
+
+async function persistLockerLoadout(entry) {
+  const slot = entry.slotIndex;
+  const savedAt = Date.now();
+  const textures = captureFullTextureData(entry);
+  const previous = rosterTextureStore.slots[slot] || {};
+  const record = makeRosterRecord(textures, {
+    __characterId: previous.__characterId || entry.characterId || createCharacterId(),
+    __characterName: previous.__characterName || entry.characterName || (slot === MAIN_PROFILE_SLOT ? "Main Character" : "Character " + (slot + 1)),
+    __savedAt: savedAt,
+    __lockerItems: entry.lockerItems || {},
+    __lockerBaseTextures: entry.lockerBaseTextures || {}
+  });
+  if (!record) return false;
+  rosterTextureStore.slots[slot] = record;
+  if (!writeRosterTextureStore(savedAt)) return false;
+  entry.characterId = record.__characterId;
+  entry.characterName = record.__characterName;
+  entry.savedTextureData = { ...textures };
+  entry.dirtyTextureKeys = new Set();
+  entry.resetOverridesPending = false;
+  if (previewAvatar === entry) {
+    savedTextureData = { ...textures };
+    dirtyTextureKeys.clear();
+    resetOverridesPending = false;
+  }
+  updateRosterCards();
+  let rosterSaved = false;
+  try {
+    rosterSaved = Boolean(await window.webMinecraftSaveCharacterRoster?.(
+      rosterTextureStore.slots, savedAt, rosterTextureStore.deletedIds || []
+    ));
+  } catch (error) { console.warn("Locker items saved in this browser, but roster sync failed.", error); }
+  if (slot === MAIN_PROFILE_SLOT) {
+    writeCharacterTextureRecord(textures, savedAt);
+    sendCharacterSkin(textures);
+    window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures } }));
+    let profileSaved = false;
+    try { profileSaved = Boolean(await window.webMinecraftSaveCharacterProfile?.(textures, savedAt)); }
+    catch (error) { console.warn("Locker items saved locally, but active profile sync failed.", error); }
+    return rosterSaved || profileSaved;
+  }
+  return rosterSaved;
+}
+
+async function equipLockerItem(item) {
+  const entry = previewAvatar;
+  if (!entry || lockerSelectedSlot !== entry.slotIndex) return;
+  const slot = item.slot;
+  const currentId = entry.lockerItems?.[slot] || "";
+  const previousItem = lockerItemById(currentId);
+  const baseTextures = { ...(entry.lockerBaseTextures || {}) };
+  if (previousItem) {
+    const restore = {};
+    for (const key of previousItem.keys) {
+      if (baseTextures[key]) restore[key] = baseTextures[key];
+    }
+    if (Object.keys(restore).length) await applyAvatarTextureData(entry.textures, restore);
+    if (currentId === item.id) {
+      delete entry.lockerItems[slot];
+      for (const key of previousItem.keys) delete baseTextures[key];
+      entry.lockerBaseTextures = baseTextures;
+      entry.dirtyTextureKeys = new Set(previousItem.keys);
+      const synced = await persistLockerLoadout(entry);
+      renderLockerItems();
+      overlay.querySelector("#lockerEquippedStatus").textContent =
+        synced ? "ITEM REMOVED · CHARACTER SAVED" : "ITEM REMOVED · LOCAL SAVE";
+      scheduleLivePreview();
+      return;
+    }
+  }
+  for (const key of item.keys) {
+    if (!baseTextures[key]) {
+      const canvas = getTextureCanvas(entry.textures, key);
+      if (canvas) baseTextures[key] = canvas.toDataURL("image/png");
+    }
+  }
+  const maps = {};
+  for (const key of item.keys) {
+    const canvas = buildLockerTextureCanvas(item, key, entry);
+    maps[key] = canvas.toDataURL("image/png");
+  }
+  await applyAvatarTextureData(entry.textures, maps);
+  entry.lockerItems = { ...(entry.lockerItems || {}), [slot]: item.id };
+  entry.lockerBaseTextures = baseTextures;
+  entry.dirtyTextureKeys = new Set(item.keys);
+  const synced = await persistLockerLoadout(entry);
+  renderLockerItems();
+  overlay.querySelector("#lockerEquippedStatus").textContent =
+    synced ? item.name.toUpperCase() + " EQUIPPED · SAVED" : item.name.toUpperCase() + " EQUIPPED · LOCAL SAVE";
+  scheduleLivePreview();
+  scheduleOnlineSkinSync();
+}
+
 function refreshTextureButtons() {
   for (const button of textureList.children) {
     const key = button.dataset.textureKey;
