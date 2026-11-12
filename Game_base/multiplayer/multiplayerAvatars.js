@@ -37,7 +37,7 @@ const HELD_VARIANT_BASE = {
 
 function heldSourceMaterial(itemId) {
     const id = Math.floor(Number(itemId) || 0);
-    if (id >= 155 && id <= 184) return blockMaterials.extraBlockMaterials?.[id] || null;
+    if ((id >= 155 && id <= 184) || (id >= 191 && id <= 223)) return blockMaterials.extraBlockMaterials?.[id] || null;
     const baseId = HELD_VARIANT_BASE[id] || id;
     const key = HELD_BASE_MATERIAL_KEYS[baseId];
     return key ? blockMaterials[key] || null : null;
