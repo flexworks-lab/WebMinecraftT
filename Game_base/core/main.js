@@ -4,6 +4,7 @@ import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "./performance.js";
 import { createWorld, clearWorld, CHUNK_SIZE, updateChunkVisibility, getPerformanceStats, getBlockAt, getBlockCollisionBoxes, setBlockAt, getBlockTypes, isPointInWater, setChunkLoadConcurrency, getChunkLoadConcurrency, setWorldSeed, getWorldSeed, getTerrainProfile, setRenderDistance, setChunkShadowRendering, SEA_LEVEL } from "../world/world.js";
 import { setupControls, resetView, keys } from "../player/controls.js";
 import { updatePlayer } from "../player/player.js";
+import { updateLocalAvatar, updateMultiplayerAvatars } from "../multiplayer/multiplayerAvatars.js";
 import { setupInteraction } from "../player/interaction.js";
 import { initSavedWorlds } from "../world/worlds.js";
 import { setWorldSeedForPersistence } from "../world/worldSave.js";
@@ -1381,6 +1382,7 @@ function animate() {
     if (gameStarted) {
         updatePlayer(camera, scene, deltaTime);
         updateLocalAvatar(scene, camera, cameraPerspectiveMode);
+        updateMultiplayerAvatars(scene);
         applyCameraPerspective(deltaTime);
         updateChunkVisibility(camera.position, camera);
         window.__webMinecraftUpdateShortGrass?.(currentTime);
