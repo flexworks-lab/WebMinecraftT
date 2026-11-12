@@ -854,7 +854,7 @@ function handleMessage(ws, raw, state) {
             const heldItemId = Math.floor(numberOr(message.heldItemId, player.heldItemId));
             player.heldItemId = heldItemId >= 0 && heldItemId <= 223 ? heldItemId : 0;
             player.sneaking = Boolean(message.sneaking);
-            player.action = ["idle", "walk", "mine", "place", "jump"].includes(message.action) ? message.action : "idle";
+            player.action = ["idle", "walk", "mine", "place", "jump", "punch"].includes(message.action) ? message.action : "idle";
             player.lastUpdate = now;
         }
         return;
