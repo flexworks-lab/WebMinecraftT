@@ -1420,7 +1420,7 @@ export function saveMultiplayerAndQuit(timeoutMs = 2500) {
     return promise;
 }
 
-export async function leaveMultiplayerSession(timeoutMs = 1400) {
+export function leaveMultiplayerSession() {
     intentionalDisconnect = true;
     hideConnectionLostUI();
 
@@ -1459,20 +1459,14 @@ export async function leaveMultiplayerSession(timeoutMs = 1400) {
         joinButton.textContent = "Join Room";
     }
 
-    if (connection && connection.readyState !== 3 && typeof connection.close === "function") {
-        await new Promise(resolve => {
-            let finished = false;
-            let timer = null;
-            const finish = () => {
-                if (finished) return;
-                finished = true;
-                if (timer !== null) clearTimeout(timer);
-                resolve();
-            };
-            connection.addEventListener?.("close", finish, { once: true });
-            timer = setTimeout(finish, Math.max(250, Number(timeoutMs) || 1400));
-            try { connection.close(); } catch { finish(); }
-        });
+    // WebSocket.close() is immediate. The P2P transport starts its async
+    // room-presence/host handoff cleanup internally; don't wait on Firestore.
+    try {
+        if (connection && connection.readyState !== 3 && typeof connection.close === "function") {
+            connection.close();
+        }
+    } catch (error) {
+        console.warn("Could not close multiplayer transport cleanly:", error);
     }
 
     return Boolean(connection);
