@@ -19,6 +19,29 @@ const USERNAME_CHANGE_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000;
 const CHARACTER_TEXTURE_STORAGE_KEY = "webminecraft-procedural-character-textures-v1";
 const CHARACTER_ROSTER_STORAGE_KEY = "webminecraft-character-roster-v1";
 const CHARACTER_CACHE_MIGRATION_KEY = "webminecraft-character-account-cache-migrated-v1";
+const CHARACTER_TEXTURE_FIELDS = ["face", "headBack", "headSide", "headTop", "skin", "hand", "shirt", "pants", "shoes"];
+const MAX_SAVED_CHARACTERS = 60;
+
+function extractSavedCharacterTextures(record) {
+    const source = record?.textures && typeof record.textures === "object" ? record.textures : record;
+    const textures = {};
+    for (const key of CHARACTER_TEXTURE_FIELDS) {
+        const value = source?.[key];
+        if (typeof value === "string" && value.startsWith("data:image/") && value.length <= 50000) textures[key] = value;
+    }
+    return textures;
+}
+
+function hasSavedCharacterTextures(record) {
+    return Object.keys(extractSavedCharacterTextures(record)).length > 0;
+}
+
+function characterTextureHash(record) {
+    const source = JSON.stringify(extractSavedCharacterTextures(record));
+    let hash = 2166136261;
+    for (let i = 0; i < source.length; i++) { hash ^= source.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+    return (hash >>> 0).toString(16);
+}
 
 function accountStorageKey(baseKey, uid) {
     return `${baseKey}:account:${String(uid || "").trim()}`;
@@ -26,10 +49,52 @@ function accountStorageKey(baseKey, uid) {
 
 function normalizeCharacterRoster(slots) {
     if (!Array.isArray(slots)) return null;
-    return Array.from({ length: 5 }, (_, index) => {
-        const slot = slots[index];
-        return slot && typeof slot === "object" && !Array.isArray(slot) ? { ...slot } : {};
+    const length = Math.min(MAX_SAVED_CHARACTERS, Math.max(5, slots.length));
+    const normalized = Array.from({ length }, (_, index) => {
+        const source = slots[index];
+        const textures = extractSavedCharacterTextures(source);
+        if (!Object.keys(textures).length) return null;
+        return {
+            ...textures,
+            __characterId: String(source?.__characterId || "legacy-" + characterTextureHash(textures)),
+            __characterName: String(source?.__characterName || (index === 2 ? "Main Character" : "Character " + (index + 1))).slice(0, 24),
+            __savedAt: Math.max(0, Number(source?.__savedAt) || 0)
+        };
     });
+    while (normalized.length > 5 && !normalized[normalized.length - 1]) normalized.pop();
+    return normalized.some(Boolean) ? normalized : null;
+}
+
+function mergeCharacterRosters(first, second) {
+    const sources = [first, second].filter(Array.isArray);
+    if (!sources.length) return null;
+    const length = Math.min(MAX_SAVED_CHARACTERS, Math.max(5, ...sources.map(slots => slots.length)));
+    const merged = Array.from({ length }, (_, index) => {
+        const a = sources[0]?.[index], b = sources[1]?.[index];
+        if (hasSavedCharacterTextures(a) && hasSavedCharacterTextures(b)) {
+            return Number(b.__savedAt || 0) > Number(a.__savedAt || 0) ? b : a;
+        }
+        return hasSavedCharacterTextures(a) ? a : (hasSavedCharacterTextures(b) ? b : null);
+    });
+    for (const slots of sources) {
+        slots.forEach((record, index) => {
+            if (!hasSavedCharacterTextures(record)) return;
+            const id = String(record.__characterId || "legacy-" + characterTextureHash(record));
+            const duplicate = merged.findIndex(item => hasSavedCharacterTextures(item) &&
+                String(item.__characterId || "legacy-" + characterTextureHash(item)) === id);
+            if (duplicate >= 0) {
+                if (Number(record.__savedAt || 0) > Number(merged[duplicate].__savedAt || 0)) merged[duplicate] = record;
+                return;
+            }
+            let target = index < 5 && !hasSavedCharacterTextures(merged[index]) ? index : -1;
+            if (target < 0) target = merged.findIndex((item, itemIndex) => itemIndex >= 5 && !hasSavedCharacterTextures(item));
+            if (target >= 0) merged[target] = record;
+            else if (merged.length < MAX_SAVED_CHARACTERS) merged.push(record);
+        });
+    }
+    while (merged.length > 5 && !merged[merged.length - 1]) merged.pop();
+    const result = Array.from({ length: Math.max(5, merged.length) }, (_, index) => merged[index] || null);
+    return result.some(Boolean) ? result : null;
 }
 
 function migrateLegacyCharacterStorage(uid, allow = {}) {
@@ -83,11 +148,12 @@ function writeCachedCharacterTextures(uid, textures, savedAt = Date.now()) {
 function readCachedCharacterRoster(uid) {
     try {
         const record = JSON.parse(localStorage.getItem(accountStorageKey(CHARACTER_ROSTER_STORAGE_KEY, uid)) || "null");
-        if (!record || Number(record.version) !== 1 || !Array.isArray(record.slots)) return null;
-        return {
-            slots: normalizeCharacterRoster(record.slots),
+        if (!record || ![1, 2].includes(Number(record.version)) || !Array.isArray(record.slots)) return null;
+        const slots = normalizeCharacterRoster(record.slots);
+        return slots ? {
+            slots,
             savedAt: Math.max(0, Number(record.savedAt) || 0)
-        };
+        } : null;
     } catch { return null; }
 }
 
@@ -96,7 +162,7 @@ function writeCachedCharacterRoster(uid, slots, savedAt = Date.now()) {
     if (!uid || !normalized) return false;
     try {
         localStorage.setItem(accountStorageKey(CHARACTER_ROSTER_STORAGE_KEY, uid), JSON.stringify({
-            version: 1,
+            version: 2,
             savedAt: Math.max(0, Number(savedAt) || Date.now()),
             slots: normalized
         }));
@@ -139,14 +205,17 @@ async function saveCharacterRosterToProfile(slots, savedAt = Date.now()) {
     const normalized = normalizeCharacterRoster(slots);
     if (!uid || currentUser?.isAnonymous === true || !normalized || !window.firebase?.firestore) return false;
     const savedDate = new Date(Math.max(0, Number(savedAt) || Date.now()));
-    writeCachedCharacterRoster(uid, normalized, savedDate.getTime());
     try {
         const profileRef = window.firebase.firestore().collection("profiles").doc(uid);
         const profileSnap = await profileRef.get();
         if (!profileSnap.exists || currentUser?.uid !== uid) return false;
+        const existing = profileSnap.data() || {};
+        const remoteSlots = normalizeCharacterRoster(existing.characterRoster?.slots);
+        const merged = mergeCharacterRosters(remoteSlots, normalized) || normalized;
+        writeCachedCharacterRoster(uid, merged, savedDate.getTime());
         await profileRef.set({
-            characterRoster: { version: 1, slots: normalized },
-            characterRosterVersion: 1,
+            characterRoster: { version: 2, slots: merged },
+            characterRosterVersion: 2,
             characterRosterUpdatedAt: savedDate
         }, { merge: true });
         return currentUser?.uid === uid;
@@ -257,28 +326,35 @@ async function syncUserProfile(user, profileOverride = null) {
         const cachedRoster = readCachedCharacterRoster(user.uid);
         const cloudRosterSlots = normalizeCharacterRoster(cloudRosterData?.slots);
         const cloudRosterSavedAt = timestampToMs(existing.characterRosterUpdatedAt);
-        let chosenRoster = cachedRoster;
-        if (cloudRosterSlots && (!cachedRoster || cloudRosterSavedAt >= cachedRoster.savedAt)) {
-            chosenRoster = { slots: cloudRosterSlots, savedAt: cloudRosterSavedAt };
-            writeCachedCharacterRoster(user.uid, cloudRosterSlots, cloudRosterSavedAt || Date.now());
-        } else if (cachedRoster?.slots && (!cloudRosterSlots || cachedRoster.savedAt > cloudRosterSavedAt)) {
-            await saveCharacterRosterToProfile(cachedRoster.slots, cachedRoster.savedAt || Date.now());
-        }
+        const mergedRoster = mergeCharacterRosters(cloudRosterSlots, cachedRoster?.slots);
+        let chosenRoster = mergedRoster ? {
+            slots: mergedRoster,
+            savedAt: Math.max(cloudRosterSavedAt, cachedRoster?.savedAt || 0)
+        } : null;
+        if (chosenRoster?.slots) writeCachedCharacterRoster(user.uid, chosenRoster.slots, chosenRoster.savedAt || Date.now());
 
-        // Older profiles may have a roster but no separate active-skin field.
-        // Keep the main roster slot as the account's active appearance too.
-        const rosterMainTextures = chosenRoster?.slots?.[2];
-        if (rosterMainTextures && Object.keys(rosterMainTextures).length
-            && (!chosenCharacter || (hasCloudRoster && chosenRoster.savedAt > chosenCharacter.savedAt))) {
+        // Keep the active account skin as the main roster entry while retaining
+        // every separately saved character from either device.
+        const rosterMainTextures = extractSavedCharacterTextures(chosenRoster?.slots?.[2]);
+        if (Object.keys(rosterMainTextures).length
+            && (!chosenCharacter || chosenRoster.savedAt > chosenCharacter.savedAt)) {
             const activeSavedAt = Math.max(chosenRoster.savedAt || 0, Date.now());
             writeCachedCharacterTextures(user.uid, rosterMainTextures, activeSavedAt);
             chosenCharacter = { textures: rosterMainTextures, savedAt: activeSavedAt };
         }
-        if (chosenRoster?.slots && chosenCharacter?.textures && Object.keys(chosenCharacter.textures).length) {
-            const synchronizedSlots = chosenRoster.slots.map(slot => ({ ...slot }));
-            synchronizedSlots[2] = { ...chosenCharacter.textures };
-            chosenRoster = { ...chosenRoster, slots: synchronizedSlots };
-            writeCachedCharacterRoster(user.uid, synchronizedSlots, chosenRoster.savedAt || Date.now());
+        if (chosenCharacter?.textures && Object.keys(extractSavedCharacterTextures(chosenCharacter.textures)).length) {
+            const synchronizedSlots = Array.from({ length: Math.max(5, chosenRoster?.slots?.length || 0) }, (_, index) =>
+                chosenRoster?.slots?.[index] || null);
+            const previousMain = synchronizedSlots[2];
+            synchronizedSlots[2] = {
+                ...extractSavedCharacterTextures(chosenCharacter.textures),
+                __characterId: previousMain?.__characterId || "main-" + user.uid,
+                __characterName: previousMain?.__characterName || "Main Character",
+                __savedAt: Math.max(0, Number(chosenCharacter.savedAt) || Date.now())
+            };
+            const normalizedSlots = normalizeCharacterRoster(synchronizedSlots);
+            chosenRoster = normalizedSlots ? { slots: normalizedSlots, savedAt: Math.max(chosenRoster?.savedAt || 0, chosenCharacter.savedAt || 0) } : null;
+            if (chosenRoster?.slots) writeCachedCharacterRoster(user.uid, chosenRoster.slots, chosenRoster.savedAt || Date.now());
         }
 
         if (currentUser?.uid !== user.uid) return;
