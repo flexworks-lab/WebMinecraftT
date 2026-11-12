@@ -194,28 +194,66 @@ function readInventory() {
     catch { return Array.from({ length: 36 }, () => null); }
 }
 
-function saveWorldPreview(seed, force = false) {
+async function saveWorldPreview(seed, force = false) {
     const normalized = normalizeSeed(seed);
     const renderer = window.__webminecraftRenderer;
     if (normalized === null || (!force && !worldDirty) || !renderer?.domElement) return false;
+
+    let bitmap = null;
     try {
-        const source = renderer.domElement;
-        if (!source.width || !source.height) return false;
+        // Render the live scene and camera into an off-screen target. The main
+        // renderer deliberately has preserveDrawingBuffer disabled for FPS.
+        if (typeof window.__webminecraftCaptureFrame === "function") {
+            try {
+                const blob = await window.__webminecraftCaptureFrame({ maxWidth: 960, quality: 0.68 });
+                if (blob && typeof createImageBitmap === "function") bitmap = await createImageBitmap(blob);
+            } catch (error) {
+                console.warn("Off-screen world thumbnail capture failed; trying the live canvas:", error);
+            }
+        }
+
+        const source = bitmap || renderer.domElement;
+        if (!bitmap && typeof renderer.render === "function" && window.__webminecraftScene && window.__webminecraftCamera) {
+            // A synchronous redraw makes the fallback canvas readable even
+            // though the live WebGL context does not preserve old frames.
+            renderer.render(window.__webminecraftScene, window.__webminecraftCamera);
+        }
+
+        const sourceWidth = Number(source.width || source.naturalWidth);
+        const sourceHeight = Number(source.height || source.naturalHeight);
+        if (!sourceWidth || !sourceHeight) return false;
+
         const canvas = document.createElement("canvas");
         canvas.width = 500;
         canvas.height = 236;
         const ctx = canvas.getContext("2d");
         if (!ctx) return false;
+
+        // Fill the wide world-card frame without stretching the player's view.
+        const targetAspect = canvas.width / canvas.height;
+        const sourceAspect = sourceWidth / sourceHeight;
+        let sx = 0, sy = 0, sw = sourceWidth, sh = sourceHeight;
+        if (sourceAspect > targetAspect) {
+            sw = sourceHeight * targetAspect;
+            sx = (sourceWidth - sw) / 2;
+        } else {
+            sh = sourceWidth / targetAspect;
+            sy = (sourceHeight - sh) / 2;
+        }
+
         ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.62);
         if (!dataUrl || dataUrl.length < 100) return false;
+
         localStorage.setItem(`webminecraft-world-preview-${normalized}`, dataUrl);
         if (activeWorld && activeWorldSeed === normalized) activeWorld.preview = dataUrl;
         return true;
     } catch (error) {
         console.warn("Could not capture saved-world preview:", error);
         return false;
+    } finally {
+        bitmap?.close?.();
     }
 }
 
@@ -431,7 +469,7 @@ function stopLiveCloudSave() {
     liveCloudSaveTimer = null;
 }
 
-async function flushBlockSaves() {
+async function flushBlockSaves(options = {}) {
     saveTimer = null;
     if (!activeWorld) return;
 
@@ -451,7 +489,7 @@ async function flushBlockSaves() {
 
     // Block edits make the world dirty. Capture a new preview now so the
     // previous snapshot remains untouched when the world is only opened.
-    const previewSaved = worldDirty ? saveWorldPreview(seedToSave) : false;
+    const previewSaved = options?.skipPreview === true ? false : (worldDirty ? await saveWorldPreview(seedToSave) : false);
 
     const storage = await waitForStorage();
     if (!storage?.saveLocalWorld || saveSwitchId !== worldSwitchId || activeWorld !== worldToSave || isWorldDeleted(seedToSave)) {
@@ -536,10 +574,18 @@ export async function saveCurrentWorld(options = {}) {
     if (!activeWorld || isWorldDeleted(activeWorld.seed)) return null;
     const skipCloud = options?.skipCloud === true;
     const skipPreview = options?.skipPreview === true;
+
+    // Start capturing immediately, before any asynchronous block/storage work
+    // or the return-home transition can hide the world view.
+    const previewPromise = !skipPreview && (options?.capturePreview === true || worldDirty)
+        ? saveWorldPreview(activeWorld.seed, options?.capturePreview === true)
+        : Promise.resolve(false);
+
     clearTimeout(saveTimer);
     saveTimer = null;
     if (pendingSnapshotSeed !== null) flushLocalSnapshot();
-    if (pendingChanges.size > 0) await flushBlockSaves();
+    if (pendingChanges.size > 0) await flushBlockSaves({ skipPreview: true });
+    const previewSaved = await previewPromise;
 
     if (activeWorld && !isWorldDeleted(activeWorld.seed)) {
         const savedBlocks = { ...activeBlocks, ...readLocalBlockSnapshot(activeWorld.seed) };
@@ -547,7 +593,6 @@ export async function saveCurrentWorld(options = {}) {
         activeWorld.blocks = savedBlocks;
         const savedAt = new Date().toISOString();
         activeWorld.updatedAt = savedAt;
-        const previewSaved = !skipPreview && worldDirty ? saveWorldPreview(activeWorld.seed) : false;
         writeLocalBlockSnapshot(activeWorld.seed, savedBlocks);
         writePlayerState(activeWorld.seed, true);
 
@@ -556,7 +601,7 @@ export async function saveCurrentWorld(options = {}) {
             try {
                 const saved = await storage.saveLocalWorld(activeWorld);
                 if (saved) activeWorld = saved;
-                if (previewSaved && activeWorld === saved) worldDirty = false;
+                if (previewSaved) worldDirty = false;
             } catch {}
         }
         if (!skipCloud) await saveCloudNow(activeWorld, worldSwitchId);
@@ -616,22 +661,19 @@ async function initialize() {
     await switchWorld(seed);
 }
 
+let lastExitSaveAt = 0;
+function saveWorldOnExit() {
+    if (window.__webminecraftFastQuit === true) return;
+    // visibilitychange, beforeunload and pagehide can all fire for one exit.
+    const now = Date.now();
+    if (now - lastExitSaveAt < 1200) return;
+    lastExitSaveAt = now;
+    void saveCurrentWorld({ capturePreview: true });
+}
 window.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-        if (window.__webminecraftFastQuit === true) return;
-        saveWorldPreview(getSeedFromUrl());
-        void saveCurrentWorld();
-    }
+    if (document.visibilityState === "hidden") saveWorldOnExit();
 });
-window.addEventListener("pagehide", () => {
-    if (window.__webminecraftFastQuit === true) return;
-    saveWorldPreview(getSeedFromUrl());
-    void saveCurrentWorld();
-});
-window.addEventListener("beforeunload", () => {
-    if (window.__webminecraftFastQuit === true) return;
-    saveWorldPreview(getSeedFromUrl());
-    void saveCurrentWorld();
-});
+window.addEventListener("pagehide", saveWorldOnExit);
+window.addEventListener("beforeunload", saveWorldOnExit);
 
 initialize().catch(error => console.warn("World persistence initialization failed:", error));
