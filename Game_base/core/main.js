@@ -19,7 +19,6 @@ import "../accounts/auth.js";
 import "../multiplayer/chat.js";
 import "../ui/menuTips.js";
 import "../ui/bugReport.js";
-import "../ui/pauseMenu.js";
 import { getWorldMode } from "../inventory/survivalMode.js";
 import "../inventory/survivalRules.js";
 
