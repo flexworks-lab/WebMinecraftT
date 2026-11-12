@@ -216,12 +216,18 @@ const reinforcedDeepslateMaterial = [
 
 const extraBlockMaterials = {};
 
+const extraBlockMaterialCache = new Map();
+
 function makeExtraBlockMaterial(textureName) {
-    return new THREE.MeshPhongMaterial({
-        map: loadTexture(texturePath(textureName), textureName),
+    const key = String(textureName || "");
+    if (extraBlockMaterialCache.has(key)) return extraBlockMaterialCache.get(key);
+    const material = new THREE.MeshPhongMaterial({
+        map: loadTexture(texturePath(key), key),
         color: textureShade,
         ...materialOptions
     });
+    extraBlockMaterialCache.set(key, material);
+    return material;
 }
 
 function addExtraBlock(id, sideTexture, topTexture = sideTexture, bottomTexture = sideTexture, frontTexture = sideTexture) {
