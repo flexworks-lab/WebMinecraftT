@@ -24,10 +24,52 @@ let undergroundAmbient = null;
 let legacyDepthLightNeutralized = false;
 let outdoorLights = [];
 
-const cloudMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: false, opacity: 1, depthWrite: false, depthTest: true, fog: false, toneMapped: false });
+const cloudMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: false, opacity: 1, depthWrite: true, depthTest: true, fog: false, toneMapped: false });
 const cloudGeometry = new THREE.BoxGeometry(CLOUD_BLOCK_SIZE, CLOUD_HEIGHT, CLOUD_BLOCK_SIZE);
-const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffe27a, toneMapped: false, depthWrite: false, depthTest: false, fog: false });
-const sunGeometry = new THREE.SphereGeometry(7, 12, 8);
+
+// A square, camera-facing sun with an additive pixel-soft halo. Depth testing
+// stays enabled so terrain, structures, and clouds can hide it naturally.
+const sunGeometry = new THREE.PlaneGeometry(28, 28);
+const sunMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        coreColor: { value: new THREE.Color(0xfff1a6) },
+        edgeColor: { value: new THREE.Color(0xffbd45) },
+        glowColor: { value: new THREE.Color(0xffa72d) }
+    },
+    vertexShader: `
+        varying vec2 vSunUv;
+        void main() {
+            vSunUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        varying vec2 vSunUv;
+        uniform vec3 coreColor;
+        uniform vec3 edgeColor;
+        uniform vec3 glowColor;
+        void main() {
+            vec2 p = abs(vSunUv - vec2(0.5)) * 2.0;
+            float squareDistance = max(p.x, p.y);
+            float core = 1.0 - smoothstep(0.58, 0.64, squareDistance);
+            float innerEdge = 1.0 - smoothstep(0.48, 0.60, squareDistance);
+            float haloDistance = max(squareDistance - 0.58, 0.0);
+            float halo = exp(-haloDistance * 8.5) * (1.0 - smoothstep(0.76, 1.0, squareDistance));
+            vec3 coreShade = mix(edgeColor, coreColor, innerEdge);
+            vec3 color = mix(glowColor, coreShade, core);
+            float alpha = max(core * 0.98, halo * 0.30);
+            if (alpha < 0.008) discard;
+            gl_FragColor = vec4(color, alpha);
+        }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthTest: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    fog: false,
+    toneMapped: false
+});
 const SKY_SUN_DIRECTION = new THREE.Vector3(0.48, 0.76, 0.44).normalize();
 
 function seedHash(a, b, c = 0) {
@@ -120,9 +162,7 @@ function createSkyDome(scene) {
     sunDisc.name = "MinecraftSunDisc";
     sunDisc.frustumCulled = false;
     sunDisc.renderOrder = 1000;
-    sunDisc.material.fog = false;
-    sunDisc.material.side = THREE.DoubleSide;
-    sunDisc.material.depthTest = false;
+    sunDisc.material.depthTest = true;
     sunDisc.material.depthWrite = false;
     scene.add(sunDisc);
 }
@@ -156,6 +196,7 @@ function updateSkyPosition(){
     if (sunDisc) {
         sunDisc.position.copy(cloudCamera.position)
             .addScaledVector(SKY_SUN_DIRECTION, 160);
+        sunDisc.quaternion.copy(cloudCamera.quaternion);
     }
 }
 function updateUndergroundAmbient(){
