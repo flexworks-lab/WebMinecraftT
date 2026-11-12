@@ -116,9 +116,10 @@ async function saveCharacterTexturesToProfile(textures, savedAt = Date.now()) {
     const savedDate = new Date(Math.max(0, Number(savedAt) || Date.now()));
     writeCachedCharacterTextures(uid, textures, savedDate.getTime());
     try {
-        await window.firebase.firestore().collection("profiles").doc(uid).set({
-            uid,
-            email: currentUser?.email || "",
+        const profileRef = window.firebase.firestore().collection("profiles").doc(uid);
+        const profileSnap = await profileRef.get();
+        if (!profileSnap.exists || currentUser?.uid !== uid) return false;
+        await profileRef.set({
             characterTextures: textures && Object.keys(textures).length ? textures : null,
             characterTexturesVersion: 1,
             characterTexturesUpdatedAt: savedDate
@@ -137,9 +138,10 @@ async function saveCharacterRosterToProfile(slots, savedAt = Date.now()) {
     const savedDate = new Date(Math.max(0, Number(savedAt) || Date.now()));
     writeCachedCharacterRoster(uid, normalized, savedDate.getTime());
     try {
-        await window.firebase.firestore().collection("profiles").doc(uid).set({
-            uid,
-            email: currentUser?.email || "",
+        const profileRef = window.firebase.firestore().collection("profiles").doc(uid);
+        const profileSnap = await profileRef.get();
+        if (!profileSnap.exists || currentUser?.uid !== uid) return false;
+        await profileRef.set({
             characterRoster: { version: 1, slots: normalized },
             characterRosterVersion: 1,
             characterRosterUpdatedAt: savedDate
@@ -255,6 +257,16 @@ async function syncUserProfile(user, profileOverride = null) {
             await saveCharacterRosterToProfile(cachedRoster.slots, cachedRoster.savedAt || Date.now());
         }
 
+        // Older profiles may have a roster but no separate active-skin field.
+        // Keep the main roster slot as the account's active appearance too.
+        const rosterMainTextures = chosenRoster?.slots?.[2];
+        if (rosterMainTextures && Object.keys(rosterMainTextures).length
+            && (!chosenCharacter || chosenRoster.savedAt > chosenCharacter.savedAt)) {
+            const activeSavedAt = Math.max(chosenRoster.savedAt || 0, Date.now());
+            writeCachedCharacterTextures(user.uid, rosterMainTextures, activeSavedAt);
+            chosenCharacter = { textures: rosterMainTextures, savedAt: activeSavedAt };
+        }
+
         if (currentUser?.uid !== user.uid) return;
         window.dispatchEvent(new CustomEvent("webminecraft:character-profile-loaded", {
             detail: {
@@ -297,7 +309,21 @@ async function syncUserProfile(user, profileOverride = null) {
             "Profile save paused. Retrying…",
             45
         );
-        if (isPlayerDataSyncCancelled()) return;
+        if (isPlayerDataSyncCancelled() || currentUser?.uid !== user.uid) return;
+
+        // The profile document now exists, so first-time local character data
+        // can be uploaded without violating the profile create rules.
+        const syncedLocalCharacter = readCachedCharacterTextures(user.uid);
+        const syncedLocalRoster = readCachedCharacterRoster(user.uid);
+        await Promise.all([
+            syncedLocalCharacter
+                ? saveCharacterTexturesToProfile(syncedLocalCharacter.textures, syncedLocalCharacter.savedAt || Date.now())
+                : Promise.resolve(false),
+            syncedLocalRoster
+                ? saveCharacterRosterToProfile(syncedLocalRoster.slots, syncedLocalRoster.savedAt || Date.now())
+                : Promise.resolve(false)
+        ]);
+        if (isPlayerDataSyncCancelled() || currentUser?.uid !== user.uid) return;
 
         setPlayerDataSyncProgress(72, "Updating your public profile…");
         await retryCloudRequest(
