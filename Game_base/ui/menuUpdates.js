@@ -237,7 +237,7 @@ function setupPauseMenu(){
             try{window.__webminecraftSaveSingleplayerWorldState?.();}catch(error){console.warn("Player state save failed:",error);}
             try{window.__webminecraftFlushSingleplayerBlockSnapshot?.();}catch(error){console.warn("Block snapshot save failed:",error);}
             try{
-                const save=window.webminecraftSaveCurrentWorld?.({skipCloud:true,skipPreview:true});
+                const save=window.webminecraftSaveCurrentWorld?.({skipCloud:true,capturePreview:true});
                 Promise.resolve(save).catch(error=>console.warn("Background world save did not finish:",error));
             }catch(error){
                 console.warn("Background world save did not start:",error);
