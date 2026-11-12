@@ -381,16 +381,50 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     group.userData.multiplayerAvatar = true;
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [side, side, top, skin, back, face]);
     head.position.y = 1.8;
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt); torso.position.y = 1.1;
-    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt); leftArm.position.set(-0.53, 1.23, 0);
-    const rightArm = leftArm.clone(); rightArm.position.x = 0.53;
-    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), handSkin); leftHand.name = "leftHand"; leftHand.position.set(-0.53, 0.86, 0);
-    const rightHand = leftHand.clone(); rightHand.name = "rightHand"; rightHand.position.x = 0.53;
-    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants); leftLeg.position.set(-0.2, 0.35, 0);
-    const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.2;
-    const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.46), shoes); leftShoe.position.set(-0.2, 0.09, -0.025);
-    const rightShoe = leftShoe.clone(); rightShoe.position.x = 0.2;
-    group.add(head, torso, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe);
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt);
+    torso.position.y = 1.1;
+
+    // Limb pivots sit at the shoulders and hips so rotations swing the full
+    // limb naturally instead of spinning each box around its centre.
+    const leftArm = new THREE.Group();
+    leftArm.name = "leftArm";
+    leftArm.position.set(-0.53, 1.48, 0);
+    const leftArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt);
+    leftArmMesh.position.y = -0.25;
+    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), handSkin);
+    leftHand.name = "leftHand";
+    leftHand.position.set(0, -0.62, 0);
+    leftArm.add(leftArmMesh, leftHand);
+
+    const rightArm = new THREE.Group();
+    rightArm.name = "rightArm";
+    rightArm.position.set(0.53, 1.48, 0);
+    const rightArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt);
+    rightArmMesh.position.y = -0.25;
+    const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), handSkin);
+    rightHand.name = "rightHand";
+    rightHand.position.set(0, -0.62, 0);
+    rightArm.add(rightArmMesh, rightHand);
+
+    const leftLeg = new THREE.Group();
+    leftLeg.name = "leftLeg";
+    leftLeg.position.set(-0.2, 0.70, 0);
+    const leftLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants);
+    leftLegMesh.position.y = -0.35;
+    const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.46), shoes);
+    leftShoe.position.set(0, -0.61, -0.025);
+    leftLeg.add(leftLegMesh, leftShoe);
+
+    const rightLeg = new THREE.Group();
+    rightLeg.name = "rightLeg";
+    rightLeg.position.set(0.2, 0.70, 0);
+    const rightLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants);
+    rightLegMesh.position.y = -0.35;
+    const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.46), shoes);
+    rightShoe.position.set(0, -0.61, -0.025);
+    rightLeg.add(rightLegMesh, rightShoe);
+
+    group.add(head, torso, leftArm, rightArm, leftLeg, rightLeg);
 
     const nameCanvas = document.createElement("canvas"); nameCanvas.width = 384; nameCanvas.height = 72;
     const ctx = nameCanvas.getContext("2d"); const text = String(name || "Player").slice(0, 16);
@@ -431,54 +465,75 @@ function animateAvatar(entry, player, time) {
     const current = entry.group.position;
     const dx = current.x - previous.x;
     const dz = current.z - previous.z;
-    const speed = Math.hypot(dx, dz) / Math.max(entry.lastTimeDelta, 1 / 60);
+    const delta = Math.max(entry.lastTimeDelta || 1 / 60, 1 / 120);
+    const speed = Math.hypot(dx, dz) / delta;
     entry.lastPosition.copy(current);
     entry.lastTimeDelta = Math.max((time - entry.lastTime) / 1000, 1 / 60);
     entry.lastTime = time;
 
     if (speed > 0.35) {
         const movementYaw = Math.atan2(dx, -dz);
-        const delta = shortestAngleDelta(entry.bodyYaw, movementYaw);
-        entry.bodyYaw = normalizeAngle(entry.bodyYaw + delta * 0.18);
+        const turn = shortestAngleDelta(entry.bodyYaw, movementYaw);
+        entry.bodyYaw = normalizeAngle(entry.bodyYaw + turn * 0.18);
     }
-
     entry.group.rotation.y = entry.bodyYaw;
 
-    const moving = String(player.action || "") === "walk" || speed > 0.35;
-    const phase = time * 0.014 + entry.walkPhase;
-    const swing = moving ? Math.sin(phase) * Math.min(0.72, 0.28 + speed * 0.08) : 0;
-    const bob = moving ? Math.abs(Math.sin(phase * 2)) * 0.045 : 0;
-    parts.leftLeg.rotation.x = THREE.MathUtils.lerp(parts.leftLeg.rotation.x, swing, 0.35);
-    parts.rightLeg.rotation.x = THREE.MathUtils.lerp(parts.rightLeg.rotation.x, -swing, 0.35);
-    parts.leftArm.rotation.x = THREE.MathUtils.lerp(parts.leftArm.rotation.x, -swing * 0.8, 0.35);
-    parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, swing * 0.8, 0.35);
-    parts.leftHand.rotation.x = THREE.MathUtils.lerp(parts.leftHand.rotation.x, -swing * 0.35, 0.35);
-    parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, swing * 0.35, 0.35);
-    const targetTorsoY = 1.1 + bob - crouch * 0.16;
-    const targetHeadY = 1.8 + bob * 0.7 - crouch * 0.38;
-    parts.torso.position.y = THREE.MathUtils.lerp(parts.torso.position.y, targetTorsoY, 0.3);
-    parts.head.position.y = THREE.MathUtils.lerp(parts.head.position.y, targetHeadY, 0.3);
-    parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, crouch * 0.28, 0.22);
-    parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, crouch * 0.18, 0.22);
-    parts.leftLeg.rotation.x = THREE.MathUtils.lerp(parts.leftLeg.rotation.x, (moving ? swing : 0) + crouch * 0.22, 0.25);
-    parts.rightLeg.rotation.x = THREE.MathUtils.lerp(parts.rightLeg.rotation.x, (moving ? -swing : 0) - crouch * 0.22, 0.25);
-    parts.leftArm.position.y = THREE.MathUtils.lerp(parts.leftArm.position.y, 1.23 - crouch * 0.16, 0.25);
-    parts.rightArm.position.y = THREE.MathUtils.lerp(parts.rightArm.position.y, 1.23 - crouch * 0.16, 0.25);
-
     const action = String(player.action || "idle");
-    if (action === "mine") {
+    const moving = action === "walk" || speed > 0.35;
+    const cadence = THREE.MathUtils.clamp(speed / 4.3, 0.75, 1.5);
+    const phase = time * 0.0105 * cadence + entry.walkPhase;
+    const stride = moving ? Math.sin(phase) * Math.min(0.92, 0.38 + speed * 0.12) : 0;
+    const bob = moving ? Math.abs(Math.sin(phase * 2)) * 0.055 : 0;
+    const blend = Math.min(1, delta * 18);
+
+    // Opposing arm and leg swings create a readable Minecraft-style walk cycle.
+    parts.leftLeg.rotation.x = THREE.MathUtils.lerp(parts.leftLeg.rotation.x, stride + crouch * 0.20, blend);
+    parts.rightLeg.rotation.x = THREE.MathUtils.lerp(parts.rightLeg.rotation.x, -stride - crouch * 0.20, blend);
+    parts.leftArm.rotation.x = THREE.MathUtils.lerp(parts.leftArm.rotation.x, -stride * 0.72, blend);
+    parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, stride * 0.72, blend);
+    parts.leftHand.rotation.x = THREE.MathUtils.lerp(parts.leftHand.rotation.x, -stride * 0.18, blend);
+    parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, stride * 0.18, blend);
+
+    parts.leftArm.position.y = THREE.MathUtils.lerp(parts.leftArm.position.y, 1.48 - crouch * 0.16, blend);
+    parts.rightArm.position.y = THREE.MathUtils.lerp(parts.rightArm.position.y, 1.48 - crouch * 0.16, blend);
+    parts.leftLeg.position.y = THREE.MathUtils.lerp(parts.leftLeg.position.y, 0.70 - crouch * 0.035, blend);
+    parts.rightLeg.position.y = THREE.MathUtils.lerp(parts.rightLeg.position.y, 0.70 - crouch * 0.035, blend);
+    parts.torso.position.y = THREE.MathUtils.lerp(parts.torso.position.y, 1.1 + bob - crouch * 0.16, blend);
+    parts.head.position.y = THREE.MathUtils.lerp(parts.head.position.y, 1.8 + bob * 0.7 - crouch * 0.38, blend);
+    parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, crouch * 0.28, blend);
+    parts.head.rotation.x = THREE.MathUtils.lerp(parts.head.rotation.x, crouch * 0.18, blend);
+    parts.leftArm.rotation.z = THREE.MathUtils.lerp(parts.leftArm.rotation.z, 0, blend);
+    parts.rightArm.rotation.z = THREE.MathUtils.lerp(parts.rightArm.rotation.z, 0, blend);
+
+    if (action === "punch") {
+        const progress = THREE.MathUtils.clamp((time - entry.actionStarted) / 380, 0, 1);
+        let punchAngle;
+        if (progress < 0.22) {
+            const t = progress / 0.22;
+            punchAngle = THREE.MathUtils.lerp(0, 0.58, t * t);
+        } else if (progress < 0.55) {
+            const t = (progress - 0.22) / 0.33;
+            punchAngle = THREE.MathUtils.lerp(0.58, -1.72, t * (2 - t));
+        } else {
+            const t = (progress - 0.55) / 0.45;
+            punchAngle = THREE.MathUtils.lerp(-1.72, 0, t * t * (3 - 2 * t));
+        }
+        parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, punchAngle, 0.78);
+        parts.rightArm.rotation.z = THREE.MathUtils.lerp(parts.rightArm.rotation.z, -0.12, 0.55);
+        parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, -0.14, 0.55);
+        parts.leftArm.rotation.x = THREE.MathUtils.lerp(parts.leftArm.rotation.x, 0.22 - stride * 0.25, 0.4);
+        parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, -0.12 + crouch * 0.28, 0.4);
+    } else if (action === "mine") {
         const pulse = Math.sin((time - entry.actionStarted) * 0.035);
         const target = -1.05 - Math.max(0, pulse) * 0.65;
         parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, target, 0.5);
         parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, target * 0.55, 0.5);
-        parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, -0.08, 0.25);
+        parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, -0.08 + crouch * 0.28, 0.25);
     } else if (action === "place") {
         const pulse = Math.sin((time - entry.actionStarted) * 0.028);
         const target = -0.35 + Math.max(0, pulse) * 0.9;
         parts.rightArm.rotation.x = THREE.MathUtils.lerp(parts.rightArm.rotation.x, target, 0.45);
         parts.rightHand.rotation.x = THREE.MathUtils.lerp(parts.rightHand.rotation.x, target * 0.7, 0.45);
-    } else {
-        parts.torso.rotation.x = THREE.MathUtils.lerp(parts.torso.rotation.x, crouch * 0.28, 0.2);
     }
 }
 
@@ -507,6 +562,8 @@ export function updateMultiplayerAvatars(scene) {
                 walkPhase: hashString(id) % 1000,
                 actionStarted: now,
                 lastAction: "idle",
+                lastReceivedAction: "idle",
+                actionUntil: 0,
                 bodyYaw: 0,
                 heldBlock: null
             };
@@ -518,8 +575,19 @@ export function updateMultiplayerAvatars(scene) {
         entry.group.position.lerp(entry.target, 0.32);
 
         const action = String(player.action || "idle");
-        if (action !== entry.lastAction) { entry.lastAction = action; entry.actionStarted = now; }
-        animateAvatar(entry, player, now);
+        if (action !== entry.lastReceivedAction) {
+            entry.lastReceivedAction = action;
+            if (["punch", "mine", "place", "jump"].includes(action)) {
+                entry.lastAction = action;
+                entry.actionStarted = now;
+                entry.actionUntil = now + (action === "punch" ? 380 : 210);
+            } else if (now >= entry.actionUntil) {
+                entry.lastAction = action;
+                entry.actionStarted = now;
+            }
+        }
+        const animationAction = now < entry.actionUntil ? entry.lastAction : action;
+        animateAvatar(entry, { ...player, action: animationAction }, now);
         syncHeldBlock(entry, player);
 
         // Let the head look left/right, but once it reaches the limit the body catches up.
@@ -608,6 +676,15 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
     void applyAvatarTextureData(localAvatarEntry.textures, event.detail?.textures);
 });
 
+window.addEventListener("webminecraft:player-action", event => {
+    if (String(event.detail?.action || "") !== "punch" || !localAvatarEntry) return;
+    const now = performance.now();
+    localAvatarEntry.lastAction = "punch";
+    localAvatarEntry.lastReceivedAction = "punch";
+    localAvatarEntry.actionStarted = now;
+    localAvatarEntry.actionUntil = now + 380;
+});
+
 export function updateLocalAvatar(scene, camera, perspective = "first") {
     if (!camera?.position) return;
     if (perspective === "first") {
@@ -632,6 +709,8 @@ export function updateLocalAvatar(scene, camera, perspective = "first") {
             walkPhase: hashString(appearanceId) % 1000,
             actionStarted: now,
             lastAction: "idle",
+            lastReceivedAction: "idle",
+            actionUntil: 0,
             bodyYaw: Number(camera.userData.__webminecraftPlayerYaw) || 0,
             heldBlock: null
         };
@@ -648,11 +727,13 @@ export function updateLocalAvatar(scene, camera, perspective = "first") {
         Number(camera.position.z) || 0
     );
     localAvatarEntry.bodyYaw = Number(camera.userData.__webminecraftPlayerYaw) || 0;
+    const now = performance.now();
+    const localAction = now < localAvatarEntry.actionUntil ? localAvatarEntry.lastAction : "idle";
     animateAvatar(localAvatarEntry, {
         position: { x: group.position.x, y: group.position.y + 1.8, z: group.position.z },
         sneaking: Boolean(window.__webminecraftPlayerSneaking),
-        action: "idle"
-    }, performance.now());
+        action: localAction
+    }, now);
     group.rotation.y = localAvatarEntry.bodyYaw;
 }
 
