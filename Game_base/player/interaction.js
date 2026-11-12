@@ -18,6 +18,11 @@ const CREATIVE_REACH = 12;
 const CREATIVE_PLACE_TAP_MAX_MS = 180;
 let selectedSlot = 0;
 
+function triggerPunchAnimation() {
+    sendPlayerAction("punch");
+    window.dispatchEvent(new CustomEvent("webminecraft:player-action", { detail: { action: "punch" } }));
+    window.dispatchEvent(new CustomEvent("webminecraft:heldaction", { detail: { type: "punch" } }));
+}
 
 function setupTexturedHotbar() {
     let hotbar = document.getElementById("hotbar");
@@ -177,6 +182,7 @@ export function setupInteraction(scene, camera) {
         if (document.body.classList.contains("crafting-table-open")) return;
         if (event.target instanceof Element && event.target.closest("#hotbar, #inventoryScreen, #doorSelectButton, button, input, select, textarea, a")) return;
         if (event.button === 0) {
+            triggerPunchAnimation();
             if (isSurvivalWorldActive()) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
@@ -203,6 +209,7 @@ export function setupInteraction(scene, camera) {
             const ndcX = Number(touchInput.blockTapX) || 0;
             const ndcY = Number(touchInput.blockTapY) || 0;
             touchInput.blockTapPending = false;
+            triggerPunchAnimation();
             // Short grass is its own decorative mesh, so give mobile taps a
             // chance to break it before normal block placement runs.
             if (window.__webMinecraftTryBreakShortGrass?.(ndcX, ndcY)) return;
