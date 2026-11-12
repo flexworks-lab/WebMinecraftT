@@ -447,11 +447,12 @@ function syncMultiplayerState(camera) {
     const now = performance.now();
     if (now - lastNetworkSend < 50) return;
     lastNetworkSend = now;
+    const movementAction = Math.hypot(velocityX, velocityZ) > 0.35 ? "walk" : "idle";
     sendPlayerState(
         { x: camera.position.x, y: camera.position.y, z: camera.position.z },
         { x: pitch, y: yaw, z: 0 },
         getSelectedItemId(window.webMinecraftSelectedSlot ?? 0) ?? 0,
-        null,
+        movementAction,
         isSneaking(),
     );
 }
