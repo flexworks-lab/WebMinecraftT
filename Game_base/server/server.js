@@ -256,7 +256,10 @@ function publicPlayer(player) {
 }
 
 const CHARACTER_TEXTURE_KEYS = [
-    "face", "headBack", "headSide", "headTop", "skin", "shirt", "pants", "shoes"
+    "face", "headBack", "headSide", "headTop", "skin", "hand",
+    "chest", "leftArm", "rightArm", "leftLeg", "rightLeg", "shoes",
+    // Keep the old combined keys for clients that have not refreshed yet.
+    "shirt", "pants"
 ];
 function sanitizeCharacterTextures(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
