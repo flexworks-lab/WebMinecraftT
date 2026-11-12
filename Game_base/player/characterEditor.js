@@ -28,20 +28,44 @@ function getIdentity() {
   return { id: appearanceId, appearanceId, name: username };
 }
 
+function getRosterStorageKey() {
+  let uid = String(window.__webMinecraftAccountUid || "").trim();
+  if (!uid) {
+    try {
+      const user = window.firebase?.auth?.()?.currentUser || null;
+      if (user?.isAnonymous !== true) uid = String(user?.uid || "").trim();
+    } catch {}
+  }
+  return uid ? `${ROSTER_STORAGE_KEY}:account:${uid}` : ROSTER_STORAGE_KEY;
+}
+
 function readRosterTextureStore() {
   try {
-    const record = JSON.parse(localStorage.getItem(ROSTER_STORAGE_KEY) || "null");
-    if (!record || Number(record.version) !== 1 || !Array.isArray(record.slots)) return { slots: [{}, {}, {}, {}, {}] };
-    return { slots: Array.from({ length: 5 }, (_, index) =>
-      record.slots[index] && typeof record.slots[index] === "object" ? record.slots[index] : {}
-    ) };
+    const record = JSON.parse(localStorage.getItem(getRosterStorageKey()) || "null");
+    if (!record || Number(record.version) !== 1 || !Array.isArray(record.slots)) {
+      return { slots: [{}, {}, {}, {}, {}], savedAt: 0 };
+    }
+    return {
+      slots: Array.from({ length: 5 }, (_, index) =>
+        record.slots[index] && typeof record.slots[index] === "object" && !Array.isArray(record.slots[index])
+          ? record.slots[index]
+          : {}
+      ),
+      savedAt: Math.max(0, Number(record.savedAt) || 0)
+    };
   } catch {
-    return { slots: [{}, {}, {}, {}, {}] };
+    return { slots: [{}, {}, {}, {}, {}], savedAt: 0 };
   }
 }
-function writeRosterTextureStore() {
+function writeRosterTextureStore(savedAt = Date.now()) {
   try {
-    localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify({ version: 1, slots: rosterTextureStore.slots }));
+    const timestamp = Math.max(0, Number(savedAt) || Date.now());
+    rosterTextureStore.savedAt = timestamp;
+    localStorage.setItem(getRosterStorageKey(), JSON.stringify({
+      version: 1,
+      savedAt: timestamp,
+      slots: rosterTextureStore.slots
+    }));
     return true;
   } catch (error) {
     console.warn("Could not save character presets in this browser.", error);
@@ -882,7 +906,7 @@ async function selectRosterCharacter(slot) {
   rosterTextureStore.slots[MAIN_PROFILE_SLOT] = { ...selectedTextures };
   rosterTextureStore.slots[slot] = { ...previousMainTextures };
 
-  if (!writeRosterTextureStore()) {
+  if (!writeRosterTextureStore(savedAt)) {
     rosterTextureStore.slots = previousSlots;
     alert("This browser could not save the character swap. Free some browser storage and try again.");
     updateRosterCards();
@@ -925,17 +949,21 @@ async function selectRosterCharacter(slot) {
   }));
 
   let profileSaved = false;
+  let rosterSaved = false;
   try {
-    profileSaved = Boolean(await window.webMinecraftSaveCharacterProfile?.(selectedTextures, savedAt));
+    [profileSaved, rosterSaved] = await Promise.all([
+      window.webMinecraftSaveCharacterProfile?.(selectedTextures, savedAt).then(Boolean).catch(() => false),
+      window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt).then(Boolean).catch(() => false)
+    ]);
   } catch (error) {
-    console.warn("The active character was saved in this browser, but not to the cloud profile.", error);
+    console.warn("The active character was saved in this browser, but account sync did not finish.", error);
   }
 
   const sub = overlay.querySelector("#characterEditorTopbarSub");
   if (sub) {
-    sub.textContent = profileSaved
-      ? "Selected character is now active and saved to your profile."
-      : "Selected character is now active on this browser.";
+    sub.textContent = profileSaved && rosterSaved
+      ? "Selected character and all presets are saved to your account."
+      : "Selected character is active on this browser. Account sync is unavailable.";
     window.setTimeout(() => {
       if (editorPage === "roster") sub.textContent = "Browse characters and choose one to edit.";
     }, 2600);
@@ -1241,7 +1269,7 @@ async function saveTextures() {
     window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures } }));
   }
   rosterTextureStore.slots[selectedRosterSlot] = textures;
-  if (!writeRosterTextureStore()) {
+  if (!writeRosterTextureStore(savedAt)) {
     alert("Unable to save this character preset in this browser. Free some browser storage and try again.");
     return;
   }
@@ -1255,8 +1283,14 @@ async function saveTextures() {
     previewAvatar.resetOverridesPending = false;
   }
   const button = overlay.querySelector("#characterSave");
+  let rosterSaved = false;
+  try {
+    rosterSaved = Boolean(await window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt));
+  } catch (error) {
+    console.warn("Character presets are saved in this browser, but not to the account profile.", error);
+  }
   if (selectedRosterSlot !== MAIN_PROFILE_SLOT) {
-    button.textContent = "SAVED TO BROWSER ✓";
+    button.textContent = rosterSaved ? "ACCOUNT + BROWSER SAVED ✓" : "BROWSER SAVED ✓";
     window.setTimeout(() => { button.textContent = "SAVE CHARACTER"; }, 1800);
     return;
   }
@@ -1266,7 +1300,9 @@ async function saveTextures() {
   } catch (error) {
     console.warn("Character textures were saved to this browser, but not to the cloud profile.", error);
   }
-  button.textContent = profileSaved ? "PROFILE + BROWSER SAVED ✓" : "BROWSER SAVED ✓";
+  button.textContent = profileSaved && rosterSaved
+    ? "ACCOUNT + BROWSER SAVED ✓"
+    : (profileSaved || rosterSaved ? "PARTIAL ACCOUNT SAVE" : "BROWSER SAVED ✓");
   window.setTimeout(() => { button.textContent = "SAVE CHARACTER"; }, 1800);
 }
 
@@ -1348,25 +1384,72 @@ window.addEventListener("resize", resize);
 window.addEventListener("webminecraft:multiplayer-state-changed", () => {
   if (overlay.classList.contains("open")) void buildPreview();
 });
+async function rebuildRosterForCurrentAccount() {
+  if (rosterBuildPromise) {
+    try { await rosterBuildPromise; } catch {}
+  }
+  if (currentIdentity !== getIdentity().id) await buildPreview(true);
+}
+
+window.addEventListener("webminecraft:account-identity-changed", () => {
+  void rebuildRosterForCurrentAccount().catch(error => {
+    console.warn("Could not load this account's character presets.", error);
+  });
+});
+
 window.addEventListener("webminecraft:character-profile-loaded", event => {
   const textures = event.detail?.textures && typeof event.detail.textures === "object" ? event.detail.textures : {};
-  const applyMainProfile = async () => {
+  const incomingRoster = Array.isArray(event.detail?.roster)
+    ? Array.from({ length: 5 }, (_, index) => {
+        const slot = event.detail.roster[index];
+        return slot && typeof slot === "object" && !Array.isArray(slot) ? { ...slot } : {};
+      })
+    : null;
+  const rosterSavedAt = Math.max(0, Number(event.detail?.rosterSavedAt) || 0);
+
+  const applyAccountProfile = async () => {
+    await rebuildRosterForCurrentAccount();
+    if (incomingRoster) {
+      rosterTextureStore = { slots: incomingRoster, savedAt: rosterSavedAt };
+      writeRosterTextureStore(rosterSavedAt || Date.now());
+      for (let slot = 0; slot < 5; slot++) {
+        const entry = rosterAvatars[slot];
+        const stored = incomingRoster[slot] || {};
+        if (entry && Object.keys(stored).length) {
+          await applyAvatarTextureData(entry.textures, stored);
+          entry.savedTextureData = { ...stored };
+          entry.dirtyTextureKeys = new Set();
+          entry.resetOverridesPending = false;
+        }
+      }
+    }
+
     const main = rosterAvatars[MAIN_PROFILE_SLOT];
     if (!main) return;
-    await applyAvatarTextureData(main.textures, textures);
-    main.savedTextureData = { ...textures };
+    const mainTextures = Object.keys(textures).length
+      ? textures
+      : (incomingRoster?.[MAIN_PROFILE_SLOT] || main.savedTextureData || {});
+    await applyAvatarTextureData(main.textures, mainTextures);
+    main.savedTextureData = { ...mainTextures };
+    main.dirtyTextureKeys = new Set();
+    main.resetOverridesPending = false;
+    rosterTextureStore.slots[MAIN_PROFILE_SLOT] = { ...mainTextures };
+    if (incomingRoster) writeRosterTextureStore(rosterSavedAt || Date.now());
+
     if (selectedRosterSlot === MAIN_PROFILE_SLOT) {
-      savedTextureData = { ...textures };
+      savedTextureData = { ...mainTextures };
+      dirtyTextureKeys.clear();
+      resetOverridesPending = false;
       if (overlay.classList.contains("open") && editorPage === "paint") copySelectedTextureToEditor();
       scheduleLivePreview();
     }
+    updateRosterCards();
     resize();
   };
-  if (rosterAvatars[MAIN_PROFILE_SLOT]) {
-    void applyMainProfile();
-  } else {
-    void buildPreview().then(applyMainProfile);
-  }
+
+  void applyAccountProfile().catch(error => {
+    console.warn("Could not apply saved account characters.", error);
+  });
 });
 
 makeScene();
