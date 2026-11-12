@@ -260,6 +260,42 @@ const concreteTextures = {
 };
 for (const [id, texture] of Object.entries(concreteTextures)) addExtraBlock(Number(id), texture);
 
+// Additional solid/decorative blocks use the same cached texture loader and
+// six-face chunk material path as the existing block set.
+addExtraBlock(191, "coarse_dirt.png", "coarse_dirt.png", "coarse_dirt.png", "coarse_dirt.png");
+addExtraBlock(192, "clay.png", "clay.png", "clay.png", "clay.png");
+addExtraBlock(193, "blue_ice.png", "blue_ice.png", "blue_ice.png", "blue_ice.png");
+addExtraBlock(194, "blackstone.png", "blackstone_top.png", "blackstone.png", "blackstone.png");
+addExtraBlock(195, "coal_block.png", "coal_block.png", "coal_block.png", "coal_block.png");
+addExtraBlock(196, "bone_block_side.png", "bone_block_top.png", "bone_block_side.png", "bone_block_side.png");
+addExtraBlock(197, "bookshelf.png", "bookshelf.png", "bookshelf.png", "bookshelf.png");
+addExtraBlock(198, "chiseled_nether_bricks.png", "chiseled_nether_bricks.png", "chiseled_nether_bricks.png", "chiseled_nether_bricks.png");
+addExtraBlock(199, "chiseled_polished_blackstone.png", "chiseled_polished_blackstone.png", "chiseled_polished_blackstone.png", "chiseled_polished_blackstone.png");
+addExtraBlock(200, "chiseled_quartz_block.png", "chiseled_quartz_block_top.png", "chiseled_quartz_block.png", "chiseled_quartz_block.png");
+addExtraBlock(201, "chiseled_red_sandstone.png", "chiseled_red_sandstone.png", "chiseled_red_sandstone.png", "chiseled_red_sandstone.png");
+addExtraBlock(202, "chiseled_sandstone.png", "chiseled_sandstone.png", "chiseled_sandstone.png", "chiseled_sandstone.png");
+addExtraBlock(203, "chiseled_stone_bricks.png", "chiseled_stone_bricks.png", "chiseled_stone_bricks.png", "chiseled_stone_bricks.png");
+addExtraBlock(204, "carved_pumpkin.png", "carved_pumpkin.png", "carved_pumpkin.png", "carved_pumpkin.png");
+addExtraBlock(205, "chain_command_block_side.png", "chain_command_block_side.png", "chain_command_block_side.png", "chain_command_block_side.png");
+addExtraBlock(206, "black_concrete_powder.png", "black_concrete_powder.png", "black_concrete_powder.png", "black_concrete_powder.png");
+addExtraBlock(207, "blue_concrete_powder.png", "blue_concrete_powder.png", "blue_concrete_powder.png", "blue_concrete_powder.png");
+addExtraBlock(208, "black_glazed_terracotta.png", "black_glazed_terracotta.png", "black_glazed_terracotta.png", "black_glazed_terracotta.png");
+addExtraBlock(209, "blue_glazed_terracotta.png", "blue_glazed_terracotta.png", "blue_glazed_terracotta.png", "blue_glazed_terracotta.png");
+addExtraBlock(210, "black_shulker_box.png", "black_shulker_box.png", "black_shulker_box.png", "black_shulker_box.png");
+addExtraBlock(211, "blue_shulker_box.png", "blue_shulker_box.png", "blue_shulker_box.png", "blue_shulker_box.png");
+addExtraBlock(212, "black_stained_glass.png", "black_stained_glass.png", "black_stained_glass.png", "black_stained_glass.png");
+addExtraBlock(213, "blue_stained_glass.png", "blue_stained_glass.png", "blue_stained_glass.png", "blue_stained_glass.png");
+addExtraBlock(214, "black_terracotta.png", "black_terracotta.png", "black_terracotta.png", "black_terracotta.png");
+addExtraBlock(215, "blue_terracotta.png", "blue_terracotta.png", "blue_terracotta.png", "blue_terracotta.png");
+addExtraBlock(216, "black_wool.png", "black_wool.png", "black_wool.png", "black_wool.png");
+addExtraBlock(217, "blue_wool.png", "blue_wool.png", "blue_wool.png", "blue_wool.png");
+addExtraBlock(218, "chiseled_bookshelf_side.png", "chiseled_bookshelf_top.png", "chiseled_bookshelf_side.png", "chiseled_bookshelf_empty.png");
+addExtraBlock(219, "cartography_table_side1.png", "cartography_table_top.png", "cartography_table_side2.png", "cartography_table_side3.png");
+addExtraBlock(220, "bee_nest_side.png", "bee_nest_top.png", "bee_nest_top.png", "bee_nest_front.png");
+addExtraBlock(221, "beehive_side.png", "beehive_end.png", "beehive_end.png", "beehive_front.png");
+addExtraBlock(222, "bell_side.png", "bell_top.png", "bell_bottom.png", "bell_side.png");
+addExtraBlock(223, "cauldron_side.png", "cauldron_top.png", "cauldron_bottom.png", "cauldron_side.png");
+
 
 const leavesMaterial = new THREE.MeshPhongMaterial({
     map: leavesTexture, transparent: false, opacity: 1, alphaTest: 0.1,
