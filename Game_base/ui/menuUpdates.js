@@ -184,44 +184,66 @@ function setupPauseMenu(){
     const getRoomInfo=()=>{const mp=window.__webminecraftMultiplayerRoomInfo||{};return {active:Boolean(window.__webminecraftMultiplayerActive),room:String(mp.room||window.__webminecraftMultiplayerRoom||""),server:String(mp.serverName||window.__webminecraftMultiplayerServerName||""),private:Boolean(mp.private),mode:String(window.__webminecraftMultiplayerMode||"survival"),seed:getWorldSeed()};};
     const getMembers=()=>{const localName=localStorage.getItem("webminecraft-player-name")||"Player";const remotes=typeof window.__webminecraftGetRemotePlayers==="function"?window.__webminecraftGetRemotePlayers():new Map();const localRole=String(window.__webminecraftMultiplayerRole||"member");const members=[{id:"local",name:localName,role:localRole}];if(remotes instanceof Map){for(const [id,player] of remotes)members.push({id:String(id),name:String(player?.name||"Player"),role:String(player?.role||"member").toLowerCase()});}return members;};
     const makeInvite=()=>{window.__webminecraftOpenGameInvitePicker?.();};
-    const renderSide=()=>{const info=getRoomInfo();const members=getMembers();const worldInfo=overlay.querySelector("#pauseWorldInfo"),membersEl=overlay.querySelector("#pauseMembers"),count=overlay.querySelector("#pauseMemberCount"),title=overlay.querySelector("#pauseSideTitle"),subtitle=overlay.querySelector("#pauseSideSubtitle");title.textContent=info.active?(info.room||"Multiplayer World"):"World";subtitle.textContent=info.active?"Server · "+(info.server||"WebMinecraft server"):"Singleplayer world";worldInfo.innerHTML="<div class=\"pauseInfoCard\"><div class=\"pauseInfoLabel\">Game Mode</div><div class=\"pauseInfoValue\">"+(info.mode==="creative"?"Creative":"Survival")+"</div><div class=\"pauseMeta\">Seed: "+escapeHtml(info.seed)+"</div></div>"+(info.active?"<div class=\"pauseInfoCard\"><div class=\"pauseInfoLabel\">Server</div><div class=\"pauseInfoValue\">"+escapeHtml(info.server||"WebMinecraft Server")+"</div><div class=\"pauseMeta\">"+(info.private?"Private room":"Public room")+"</div></div>":"");count.textContent=String(members.length);membersEl.innerHTML="";for(const member of members){const row=document.createElement("div");row.className="pauseMember";row.innerHTML="<div><div class=\"pauseMemberName\">"+escapeHtml(member.name)+"</div><span class=\"pauseMemberRole\">"+escapeHtml(member.role)+"</span></div>";if(member.id!=="local"){const invite=document.createElement("button");invite.type="button";invite.className="pauseInvite";invite.textContent="Invite";invite.addEventListener("click",makeInvite);row.appendChild(invite);}membersEl.appendChild(row);}renderServerControls(members);};
+    const renderSide=()=>{const info=getRoomInfo();const members=getMembers();const quitButton=overlay.querySelector("#pauseQuit");if(quitButton)quitButton.textContent=info.active?"LEAVE":"Save & Quit";const worldInfo=overlay.querySelector("#pauseWorldInfo"),membersEl=overlay.querySelector("#pauseMembers"),count=overlay.querySelector("#pauseMemberCount"),title=overlay.querySelector("#pauseSideTitle"),subtitle=overlay.querySelector("#pauseSideSubtitle");title.textContent=info.active?(info.room||"Multiplayer World"):"World";subtitle.textContent=info.active?"Server · "+(info.server||"WebMinecraft server"):"Singleplayer world";worldInfo.innerHTML="<div class=\"pauseInfoCard\"><div class=\"pauseInfoLabel\">Game Mode</div><div class=\"pauseInfoValue\">"+(info.mode==="creative"?"Creative":"Survival")+"</div><div class=\"pauseMeta\">Seed: "+escapeHtml(info.seed)+"</div></div>"+(info.active?"<div class=\"pauseInfoCard\"><div class=\"pauseInfoLabel\">Server</div><div class=\"pauseInfoValue\">"+escapeHtml(info.server||"WebMinecraft Server")+"</div><div class=\"pauseMeta\">"+(info.private?"Private room":"Public room")+"</div></div>":"");count.textContent=String(members.length);membersEl.innerHTML="";for(const member of members){const row=document.createElement("div");row.className="pauseMember";row.innerHTML="<div><div class=\"pauseMemberName\">"+escapeHtml(member.name)+"</div><span class=\"pauseMemberRole\">"+escapeHtml(member.role)+"</span></div>";if(member.id!=="local"){const invite=document.createElement("button");invite.type="button";invite.className="pauseInvite";invite.textContent="Invite";invite.addEventListener("click",makeInvite);row.appendChild(invite);}membersEl.appendChild(row);}renderServerControls(members);};
     const renderServerControls=members=>{const controls=overlay.querySelector("#pauseServerControls"),select=overlay.querySelector("#pauseControlTarget");if(!controls||!select)return;const host=Boolean(window.__webminecraftMultiplayerIsHost);controls.classList.toggle("visible",host);if(!host)return;const current=select.value;select.innerHTML="";for(const member of members.filter(item=>item.id!=="local")){const option=document.createElement("option");option.value=member.id;option.textContent=member.name+" · "+String(member.role||"member").toUpperCase();select.appendChild(option);}if(current&&[...select.options].some(option=>option.value===current))select.value=current;};
     const selectedControlMember=()=>{const select=overlay.querySelector("#pauseControlTarget");return getMembers().find(member=>member.id===select?.value)||null;};
-    const close=event=>{event?.preventDefault();event?.stopPropagation();paused=false;overlay.classList.remove("pauseOpen");overlay.setAttribute("aria-hidden","true");if(isGameRunning()&&!window.__webminecraftHasOpenMenu?.())document.body.requestPointerLock?.();};
-    const open=event=>{event?.preventDefault();event?.stopPropagation();if(!isGameRunning())return;paused=true;renderSide();overlay.classList.add("pauseOpen");overlay.setAttribute("aria-hidden","false");document.exitPointerLock?.();overlay.querySelector("#pauseResume").focus();};
+    const close=event=>{
+        event?.preventDefault();
+        event?.stopPropagation();
+        paused=false;
+        overlay.classList.remove("pauseOpen");
+        overlay.setAttribute("aria-hidden","true");
+        document.body.classList.remove("webminecraft-game-paused");
+        if(isGameRunning()&&!window.__webminecraftHasOpenMenu?.())document.body.requestPointerLock?.();
+    };
+    const open=event=>{
+        event?.preventDefault();
+        event?.stopPropagation();
+        if(!isGameRunning())return;
+        paused=true;
+        renderSide();
+        overlay.classList.add("pauseOpen");
+        overlay.setAttribute("aria-hidden","false");
+        document.body.classList.add("webminecraft-game-paused");
+        document.exitPointerLock?.();
+        overlay.querySelector("#pauseResume").focus();
+    };
     overlay.querySelector("#pauseResume").addEventListener("click",close);
-    overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();event.stopPropagation();overlay.classList.remove("pauseOpen");overlay.setAttribute("aria-hidden","true");paused=false;if(settingsMenu){settingsMenu.style.display="flex";document.exitPointerLock?.();}});
+    overlay.querySelector("#pauseSettings").addEventListener("click",event=>{event.preventDefault();event.stopPropagation();overlay.classList.remove("pauseOpen");overlay.setAttribute("aria-hidden","true");paused=false;document.body.classList.remove("webminecraft-game-paused");if(settingsMenu){settingsMenu.style.display="flex";document.exitPointerLock?.();}});
     overlay.querySelector("#pauseInviteAll").addEventListener("click",makeInvite);
     overlay.querySelector("#pauseQuit").addEventListener("click",event=>{
         event.preventDefault();
         event.stopPropagation();
-        const button = overlay.querySelector("#pauseQuit");
-        if (button?.disabled) return;
-        const online = Boolean(window.__webminecraftMultiplayerActive);
-        const saveAndReturn = async () => {
-            if (button) { button.disabled = true; button.textContent = online ? "Saving Server..." : "Saving..."; }
-            if (online) {
-                try {
-                    const saved = await window.__webminecraftSaveMultiplayerAndQuit?.(6000);
-                    if (!saved) {
-                        if (button) { button.disabled = false; button.textContent = "Save & Quit"; }
-                        const status = overlay.querySelector("#pauseControlStatus");
-                        if (status) status.textContent = "Server save failed. Your game is still running.";
-                        return;
-                    }
-                } catch {
-                    if (button) { button.disabled = false; button.textContent = "Save & Quit"; }
-                    const status = overlay.querySelector("#pauseControlStatus");
-                    if (status) status.textContent = "Could not save the multiplayer world.";
-                    return;
+        const button=overlay.querySelector("#pauseQuit");
+        if(button?.disabled)return;
+        const online=Boolean(window.__webminecraftMultiplayerActive);
+        if(button)button.disabled=true;
+
+        if(online){
+            try{
+                const leave=window.__webminecraftLeaveMultiplayerSession;
+                if(typeof leave==="function"){
+                    const result=leave();
+                    if(result&&typeof result.catch==="function")result.catch(error=>console.warn("Server leave cleanup failed:",error));
+                }else{
+                    void import("../multiplayer/multiplayerClient.js")
+                        .then(module=>module.leaveMultiplayerSession())
+                        .catch(error=>console.warn("Server leave cleanup failed:",error));
                 }
-            } else {
-                try { await window.webminecraftSaveCurrentWorld?.({ skipCloud: false, skipPreview: false }); } catch {}
+            }catch(error){
+                console.warn("Could not leave the server cleanly:",error);
             }
-            window.__webminecraftFastQuit = true;
-            window.location.reload();
-        };
-        void saveAndReturn();
+        }else{
+            try{window.__webminecraftSaveSingleplayerWorldState?.();}catch(error){console.warn("Player state save failed:",error);}
+            try{window.__webminecraftFlushSingleplayerBlockSnapshot?.();}catch(error){console.warn("Block snapshot save failed:",error);}
+            try{
+                const save=window.webminecraftSaveCurrentWorld?.({skipCloud:true,skipPreview:true});
+                Promise.resolve(save).catch(error=>console.warn("Background world save did not finish:",error));
+            }catch(error){
+                console.warn("Background world save did not start:",error);
+            }
+        }
+        window.dispatchEvent(new CustomEvent("webminecraft:return-home"));
     });
     const refreshMembers=()=>{if(paused)renderSide();};
     window.addEventListener("webminecraft:multiplayer-player-joined",refreshMembers);window.addEventListener("webminecraft:multiplayer-player-left",refreshMembers);window.addEventListener("webminecraft:multiplayer-player-renamed",refreshMembers);window.addEventListener("webminecraft:multiplayer-state-changed",refreshMembers);
@@ -230,6 +252,12 @@ function setupPauseMenu(){
     overlay.querySelectorAll("#pauseServerControls [data-action]").forEach(button=>button.addEventListener("click",()=>{const member=selectedControlMember();if(!member)return;const action=button.dataset.action;const details={targetName:member.name};if(action.startsWith("gamemode-")){details.mode=action.endsWith("creative")?"creative":"survival";window.__webminecraftSendServerControl?.("gamemode",details);}else if(action==="teleport"){details.x=Math.floor(Number(window.__webminecraftCamera?.position?.x)||0);details.y=Math.floor(Number(window.__webminecraftCamera?.position?.y)||0);details.z=Math.floor(Number(window.__webminecraftCamera?.position?.z)||0);window.__webminecraftSendServerControl?.("teleport",details);}else if(action==="give"){const itemId=Math.floor(Number(prompt("Item ID to give (1-184):","1")));const count=Math.floor(Number(prompt("Amount (1-64):","1")));if(Number.isFinite(itemId)&&Number.isFinite(count))window.__webminecraftSendServerControl?.("give",{...details,itemId,count});}else window.__webminecraftSendServerControl?.(action,details);overlay.querySelector("#pauseControlStatus").textContent="Control sent.";setTimeout(refreshMembers,200);}));
     document.addEventListener("keydown",event=>{if(event.code!=="Escape")return;if(paused)close(event);else if(isGameRunning())open(event);},true);
     document.getElementById("settingsButton")?.addEventListener("pointerdown",event=>{if(!isGameRunning())return;event.preventDefault();event.stopImmediatePropagation();open(event);},true);
+    window.addEventListener("webminecraft:return-home",()=>{
+        paused=false;
+        overlay.classList.remove("pauseOpen");
+        overlay.setAttribute("aria-hidden","true");
+        document.body.classList.remove("webminecraft-game-paused");
+    });
     window.webminecraftPause={open,close,isOpen:()=>paused};
 }
 function setupSeedBackButton(){
