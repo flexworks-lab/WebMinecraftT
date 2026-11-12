@@ -117,6 +117,8 @@ async function saveCharacterTexturesToProfile(textures, savedAt = Date.now()) {
     writeCachedCharacterTextures(uid, textures, savedDate.getTime());
     try {
         await window.firebase.firestore().collection("profiles").doc(uid).set({
+            uid,
+            email: currentUser?.email || "",
             characterTextures: textures && Object.keys(textures).length ? textures : null,
             characterTexturesVersion: 1,
             characterTexturesUpdatedAt: savedDate
@@ -136,6 +138,8 @@ async function saveCharacterRosterToProfile(slots, savedAt = Date.now()) {
     writeCachedCharacterRoster(uid, normalized, savedDate.getTime());
     try {
         await window.firebase.firestore().collection("profiles").doc(uid).set({
+            uid,
+            email: currentUser?.email || "",
             characterRoster: { version: 1, slots: normalized },
             characterRosterVersion: 1,
             characterRosterUpdatedAt: savedDate
