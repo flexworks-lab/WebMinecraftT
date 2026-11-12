@@ -592,7 +592,7 @@ overlay.innerHTML = `
         <p><strong>Browse the roster:</strong> There are five slots arranged from left to right. Use the arrows outside the lineup. The neighbour on that side slides into the center and the rest of the lineup shifts with it.</p>
         <p><strong>Edit or select:</strong> Press EDIT to paint a character. Press SELECT to make that appearance your live in-game character; your previous live appearance is kept in the preset you selected.</p>
         <p><strong>Paint textures:</strong> Choose Face, Head Back, Head Side, Head Top, Skin, Shirt, Pants, or Shoes. Select a palette colour or use Custom. PAINT adds pixels, ERASER removes them, PICK COLOR samples a pixel, and UNDO reverses your last stroke.</p>
-        <p><strong>Save rules:</strong> The active character is shown in the center. Saving it updates your browser and account profile when available. The other four slots are browser-saved presets; selecting one swaps it with the active appearance while keeping both looks.</p>
+        <p><strong>Save rules:</strong> The active character is shown in the center. Saving updates this browser and, when signed in, your account profile. All five character slots sync to devices that sign into the same account. Guests keep browser-only saves.</p>
         <p><strong>Import and export:</strong> PNG files are resized to 16 × 16 pixels for the selected texture map. Export each map separately to keep a backup.</p>
       </div>
     </section>
@@ -952,8 +952,8 @@ async function selectRosterCharacter(slot) {
   let rosterSaved = false;
   try {
     [profileSaved, rosterSaved] = await Promise.all([
-      window.webMinecraftSaveCharacterProfile?.(selectedTextures, savedAt).then(Boolean).catch(() => false),
-      window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt).then(Boolean).catch(() => false)
+      Promise.resolve(window.webMinecraftSaveCharacterProfile?.(selectedTextures, savedAt)).then(Boolean).catch(() => false),
+      Promise.resolve(window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt)).then(Boolean).catch(() => false)
     ]);
   } catch (error) {
     console.warn("The active character was saved in this browser, but account sync did not finish.", error);
