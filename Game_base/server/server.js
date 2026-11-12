@@ -761,7 +761,7 @@ function handleMessage(ws, raw, state) {
         const z = Math.floor(numberOr(message.z, NaN));
         const blockType = Math.floor(numberOr(message.blockType, NaN));
         const progress = Number(message.progress);
-        if (![x, y, z, blockType, progress].every(Number.isFinite) || y < -32 || y > 95 || blockType < 0 || blockType > 184 || progress < 0 || progress > 1) return;
+        if (![x, y, z, blockType, progress].every(Number.isFinite) || y < -32 || y > 95 || blockType < 0 || blockType > 223 || progress < 0 || progress > 1) return;
         const room = rooms.get(player.room);
         if (!room) return;
         broadcast(room, { type: "block_mining", playerId: player.id, x, y, z, blockType, progress }, player.id);
@@ -788,7 +788,7 @@ function handleMessage(ws, raw, state) {
         const velocityY = numberOr(message.velocityY, 0);
         const velocityZ = numberOr(message.velocityZ, 0);
         if (!id || ![itemType, count, x, y, z, velocityX, velocityY, velocityZ].every(Number.isFinite)) return;
-        if (itemType < 1 || itemType > 184 || count > 64 || y < -64 || y > 128) return;
+        if (itemType < 1 || itemType > 223 || count > 64 || y < -64 || y > 128) return;
         const room = rooms.get(player.room);
         if (!room) return;
         if (room.drops.size >= 5000 && !room.drops.has(id)) return;
@@ -852,7 +852,7 @@ function handleMessage(ws, raw, state) {
             player.rotation.y = numberOr(message.rotation.y, player.rotation.y);
             player.rotation.z = numberOr(message.rotation.z, player.rotation.z);
             const heldItemId = Math.floor(numberOr(message.heldItemId, player.heldItemId));
-            player.heldItemId = heldItemId >= 0 && heldItemId <= 184 ? heldItemId : 0;
+            player.heldItemId = heldItemId >= 0 && heldItemId <= 223 ? heldItemId : 0;
             player.sneaking = Boolean(message.sneaking);
             player.action = ["idle", "walk", "mine", "place", "jump"].includes(message.action) ? message.action : "idle";
             player.lastUpdate = now;
