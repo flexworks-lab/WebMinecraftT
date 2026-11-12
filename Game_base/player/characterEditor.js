@@ -1356,6 +1356,7 @@ async function saveTextures() {
     alert("Unable to save this character preset in this browser. Free some browser storage and try again.");
     return;
   }
+  updateRosterCards();
   savedTextureData = extractTextureMapData(textures);
   if (previewAvatar) { previewAvatar.characterId = record.__characterId; previewAvatar.characterName = record.__characterName; }
   dirtyTextureKeys.clear();
