@@ -41,7 +41,16 @@ function getRosterStorageKey() {
 
 function readRosterTextureStore() {
   try {
-    const record = JSON.parse(localStorage.getItem(getRosterStorageKey()) || "null");
+    const storageKey = getRosterStorageKey();
+    let raw = localStorage.getItem(storageKey);
+    // Older versions kept the five presets under one browser-wide key.
+    // Move that roster into the signed-in account's namespace instead of
+    // showing five newly generated characters after login.
+    if (!raw && storageKey !== ROSTER_STORAGE_KEY) {
+      raw = localStorage.getItem(ROSTER_STORAGE_KEY);
+      if (raw) localStorage.setItem(storageKey, raw);
+    }
+    const record = JSON.parse(raw || "null");
     if (!record || Number(record.version) !== 1 || !Array.isArray(record.slots)) {
       return { slots: [{}, {}, {}, {}, {}], savedAt: 0 };
     }
