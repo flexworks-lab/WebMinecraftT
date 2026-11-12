@@ -1055,11 +1055,13 @@ async function buildPreview(force = false) {
     // Re-read both stores whenever the roster is rebuilt. The active skin can
     // exist only in roster slot 3 on older profiles or after a partial sync.
     rosterTextureStore = readRosterTextureStore();
-    const activeRecord = readSavedTextures();
+    const activeRecord = readCharacterTextureRecord();
     const rosterMain = rosterTextureStore.slots[MAIN_PROFILE_SLOT];
-    const mainTextures = activeRecord && Object.keys(activeRecord).length
-      ? activeRecord
-      : (rosterMain && Object.keys(rosterMain).length ? rosterMain : {});
+    // Slot 3 is the canonical active character. The standalone profile record
+    // is a compatibility mirror and must not replace a newer roster save.
+    const mainTextures = rosterMain && Object.keys(rosterMain).length
+      ? rosterMain
+      : (activeRecord?.textures || {});
     for (let slot = 0; slot < 5; slot++) {
       const appearanceId = slot === MAIN_PROFILE_SLOT ? identity.appearanceId : identity.appearanceId + "-preset-" + (slot + 1);
       const avatarId = identity.id + "-roster-" + (slot + 1);
@@ -1090,7 +1092,8 @@ async function buildPreview(force = false) {
     activateRosterSlot(MAIN_PROFILE_SLOT);
     rosterAvatars.forEach(entry => { entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT; });
     updateRosterCards();
-    scheduleLivePreview();
+    // Opening the editor must never push a fallback/generated preview into
+    // the live menu/player avatar. Only an explicit edit/save/select may do so.
   })();
   rosterBuildPromise = buildTask;
   try {
@@ -1429,12 +1432,23 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
 
   const applyAccountProfile = async () => {
     await rebuildRosterForCurrentAccount();
-    if (incomingRoster) {
-      rosterTextureStore = { slots: incomingRoster, savedAt: rosterSavedAt };
+    const cachedRoster = readRosterTextureStore();
+    const incomingHasData = incomingRoster?.some(slot => Object.keys(slot || {}).length);
+    const keepLocalRoster = Boolean(cachedRoster.savedAt > rosterSavedAt ||
+      (!incomingHasData && cachedRoster.slots.some(slot => Object.keys(slot || {}).length)));
+    const rosterToApply = incomingRoster
+      ? (keepLocalRoster ? cachedRoster.slots : incomingRoster)
+      : cachedRoster.slots;
+    if (incomingRoster && !keepLocalRoster) {
+      rosterTextureStore = { slots: rosterToApply, savedAt: rosterSavedAt };
       writeRosterTextureStore(rosterSavedAt || Date.now());
+    } else {
+      rosterTextureStore = { slots: rosterToApply, savedAt: cachedRoster.savedAt };
+    }
+    if (incomingRoster || cachedRoster.slots.some(slot => Object.keys(slot || {}).length)) {
       for (let slot = 0; slot < 5; slot++) {
         const entry = rosterAvatars[slot];
-        const stored = incomingRoster[slot] || {};
+        const stored = rosterToApply[slot] || {};
         if (entry) {
           restoreRosterAvatarBase(entry);
           if (Object.keys(stored).length) await applyAvatarTextureData(entry.textures, stored);
@@ -1447,16 +1461,17 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
 
     const main = rosterAvatars[MAIN_PROFILE_SLOT];
     if (!main) return;
-    const mainTextures = Object.keys(textures).length
-      ? textures
-      : (incomingRoster?.[MAIN_PROFILE_SLOT] || main.savedTextureData || {});
+    const rosterMain = rosterToApply?.[MAIN_PROFILE_SLOT] || {};
+    const mainTextures = Object.keys(rosterMain).length
+      ? rosterMain
+      : (Object.keys(textures).length ? textures : (main.savedTextureData || {}));
     restoreRosterAvatarBase(main);
     if (Object.keys(mainTextures).length) await applyAvatarTextureData(main.textures, mainTextures);
     main.savedTextureData = { ...mainTextures };
     main.dirtyTextureKeys = new Set();
     main.resetOverridesPending = false;
     rosterTextureStore.slots[MAIN_PROFILE_SLOT] = { ...mainTextures };
-    if (incomingRoster) writeRosterTextureStore(rosterSavedAt || Date.now());
+    if (incomingRoster && !keepLocalRoster) writeRosterTextureStore(rosterSavedAt || Date.now());
 
     if (selectedRosterSlot === MAIN_PROFILE_SLOT) {
       savedTextureData = { ...mainTextures };
