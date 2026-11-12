@@ -106,25 +106,38 @@ function setBusy(busy, message = "") {
     if (pauseStatus) pauseStatus.textContent = message;
 }
 
-async function saveAndQuit() {
-    setBusy(true, "Saving your world...");
+function saveAndQuit() {
+    setBusy(true, "Saving locally...");
     try {
-        const savedWorld = await saveCurrentWorld();
-        if (!savedWorld) throw new Error("The current single-player world could not be found to save.");
-        pauseStatus.textContent = "World saved.";
+        // Persist the latest player position, inventory and block snapshot synchronously.
+        window.__webminecraftSaveSingleplayerWorldState?.();
+        window.__webminecraftFlushSingleplayerBlockSnapshot?.();
+
+        // IndexedDB/cloud work continues in the background; never hold up the menu.
+        Promise.resolve(saveCurrentWorld({ skipCloud: true })).catch(error => {
+            console.warn("Background world save did not finish:", error);
+        });
+
         sessionWasMultiplayer = false;
         close({ relock: false });
         window.dispatchEvent(new CustomEvent("webminecraft:return-home"));
     } catch (error) {
-        setBusy(false, error?.message || "Could not save the world. Try again.");
+        setBusy(false, error?.message || "Could not start the local save. Try again.");
     }
 }
 
-async function leaveServer() {
-    setBusy(true, "Leaving server...");
+function leaveServer() {
+    setBusy(true, "Leaving...");
     try {
-        const { leaveMultiplayerSession } = await import("../multiplayer/multiplayerClient.js");
-        await leaveMultiplayerSession();
+        // Socket and P2P cleanup starts immediately and is allowed to finish in the background.
+        const leave = window.__webminecraftLeaveMultiplayerSession;
+        if (typeof leave === "function") {
+            leave();
+        } else {
+            void import("../multiplayer/multiplayerClient.js")
+                .then(module => module.leaveMultiplayerSession())
+                .catch(error => console.warn("Multiplayer disconnect cleanup failed:", error));
+        }
         sessionWasMultiplayer = false;
         close({ relock: false });
         window.dispatchEvent(new CustomEvent("webminecraft:return-home"));
