@@ -1428,8 +1428,8 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
         const entry = rosterAvatars[slot];
         const stored = incomingRoster[slot] || {};
         if (entry) {
+          restoreRosterAvatarBase(entry);
           if (Object.keys(stored).length) await applyAvatarTextureData(entry.textures, stored);
-          else restoreRosterAvatarBase(entry);
           entry.savedTextureData = { ...stored };
           entry.dirtyTextureKeys = new Set();
           entry.resetOverridesPending = false;
@@ -1442,8 +1442,8 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
     const mainTextures = Object.keys(textures).length
       ? textures
       : (incomingRoster?.[MAIN_PROFILE_SLOT] || main.savedTextureData || {});
+    restoreRosterAvatarBase(main);
     if (Object.keys(mainTextures).length) await applyAvatarTextureData(main.textures, mainTextures);
-    else restoreRosterAvatarBase(main);
     main.savedTextureData = { ...mainTextures };
     main.dirtyTextureKeys = new Set();
     main.resetOverridesPending = false;
