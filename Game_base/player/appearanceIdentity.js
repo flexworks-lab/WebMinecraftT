@@ -40,9 +40,14 @@ export function getCharacterAppearanceId() {
     return id;
 }
 
+function getTextureStorageKey() {
+    const uid = getAccountUid();
+    return uid ? `${STORAGE_KEY}:account:${uid}` : STORAGE_KEY;
+}
+
 export function readCharacterTextureRecord() {
     try {
-        const record = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        const record = JSON.parse(localStorage.getItem(getTextureStorageKey()) || "null");
         if (!record || ![1, 2].includes(Number(record.version)) ||
             !record.textures || typeof record.textures !== "object" || Array.isArray(record.textures)) return null;
         return {
@@ -56,12 +61,13 @@ export function readCharacterTextureRecord() {
 }
 
 export function writeCharacterTextureRecord(textures, savedAt = Date.now()) {
+    const storageKey = getTextureStorageKey();
     try {
         if (!textures || typeof textures !== "object" || !Object.keys(textures).length) {
-            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(storageKey);
             return true;
         }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        localStorage.setItem(storageKey, JSON.stringify({
             version: 2,
             savedAt: Math.max(0, Number(savedAt) || Date.now()),
             textures
