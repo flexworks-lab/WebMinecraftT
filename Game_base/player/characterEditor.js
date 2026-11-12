@@ -238,7 +238,7 @@ style.textContent = `
 #characterRosterCards{position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:end;padding:0 5.2% 12px;pointer-events:none}
 .rosterCard{height:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;pointer-events:none}
 .rosterCardNumber{padding:4px 9px;border:1px solid rgba(150,170,200,.35);background:rgba(5,9,16,.68);color:#aab9cf;font-size:11px;font-weight:800;letter-spacing:1px}
-.rosterCardName{min-height:14px;color:#c3cede;font-size:10px;font-weight:800;letter-spacing:1px;text-align:center}
+.rosterCardName{min-height:14px;color:#c3cede;font-size:10px;font-weight:800;letter-spacing:1px;text-align:center;border:0;padding:3px 6px;background:transparent;cursor:pointer;font-family:inherit}
 .rosterCard.isCenter .rosterCardNumber{border-color:#8bb7ed;background:#203653;color:#fff}
 .rosterCard.isCenter .rosterCardName{color:#fff}
 .rosterEditButton{width:min(108px,90%);height:36px;border:1px solid #607b9d;border-top-color:#9eb5d0;background:linear-gradient(#3c587b,#263b58);color:#fff;font-size:11px;font-weight:800;letter-spacing:1px;cursor:pointer;pointer-events:auto}
@@ -818,6 +818,10 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
   .lockerCharacterPortrait{height:126px!important}
   .lockerItemCard img.lockerItemPreview3D{max-height:92px}
 }
+.rosterCardName::after{content:"  ✎";color:#c9e6a6;font-size:9px;opacity:.78}
+.rosterCardName:hover,.rosterCardName:focus-visible{color:#e5ffc9!important;text-decoration:underline;text-decoration-color:#a8ca7d;text-underline-offset:3px;outline:none}
+#characterRosterRenameHint{margin:7px auto 0;color:#c8dda9;font:8px "MinecraftFont",monospace;letter-spacing:.5px;text-shadow:1px 1px #222}
+
 
 `;
 document.head.appendChild(style);
@@ -854,15 +858,16 @@ overlay.innerHTML = `
         <h1>CHOOSE YOUR CHARACTER</h1>
         <button class="rosterEditButton" id="characterAddButton" type="button"
           style="display:block;width:190px;height:36px;margin:12px auto 0">+ ADD CHARACTER</button>
+        <div id="characterRosterRenameHint">CLICK A CHARACTER NAME TO RENAME IT</div>
       </div>
       <div id="characterRosterStage">
         <button class="rosterArrow" id="rosterPrev" type="button" aria-label="Move previous character to center">‹</button>
         <div id="characterRosterCards">
-          <div class="rosterCard" data-roster-position="0"><div class="rosterCardNumber">01</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
-          <div class="rosterCard" data-roster-position="1"><div class="rosterCardNumber">02</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
-          <div class="rosterCard" data-roster-position="2"><div class="rosterCardNumber">03</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
-          <div class="rosterCard" data-roster-position="3"><div class="rosterCardNumber">04</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
-          <div class="rosterCard" data-roster-position="4"><div class="rosterCardNumber">05</div><div class="rosterCardName"></div><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="0"><div class="rosterCardNumber">01</div><button class="rosterCardName" type="button" title="Click to rename this character"></button><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="1"><div class="rosterCardNumber">02</div><button class="rosterCardName" type="button" title="Click to rename this character"></button><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="2"><div class="rosterCardNumber">03</div><button class="rosterCardName" type="button" title="Click to rename this character"></button><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="3"><div class="rosterCardNumber">04</div><button class="rosterCardName" type="button" title="Click to rename this character"></button><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
+          <div class="rosterCard" data-roster-position="4"><div class="rosterCardNumber">05</div><button class="rosterCardName" type="button" title="Click to rename this character"></button><div class="rosterCardActions"><button class="rosterEditButton" type="button">EDIT</button><button class="rosterSelectButton" type="button">SELECT</button><button class="rosterDeleteButton" type="button">DELETE</button></div></div>
         </div>
         <button class="rosterArrow" id="rosterNext" type="button" aria-label="Move next character to center">›</button>
       </div>
@@ -1356,7 +1361,13 @@ function drawLockerCharacterPortrait(avatar, canvas) {
 function renderLockerRoster() {
   const grid = overlay.querySelector("#lockerRosterGrid");
   grid.replaceChildren();
-  const entries = rosterAvatars.filter(Boolean);
+  const deletedIds = new Set(rosterTextureStore.deletedIds || []);
+  const entries = rosterAvatars.filter(entry => {
+    if (!entry) return false;
+    if (entry.slotIndex === MAIN_PROFILE_SLOT) return true;
+    const record = rosterTextureStore.slots[entry.slotIndex];
+    return Boolean(record?.__characterId && !deletedIds.has(String(record.__characterId)));
+  });
   overlay.querySelector("#lockerCharacterCount").textContent = entries.length + " CHARACTERS";
   const thumbnailQueue = [];
   const generation = ++lockerThumbnailGeneration;
@@ -1370,8 +1381,8 @@ function renderLockerRoster() {
     portrait.alt = "3D preview of " + (entry.characterName || "character");
     portrait.loading = "lazy";
     const name = document.createElement("strong");
-    name.textContent = entry.slotIndex === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" :
-      (rosterTextureStore.slots[entry.slotIndex]?.__characterName || entry.characterName || "CHARACTER " + (entry.slotIndex + 1));
+    name.textContent = rosterTextureStore.slots[entry.slotIndex]?.__characterName ||
+      (entry.slotIndex === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" : (entry.characterName || "CHARACTER " + (entry.slotIndex + 1)));
     const saved = document.createElement("small");
     saved.textContent = hasTextureMaps(rosterTextureStore.slots[entry.slotIndex]) ? "CUSTOM CHARACTER" : "UNMODIFIED PREVIEW";
     button.append(portrait, name, saved);
@@ -1700,7 +1711,11 @@ function updateRosterCards() {
     card.querySelector(".rosterCardNumber").textContent = String(slot + 1).padStart(2, "0");
     const record = rosterTextureStore.slots[slot], avatar = rosterAvatars[slot];
     const name = slot === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" : (record?.__characterName || avatar?.characterName || "CHARACTER " + (slot + 1));
-    card.querySelector(".rosterCardName").textContent = name;
+    const nameButton = card.querySelector(".rosterCardName");
+    nameButton.textContent = name;
+    nameButton.dataset.slot = String(slot);
+    nameButton.setAttribute("aria-label", "Rename " + name);
+    nameButton.title = "Click to rename " + name;
     const edit = card.querySelector(".rosterEditButton");
     edit.dataset.slot = String(slot);
     edit.setAttribute("aria-label", "Edit " + name);
@@ -1853,6 +1868,63 @@ async function selectRosterCharacter(slot) {
   updateRosterCards();
 }
 
+async function renameRosterCharacter(slot) {
+  if (!Number.isInteger(slot) || slot < 0 || slot >= rosterAvatars.length) return;
+  const avatar = rosterAvatars[slot];
+  if (!avatar) return;
+  const currentRecord = rosterTextureStore.slots[slot] || {};
+  const currentName = String(currentRecord.__characterName || avatar.characterName ||
+    (slot === MAIN_PROFILE_SLOT ? "Main Character" : "Character " + (slot + 1))).slice(0, 24);
+  const entered = window.prompt("Name this character (1–24 characters):", currentName);
+  if (entered === null) return;
+  const name = String(entered).trim().replace(/\s+/g, " ").slice(0, 24);
+  if (!name) {
+    alert("Character names cannot be empty.");
+    return;
+  }
+  const previousRecord = currentRecord;
+  const previousName = avatar.characterName;
+  const savedAt = Date.now();
+  const id = String(currentRecord.__characterId || avatar.characterId || createCharacterId());
+  const nextRecord = hasTextureMaps(currentRecord)
+    ? makeRosterRecord(currentRecord, { ...currentRecord, __characterId: id, __characterName: name, __savedAt: savedAt })
+    : { ...currentRecord, __characterId: id, __characterName: name, __savedAt: savedAt };
+  rosterTextureStore.slots[slot] = nextRecord;
+  avatar.characterId = id;
+  avatar.characterName = name;
+  if (!writeRosterTextureStore(savedAt)) {
+    rosterTextureStore.slots[slot] = previousRecord;
+    avatar.characterName = previousName;
+    alert("This browser could not save the character name. Free some browser storage and try again.");
+    updateRosterCards();
+    return;
+  }
+
+  updateRosterCards();
+  renderLockerRoster();
+  if (selectedRosterSlot === slot) {
+    overlay.querySelector("#characterEditingName").textContent = "EDITING " + name.toUpperCase();
+  }
+  if (lockerSelectedSlot === slot) {
+    overlay.querySelector("#lockerSelectedName").textContent = name.toUpperCase();
+  }
+  let synced = false;
+  try {
+    synced = Boolean(await window.webMinecraftSaveCharacterRoster?.(
+      rosterTextureStore.slots, savedAt, rosterTextureStore.deletedIds || []
+    ));
+  } catch (error) {
+    console.warn("Character name saved in this browser, but account sync did not finish.", error);
+  }
+  const sub = overlay.querySelector("#characterEditorTopbarSub");
+  if (sub && editorPage === "roster") {
+    sub.textContent = synced ? name + " saved to your character roster." : name + " saved on this device; account sync is unavailable.";
+    window.setTimeout(() => {
+      if (editorPage === "roster") sub.textContent = "Browse your characters and choose one to edit.";
+    }, 2200);
+  }
+}
+
 async function deleteRosterCharacter(slot) {
   if (!Number.isInteger(slot) || slot < 0 || slot === MAIN_PROFILE_SLOT) return;
   const record = rosterTextureStore.slots[slot];
@@ -1898,7 +1970,9 @@ async function deleteRosterCharacter(slot) {
     sub.textContent = synced ? name + " deleted from your account." : name + " deleted on this device; account sync is unavailable.";
     window.setTimeout(() => { if (editorPage === "roster") sub.textContent = "Browse your saved characters."; }, 2400);
   }
+  if (lockerSelectedSlot === slot) lockerSelectedSlot = null;
   updateRosterCards();
+  renderLockerRoster();
 }
 
 async function addRosterCharacter() {
@@ -2370,6 +2444,9 @@ overlay.querySelectorAll(".rosterEditButton").forEach(button => {
 });
 overlay.querySelectorAll(".rosterSelectButton").forEach(button => button.addEventListener("click", () => {
   void selectRosterCharacter(Number(button.dataset.slot));
+}));
+overlay.querySelectorAll(".rosterCardName").forEach(button => button.addEventListener("click", () => {
+  void renameRosterCharacter(Number(button.dataset.slot));
 }));
 overlay.querySelectorAll(".rosterDeleteButton").forEach(button => button.addEventListener("click", () => {
   void deleteRosterCharacter(Number(button.dataset.slot));
