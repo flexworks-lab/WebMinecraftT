@@ -122,6 +122,39 @@ const ITEM_TYPES = [
     { id: 182, name: "Red Concrete", texture: "red_concrete.png", category: "natural" },
     { id: 183, name: "White Concrete", texture: "white_concrete.png", category: "natural" },
     { id: 184, name: "Yellow Concrete", texture: "yellow_concrete.png", category: "natural" },
+    { id: 191, name: "Coarse Dirt", texture: "coarse_dirt.png", category: "natural" },
+    { id: 192, name: "Clay", texture: "clay.png", category: "natural" },
+    { id: 193, name: "Blue Ice", texture: "blue_ice.png", category: "natural" },
+    { id: 194, name: "Blackstone", texture: "blackstone.png", category: "natural" },
+    { id: 195, name: "Coal Block", texture: "coal_block.png", category: "natural" },
+    { id: 196, name: "Bone Block", texture: "bone_block_side.png", category: "natural" },
+    { id: 197, name: "Bookshelf", texture: "bookshelf.png", category: "natural" },
+    { id: 198, name: "Chiseled Nether Bricks", texture: "chiseled_nether_bricks.png", category: "natural" },
+    { id: 199, name: "Chiseled Polished Blackstone", texture: "chiseled_polished_blackstone.png", category: "natural" },
+    { id: 200, name: "Chiseled Quartz Block", texture: "chiseled_quartz_block.png", category: "natural" },
+    { id: 201, name: "Chiseled Red Sandstone", texture: "chiseled_red_sandstone.png", category: "natural" },
+    { id: 202, name: "Chiseled Sandstone", texture: "chiseled_sandstone.png", category: "natural" },
+    { id: 203, name: "Chiseled Stone Bricks", texture: "chiseled_stone_bricks.png", category: "natural" },
+    { id: 204, name: "Carved Pumpkin", texture: "carved_pumpkin.png", category: "natural" },
+    { id: 205, name: "Chain Command Block", texture: "chain_command_block_side.png", category: "natural" },
+    { id: 206, name: "Black Concrete Powder", texture: "black_concrete_powder.png", category: "natural" },
+    { id: 207, name: "Blue Concrete Powder", texture: "blue_concrete_powder.png", category: "natural" },
+    { id: 208, name: "Black Glazed Terracotta", texture: "black_glazed_terracotta.png", category: "natural" },
+    { id: 209, name: "Blue Glazed Terracotta", texture: "blue_glazed_terracotta.png", category: "natural" },
+    { id: 210, name: "Black Shulker Box", texture: "black_shulker_box.png", category: "natural" },
+    { id: 211, name: "Blue Shulker Box", texture: "blue_shulker_box.png", category: "natural" },
+    { id: 212, name: "Black Stained Glass", texture: "black_stained_glass.png", category: "natural" },
+    { id: 213, name: "Blue Stained Glass", texture: "blue_stained_glass.png", category: "natural" },
+    { id: 214, name: "Black Terracotta", texture: "black_terracotta.png", category: "natural" },
+    { id: 215, name: "Blue Terracotta", texture: "blue_terracotta.png", category: "natural" },
+    { id: 216, name: "Black Wool", texture: "black_wool.png", category: "natural" },
+    { id: 217, name: "Blue Wool", texture: "blue_wool.png", category: "natural" },
+    { id: 218, name: "Chiseled Bookshelf", texture: "chiseled_bookshelf_empty.png", category: "natural" },
+    { id: 219, name: "Cartography Table", texture: "cartography_table_top.png", category: "natural" },
+    { id: 220, name: "Bee Nest", texture: "bee_nest_front.png", category: "natural" },
+    { id: 221, name: "Beehive", texture: "beehive_front.png", category: "natural" },
+    { id: 222, name: "Bell", texture: "bell_side.png", category: "natural" },
+    { id: 223, name: "Cauldron", texture: "cauldron_side.png", category: "natural" },
     { id: 185, name: "Stick", texture: "stick.png", category: "tools" },
     { id: 186, name: "Wooden Sword", texture: "tools/Wooden_Sword_JE2_BE2.png", category: "tools" },
     { id: 187, name: "Stone Sword", texture: "tools/Stone_Sword_JE2_BE2.png", category: "tools" },
@@ -181,6 +214,18 @@ const CATALOG_GROUPS = {
         label: "Concrete",
         primaryId: 169,
         variantIds: [169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184],
+    },
+    decorative: {
+        id: "decorative",
+        label: "Decorative & Utility",
+        primaryId: 194,
+        variantIds: [191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 218, 219, 220, 221, 222, 223],
+    },
+    colored: {
+        id: "colored",
+        label: "Colored Blocks",
+        primaryId: 206,
+        variantIds: [206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217],
     },
     logs: {
         id: "logs",
@@ -299,7 +344,7 @@ function itemsForCurrentTab() {
     if (selectedTab === "search") return ITEM_TYPES.filter(itemMatchesSearch);
     if (selectedTab === "survival") return [];
     if (selectedTab === "building") {
-        const groups = Object.values(CATALOG_GROUPS).filter(group => ["wood_planks", "wood_stairs", "slabs", "concrete"].includes(group.id));
+        const groups = Object.values(CATALOG_GROUPS).filter(group => ["wood_planks", "wood_stairs", "slabs", "concrete", "decorative", "colored"].includes(group.id));
         if (!searchQuery.trim()) return groups.map(group => ({ group: true, ...group, variants: group.variantIds.map(getItem).filter(Boolean) }));
         return groups.flatMap(group => group.variantIds.map(getItem).filter(Boolean).filter(itemMatchesSearch));
     }
@@ -322,6 +367,8 @@ function itemsForCurrentTab() {
             ...stoneGroup.variantIds,
             ...logGroup.variantIds,
             ...CATALOG_GROUPS.slabs.variantIds,
+            ...CATALOG_GROUPS.decorative.variantIds,
+            ...CATALOG_GROUPS.colored.variantIds,
         ]);
         const concreteIds = new Set(CATALOG_GROUPS.concrete.variantIds);
         const naturalItems = ITEM_TYPES.filter(item =>
