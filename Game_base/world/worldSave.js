@@ -468,6 +468,9 @@ function scheduleCloudSave(world, switchId = worldSwitchId, immediate = false) {
 function startLiveCloudSave() {
     clearInterval(liveCloudSaveTimer);
     liveCloudSaveTimer = setInterval(() => {
+        // A multiplayer room owns its own authoritative block state. Never let
+        // the outgoing single-player world keep saving while a room is active.
+        if (window.__webminecraftMultiplayerActive === true) return;
         if (!activeWorld || !activeWorldSeed || isWorldDeleted(activeWorldSeed)) return;
         if (pendingChanges.size > 0 || saveTimer) return;
         writePlayerState(activeWorldSeed);
@@ -515,7 +518,7 @@ async function flushBlockSaves(options = {}) {
         if (saved && activeWorld === worldToSave && activeWorldSeed === seedToSave && saveSwitchId === worldSwitchId && !isWorldDeleted(seedToSave)) {
             activeWorld = saved;
             if (previewSaved) worldDirty = false;
-            scheduleCloudSave(saved, saveSwitchId);
+            if (options?.skipCloud !== true) scheduleCloudSave(saved, saveSwitchId);
         }
     } catch (error) {
         console.warn(`Could not save world blocks for seed ${seedToSave}:`, error);
@@ -536,8 +539,12 @@ window.addEventListener("webminecraft:blockchange", event => {
     const type = Math.floor(Number(detail.type));
     if (![x, y, z, type].every(Number.isFinite)) return;
 
+    // Multiplayer changes are room-scoped and must never enter the local
+    // single-player snapshot pipeline. Also require the URL seed to match the
+    // active persistence session, rather than accepting any valid seed.
+    if (window.__webminecraftMultiplayerActive === true) return;
     const seed = getSeedFromUrl();
-    if (seed === null || isWorldDeleted(seed)) return;
+    if (seed === null || seed !== activeWorldSeed || isWorldDeleted(seed)) return;
     const key = `${x},${y},${z}`;
     activeBlocks[key] = type;
     pendingChanges.set(key, { x, y, z, type });
@@ -620,6 +627,46 @@ export async function saveCurrentWorld(options = {}) {
         if (!skipCloud) await saveCloudNow(activeWorld, worldSwitchId);
     }
     return activeWorld;
+}
+
+// Close the outgoing single-player persistence session before entering a
+// multiplayer room. Save its pending edits locally, then discard every
+// in-memory reference so multiplayer block changes cannot be merged into it.
+export async function endSingleplayerWorldSession() {
+    stopLiveCloudSave();
+    clearTimeout(saveTimer);
+    clearTimeout(cloudSaveTimer);
+    saveTimer = null;
+    cloudSaveTimer = null;
+
+    const outgoingWorld = activeWorld;
+    if (outgoingWorld && !isWorldDeleted(outgoingWorld.seed)) {
+        try {
+            await saveCurrentWorld({ skipPreview: true, skipCloud: true });
+        } catch (error) {
+            console.warn("Could not finish saving the previous single-player world:", error);
+        }
+    }
+
+    // Flush any delayed snapshot while activeBlocks still belongs to the
+    // outgoing world. saveCurrentWorld normally does this; this is a safe
+    // fallback for an interrupted or partially loaded world.
+    if (pendingSnapshotSeed !== null) flushLocalSnapshot();
+
+    // Invalidate any cloud/local save already waiting on storage before
+    // releasing the previous world's data.
+    ++worldSwitchId;
+    clearTimeout(saveTimer);
+    clearTimeout(cloudSaveTimer);
+    stopLiveCloudSave();
+    saveTimer = null;
+    cloudSaveTimer = null;
+    pendingChanges.clear();
+    activeBlocks = {};
+    activeWorld = null;
+    activeWorldSeed = null;
+    worldDirty = false;
+    return true;
 }
 
 export async function deleteCurrentWorld(seed) {
