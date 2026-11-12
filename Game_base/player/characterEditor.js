@@ -764,6 +764,61 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
  #lockerItemsPanel{border-top:3px solid #111!important;border-left:0!important}
 }
 
+/* Subtle moss-green accents keep the stone inventory look while adding more life. */
+#characterEditorShell{
+  background:linear-gradient(100deg,rgba(65,88,42,.12),transparent 46%),#242724!important;
+}
+#characterEditorSidebar{
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 2px,transparent 2px 5px),linear-gradient(90deg,#343b2e,#252a23)!important;
+}
+#characterEditorTopbar{
+  background:linear-gradient(#515b43,#373e31)!important;
+  border-bottom-color:#1a2115!important;
+}
+#characterEditorBrandMark{background:linear-gradient(135deg,#77934d,#4b6334)!important}
+#characterLockerPage{
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 2px,transparent 2px 4px),linear-gradient(135deg,#737b66,#535d47 52%,#343b2e)!important;
+}
+#lockerRosterView{background:radial-gradient(ellipse at 50% 12%,rgba(145,183,91,.13),transparent 62%)!important}
+#lockerItemsPanel{
+  background:linear-gradient(135deg,#657052,#444d3b)!important;
+  border-left-color:#22291c!important;
+}
+#lockerCustomizeHeader{background:linear-gradient(#626e4d,#424b36)!important}
+#lockerCharacterCount{border-top-color:#c2d89b!important;background:linear-gradient(#667b49,#455936)!important}
+.lockerCharacterCard:hover,.lockerCharacterCard:focus-visible{
+  border-top-color:#d5efad!important;border-left-color:#d5efad!important;
+  background:linear-gradient(135deg,#81965c,#596c43)!important;
+}
+.lockerCategoryTab.active{
+  background:linear-gradient(#91aa63,#627e40)!important;color:#fff!important;
+  border-top-color:#d6eab2!important;border-left-color:#d6eab2!important;
+  text-shadow:2px 2px #354328!important;
+}
+.lockerItemCard:hover{background:linear-gradient(#82965f,#596b43)!important}
+.lockerItemCard.equipped{
+  background:linear-gradient(#91a96b,#607b45)!important;color:#fff!important;
+  border-top-color:#d7edb5!important;border-left-color:#d7edb5!important;
+  text-shadow:2px 2px #354328!important;
+}
+.lockerCharacterPortrait{
+  background:radial-gradient(ellipse at 50% 40%,#71805b,#303a2a 72%)!important;
+}
+.lockerItemCard img.lockerItemPreview3D{
+  display:block;width:100%;aspect-ratio:1;max-height:108px;object-fit:contain;
+  image-rendering:auto;background:radial-gradient(ellipse at 50% 42%,#75805f,#3a4432 76%);
+  border:2px solid #303a28;box-shadow:inset 2px 2px #a0ad86,inset -2px -2px #303a29;
+}
+#lockerCharacterStage{
+  background:radial-gradient(ellipse at 50% 42%,#788366 0,#4c5940 58%,#293125 100%)!important;
+}
+#lockerPreviewHint{background:linear-gradient(#66764e,#475638)!important;border-top-color:#c2d69c!important;border-left-color:#c2d69c!important}
+#characterShowcase #characterEditorOpen{background:linear-gradient(#829b5b,#5d783f)!important;border-top-color:#d6eab0!important;border-left-color:#d6eab0!important}
+@media(max-width:620px){
+  .lockerCharacterPortrait{height:126px!important}
+  .lockerItemCard img.lockerItemPreview3D{max-height:92px}
+}
+
 `;
 document.head.appendChild(style);
 
@@ -925,6 +980,7 @@ let editorPage = "roster";
 let lockerSelectedSlot = null;
 let lockerSelectedCategory = "HATS";
 let lockerThumbnailGeneration = 0;
+const lockerThumbnailImageCache = new Map();
 let rosterTextureStore = readRosterTextureStore();
 let headLookX = 0;
 let headLookY = 0;
@@ -1070,7 +1126,7 @@ function syncLockerAccessories(entry) {
   entry.lockerHatGroup = hat;
 }
 
-function captureLocker3DThumbnail(entry, width = 104, height = 126) {
+function captureLocker3DThumbnail(entry, width = 132, height = 164, frame = "full") {
   if (!renderer || !scene || !camera || !entry?.group) return "";
   const size = renderer.getSize(new THREE.Vector2());
   const cameraPosition = camera.position.clone();
@@ -1084,15 +1140,26 @@ function captureLocker3DThumbnail(entry, width = 104, height = 126) {
     rotation: avatar.group.rotation.clone(),
     scale: avatar.group.scale.clone()
   }));
+  const framing = {
+    full:   { fov: 31, position: [1.25, 1.55, 4.55], target: [0, 1.03, 0], scale: 1.14 },
+    HATS:   { fov: 27, position: [1.05, 2.04, 2.78], target: [0, 1.73, 0], scale: 1.08 },
+    FACES:  { fov: 33, position: [1.3, 1.65, 3.05], target: [0, 1.46, 0], scale: 1.06 },
+    TOPS:   { fov: 33, position: [1.3, 1.43, 3.05], target: [0, 1.08, 0], scale: 1.06 },
+    MUSCLES:{ fov: 33, position: [1.3, 1.43, 3.05], target: [0, 1.08, 0], scale: 1.06 },
+    PANTS:  { fov: 34, position: [1.2, .88, 3.0], target: [0, .48, 0], scale: 1.08 },
+    HANDS:  { fov: 37, position: [1.8, 1.16, 3.1], target: [.34, .84, 0], scale: 1.08 }
+  }[frame] || {
+    fov: 31, position: [1.25, 1.55, 4.55], target: [0, 1.03, 0], scale: 1.14
+  };
   try {
     for (const avatar of rosterAvatars) if (avatar) avatar.group.visible = avatar === entry;
     entry.group.position.set(0, 0, 0);
     entry.group.rotation.set(0, Math.PI, 0);
-    entry.group.scale.setScalar(.96);
-    camera.fov = 34;
+    entry.group.scale.setScalar(framing.scale);
+    camera.fov = framing.fov;
     camera.aspect = width / height;
-    camera.position.set(2.1, 2.0, 6.1);
-    camera.lookAt(0, 1.12, 0);
+    camera.position.set(...framing.position);
+    camera.lookAt(...framing.target);
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     renderer.render(scene, camera);
@@ -1117,11 +1184,76 @@ function captureLocker3DThumbnail(entry, width = 104, height = 126) {
   }
 }
 
-function buildLockerTextureCanvas(item, key, avatar) {
+function loadLockerThumbnailImage(dataUrl) {
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) return Promise.resolve(null);
+  if (lockerThumbnailImageCache.has(dataUrl)) return lockerThumbnailImageCache.get(dataUrl);
+  const pending = new Promise(resolve => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = dataUrl;
+  });
+  lockerThumbnailImageCache.set(dataUrl, pending);
+  if (lockerThumbnailImageCache.size > 80) lockerThumbnailImageCache.delete(lockerThumbnailImageCache.keys().next().value);
+  return pending;
+}
+
+async function captureLockerItem3DThumbnail(item, entry, width = 112, height = 112) {
+  if (!entry?.group || !entry.textures) return "";
+  const previousItems = { ...(entry.lockerItems || {}) };
+  const textureBackups = [];
+  try {
+    if (item.category === "HATS") {
+      entry.lockerItems = { ...previousItems, headwear: item.id };
+      syncLockerAccessories(entry);
+    } else {
+      const sourceOverrides = {};
+      for (const key of item.keys) {
+        const baseUrl = entry.lockerBaseTextures?.[key];
+        if (!baseUrl) continue;
+        const image = await loadLockerThumbnailImage(baseUrl);
+        if (!image) continue;
+        const sourceCanvas = document.createElement("canvas");
+        sourceCanvas.width = sourceCanvas.height = TEXTURE_SIZE;
+        const sourceContext = sourceCanvas.getContext("2d");
+        sourceContext.imageSmoothingEnabled = false;
+        sourceContext.drawImage(image, 0, 0, TEXTURE_SIZE, TEXTURE_SIZE);
+        sourceOverrides[key] = sourceCanvas;
+      }
+      const previewMaps = item.keys.map(key => ({
+        key,
+        canvas: buildLockerTextureCanvas(item, key, entry, sourceOverrides[key] || null)
+      }));
+      for (const previewMap of previewMaps) {
+        const texture = entry.textures[previewMap.key];
+        const target = getTextureCanvas(entry.textures, previewMap.key);
+        const context = target?.getContext("2d", { willReadFrequently: true });
+        if (!texture || !target || !context) continue;
+        textureBackups.push({ texture, context, pixels: context.getImageData(0, 0, TEXTURE_SIZE, TEXTURE_SIZE) });
+        context.clearRect(0, 0, TEXTURE_SIZE, TEXTURE_SIZE);
+        context.drawImage(previewMap.canvas, 0, 0, TEXTURE_SIZE, TEXTURE_SIZE);
+        texture.needsUpdate = true;
+      }
+    }
+    return captureLocker3DThumbnail(entry, width, height, item.category);
+  } catch (error) {
+    console.warn("Could not build a 3D item preview.", item.name, error);
+    return "";
+  } finally {
+    for (const backup of textureBackups) {
+      backup.context.putImageData(backup.pixels, 0, 0);
+      backup.texture.needsUpdate = true;
+    }
+    entry.lockerItems = previousItems;
+    syncLockerAccessories(entry);
+  }
+}
+
+function buildLockerTextureCanvas(item, key, avatar, sourceOverride = null) {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 16;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const source = getTextureCanvas(avatar?.textures, key);
+  const source = sourceOverride || getTextureCanvas(avatar?.textures, key);
   ctx.imageSmoothingEnabled = false;
   if (source) ctx.drawImage(source, 0, 0, 16, 16);
   else {
@@ -1221,15 +1353,6 @@ function drawLockerCharacterPortrait(avatar, canvas) {
   drawMap("chest", 28, 47, 41, 48, "#48688b");
 }
 
-function buildLockerItemCardPreview(item, avatar, canvas) {
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#172130"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const texture = buildLockerTextureCanvas(item, item.keys[0], avatar);
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(texture, 8, 8, canvas.width - 16, canvas.height - 16);
-}
-
 function renderLockerRoster() {
   const grid = overlay.querySelector("#lockerRosterGrid");
   grid.replaceChildren();
@@ -1298,14 +1421,16 @@ function renderLockerItems() {
   const entry = previewAvatar;
   const equipped = entry?.lockerItems || {};
   const visibleItems = LOCKER_ITEMS.filter(item => item.category === lockerSelectedCategory);
+  const thumbnailQueue = [];
   for (const item of visibleItems) {
     const button = document.createElement("button");
     button.type = "button";
     const isEquipped = equipped[item.slot] === item.id;
     button.className = "lockerItemCard" + (isEquipped ? " equipped" : "");
-    const preview = document.createElement("canvas");
-    preview.width = preview.height = 64;
-    buildLockerItemCardPreview(item, entry, preview);
+    const preview = document.createElement("img");
+    preview.className = "lockerItemPreview3D";
+    preview.alt = "3D model preview of " + item.name;
+    preview.loading = "lazy";
     const title = document.createElement("strong");
     title.textContent = item.name;
     const sub = document.createElement("small");
@@ -1313,7 +1438,22 @@ function renderLockerItems() {
     button.append(preview, title, sub);
     button.addEventListener("click", () => { void equipLockerItem(item); });
     grid.appendChild(button);
+    thumbnailQueue.push({ item, preview });
   }
+  const generation = ++lockerThumbnailGeneration;
+  let nextIndex = 0;
+  const renderBatch = async () => {
+    if (generation !== lockerThumbnailGeneration || editorPage !== "locker" || lockerSelectedSlot === null) return;
+    const stop = Math.min(nextIndex + 2, thumbnailQueue.length);
+    while (nextIndex < stop) {
+      const queued = thumbnailQueue[nextIndex++];
+      const image = await captureLockerItem3DThumbnail(queued.item, entry, 112, 112);
+      if (generation !== lockerThumbnailGeneration || editorPage !== "locker" || lockerSelectedSlot === null) return;
+      if (image && queued.preview.isConnected) queued.preview.src = image;
+    }
+    if (nextIndex < thumbnailQueue.length) requestAnimationFrame(() => { void renderBatch(); });
+  };
+  requestAnimationFrame(() => { void renderBatch(); });
   const equippedCount = Object.keys(equipped).length;
   overlay.querySelector("#lockerEquippedStatus").textContent =
     equippedCount + " ITEMS EQUIPPED · SAVED TO THIS CHARACTER";
