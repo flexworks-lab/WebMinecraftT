@@ -924,6 +924,7 @@ let selectedRosterSlot = MAIN_PROFILE_SLOT;
 let editorPage = "roster";
 let lockerSelectedSlot = null;
 let lockerSelectedCategory = "HATS";
+let lockerThumbnailGeneration = 0;
 let rosterTextureStore = readRosterTextureStore();
 let headLookX = 0;
 let headLookY = 0;
@@ -1234,15 +1235,17 @@ function renderLockerRoster() {
   grid.replaceChildren();
   const entries = rosterAvatars.filter(Boolean);
   overlay.querySelector("#lockerCharacterCount").textContent = entries.length + " CHARACTERS";
+  const thumbnailQueue = [];
+  const generation = ++lockerThumbnailGeneration;
   for (const entry of entries) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "lockerCharacterCard";
     button.dataset.slot = String(entry.slotIndex);
-    const portrait = document.createElement("canvas");
-    portrait.width = 96; portrait.height = 104;
+    const portrait = document.createElement("img");
     portrait.className = "lockerCharacterPortrait";
-    drawLockerCharacterPortrait(entry, portrait);
+    portrait.alt = "3D preview of " + (entry.characterName || "character");
+    portrait.loading = "lazy";
     const name = document.createElement("strong");
     name.textContent = entry.slotIndex === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" :
       (rosterTextureStore.slots[entry.slotIndex]?.__characterName || entry.characterName || "CHARACTER " + (entry.slotIndex + 1));
@@ -1250,14 +1253,33 @@ function renderLockerRoster() {
     saved.textContent = hasTextureMaps(rosterTextureStore.slots[entry.slotIndex]) ? "CUSTOM CHARACTER" : "UNMODIFIED PREVIEW";
     button.append(portrait, name, saved);
     button.addEventListener("click", () => {
+      lockerThumbnailGeneration++;
       pushEditorIntoTexture();
       rememberActiveEditorState();
       activateRosterSlot(entry.slotIndex);
       lockerSelectedSlot = entry.slotIndex;
+      syncLockerAccessories(entry);
       setEditorPage("locker");
     });
     grid.appendChild(button);
+    thumbnailQueue.push({ entry, portrait });
   }
+
+  // Render real model thumbnails from the same 3D scene used by the large preview.
+  // A few per frame keeps the locker responsive with large character collections.
+  let nextIndex = 0;
+  const renderBatch = () => {
+    if (generation !== lockerThumbnailGeneration || editorPage !== "locker" || lockerSelectedSlot !== null) return;
+    const stop = Math.min(nextIndex + 3, thumbnailQueue.length);
+    while (nextIndex < stop) {
+      const item = thumbnailQueue[nextIndex++];
+      if (!item.portrait.isConnected) continue;
+      const image = captureLocker3DThumbnail(item.entry, 104, 126);
+      if (image) item.portrait.src = image;
+    }
+    if (nextIndex < thumbnailQueue.length) requestAnimationFrame(renderBatch);
+  };
+  requestAnimationFrame(renderBatch);
 }
 
 function renderLockerItems() {
@@ -1344,6 +1366,22 @@ async function persistLockerLoadout(entry) {
 async function equipLockerItem(item) {
   const entry = previewAvatar;
   if (!entry || lockerSelectedSlot !== entry.slotIndex) return;
+
+  // Hats are real voxel meshes attached to the head pivot, not painted head maps.
+  if (item.category === "HATS") {
+    const currentHat = entry.lockerItems?.headwear || "";
+    if (currentHat === item.id) delete entry.lockerItems.headwear;
+    else entry.lockerItems = { ...(entry.lockerItems || {}), headwear: item.id };
+    syncLockerAccessories(entry);
+    const synced = await persistLockerLoadout(entry);
+    renderLockerItems();
+    overlay.querySelector("#lockerEquippedStatus").textContent = currentHat === item.id
+      ? (synced ? "HAT REMOVED · CHARACTER SAVED" : "HAT REMOVED · LOCAL SAVE")
+      : (synced ? item.name.toUpperCase() + " EQUIPPED · SAVED" : item.name.toUpperCase() + " EQUIPPED · LOCAL SAVE");
+    scheduleLivePreview();
+    return;
+  }
+
   const slot = item.slot;
   const currentId = entry.lockerItems?.[slot] || "";
   const previousItem = lockerItemById(currentId);
@@ -1654,6 +1692,8 @@ async function selectRosterCharacter(slot) {
     selected.dirtyTextureKeys = new Set(); selected.resetOverridesPending = false;
     selected.group.rotation.y = Math.PI;
   }
+  syncLockerAccessories(main);
+  if (previousMainWasSaved) syncLockerAccessories(selected);
   main.group.rotation.y = Math.PI;
   avatarYaw = Math.PI; setRosterWindow(MAIN_PROFILE_SLOT); activateRosterSlot(MAIN_PROFILE_SLOT); applyRosterLayout();
   sendCharacterSkin(selectedTextures);
