@@ -153,6 +153,16 @@ window.addEventListener("webminecraft:blockchange", event => {
     recordBlockChange(currentSeed(), event.detail || {});
 });
 
+window.__webminecraftFlushSingleplayerBlockSnapshot = () => {
+    const seed = currentSeed();
+    if (seed === null || isWorldDeleted(seed)) return false;
+    const revision = bumpRevision(seed);
+    const snapshot = readSnapshot(seed);
+    if (!writeSnapshot(seed, snapshot)) return false;
+    queueSeed(seed, 0);
+    return true;
+};
+
 function flushCurrentWorld() {
     const seed = currentSeed();
     if (seed === null || isWorldDeleted(seed)) return;
