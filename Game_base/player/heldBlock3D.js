@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { readCharacterTextureRecord } from "./appearanceIdentity.js";
 import { keys, touchInput } from "./controls.js";
 import {
     grassMaterial,
@@ -93,7 +94,8 @@ const BASE_ROT = new THREE.Euler(0.08, -0.18, -0.10);
 const ACTION_DURATION = 180;
 const texturePath = (file) => { const value = String(file || ""); return value.startsWith("tools/") ? `${import.meta.env.BASE_URL}${value}` : `${import.meta.env.BASE_URL}textures/${encodeURIComponent(value)}`; };
 
-let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand;
+let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand, handSleeve;
+let handSkinTexture, handSleeveTexture;
 let visible = false;
 function isSlabItem(itemId) { return Number(itemId) >= 51 && Number(itemId) <= 74; }
 function isStairItem(itemId) { return Number(itemId) >= 75 && Number(itemId) <= 84; }
@@ -120,20 +122,87 @@ const swordTextures = {
     
 };
 
-function makeHandTexture() {
+function makeHandTexture(part) {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 16;
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#d69b72"; ctx.fillRect(0, 0, 16, 16);
-    ctx.fillStyle = "#e2ad83"; ctx.fillRect(1, 1, 12, 10);
-    ctx.fillStyle = "#c18461"; ctx.fillRect(0, 11, 16, 5);
-    ctx.fillStyle = "#b87655"; ctx.fillRect(12, 3, 4, 10);
-    ctx.fillStyle = "#754932"; ctx.fillRect(0, 0, 16, 1); ctx.fillRect(0, 15, 16, 1);
+    if (part === "skin") {
+        ctx.fillStyle = "#d69b72"; ctx.fillRect(0, 0, 16, 16);
+        ctx.fillStyle = "#e2ad83"; ctx.fillRect(1, 1, 12, 10);
+        ctx.fillStyle = "#c18461"; ctx.fillRect(0, 11, 16, 5);
+        ctx.fillStyle = "#b87655"; ctx.fillRect(12, 3, 4, 10);
+        ctx.fillStyle = "#754932"; ctx.fillRect(0, 0, 16, 1); ctx.fillRect(0, 15, 16, 1);
+    } else {
+        ctx.fillStyle = "#355b83"; ctx.fillRect(0, 0, 16, 16);
+        ctx.fillStyle = "#416d99"; ctx.fillRect(1, 1, 14, 11);
+        ctx.fillStyle = "#294766"; ctx.fillRect(0, 12, 16, 4);
+        for (let i = 0; i < 16; i += 4) {
+            ctx.fillStyle = i % 8 === 0 ? "rgba(255,255,255,.10)" : "rgba(0,0,0,.10)";
+            ctx.fillRect(i, 2, 1, 9);
+        }
+    }
     const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = texture.minFilter = THREE.NearestFilter;
     texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = false;
+    texture.userData = { canvas, updateVersion: 0, part };
+    texture.needsUpdate = true;
     return texture;
+}
+
+function syncHandTexture(texture, source, part) {
+    const canvas = texture?.userData?.canvas;
+    const context = canvas?.getContext("2d", { willReadFrequently: true });
+    if (!canvas || !context) return;
+
+    const updateVersion = (Number(texture.userData.updateVersion) || 0) + 1;
+    texture.userData.updateVersion = updateVersion;
+
+    const drawSource = image => {
+        if (texture.userData.updateVersion !== updateVersion) return;
+        context.clearRect(0, 0, 16, 16);
+        context.imageSmoothingEnabled = false;
+        context.drawImage(image, 0, 0, 16, 16);
+        texture.needsUpdate = true;
+    };
+
+    const sourceCanvas = source?.userData?.canvas
+        || (typeof source?.getContext === "function" ? source : null);
+    if (sourceCanvas) {
+        drawSource(sourceCanvas);
+        return;
+    }
+
+    if (typeof source === "string" && source.startsWith("data:image/") && source.length <= 50000) {
+        const image = new Image();
+        image.onload = () => drawSource(image);
+        image.onerror = () => {
+            if (texture.userData.updateVersion === updateVersion) {
+                resetHandTexture(texture, part);
+            }
+        };
+        image.src = source;
+        return;
+    }
+
+    resetHandTexture(texture, part);
+}
+
+function resetHandTexture(texture, part) {
+    const canvas = texture?.userData?.canvas;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    const fallback = makeHandTexture(part);
+    context.clearRect(0, 0, 16, 16);
+    context.drawImage(fallback.userData.canvas, 0, 0);
+    fallback.dispose();
+    texture.needsUpdate = true;
+}
+
+function syncHandAppearance(textures) {
+    syncHandTexture(handSkinTexture, textures?.skin, "skin");
+    syncHandTexture(handSleeveTexture, textures?.shirt, "shirt");
 }
 
 function cloneMaterial(material) {
@@ -318,14 +387,39 @@ function init() {
     heldRoot.scale.setScalar(1.08);
     scene.add(heldRoot);
 
-    hand = new THREE.Mesh(
-        new THREE.BoxGeometry(0.30, 0.76, 0.30),
-        new THREE.MeshLambertMaterial({ map: makeHandTexture() })
+    // Match the visible first-person arm to the same Shirt / arms and Skin
+    // maps used by the character editor and the local third-person avatar.
+    handSkinTexture = makeHandTexture("skin");
+    handSleeveTexture = makeHandTexture("shirt");
+
+    handSleeve = new THREE.Mesh(
+        new THREE.BoxGeometry(0.30, 0.54, 0.30),
+        new THREE.MeshLambertMaterial({ map: handSleeveTexture })
     );
-    hand.position.set(0.22, -0.29, 0.08);
+    handSleeve.position.set(0.22, -0.18, 0.08);
+    handSleeve.rotation.x = -0.22;
+    handSleeve.rotation.z = -0.12;
+    heldRoot.add(handSleeve);
+
+    hand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.30, 0.22, 0.30),
+        new THREE.MeshLambertMaterial({ map: handSkinTexture })
+    );
+    hand.position.set(0.22, -0.56, 0.08);
     hand.rotation.x = -0.22;
     hand.rotation.z = -0.12;
     heldRoot.add(hand);
+
+    syncHandAppearance(readCharacterTextureRecord()?.textures || {});
+    window.addEventListener("webminecraft:character-live-preview", event => {
+        syncHandAppearance(event.detail?.textures || {});
+    });
+    window.addEventListener("webminecraft:character-changed", event => {
+        syncHandAppearance(event.detail?.textures || {});
+    });
+    window.addEventListener("webminecraft:character-profile-loaded", event => {
+        syncHandAppearance(event.detail?.textures || {});
+    });
 
     selectedItemId = readSelectedItem(selectedSlot);
     updateBlock();
