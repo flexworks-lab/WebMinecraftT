@@ -162,14 +162,6 @@ const ITEM_TYPES = [
     
 ];
 
-const TAB_DEFS = [
-    { id: "tools", label: "Tools & Utilities", icon: "⚒" },
-    { id: "building", label: "Build Blocks", icon: "building" },
-    { id: "natural", label: "Natural Blocks", icon: "◆" },
-    { id: "search", label: "Search", icon: "⌕" },
-    { id: "survival", label: "Survival Inventory", icon: "▣" }
-];
-
 export const BUILD_BLOCK_IDS = new Set(
     ITEM_TYPES
         .filter(item => ![15, 16, 17].includes(item.id))
