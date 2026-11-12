@@ -20,9 +20,9 @@ export const CHUNK_HEIGHT = 128;
 export const MIN_Y = -32;
 export const SEA_LEVEL = 16;
 export const WORLD_TOP = MIN_Y + CHUNK_HEIGHT - 1;
-export let RENDER_DISTANCE = IS_TOUCH_DEVICE ? 3 : 6;
+export let RENDER_DISTANCE = IS_TOUCH_DEVICE ? 3 : (IS_LOW_POWER_DEVICE ? 5 : 9);
 export let UNLOAD_DISTANCE = RENDER_DISTANCE + (IS_TOUCH_DEVICE ? 1 : 2);
-let CHUNK_LOAD_CONCURRENCY = 1;
+let CHUNK_LOAD_CONCURRENCY = IS_TOUCH_DEVICE ? 1 : (IS_LOW_POWER_DEVICE ? 1 : 2);
 export function setChunkLoadConcurrency(value) {
     CHUNK_LOAD_CONCURRENCY = Math.max(1, Math.min(8, Math.round(Number(value) || 1)));
     return CHUNK_LOAD_CONCURRENCY;
@@ -34,7 +34,7 @@ export function getChunkLoadConcurrency() {
 export function setRenderDistance(blockDistance) {
     const value = Number(blockDistance);
     if (!Number.isFinite(value)) return RENDER_DISTANCE;
-    const next = Math.max(2, Math.min(10, Math.round(value / CHUNK_SIZE)));
+    const next = Math.max(2, Math.min(12, Math.round(value / CHUNK_SIZE)));
     if (next === RENDER_DISTANCE) return RENDER_DISTANCE;
     RENDER_DISTANCE = next;
     UNLOAD_DISTANCE = next + (IS_TOUCH_DEVICE ? 1 : 2);
@@ -1256,7 +1256,7 @@ function startNextChunkTask() {
 function processChunkQueue() {
     const startTime = performance.now();
     // The concurrency setting does not increase the strict per-frame time budget.
-    const budgetMs = IS_TOUCH_DEVICE ? 0.9 : (IS_LOW_POWER_DEVICE ? 1.25 : 2.0);
+    const budgetMs = IS_TOUCH_DEVICE ? 0.9 : (IS_LOW_POWER_DEVICE ? 1.25 : 2.5);
     let steps = 0;
     while (performance.now() - startTime < budgetMs && steps < 256) {
         while (activeChunkTasks.length < CHUNK_LOAD_CONCURRENCY) {
