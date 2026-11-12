@@ -634,6 +634,7 @@ body:not(.webminecraft-in-world) #mainMenu #menuButtons{margin:0 auto!important;
 #characterLockerPage{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 12%,rgba(45,57,76,.18),transparent 60%),#10151e}
 #characterLockerPage[hidden]{display:none!important}
 #lockerRosterView{display:flex;flex:1;min-height:0;flex-direction:column;padding:clamp(18px,3vh,30px) clamp(16px,3vw,38px);overflow:auto}
+#lockerRosterView[hidden],#lockerCustomizeView[hidden]{display:none!important}
 .lockerSectionHeading{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:18px}
 .lockerSectionHeading h1{margin:0;color:#fff;font-size:clamp(22px,3vw,34px);letter-spacing:1.6px}
 .lockerSectionHeading p{margin:7px 0 0;color:#9eacc0;font-size:12px}
