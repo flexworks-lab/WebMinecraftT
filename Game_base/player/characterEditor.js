@@ -22,6 +22,16 @@ function extractTextureMapData(value) {
     const dataUrl = source?.[key];
     if (typeof dataUrl === "string" && dataUrl.startsWith("data:image/") && dataUrl.length <= 50000) result[key] = dataUrl;
   }
+  // Older character saves used one shared shirt map and one shared pants map.
+  // Expand those legacy maps into the new independent body-part editors.
+  const legacyShirt = source?.shirt;
+  if (typeof legacyShirt === "string" && legacyShirt.startsWith("data:image/") && legacyShirt.length <= 50000) {
+    for (const key of ["chest", "leftArm", "rightArm"]) if (!result[key]) result[key] = legacyShirt;
+  }
+  const legacyPants = source?.pants;
+  if (typeof legacyPants === "string" && legacyPants.startsWith("data:image/") && legacyPants.length <= 50000) {
+    for (const key of ["leftLeg", "rightLeg"]) if (!result[key]) result[key] = legacyPants;
+  }
   return result;
 }
 function hasTextureMaps(value) { return Object.keys(extractTextureMapData(value)).length > 0; }
