@@ -172,6 +172,7 @@ export const AVATAR_TEXTURE_PARTS = [
     { key: "headSide", label: "Head sides" },
     { key: "headTop", label: "Hair / top" },
     { key: "skin", label: "Skin" },
+    { key: "hand", label: "Hand" },
     { key: "shirt", label: "Shirt / arms" },
     { key: "pants", label: "Pants / legs" },
     { key: "shoes", label: "Shoes" }
@@ -201,7 +202,8 @@ export function resetAvatarTextureData(textures) {
 export function applyAvatarTextureData(textures, savedTextures) {
     const jobs = [];
     for (const { key } of AVATAR_TEXTURE_PARTS) {
-        const dataUrl = savedTextures?.[key];
+        // Older saved skins do not have a dedicated Hand map; carry their Skin map forward.
+        const dataUrl = key === "hand" ? (savedTextures?.hand || savedTextures?.skin) : savedTextures?.[key];
         const canvas = textures?.[key]?.userData?.canvas;
         const texture = textures?.[key];
         if (!canvas || !texture || typeof dataUrl !== "string" ||
@@ -344,6 +346,7 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     const shirtTexture = makeClothTexture(seededHash, `#${new THREE.Color(shirtColor).getHexString()}`, 1);
     const pantsTexture = makeClothTexture(seededHash, `#${new THREE.Color(pantsColor).getHexString()}`, 2);
     const skinTexture = makeSolidTexture(skinColor);
+    const handTexture = makeSolidTexture(skinColor);
     const shoeTexture = makeSolidTexture(shoeColor);
     const textures = {
         face: faceTexture,
@@ -351,6 +354,7 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
         headSide,
         headTop,
         skin: skinTexture,
+        hand: handTexture,
         shirt: shirtTexture,
         pants: pantsTexture,
         shoes: shoeTexture
@@ -364,6 +368,7 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     }
     const textureReady = applyAvatarTextureData(textures, savedTextures);
     const skin = makeMaterial(skinTexture);
+    const handSkin = makeMaterial(handTexture);
     const face = makeMaterial(faceTexture);
     const back = makeMaterial(headBack);
     const side = makeMaterial(headSide);
@@ -379,7 +384,7 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt); torso.position.y = 1.1;
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt); leftArm.position.set(-0.53, 1.23, 0);
     const rightArm = leftArm.clone(); rightArm.position.x = 0.53;
-    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), skin); leftHand.name = "leftHand"; leftHand.position.set(-0.53, 0.86, 0);
+    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), handSkin); leftHand.name = "leftHand"; leftHand.position.set(-0.53, 0.86, 0);
     const rightHand = leftHand.clone(); rightHand.name = "rightHand"; rightHand.position.x = 0.53;
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants); leftLeg.position.set(-0.2, 0.35, 0);
     const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.2;
