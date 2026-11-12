@@ -75,7 +75,13 @@ function normalizeCharacterRoster(slots) {
             ...textures,
             __characterId: String(source?.__characterId || "legacy-" + characterTextureHash(textures)),
             __characterName: String(source?.__characterName || (index === 2 ? "Main Character" : "Character " + (index + 1))).slice(0, 24),
-            __savedAt: Math.max(0, Number(source?.__savedAt) || 0)
+            __savedAt: Math.max(0, Number(source?.__savedAt) || 0),
+            __lockerItems: source?.__lockerItems && typeof source.__lockerItems === "object"
+                ? Object.fromEntries(Object.entries(source.__lockerItems)
+                    .filter(([key, value]) => ["headwear", "face", "upper", "legs", "hands"].includes(key)
+                        && typeof value === "string" && value.length <= 80))
+                : {},
+            __lockerBaseTextures: extractSavedCharacterTextures(source?.__lockerBaseTextures || {})
         };
     });
     while (normalized.length > 5 && !normalized[normalized.length - 1]) normalized.pop();
