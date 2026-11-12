@@ -1,5 +1,4 @@
 import { saveCurrentWorld } from "../world/worldSave.js";
-import { leaveMultiplayerSession } from "../multiplayer/multiplayerClient.js";
 
 let pauseMenu = null;
 let pauseStatus = null;
@@ -124,6 +123,7 @@ async function saveAndQuit() {
 async function leaveServer() {
     setBusy(true, "Leaving server...");
     try {
+        const { leaveMultiplayerSession } = await import("../multiplayer/multiplayerClient.js");
         await leaveMultiplayerSession();
         sessionWasMultiplayer = false;
         close({ relock: false });
