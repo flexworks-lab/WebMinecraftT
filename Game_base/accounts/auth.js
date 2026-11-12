@@ -19,7 +19,11 @@ const USERNAME_CHANGE_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000;
 const CHARACTER_TEXTURE_STORAGE_KEY = "webminecraft-procedural-character-textures-v1";
 const CHARACTER_ROSTER_STORAGE_KEY = "webminecraft-character-roster-v1";
 const CHARACTER_CACHE_MIGRATION_KEY = "webminecraft-character-account-cache-migrated-v1";
-const CHARACTER_TEXTURE_FIELDS = ["face", "headBack", "headSide", "headTop", "skin", "hand", "shirt", "pants", "shoes"];
+const CHARACTER_TEXTURE_FIELDS = [
+    "face", "headBack", "headSide", "headTop", "skin", "hand",
+    "chest", "leftArm", "rightArm", "leftLeg", "rightLeg", "shoes",
+    "shirt", "pants"
+];
 const MAX_SAVED_CHARACTERS = 60;
 
 function extractSavedCharacterTextures(record) {
@@ -29,6 +33,19 @@ function extractSavedCharacterTextures(record) {
         const value = source?.[key];
         if (typeof value === "string" && value.startsWith("data:image/") && value.length <= 50000) textures[key] = value;
     }
+    // Expand old combined maps so existing saved skins keep their clothing
+    // when they are loaded by the new independent body-part editors.
+    if (textures.shirt) {
+        if (!textures.chest) textures.chest = textures.shirt;
+        if (!textures.leftArm) textures.leftArm = textures.shirt;
+        if (!textures.rightArm) textures.rightArm = textures.shirt;
+    }
+    if (textures.pants) {
+        if (!textures.leftLeg) textures.leftLeg = textures.pants;
+        if (!textures.rightLeg) textures.rightLeg = textures.pants;
+    }
+    delete textures.shirt;
+    delete textures.pants;
     return textures;
 }
 
