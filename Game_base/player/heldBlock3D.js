@@ -92,6 +92,7 @@ const ITEM_MATERIALS = {
 const BASE_POS = new THREE.Vector3(0.84, -0.76, -1.05);
 const BASE_ROT = new THREE.Euler(0.08, -0.18, -0.10);
 const ACTION_DURATION = 180;
+const PUNCH_DURATION = 260;
 const texturePath = (file) => { const value = String(file || ""); return value.startsWith("tools/") ? `${import.meta.env.BASE_URL}${value}` : `${import.meta.env.BASE_URL}textures/${encodeURIComponent(value)}`; };
 
 let renderer, camera, scene, heldRoot, blockMesh, itemMesh, hand, handSleeve;
@@ -448,13 +449,13 @@ function init() {
     window.addEventListener("mousedown", event => {
         if (!visible || document.body.classList.contains("mobile-mode")) return;
         if (document.pointerLockElement !== document.body) return;
-        if (event.button === 0) triggerAction("mine");
+        if (event.button === 0) triggerAction("punch");
         if (event.button === 2) triggerAction("place");
     });
 
     window.addEventListener("webminecraft:heldaction", event => {
         const type = event.detail?.type;
-        if (type === "mine" || type === "place") triggerAction(type);
+        if (type === "mine" || type === "place" || type === "punch") triggerAction(type);
     });
 
     const observer = new MutationObserver(updateVisibility);
@@ -477,9 +478,16 @@ function init() {
 
         let actionX = 0, actionY = 0, actionPX = 0, actionPZ = 0;
         if (action) {
-            const t = THREE.MathUtils.clamp((now - actionStartedAt) / ACTION_DURATION, 0, 1);
+            const duration = action === "punch" ? PUNCH_DURATION : ACTION_DURATION;
+            const t = THREE.MathUtils.clamp((now - actionStartedAt) / duration, 0, 1);
             const p = Math.sin(Math.PI * t);
-            if (action === "mine") {
+            if (action === "punch") {
+                // Quick forward jab with a small wind-up and recoil.
+                actionX = -1.08 * p;
+                actionY = -0.16 * p;
+                actionPX = 0.20 * p;
+                actionPZ = 0.18 * p;
+            } else if (action === "mine") {
                 actionX = -0.72 * p;
                 actionY = 0.18 * p;
                 actionPX = 0.11 * p;
