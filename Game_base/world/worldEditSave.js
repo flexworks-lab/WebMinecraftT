@@ -156,7 +156,7 @@ window.addEventListener("webminecraft:blockchange", event => {
 window.__webminecraftFlushSingleplayerBlockSnapshot = () => {
     const seed = currentSeed();
     if (seed === null || isWorldDeleted(seed)) return false;
-    const revision = bumpRevision(seed);
+    bumpRevision(seed);
     const snapshot = readSnapshot(seed);
     if (!writeSnapshot(seed, snapshot)) return false;
     queueSeed(seed, 0);
