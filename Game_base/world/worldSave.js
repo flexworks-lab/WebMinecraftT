@@ -246,6 +246,13 @@ function writePlayerState(seed, force = false) {
     try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
 }
 
+window.__webminecraftSaveSingleplayerWorldState = () => {
+    const seed = getSeedFromUrl();
+    if (seed === null || isWorldDeleted(seed)) return false;
+    writePlayerState(seed, true);
+    return true;
+};
+
 async function resolveActiveWorld(seed, switchId) {
     const normalizedSeed = normalizeSeed(seed);
     if (normalizedSeed === null || isWorldDeleted(normalizedSeed)) return null;
