@@ -190,7 +190,7 @@ try { const saved = JSON.parse(localStorage.getItem("webminecraft-settings") || 
 catch { settings = { ...defaults }; }
 
 const extendedDefaults = {
-    fov: 75, renderDistance: 24, fog: true, waterEffects: true,
+    fov: 75, renderDistance: IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 90 : 180), fog: true, waterEffects: true,
     masterVolume: 1, soundEffects: true, music: true
 };
 let extendedSettings = { ...extendedDefaults };
@@ -199,12 +199,12 @@ try {
     if (saved && typeof saved === "object") extendedSettings = { ...extendedDefaults, ...saved };
 } catch {}
 if (IS_TOUCH_DEVICE) {
-    if (extendedSettings.deviceProfile !== "touch") extendedSettings.renderDistance = 24;
+    if (extendedSettings.deviceProfile !== "touch") extendedSettings.renderDistance = 60;
     if (extendedSettings.lightingQuality === "high") extendedSettings.lightingQuality = "balanced";
 }
 // Bound the saved view distance: each extra chunk ring adds many meshes and
 // makes both world generation and rendering significantly more expensive.
-const renderDistanceCap = 24;
+const renderDistanceCap = IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 90 : 240);
 const requestedRenderDistance = Number(extendedSettings.renderDistance);
 extendedSettings.renderDistance = Number.isFinite(requestedRenderDistance) && requestedRenderDistance > 0
     ? Math.min(requestedRenderDistance, renderDistanceCap)
@@ -513,7 +513,7 @@ function applyExtendedSettings(next = {}) {
     extendedSettings = { ...extendedSettings, ...next };
     // Keep settings events from restoring costly desktop graphics preferences
     // or a huge view distance after the low-power profile has been applied.
-    const renderDistanceCap = 24;
+    const renderDistanceCap = IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 90 : 240);
     const requestedDistance = Number(extendedSettings.renderDistance);
     extendedSettings.renderDistance = Number.isFinite(requestedDistance) && requestedDistance > 0
         ? Math.min(requestedDistance, renderDistanceCap)
