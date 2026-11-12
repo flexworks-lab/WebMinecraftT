@@ -1280,7 +1280,7 @@ const getMultiplayerIdentity = () => {
             window.__webminecraftChatHide?.();
             joinButton.disabled = false;
             joinButton.textContent = "Join Room";
-            socket = null;
+            if (socket?.readyState === 3) socket = null;
             window.__webminecraftMultiplayerActive = false;
             window.__webminecraftMultiplayerRole = "member";
             window.__webminecraftMultiplayerIsHost = false;
@@ -1420,5 +1420,64 @@ export function saveMultiplayerAndQuit(timeoutMs = 2500) {
     return promise;
 }
 
+export async function leaveMultiplayerSession(timeoutMs = 1400) {
+    intentionalDisconnect = true;
+    hideConnectionLostUI();
+
+    const connection = socket;
+    socket = null;
+
+    if (pendingSaveAndQuit) {
+        const pending = pendingSaveAndQuit;
+        pendingSaveAndQuit = null;
+        pending.resolve(false);
+    }
+
+    pendingRoomExportAction = "";
+    playerDataSyncActive = false;
+    hidePlayerDataSync();
+    setRoomOwnerBusy(false);
+    localRole = "member";
+    localIsHost = false;
+    localPlayerId = null;
+    pendingPlayerAction = "idle";
+    remotePlayers.clear();
+    pendingWorldChanges.clear();
+
+    window.__webminecraftMultiplayerActive = false;
+    window.__webminecraftMultiplayerPlayerId = null;
+    window.__webminecraftMultiplayerRole = "member";
+    window.__webminecraftMultiplayerIsHost = false;
+    window.__webminecraftMultiplayerRoomInfo = { room: "", serverName: "", websocket: "", private: false };
+    document.body.classList.remove("webminecraft-visitor");
+    window.__webminecraftChatHide?.();
+    window.dispatchEvent(new CustomEvent("webminecraft:multiplayer-state-changed"));
+
+    const joinButton = document.getElementById("multiplayerJoin");
+    if (joinButton) {
+        joinButton.disabled = false;
+        joinButton.textContent = "Join Room";
+    }
+
+    if (connection && connection.readyState !== 3 && typeof connection.close === "function") {
+        await new Promise(resolve => {
+            let finished = false;
+            let timer = null;
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+                if (timer !== null) clearTimeout(timer);
+                resolve();
+            };
+            connection.addEventListener?.("close", finish, { once: true });
+            timer = setTimeout(finish, Math.max(250, Number(timeoutMs) || 1400));
+            try { connection.close(); } catch { finish(); }
+        });
+    }
+
+    return Boolean(connection);
+}
+
 window.__webminecraftSendServerControl = sendServerControl;
 window.__webminecraftSaveMultiplayerAndQuit = saveMultiplayerAndQuit;
+window.__webminecraftLeaveMultiplayerSession = leaveMultiplayerSession;
