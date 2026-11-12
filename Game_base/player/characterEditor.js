@@ -108,7 +108,7 @@ function readRosterTextureStore() {
       const source = record.slots[i], textures = extractTextureMapData(source);
       if (Object.keys(textures).length) return {
         ...textures,
-        __characterId: String(source?.__characterId || "legacy-" + i + "-" + hashTextureMap(textures)),
+        __characterId: String(source?.__characterId || "legacy-" + hashTextureMap(textures)),
         __characterName: String(source?.__characterName || (i === MAIN_PROFILE_SLOT ? "Main Character" : "Character " + (i + 1))).slice(0, 24),
         __savedAt: Math.max(0, Number(source?.__savedAt) || savedAt)
       };
@@ -985,7 +985,10 @@ async function selectRosterCharacter(slot) {
   const previousMainRecord = rosterTextureStore.slots[MAIN_PROFILE_SLOT], previousMainWasSaved = hasTextureMaps(previousMainRecord);
   const savedAt = Date.now();
   const nextMainRecord = makeRosterRecord(selectedTextures, selectedRecord);
-  const nextPresetRecord = previousMainWasSaved ? makeRosterRecord(previousMainTextures, previousMainRecord) : null;
+  // An untouched old active preview stays local and gets its own fresh ID.
+  const nextPresetRecord = previousMainWasSaved
+    ? makeRosterRecord(previousMainTextures, previousMainRecord)
+    : { __characterId: createCharacterId(), __characterName: "Character " + (slot + 1), __savedAt: 0 };
   rosterTextureStore.slots[MAIN_PROFILE_SLOT] = nextMainRecord;
   rosterTextureStore.slots[slot] = nextPresetRecord;
   if (!writeRosterTextureStore(savedAt)) {
@@ -1000,18 +1003,44 @@ async function selectRosterCharacter(slot) {
     updateRosterCards(); return;
   }
   try {
-    await Promise.all([
-      applyAvatarTextureData(main.textures, selectedTextures),
-      applyAvatarTextureData(selected.textures, previousMainWasSaved ? previousMainTextures : {})
-    ]);
+    await applyAvatarTextureData(main.textures, selectedTextures);
+    if (previousMainWasSaved) {
+      await applyAvatarTextureData(selected.textures, previousMainTextures);
+    } else {
+      disposePreviewAvatar(selected);
+      const identity = getIdentity();
+      const replacement = createAvatar(
+        identity.id + "-roster-" + (slot + 1) + "-" + nextPresetRecord.__characterId,
+        nextPresetRecord.__characterName,
+        null,
+        nextPresetRecord.__characterId
+      );
+      replacement.group.traverse(object => { if (object.isSprite) object.visible = false; });
+      replacement.group.rotation.y = Math.PI;
+      replacement.group.position.set((slot - 2) * 2.95, 0, 0);
+      replacement.group.scale.setScalar(0.88);
+      replacement.group.visible = false;
+      scene.add(replacement.group);
+      await replacement.textureReady;
+      rosterAvatars[slot] = {
+        ...replacement, slotIndex: slot, characterId: nextPresetRecord.__characterId,
+        characterName: nextPresetRecord.__characterName, baseSnapshots: snapshotTextures(replacement.textures),
+        savedTextureData: {}, dirtyTextureKeys: new Set(), resetOverridesPending: false,
+        targetX: (slot - 2) * 2.95, targetScale: 0.88
+      };
+    }
   } catch (error) { console.warn("Character textures were saved, but the preview could not refresh immediately.", error); }
   main.savedTextureData = { ...selectedTextures }; main.characterId = nextMainRecord?.__characterId;
   main.characterName = nextMainRecord?.__characterName || "Main Character";
   main.dirtyTextureKeys = new Set(); main.resetOverridesPending = false;
-  selected.savedTextureData = previousMainWasSaved ? { ...previousMainTextures } : {};
-  selected.characterId = nextPresetRecord?.__characterId || selected.characterId;
-  selected.dirtyTextureKeys = new Set(); selected.resetOverridesPending = false;
-  main.group.rotation.y = Math.PI; selected.group.rotation.y = Math.PI;
+  if (previousMainWasSaved) {
+    selected.savedTextureData = { ...previousMainTextures };
+    selected.characterId = nextPresetRecord?.__characterId || selected.characterId;
+    selected.characterName = nextPresetRecord?.__characterName || selected.characterName;
+    selected.dirtyTextureKeys = new Set(); selected.resetOverridesPending = false;
+    selected.group.rotation.y = Math.PI;
+  }
+  main.group.rotation.y = Math.PI;
   avatarYaw = Math.PI; setRosterWindow(MAIN_PROFILE_SLOT); activateRosterSlot(MAIN_PROFILE_SLOT); applyRosterLayout();
   sendCharacterSkin(selectedTextures);
   window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures: selectedTextures } }));
