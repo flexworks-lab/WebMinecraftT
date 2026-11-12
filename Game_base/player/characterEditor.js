@@ -2035,8 +2035,14 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
         if (Object.keys(textures).length) return { ...textures,
           __characterId: String(source?.__characterId || "remote-" + index + "-" + hashTextureMap(textures)),
           __characterName: String(source?.__characterName || "Character " + (index + 1)).slice(0, 24),
-          __savedAt: Math.max(0, Number(source?.__savedAt) || 0) };
-        return source?.__characterId ? { ...source } : null;
+          __savedAt: Math.max(0, Number(source?.__savedAt) || 0),
+          __lockerItems: source?.__lockerItems && typeof source.__lockerItems === "object" ? { ...source.__lockerItems } : {},
+          __lockerBaseTextures: extractTextureMapData(source?.__lockerBaseTextures || {}) };
+        return source?.__characterId ? {
+          ...source,
+          __lockerItems: source?.__lockerItems && typeof source.__lockerItems === "object" ? { ...source.__lockerItems } : {},
+          __lockerBaseTextures: extractTextureMapData(source?.__lockerBaseTextures || {})
+        } : null;
       })
     : null;
   const rosterSavedAt = Math.max(0, Number(event.detail?.rosterSavedAt) || 0);
