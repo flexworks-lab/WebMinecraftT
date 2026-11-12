@@ -172,9 +172,12 @@ export const AVATAR_TEXTURE_PARTS = [
     { key: "headSide", label: "Head sides" },
     { key: "headTop", label: "Hair / top" },
     { key: "skin", label: "Skin" },
-    { key: "hand", label: "Hand" },
-    { key: "shirt", label: "Shirt / arms" },
-    { key: "pants", label: "Pants / legs" },
+    { key: "hand", label: "Hands" },
+    { key: "chest", label: "Chest" },
+    { key: "leftArm", label: "Left arm" },
+    { key: "rightArm", label: "Right arm" },
+    { key: "leftLeg", label: "Left leg" },
+    { key: "rightLeg", label: "Right leg" },
     { key: "shoes", label: "Shoes" }
 ];
 
@@ -202,8 +205,13 @@ export function resetAvatarTextureData(textures) {
 export function applyAvatarTextureData(textures, savedTextures) {
     const jobs = [];
     for (const { key } of AVATAR_TEXTURE_PARTS) {
-        // Older saved skins do not have a dedicated Hand map; carry their Skin map forward.
-        const dataUrl = key === "hand" ? (savedTextures?.hand || savedTextures?.skin) : savedTextures?.[key];
+        // Migrate older combined maps into the new independently paintable surfaces.
+        const legacyCloth = ["chest", "leftArm", "rightArm"].includes(key)
+            ? savedTextures?.shirt
+            : (["leftLeg", "rightLeg"].includes(key) ? savedTextures?.pants : null);
+        const dataUrl = key === "hand"
+            ? (savedTextures?.hand || savedTextures?.skin)
+            : (savedTextures?.[key] || legacyCloth);
         const canvas = textures?.[key]?.userData?.canvas;
         const texture = textures?.[key];
         if (!canvas || !texture || typeof dataUrl !== "string" ||
@@ -343,8 +351,13 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     const headBack = makeHeadTexture(seededHash, skinColor, hairColor, 0);
     const headSide = makeHeadTexture(seededHash, skinColor, hairColor, 1);
     const headTop = makeHeadTexture(seededHash, skinColor, hairColor, 2);
-    const shirtTexture = makeClothTexture(seededHash, `#${new THREE.Color(shirtColor).getHexString()}`, 1);
-    const pantsTexture = makeClothTexture(seededHash, `#${new THREE.Color(pantsColor).getHexString()}`, 2);
+    const shirtHex = `#${new THREE.Color(shirtColor).getHexString()}`;
+    const pantsHex = `#${new THREE.Color(pantsColor).getHexString()}`;
+    const chestTexture = makeClothTexture(seededHash, shirtHex, 1);
+    const leftArmTexture = makeClothTexture(seededHash ^ 0x1A2B3C4D, shirtHex, 1);
+    const rightArmTexture = makeClothTexture(seededHash ^ 0x5E6F7081, shirtHex, 1);
+    const leftLegTexture = makeClothTexture(seededHash ^ 0x22334455, pantsHex, 2);
+    const rightLegTexture = makeClothTexture(seededHash ^ 0x66778899, pantsHex, 2);
     const skinTexture = makeSolidTexture(skinColor);
     const handTexture = makeSolidTexture(skinColor);
     const shoeTexture = makeSolidTexture(shoeColor);
@@ -355,8 +368,11 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
         headTop,
         skin: skinTexture,
         hand: handTexture,
-        shirt: shirtTexture,
-        pants: pantsTexture,
+        chest: chestTexture,
+        leftArm: leftArmTexture,
+        rightArm: rightArmTexture,
+        leftLeg: leftLegTexture,
+        rightLeg: rightLegTexture,
         shoes: shoeTexture
     };
     // Keep a private copy of the originally generated pixels. Resetting a skin
@@ -373,15 +389,18 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     const back = makeMaterial(headBack);
     const side = makeMaterial(headSide);
     const top = makeMaterial(headTop);
-    const shirt = makeMaterial(shirtTexture);
-    const pants = makeMaterial(pantsTexture);
+    const chest = makeMaterial(chestTexture);
+    const leftArmMaterial = makeMaterial(leftArmTexture);
+    const rightArmMaterial = makeMaterial(rightArmTexture);
+    const leftLegMaterial = makeMaterial(leftLegTexture);
+    const rightLegMaterial = makeMaterial(rightLegTexture);
     const shoes = makeMaterial(shoeTexture);
 
     const group = new THREE.Group();
     group.userData.multiplayerAvatar = true;
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), [side, side, top, skin, back, face]);
     head.position.y = 1.8;
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), shirt);
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.78, 0.44), chest);
     torso.position.y = 1.1;
 
     // Limb pivots sit at the shoulders and hips so rotations swing the full
@@ -389,7 +408,7 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     const leftArm = new THREE.Group();
     leftArm.name = "leftArm";
     leftArm.position.set(-0.53, 1.48, 0);
-    const leftArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt);
+    const leftArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), leftArmMaterial);
     leftArmMesh.position.y = -0.25;
     const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), handSkin);
     leftHand.name = "leftHand";
@@ -399,7 +418,7 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     const rightArm = new THREE.Group();
     rightArm.name = "rightArm";
     rightArm.position.set(0.53, 1.48, 0);
-    const rightArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), shirt);
+    const rightArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.38), rightArmMaterial);
     rightArmMesh.position.y = -0.25;
     const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.16, 0.38), handSkin);
     rightHand.name = "rightHand";
@@ -409,7 +428,7 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     const leftLeg = new THREE.Group();
     leftLeg.name = "leftLeg";
     leftLeg.position.set(-0.2, 0.70, 0);
-    const leftLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants);
+    const leftLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), leftLegMaterial);
     leftLegMesh.position.y = -0.35;
     const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.46), shoes);
     leftShoe.position.set(0, -0.61, -0.025);
@@ -418,7 +437,7 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
     const rightLeg = new THREE.Group();
     rightLeg.name = "rightLeg";
     rightLeg.position.set(0.2, 0.70, 0);
-    const rightLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), pants);
+    const rightLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.7, 0.40), rightLegMaterial);
     rightLegMesh.position.y = -0.35;
     const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.46), shoes);
     rightShoe.position.set(0, -0.61, -0.025);
