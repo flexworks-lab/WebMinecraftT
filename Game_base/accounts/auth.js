@@ -17,21 +17,58 @@ let pendingSignupProfile = null;
 let activeOAuthPopup = null;
 const USERNAME_CHANGE_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000;
 const CHARACTER_TEXTURE_STORAGE_KEY = "webminecraft-procedural-character-textures-v1";
+const CHARACTER_ROSTER_STORAGE_KEY = "webminecraft-character-roster-v1";
+const CHARACTER_CACHE_MIGRATION_KEY = "webminecraft-character-account-cache-migrated-v1";
 
-function readCachedCharacterTextures() {
+function accountStorageKey(baseKey, uid) {
+    return `${baseKey}:account:${String(uid || "").trim()}`;
+}
+
+function normalizeCharacterRoster(slots) {
+    if (!Array.isArray(slots)) return null;
+    return Array.from({ length: 5 }, (_, index) => {
+        const slot = slots[index];
+        return slot && typeof slot === "object" && !Array.isArray(slot) ? { ...slot } : {};
+    });
+}
+
+function migrateLegacyCharacterStorage(uid) {
+    if (!uid) return;
     try {
-        const record = JSON.parse(localStorage.getItem(CHARACTER_TEXTURE_STORAGE_KEY) || "null");
+        if (localStorage.getItem(CHARACTER_CACHE_MIGRATION_KEY)) return;
+        for (const baseKey of [CHARACTER_TEXTURE_STORAGE_KEY, CHARACTER_ROSTER_STORAGE_KEY]) {
+            const scopedKey = accountStorageKey(baseKey, uid);
+            const legacyValue = localStorage.getItem(baseKey);
+            if (!localStorage.getItem(scopedKey) && legacyValue) {
+                localStorage.setItem(scopedKey, legacyValue);
+            }
+            // The old keys were shared by every account on this browser. Remove
+            // them after a one-time migration so a later login cannot inherit
+            // another account's appearance or presets.
+            localStorage.removeItem(baseKey);
+        }
+        localStorage.setItem(CHARACTER_CACHE_MIGRATION_KEY, uid);
+    } catch (error) {
+        console.warn("Could not migrate legacy character cache to this account.", error);
+    }
+}
+
+function readCachedCharacterTextures(uid) {
+    try {
+        const record = JSON.parse(localStorage.getItem(accountStorageKey(CHARACTER_TEXTURE_STORAGE_KEY, uid)) || "null");
         if (!record || ![1, 2].includes(Number(record.version)) || !record.textures || typeof record.textures !== "object") return null;
         return { textures: record.textures, savedAt: Math.max(0, Number(record.savedAt) || 0) };
     } catch { return null; }
 }
-function writeCachedCharacterTextures(textures, savedAt = Date.now()) {
+
+function writeCachedCharacterTextures(uid, textures, savedAt = Date.now()) {
     try {
+        const key = accountStorageKey(CHARACTER_TEXTURE_STORAGE_KEY, uid);
         if (!textures || typeof textures !== "object" || !Object.keys(textures).length) {
-            localStorage.removeItem(CHARACTER_TEXTURE_STORAGE_KEY);
+            localStorage.removeItem(key);
             return true;
         }
-        localStorage.setItem(CHARACTER_TEXTURE_STORAGE_KEY, JSON.stringify({
+        localStorage.setItem(key, JSON.stringify({
             version: 2,
             savedAt: Math.max(0, Number(savedAt) || Date.now()),
             textures
@@ -39,21 +76,79 @@ function writeCachedCharacterTextures(textures, savedAt = Date.now()) {
         return true;
     } catch { return false; }
 }
-async function saveCharacterTexturesToProfile(textures, savedAt = Date.now()) {
-    if (!currentUser?.uid || !window.firebase?.firestore) return false;
+
+function readCachedCharacterRoster(uid) {
     try {
-        await window.firebase.firestore().collection("profiles").doc(currentUser.uid).set({
+        const record = JSON.parse(localStorage.getItem(accountStorageKey(CHARACTER_ROSTER_STORAGE_KEY, uid)) || "null");
+        if (!record || Number(record.version) !== 1 || !Array.isArray(record.slots)) return null;
+        return {
+            slots: normalizeCharacterRoster(record.slots),
+            savedAt: Math.max(0, Number(record.savedAt) || 0)
+        };
+    } catch { return null; }
+}
+
+function writeCachedCharacterRoster(uid, slots, savedAt = Date.now()) {
+    const normalized = normalizeCharacterRoster(slots);
+    if (!uid || !normalized) return false;
+    try {
+        localStorage.setItem(accountStorageKey(CHARACTER_ROSTER_STORAGE_KEY, uid), JSON.stringify({
+            version: 1,
+            savedAt: Math.max(0, Number(savedAt) || Date.now()),
+            slots: normalized
+        }));
+        return true;
+    } catch { return false; }
+}
+
+function timestampToMs(value) {
+    return Number(
+        value?.toMillis?.() ||
+        (value?.seconds ? value.seconds * 1000 : 0) ||
+        (value instanceof Date ? value.getTime() : 0) ||
+        0
+    ) || 0;
+}
+
+async function saveCharacterTexturesToProfile(textures, savedAt = Date.now()) {
+    const uid = currentUser?.uid;
+    if (!uid || currentUser?.isAnonymous === true || !window.firebase?.firestore) return false;
+    const savedDate = new Date(Math.max(0, Number(savedAt) || Date.now()));
+    writeCachedCharacterTextures(uid, textures, savedDate.getTime());
+    try {
+        await window.firebase.firestore().collection("profiles").doc(uid).set({
             characterTextures: textures && Object.keys(textures).length ? textures : null,
             characterTexturesVersion: 1,
-            characterTexturesUpdatedAt: new Date(Math.max(0, Number(savedAt) || Date.now()))
+            characterTexturesUpdatedAt: savedDate
         }, { merge: true });
-        return true;
+        return currentUser?.uid === uid;
     } catch (error) {
         console.warn("Could not save character textures to the account profile.", error);
         return false;
     }
 }
+
+async function saveCharacterRosterToProfile(slots, savedAt = Date.now()) {
+    const uid = currentUser?.uid;
+    const normalized = normalizeCharacterRoster(slots);
+    if (!uid || currentUser?.isAnonymous === true || !normalized || !window.firebase?.firestore) return false;
+    const savedDate = new Date(Math.max(0, Number(savedAt) || Date.now()));
+    writeCachedCharacterRoster(uid, normalized, savedDate.getTime());
+    try {
+        await window.firebase.firestore().collection("profiles").doc(uid).set({
+            characterRoster: { version: 1, slots: normalized },
+            characterRosterVersion: 1,
+            characterRosterUpdatedAt: savedDate
+        }, { merge: true });
+        return currentUser?.uid === uid;
+    } catch (error) {
+        console.warn("Could not save character presets to the account profile.", error);
+        return false;
+    }
+}
+
 window.webMinecraftSaveCharacterProfile = saveCharacterTexturesToProfile;
+window.webMinecraftSaveCharacterRoster = saveCharacterRosterToProfile;
 
 function loadFirebaseScript(src) {
     if (!window.__webMinecraftFirebaseLoads) window.__webMinecraftFirebaseLoads = new Map();
@@ -124,27 +219,46 @@ async function syncUserProfile(user, profileOverride = null) {
         );
         if (isPlayerDataSyncCancelled() || !existingSnap) return;
 
+        if (currentUser?.uid !== user.uid) return;
         const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
         window.__webMinecraftAccountUid = user.uid;
-        const cachedCharacter = readCachedCharacterTextures();
+        migrateLegacyCharacterStorage(user.uid);
+
+        const cachedCharacter = readCachedCharacterTextures(user.uid);
         const cloudTextures = existing.characterTextures && typeof existing.characterTextures === "object"
             ? existing.characterTextures
             : null;
-        const cloudTimeValue = existing.characterTexturesUpdatedAt;
-        const cloudSavedAt = Number(
-            cloudTimeValue?.toMillis?.() ||
-            (cloudTimeValue?.seconds ? cloudTimeValue.seconds * 1000 : 0) ||
-            (cloudTimeValue instanceof Date ? cloudTimeValue.getTime() : 0)
-        ) || 0;
+        const cloudSavedAt = timestampToMs(existing.characterTexturesUpdatedAt);
         let chosenCharacter = cachedCharacter;
-        if (cloudTextures && (!cachedCharacter || cloudSavedAt > cachedCharacter.savedAt)) {
-            writeCachedCharacterTextures(cloudTextures, cloudSavedAt || Date.now());
+        if (cloudTextures && (!cachedCharacter || cloudSavedAt >= cachedCharacter.savedAt)) {
+            writeCachedCharacterTextures(user.uid, cloudTextures, cloudSavedAt || Date.now());
             chosenCharacter = { textures: cloudTextures, savedAt: cloudSavedAt };
         } else if (cachedCharacter?.textures && (!cloudTextures || cachedCharacter.savedAt > cloudSavedAt)) {
             await saveCharacterTexturesToProfile(cachedCharacter.textures, cachedCharacter.savedAt || Date.now());
         }
+
+        const cachedRoster = readCachedCharacterRoster(user.uid);
+        const cloudRosterData = existing.characterRoster && typeof existing.characterRoster === "object"
+            ? existing.characterRoster
+            : null;
+        const cloudRosterSlots = normalizeCharacterRoster(cloudRosterData?.slots);
+        const cloudRosterSavedAt = timestampToMs(existing.characterRosterUpdatedAt);
+        let chosenRoster = cachedRoster;
+        if (cloudRosterSlots && (!cachedRoster || cloudRosterSavedAt >= cachedRoster.savedAt)) {
+            chosenRoster = { slots: cloudRosterSlots, savedAt: cloudRosterSavedAt };
+            writeCachedCharacterRoster(user.uid, cloudRosterSlots, cloudRosterSavedAt || Date.now());
+        } else if (cachedRoster?.slots && (!cloudRosterSlots || cachedRoster.savedAt > cloudRosterSavedAt)) {
+            await saveCharacterRosterToProfile(cachedRoster.slots, cachedRoster.savedAt || Date.now());
+        }
+
+        if (currentUser?.uid !== user.uid) return;
         window.dispatchEvent(new CustomEvent("webminecraft:character-profile-loaded", {
-            detail: { textures: chosenCharacter?.textures || {} }
+            detail: {
+                uid: user.uid,
+                textures: chosenCharacter?.textures || {},
+                roster: chosenRoster?.slots || null,
+                rosterSavedAt: chosenRoster?.savedAt || 0
+            }
         }));
         const username = String(profileOverride?.username || existing.username || "").trim();
         const nickname = String(profileOverride?.nickname || existing.nickname || user.displayName || "Player").trim() || "Player";
@@ -247,8 +361,14 @@ async function initFirebase() {
             console.warn("Could not configure saved login persistence:", error);
         }
         auth.onAuthStateChanged(user => {
+            const previousUid = String(window.__webMinecraftAccountUid || "");
             currentUser = user || null;
-            window.__webMinecraftAccountUid = currentUser?.uid || "";
+            window.__webMinecraftAccountUid = currentUser?.isAnonymous === true ? "" : (currentUser?.uid || "");
+            if (previousUid !== window.__webMinecraftAccountUid) {
+                window.dispatchEvent(new CustomEvent("webminecraft:account-identity-changed", {
+                    detail: { uid: window.__webMinecraftAccountUid }
+                }));
+            }
             startupAuthStateResolved = true;
             if (user && user.uid && user.uid !== startupPlayerSyncUserId) {
                 startupPlayerSyncUserId = user.uid;
