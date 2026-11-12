@@ -14,6 +14,59 @@ const PALETTE = [
   "#553e80", "#777777", "#b9b9b9", "#ffffff"
 ];
 const TEXTURE_SIZE = 16;
+const MAX_ROSTER_CHARACTERS = 60;
+function extractTextureMapData(value) {
+  const source = value?.textures && typeof value.textures === "object" ? value.textures : value;
+  const result = {};
+  for (const { key } of AVATAR_TEXTURE_PARTS) {
+    const dataUrl = source?.[key];
+    if (typeof dataUrl === "string" && dataUrl.startsWith("data:image/") && dataUrl.length <= 50000) result[key] = dataUrl;
+  }
+  return result;
+}
+function hasTextureMaps(value) { return Object.keys(extractTextureMapData(value)).length > 0; }
+function hashTextureMap(value) {
+  const source = JSON.stringify(extractTextureMapData(value)); let hash = 2166136261;
+  for (let i = 0; i < source.length; i++) { hash ^= source.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+  return (hash >>> 0).toString(16);
+}
+function createCharacterId() {
+  try { if (typeof crypto?.randomUUID === "function") return "char-" + crypto.randomUUID(); } catch {}
+  return "char-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
+function makeRosterRecord(textures, metadata = {}) {
+  const clean = extractTextureMapData(textures);
+  if (!Object.keys(clean).length) return null;
+  return { ...clean,
+    __characterId: String(metadata.__characterId || metadata.id || createCharacterId()),
+    __characterName: String(metadata.__characterName || metadata.name || "Character").slice(0, 24),
+    __savedAt: Math.max(0, Number(metadata.__savedAt || metadata.savedAt) || Date.now())
+  };
+}
+function mergeRosterSlots(localSlots, incomingSlots) {
+  const sources = [localSlots, incomingSlots].filter(Array.isArray);
+  const length = Math.min(MAX_ROSTER_CHARACTERS, Math.max(5, ...sources.map(s => s.length)));
+  const merged = Array.from({ length }, (_, i) => {
+    const a = sources[0]?.[i], b = sources[1]?.[i];
+    if (hasTextureMaps(a) && hasTextureMaps(b)) return Number(b.__savedAt || 0) > Number(a.__savedAt || 0) ? b : a;
+    return hasTextureMaps(a) ? a : (hasTextureMaps(b) ? b : null);
+  });
+  for (const slots of sources) slots.forEach((record, index) => {
+    if (!hasTextureMaps(record)) return;
+    const id = String(record.__characterId || "legacy-" + hashTextureMap(record));
+    const duplicate = merged.findIndex(item => hasTextureMaps(item) && String(item.__characterId || "legacy-" + hashTextureMap(item)) === id);
+    if (duplicate >= 0) {
+      if (Number(record.__savedAt || 0) > Number(merged[duplicate].__savedAt || 0)) merged[duplicate] = record;
+      return;
+    }
+    let target = index < 5 && !hasTextureMaps(merged[index]) ? index : -1;
+    if (target < 0) target = merged.findIndex((item, i) => i >= 5 && !hasTextureMaps(item));
+    if (target >= 0) merged[target] = record;
+    else if (merged.length < MAX_ROSTER_CHARACTERS) merged.push(record);
+  });
+  while (merged.length > 5 && !merged[merged.length - 1]) merged.pop();
+  return Array.from({ length: Math.max(5, merged.length) }, (_, i) => merged[i] || null);
+}
 
 function getIdentity() {
   let user = null;
@@ -43,43 +96,43 @@ function readRosterTextureStore() {
   try {
     const storageKey = getRosterStorageKey();
     let raw = localStorage.getItem(storageKey);
-    // Older versions kept the five presets under one browser-wide key.
-    // Move that roster into the signed-in account's namespace instead of
-    // showing five newly generated characters after login.
     if (!raw && storageKey !== ROSTER_STORAGE_KEY) {
       raw = localStorage.getItem(ROSTER_STORAGE_KEY);
       if (raw) localStorage.setItem(storageKey, raw);
     }
     const record = JSON.parse(raw || "null");
-    if (!record || Number(record.version) !== 1 || !Array.isArray(record.slots)) {
-      return { slots: [{}, {}, {}, {}, {}], savedAt: 0 };
-    }
-    return {
-      slots: Array.from({ length: 5 }, (_, index) =>
-        record.slots[index] && typeof record.slots[index] === "object" && !Array.isArray(record.slots[index])
-          ? record.slots[index]
-          : {}
-      ),
-      savedAt: Math.max(0, Number(record.savedAt) || 0)
-    };
-  } catch {
-    return { slots: [{}, {}, {}, {}, {}], savedAt: 0 };
-  }
+    if (!record || ![1, 2].includes(Number(record.version)) || !Array.isArray(record.slots)) return { slots: [null, null, null, null, null], savedAt: 0 };
+    const savedAt = Math.max(0, Number(record.savedAt) || 0);
+    const length = Math.min(MAX_ROSTER_CHARACTERS, Math.max(5, record.slots.length));
+    const slots = Array.from({ length }, (_, i) => {
+      const source = record.slots[i], textures = extractTextureMapData(source);
+      if (Object.keys(textures).length) return {
+        ...textures,
+        __characterId: String(source?.__characterId || "legacy-" + i + "-" + hashTextureMap(textures)),
+        __characterName: String(source?.__characterName || (i === MAIN_PROFILE_SLOT ? "Main Character" : "Character " + (i + 1))).slice(0, 24),
+        __savedAt: Math.max(0, Number(source?.__savedAt) || savedAt)
+      };
+      if (source?.__characterId) return { __characterId: String(source.__characterId), __characterName: String(source.__characterName || "Character " + (i + 1)).slice(0, 24), __savedAt: 0 };
+      return null;
+    });
+    return { slots, savedAt };
+  } catch { return { slots: [null, null, null, null, null], savedAt: 0 }; }
 }
 function writeRosterTextureStore(savedAt = Date.now()) {
   try {
     const timestamp = Math.max(0, Number(savedAt) || Date.now());
+    const length = Math.min(MAX_ROSTER_CHARACTERS, Math.max(5, rosterTextureStore.slots.length));
+    const slots = Array.from({ length }, (_, i) => {
+      const source = rosterTextureStore.slots[i];
+      if (hasTextureMaps(source)) return makeRosterRecord(source, source);
+      if (source?.__characterId) return { __characterId: String(source.__characterId), __characterName: String(source.__characterName || "Character " + (i + 1)).slice(0, 24), __savedAt: 0 };
+      return null;
+    });
     rosterTextureStore.savedAt = timestamp;
-    localStorage.setItem(getRosterStorageKey(), JSON.stringify({
-      version: 1,
-      savedAt: timestamp,
-      slots: rosterTextureStore.slots
-    }));
+    rosterTextureStore.slots = slots;
+    localStorage.setItem(getRosterStorageKey(), JSON.stringify({ version: 2, savedAt: timestamp, slots }));
     return true;
-  } catch (error) {
-    console.warn("Could not save character presets in this browser.", error);
-    return false;
-  }
+  } catch (error) { console.warn("Could not save character presets in this browser.", error); return false; }
 }
 function readSavedTextures() {
   return readCharacterTextureRecord()?.textures || null;
@@ -557,7 +610,11 @@ overlay.innerHTML = `
       <div id="characterEditorStatus">ROSTER READY</div>
     </header>
     <section id="characterRosterPage" class="characterEditorPage">
-      <div id="characterRosterIntro"><h1>CHOOSE YOUR CHARACTER</h1></div>
+      <div id="characterRosterIntro">
+        <h1>CHOOSE YOUR CHARACTER</h1>
+        <button class="rosterEditButton" id="characterAddButton" type="button"
+          style="display:block;width:190px;height:36px;margin:12px auto 0">+ ADD CHARACTER</button>
+      </div>
       <div id="characterRosterStage">
         <button class="rosterArrow" id="rosterPrev" type="button" aria-label="Move previous character to center">‹</button>
         <div id="characterRosterCards">
@@ -843,26 +900,34 @@ function disposePreviewAvatar(avatar) {
   for (const material of materials) material.dispose?.();
 }
 
+function setRosterWindow(centerSlot) {
+  const count = rosterAvatars.length;
+  if (!count) return;
+  const center = ((Math.floor(centerSlot) % count) + count) % count;
+  rosterOrder = Array.from({ length: 5 }, (_, p) => (center + p - 2 + count) % count);
+}
 function updateRosterCards() {
   overlay.querySelectorAll(".rosterCard").forEach((card, position) => {
     const slot = rosterOrder[position];
+    if (!Number.isInteger(slot) || !rosterAvatars[slot]) { card.hidden = true; return; }
+    card.hidden = false;
     card.dataset.slot = String(slot);
     card.classList.toggle("isCenter", position === 2);
     card.querySelector(".rosterCardNumber").textContent = String(slot + 1).padStart(2, "0");
-    card.querySelector(".rosterCardName").textContent = slot === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" : "PRESET " + (slot + 1);
+    const record = rosterTextureStore.slots[slot], avatar = rosterAvatars[slot];
+    const name = slot === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" : (record?.__characterName || avatar?.characterName || "CHARACTER " + (slot + 1));
+    card.querySelector(".rosterCardName").textContent = name;
     const edit = card.querySelector(".rosterEditButton");
     edit.dataset.slot = String(slot);
-    edit.setAttribute("aria-label", "Edit character slot " + (slot + 1));
+    edit.setAttribute("aria-label", "Edit " + name);
     const select = card.querySelector(".rosterSelectButton");
     select.dataset.slot = String(slot);
-    select.disabled = slot === MAIN_PROFILE_SLOT;
-    select.textContent = slot === MAIN_PROFILE_SLOT ? "ACTIVE" : "SELECT";
-    select.setAttribute("aria-label", slot === MAIN_PROFILE_SLOT
-      ? "Character slot " + (slot + 1) + " is active"
-      : "Select character slot " + (slot + 1) + " for gameplay");
+    const isSaved = hasTextureMaps(record);
+    select.disabled = slot === MAIN_PROFILE_SLOT || !isSaved;
+    select.textContent = slot === MAIN_PROFILE_SLOT ? "ACTIVE" : (isSaved ? "SELECT" : "EDIT FIRST");
+    select.setAttribute("aria-label", slot === MAIN_PROFILE_SLOT ? "This is your active character" : (isSaved ? "Select " + name + " for gameplay" : "Edit and save this character before selecting it"));
   });
 }
-
 function applyRosterLayout() {
   const stage = overlay.querySelector("#characterRosterStage");
   const aspect = stage?.clientHeight ? stage.clientWidth / stage.clientHeight : 1.8;
@@ -870,9 +935,9 @@ function applyRosterLayout() {
   const slotSpacing = viewHalfWidth * 0.36;
   rosterAvatars.forEach(entry => {
     const position = rosterOrder.indexOf(entry.slotIndex);
-    entry.targetX = (position - 2) * slotSpacing;
+    entry.targetX = position < 0 ? (entry.slotIndex - 2) * slotSpacing : (position - 2) * slotSpacing;
     entry.targetScale = position === 2 ? 1.16 : 0.88;
-    entry.group.visible = editorPage === "roster";
+    entry.group.visible = editorPage === "roster" && position >= 0;
   });
   updateRosterCards();
 }
@@ -901,105 +966,92 @@ function activateRosterSlot(slot) {
   avatarYaw = entry.group.rotation.y || 0;
   undoStack = [];
   copySelectedTextureToEditor();
-  overlay.querySelector("#characterEditingName").textContent = "EDITING CHARACTER " + (slot + 1) + (slot === MAIN_PROFILE_SLOT ? " · MAIN" : " · PRESET");
+  const characterName = slot === MAIN_PROFILE_SLOT ? "MAIN CHARACTER" : (rosterTextureStore.slots[slot]?.__characterName || previewAvatar.characterName || "CHARACTER " + (slot + 1));
+  overlay.querySelector("#characterEditingName").textContent = "EDITING " + characterName;
   updateRosterCards();
 }
 
 async function selectRosterCharacter(slot) {
-  const selected = rosterAvatars[slot];
-  const main = rosterAvatars[MAIN_PROFILE_SLOT];
-  if (!selected || !main || slot === MAIN_PROFILE_SLOT) return;
-
+  const selected = rosterAvatars[slot], main = rosterAvatars[MAIN_PROFILE_SLOT];
+  const selectedRecord = rosterTextureStore.slots[slot];
+  if (!selected || !main || slot === MAIN_PROFILE_SLOT || !hasTextureMaps(selectedRecord)) return;
   const selectButtons = [...overlay.querySelectorAll(".rosterSelectButton")];
   selectButtons.forEach(button => { button.disabled = true; });
   const clickedButton = selectButtons.find(button => Number(button.dataset.slot) === slot);
   if (clickedButton) clickedButton.textContent = "APPLYING";
-
-  const selectedTextures = captureFullTextureData(selected);
-  const previousMainTextures = captureFullTextureData(main);
-  if (!Object.keys(selectedTextures).length || !Object.keys(previousMainTextures).length) {
-    updateRosterCards();
-    return;
-  }
-
-  const previousSlots = rosterTextureStore.slots.map(record => ({ ...record }));
+  const selectedTextures = captureFullTextureData(selected), previousMainTextures = captureFullTextureData(main);
+  if (!Object.keys(selectedTextures).length) { updateRosterCards(); return; }
+  const previousSlots = rosterTextureStore.slots.map(record => record ? { ...record } : null);
+  const previousMainRecord = rosterTextureStore.slots[MAIN_PROFILE_SLOT], previousMainWasSaved = hasTextureMaps(previousMainRecord);
   const savedAt = Date.now();
-  rosterTextureStore.slots[MAIN_PROFILE_SLOT] = { ...selectedTextures };
-  rosterTextureStore.slots[slot] = { ...previousMainTextures };
-
+  const nextMainRecord = makeRosterRecord(selectedTextures, selectedRecord);
+  const nextPresetRecord = previousMainWasSaved ? makeRosterRecord(previousMainTextures, previousMainRecord) : null;
+  rosterTextureStore.slots[MAIN_PROFILE_SLOT] = nextMainRecord;
+  rosterTextureStore.slots[slot] = nextPresetRecord;
   if (!writeRosterTextureStore(savedAt)) {
     rosterTextureStore.slots = previousSlots;
     alert("This browser could not save the character swap. Free some browser storage and try again.");
-    updateRosterCards();
-    return;
+    updateRosterCards(); return;
   }
   if (!writeCharacterTextureRecord(selectedTextures, savedAt)) {
     rosterTextureStore.slots = previousSlots;
     writeRosterTextureStore();
     alert("This browser could not save the active character. Your previous character is unchanged.");
-    updateRosterCards();
-    return;
+    updateRosterCards(); return;
   }
-
   try {
     await Promise.all([
       applyAvatarTextureData(main.textures, selectedTextures),
-      applyAvatarTextureData(selected.textures, previousMainTextures)
+      applyAvatarTextureData(selected.textures, previousMainWasSaved ? previousMainTextures : {})
     ]);
-  } catch (error) {
-    console.warn("Character textures were saved, but the preview could not refresh immediately.", error);
-  }
-
-  main.savedTextureData = { ...selectedTextures };
-  main.dirtyTextureKeys = new Set(Object.keys(selectedTextures));
-  main.resetOverridesPending = false;
-  selected.savedTextureData = { ...previousMainTextures };
-  selected.dirtyTextureKeys = new Set(Object.keys(previousMainTextures));
-  selected.resetOverridesPending = false;
-  main.group.rotation.y = Math.PI;
-  selected.group.rotation.y = Math.PI;
-
-  rosterOrder = [0, 1, 2, 3, 4];
-  avatarYaw = Math.PI;
-  previewAvatar = main;
-  activateRosterSlot(MAIN_PROFILE_SLOT);
-  applyRosterLayout();
+  } catch (error) { console.warn("Character textures were saved, but the preview could not refresh immediately.", error); }
+  main.savedTextureData = { ...selectedTextures }; main.characterId = nextMainRecord?.__characterId;
+  main.characterName = nextMainRecord?.__characterName || "Main Character";
+  main.dirtyTextureKeys = new Set(); main.resetOverridesPending = false;
+  selected.savedTextureData = previousMainWasSaved ? { ...previousMainTextures } : {};
+  selected.characterId = nextPresetRecord?.__characterId || selected.characterId;
+  selected.dirtyTextureKeys = new Set(); selected.resetOverridesPending = false;
+  main.group.rotation.y = Math.PI; selected.group.rotation.y = Math.PI;
+  avatarYaw = Math.PI; setRosterWindow(MAIN_PROFILE_SLOT); activateRosterSlot(MAIN_PROFILE_SLOT); applyRosterLayout();
   sendCharacterSkin(selectedTextures);
-  window.dispatchEvent(new CustomEvent("webminecraft:character-changed", {
-    detail: { textures: selectedTextures }
-  }));
-
-  let profileSaved = false;
-  let rosterSaved = false;
+  window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures: selectedTextures } }));
+  let profileSaved = false, rosterSaved = false;
   try {
     [profileSaved, rosterSaved] = await Promise.all([
       Promise.resolve(window.webMinecraftSaveCharacterProfile?.(selectedTextures, savedAt)).then(Boolean).catch(() => false),
       Promise.resolve(window.webMinecraftSaveCharacterRoster?.(rosterTextureStore.slots, savedAt)).then(Boolean).catch(() => false)
     ]);
-  } catch (error) {
-    console.warn("The active character was saved in this browser, but account sync did not finish.", error);
-  }
-
+  } catch (error) { console.warn("The active character was saved in this browser, but account sync did not finish.", error); }
   const sub = overlay.querySelector("#characterEditorTopbarSub");
   if (sub) {
-    sub.textContent = profileSaved && rosterSaved
-      ? "Selected character and all presets are saved to your account."
-      : "Selected character is active on this browser. Account sync is unavailable.";
-    window.setTimeout(() => {
-      if (editorPage === "roster") sub.textContent = "Browse characters and choose one to edit.";
-    }, 2600);
+    sub.textContent = profileSaved && rosterSaved ? "Selected character and roster synced to your account." : "Selected character is active on this browser. Account sync is unavailable.";
+    window.setTimeout(() => { if (editorPage === "roster") sub.textContent = "Browse your saved characters."; }, 2600);
   }
   updateRosterCards();
 }
 
+async function addRosterCharacter() {
+  const slot = rosterAvatars.length;
+  if (slot >= MAX_ROSTER_CHARACTERS) { alert("Your character roster is full. Remove a saved character before adding another."); return; }
+  const identity = getIdentity(), characterId = createCharacterId(), characterName = "Character " + (slot + 1);
+  rosterTextureStore.slots.length = Math.max(rosterTextureStore.slots.length, slot + 1);
+  rosterTextureStore.slots[slot] = { __characterId: characterId, __characterName: characterName, __savedAt: 0 };
+  writeRosterTextureStore();
+  const avatar = createAvatar(identity.id + "-roster-" + (slot + 1) + "-" + characterId, characterName, null, characterId);
+  avatar.group.traverse(object => { if (object.isSprite) object.visible = false; });
+  avatar.group.rotation.y = Math.PI; avatar.group.position.set((slot - 2) * 2.95, 0, 0);
+  avatar.group.scale.setScalar(0.88); avatar.group.visible = false; scene.add(avatar.group);
+  await avatar.textureReady;
+  rosterAvatars[slot] = { ...avatar, slotIndex: slot, characterId, characterName,
+    baseSnapshots: snapshotTextures(avatar.textures), savedTextureData: {}, dirtyTextureKeys: new Set(),
+    resetOverridesPending: false, targetX: (slot - 2) * 2.95, targetScale: 0.88 };
+  setRosterWindow(slot); activateRosterSlot(slot); setEditorPage("paint"); updateRosterCards(); resize();
+}
+
 function moveRoster(direction) {
-  if (editorPage !== "roster") return;
-  const current = rosterOrder.slice();
-  rosterOrder = direction > 0
-    ? [current[1], current[2], current[3], current[4], current[0]]
-    : [current[4], current[0], current[1], current[2], current[3]];
-  activateRosterSlot(rosterOrder[2]);
-  applyRosterLayout();
+  if (editorPage !== "roster" || rosterAvatars.length < 5) return;
+  setRosterWindow((rosterOrder[2] ?? MAIN_PROFILE_SLOT) + direction);
+  activateRosterSlot(rosterOrder[2]); applyRosterLayout();
 }
 
 function setEditorPage(page) {
@@ -1021,7 +1073,6 @@ function setEditorPage(page) {
     if (renderer.domElement.parentElement !== host) host.prepend(renderer.domElement);
     renderer.domElement.style.display = "block";
     applyRosterLayout();
-    rosterAvatars.forEach(entry => { entry.group.visible = true; });
     camera.position.set(0, 2.65, 10.5);
     camera.lookAt(0, 1.02, 0);
   } else if (page === "paint") {
@@ -1051,30 +1102,31 @@ function setEditorPage(page) {
 }
 
 async function buildPreview(force = false) {
-  const identity = getIdentity();
-  const key = identity.id;
-  if (!force && rosterAvatars.length === 5 && currentIdentity === key) return;
+  const identity = getIdentity(), key = identity.id;
+  if (!force && rosterAvatars.length >= 5 && currentIdentity === key) return;
   if (rosterBuildPromise) return rosterBuildPromise;
-
   const buildTask = (async () => {
     rosterAvatars.forEach(disposePreviewAvatar);
     rosterAvatars = [];
     previewAvatar = null;
     currentIdentity = key;
-    // Re-read both stores whenever the roster is rebuilt. The active skin can
-    // exist only in roster slot 3 on older profiles or after a partial sync.
     rosterTextureStore = readRosterTextureStore();
     const activeRecord = readCharacterTextureRecord();
     const rosterMain = rosterTextureStore.slots[MAIN_PROFILE_SLOT];
-    // Slot 3 is the canonical active character. The standalone profile record
-    // is a compatibility mirror and must not replace a newer roster save.
-    const mainTextures = rosterMain && Object.keys(rosterMain).length
-      ? rosterMain
-      : (activeRecord?.textures || {});
-    for (let slot = 0; slot < 5; slot++) {
-      const appearanceId = slot === MAIN_PROFILE_SLOT ? identity.appearanceId : identity.appearanceId + "-preset-" + (slot + 1);
-      const avatarId = identity.id + "-roster-" + (slot + 1);
-      const avatarName = slot === MAIN_PROFILE_SLOT ? identity.name : "Character " + (slot + 1);
+    const storedMain = hasTextureMaps(rosterMain) ? extractTextureMapData(rosterMain) : extractTextureMapData(activeRecord?.textures);
+    if (Object.keys(storedMain).length && !hasTextureMaps(rosterMain)) {
+      rosterTextureStore.slots[MAIN_PROFILE_SLOT] = makeRosterRecord(storedMain, { id: "main-" + identity.id, name: "Main Character", savedAt: activeRecord?.savedAt });
+      writeRosterTextureStore(activeRecord?.savedAt || Date.now());
+    }
+    const slotCount = Math.min(MAX_ROSTER_CHARACTERS, Math.max(5, rosterTextureStore.slots.length));
+    rosterTextureStore.slots.length = slotCount;
+    for (let slot = 0; slot < slotCount; slot++) {
+      const record = rosterTextureStore.slots[slot];
+      const stored = slot === MAIN_PROFILE_SLOT ? storedMain : extractTextureMapData(record);
+      const characterId = String(record?.__characterId || "preview-" + identity.id + "-" + (slot + 1));
+      const appearanceId = slot === MAIN_PROFILE_SLOT ? identity.appearanceId : (record?.__characterId || identity.id + "-preset-" + (slot + 1));
+      const avatarId = identity.id + "-roster-" + (slot + 1) + "-" + characterId;
+      const avatarName = slot === MAIN_PROFILE_SLOT ? identity.name : (record?.__characterName || "Character " + (slot + 1));
       const avatar = createAvatar(avatarId, avatarName, null, appearanceId);
       avatar.group.traverse(object => { if (object.isSprite) object.visible = false; });
       avatar.group.rotation.y = Math.PI;
@@ -1084,25 +1136,17 @@ async function buildPreview(force = false) {
       scene.add(avatar.group);
       await avatar.textureReady;
       const base = snapshotTextures(avatar.textures);
-      const stored = slot === MAIN_PROFILE_SLOT ? mainTextures : (rosterTextureStore.slots[slot] || {});
       if (Object.keys(stored).length) await applyAvatarTextureData(avatar.textures, stored);
-      rosterAvatars[slot] = {
-        ...avatar,
-        slotIndex: slot,
-        baseSnapshots: base,
-        savedTextureData: { ...stored },
-        dirtyTextureKeys: new Set(),
-        resetOverridesPending: false,
-        targetX: (slot - 2) * 2.95,
-        targetScale: slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88
-      };
+      rosterAvatars[slot] = { ...avatar, slotIndex: slot, characterId, characterName: avatarName,
+        baseSnapshots: base, savedTextureData: { ...stored }, dirtyTextureKeys: new Set(), resetOverridesPending: false,
+        targetX: (slot - 2) * 2.95, targetScale: slot === MAIN_PROFILE_SLOT ? 1.16 : 0.88 };
     }
     currentIdentity = key;
+    setRosterWindow(MAIN_PROFILE_SLOT);
     activateRosterSlot(MAIN_PROFILE_SLOT);
     rosterAvatars.forEach(entry => { entry.group.visible = entry.slotIndex === MAIN_PROFILE_SLOT; });
     updateRosterCards();
-    // Opening the editor must never push a fallback/generated preview into
-    // the live menu/player avatar. Only an explicit edit/save/select may do so.
+    // Generated previews are local only; edited skins are the ones saved and synced.
   })();
   rosterBuildPromise = buildTask;
   try {
@@ -1300,12 +1344,20 @@ async function saveTextures() {
     sendCharacterSkin(Object.keys(textures).length ? textures : null);
     window.dispatchEvent(new CustomEvent("webminecraft:character-changed", { detail: { textures } }));
   }
-  rosterTextureStore.slots[selectedRosterSlot] = textures;
+  const currentRecord = rosterTextureStore.slots[selectedRosterSlot], entry = previewAvatar;
+  const record = makeRosterRecord(textures, {
+    id: currentRecord?.__characterId || entry?.characterId || createCharacterId(),
+    name: currentRecord?.__characterName || entry?.characterName || (selectedRosterSlot === MAIN_PROFILE_SLOT ? "Main Character" : "Character " + (selectedRosterSlot + 1)),
+    savedAt
+  });
+  if (!record) { alert("This character has no saved texture changes yet."); return; }
+  rosterTextureStore.slots[selectedRosterSlot] = record;
   if (!writeRosterTextureStore(savedAt)) {
     alert("Unable to save this character preset in this browser. Free some browser storage and try again.");
     return;
   }
-  savedTextureData = textures;
+  savedTextureData = extractTextureMapData(textures);
+  if (previewAvatar) { previewAvatar.characterId = record.__characterId; previewAvatar.characterName = record.__characterName; }
   dirtyTextureKeys.clear();
   resetOverridesPending = false;
   rememberActiveEditorState();
@@ -1387,10 +1439,13 @@ overlay.querySelector("#characterClose").addEventListener("click", close);
 overlay.querySelector("#characterBackRoster").addEventListener("click", () => setEditorPage("roster"));
 overlay.querySelector("#rosterPrev").addEventListener("click", () => moveRoster(-1));
 overlay.querySelector("#rosterNext").addEventListener("click", () => moveRoster(1));
-overlay.querySelectorAll(".rosterEditButton").forEach(button => button.addEventListener("click", () => {
-  activateRosterSlot(Number(button.dataset.slot));
-  setEditorPage("paint");
-}));
+overlay.querySelector("#characterAddButton").addEventListener("click", () => {
+  void addRosterCharacter().catch(error => { console.warn("Could not add a roster character:", error); alert("Could not create another character. Please try again."); });
+});
+overlay.querySelectorAll(".rosterEditButton").forEach(button => {
+  if (button.id === "characterAddButton") return;
+  button.addEventListener("click", () => { activateRosterSlot(Number(button.dataset.slot)); setEditorPage("paint"); });
+});
 overlay.querySelectorAll(".rosterSelectButton").forEach(button => button.addEventListener("click", () => {
   void selectRosterCharacter(Number(button.dataset.slot));
 }));
@@ -1432,9 +1487,13 @@ window.addEventListener("webminecraft:account-identity-changed", () => {
 window.addEventListener("webminecraft:character-profile-loaded", event => {
   const textures = event.detail?.textures && typeof event.detail.textures === "object" ? event.detail.textures : {};
   const incomingRoster = Array.isArray(event.detail?.roster)
-    ? Array.from({ length: 5 }, (_, index) => {
-        const slot = event.detail.roster[index];
-        return slot && typeof slot === "object" && !Array.isArray(slot) ? { ...slot } : {};
+    ? Array.from({ length: Math.min(MAX_ROSTER_CHARACTERS, Math.max(5, event.detail.roster.length)) }, (_, index) => {
+        const source = event.detail.roster[index], textures = extractTextureMapData(source);
+        if (Object.keys(textures).length) return { ...textures,
+          __characterId: String(source?.__characterId || "remote-" + index + "-" + hashTextureMap(textures)),
+          __characterName: String(source?.__characterName || "Character " + (index + 1)).slice(0, 24),
+          __savedAt: Math.max(0, Number(source?.__savedAt) || 0) };
+        return source?.__characterId ? { ...source } : null;
       })
     : null;
   const rosterSavedAt = Math.max(0, Number(event.detail?.rosterSavedAt) || 0);
@@ -1442,55 +1501,24 @@ window.addEventListener("webminecraft:character-profile-loaded", event => {
   const applyAccountProfile = async () => {
     await rebuildRosterForCurrentAccount();
     const cachedRoster = readRosterTextureStore();
-    const incomingHasData = incomingRoster?.some(slot => Object.keys(slot || {}).length);
-    const keepLocalRoster = Boolean(cachedRoster.savedAt > rosterSavedAt ||
-      (!incomingHasData && cachedRoster.slots.some(slot => Object.keys(slot || {}).length)));
-    const rosterToApply = incomingRoster
-      ? (keepLocalRoster ? cachedRoster.slots : incomingRoster)
-      : cachedRoster.slots;
-    if (incomingRoster && !keepLocalRoster) {
-      rosterTextureStore = { slots: rosterToApply, savedAt: rosterSavedAt };
-      writeRosterTextureStore(rosterSavedAt || Date.now());
-    } else {
-      rosterTextureStore = { slots: rosterToApply, savedAt: cachedRoster.savedAt };
+    const rosterToApply = incomingRoster ? mergeRosterSlots(cachedRoster.slots, incomingRoster) : cachedRoster.slots;
+    const activeTextures = extractTextureMapData(textures);
+    if (Object.keys(activeTextures).length) {
+      const previousMain = rosterToApply[MAIN_PROFILE_SLOT];
+      rosterToApply[MAIN_PROFILE_SLOT] = makeRosterRecord(activeTextures, {
+        id: previousMain?.__characterId || "main-" + getIdentity().id,
+        name: previousMain?.__characterName || "Main Character",
+        savedAt: rosterSavedAt || Date.now()
+      });
+      writeCharacterTextureRecord(activeTextures, rosterSavedAt || Date.now());
     }
-    if (incomingRoster || cachedRoster.slots.some(slot => Object.keys(slot || {}).length)) {
-      for (let slot = 0; slot < 5; slot++) {
-        const entry = rosterAvatars[slot];
-        const stored = rosterToApply[slot] || {};
-        if (entry) {
-          restoreRosterAvatarBase(entry);
-          if (Object.keys(stored).length) await applyAvatarTextureData(entry.textures, stored);
-          entry.savedTextureData = { ...stored };
-          entry.dirtyTextureKeys = new Set();
-          entry.resetOverridesPending = false;
-        }
-      }
-    }
-
-    const main = rosterAvatars[MAIN_PROFILE_SLOT];
-    if (!main) return;
-    const rosterMain = rosterToApply?.[MAIN_PROFILE_SLOT] || {};
-    const mainTextures = Object.keys(rosterMain).length
-      ? rosterMain
-      : (Object.keys(textures).length ? textures : (main.savedTextureData || {}));
-    restoreRosterAvatarBase(main);
-    if (Object.keys(mainTextures).length) await applyAvatarTextureData(main.textures, mainTextures);
-    main.savedTextureData = { ...mainTextures };
-    main.dirtyTextureKeys = new Set();
-    main.resetOverridesPending = false;
-    rosterTextureStore.slots[MAIN_PROFILE_SLOT] = { ...mainTextures };
-    if (incomingRoster && !keepLocalRoster) writeRosterTextureStore(rosterSavedAt || Date.now());
-
-    if (selectedRosterSlot === MAIN_PROFILE_SLOT) {
-      savedTextureData = { ...mainTextures };
-      dirtyTextureKeys.clear();
-      resetOverridesPending = false;
-      if (overlay.classList.contains("open") && editorPage === "paint") copySelectedTextureToEditor();
-      scheduleLivePreview();
-    }
-    updateRosterCards();
-    resize();
+    rosterTextureStore = { slots: rosterToApply, savedAt: Math.max(cachedRoster.savedAt || 0, rosterSavedAt) };
+    writeRosterTextureStore(rosterTextureStore.savedAt || Date.now());
+    await buildPreview(true);
+    setRosterWindow(MAIN_PROFILE_SLOT);
+    activateRosterSlot(MAIN_PROFILE_SLOT);
+    if (overlay.classList.contains("open") && editorPage === "paint") copySelectedTextureToEditor();
+    scheduleLivePreview(); updateRosterCards(); resize();
   };
 
   void applyAccountProfile().catch(error => {
