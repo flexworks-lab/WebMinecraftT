@@ -1438,11 +1438,15 @@ async function selectRosterCharacter(slot) {
   } catch (error) { console.warn("Character textures were saved, but the preview could not refresh immediately.", error); }
   main.savedTextureData = { ...selectedTextures }; main.characterId = nextMainRecord?.__characterId;
   main.characterName = nextMainRecord?.__characterName || "Main Character";
+  main.lockerItems = { ...(nextMainRecord?.__lockerItems || {}) };
+  main.lockerBaseTextures = extractTextureMapData(nextMainRecord?.__lockerBaseTextures || {});
   main.dirtyTextureKeys = new Set(); main.resetOverridesPending = false;
   if (previousMainWasSaved) {
     selected.savedTextureData = { ...previousMainTextures };
     selected.characterId = nextPresetRecord?.__characterId || selected.characterId;
     selected.characterName = nextPresetRecord?.__characterName || selected.characterName;
+    selected.lockerItems = { ...(nextPresetRecord?.__lockerItems || {}) };
+    selected.lockerBaseTextures = extractTextureMapData(nextPresetRecord?.__lockerBaseTextures || {});
     selected.dirtyTextureKeys = new Set(); selected.resetOverridesPending = false;
     selected.group.rotation.y = Math.PI;
   }
@@ -1833,6 +1837,10 @@ function resetTextures() {
   savedTextureData = {};
   dirtyTextureKeys.clear();
   resetOverridesPending = true;
+  if (previewAvatar) {
+    previewAvatar.lockerItems = {};
+    previewAvatar.lockerBaseTextures = {};
+  }
   undoStack = [];
   copySelectedTextureToEditor();
   refreshTextureButtons();
@@ -1962,6 +1970,10 @@ overlay.querySelector("#characterReset").addEventListener("click", resetTextures
 overlay.querySelector("#characterSave").addEventListener("click", saveTextures);
 overlay.querySelector("#characterClose").addEventListener("click", close);
 overlay.querySelector("#characterBackRoster").addEventListener("click", () => setEditorPage("roster"));
+overlay.querySelector("#lockerBackToRoster").addEventListener("click", () => {
+  lockerSelectedSlot = null;
+  setEditorPage("locker");
+});
 overlay.querySelector("#rosterPrev").addEventListener("click", () => moveRoster(-1));
 overlay.querySelector("#rosterNext").addEventListener("click", () => moveRoster(1));
 overlay.querySelector("#characterAddButton").addEventListener("click", () => {
@@ -1980,6 +1992,7 @@ overlay.querySelectorAll(".rosterDeleteButton").forEach(button => button.addEven
 overlay.querySelectorAll("[data-editor-page]").forEach(button => button.addEventListener("click", () => {
   const page = button.dataset.editorPage;
   if (page === "paint") activateRosterSlot(selectedRosterSlot);
+  if (page === "locker") lockerSelectedSlot = null;
   setEditorPage(page);
 }));
 overlay.addEventListener("click", event => { if (event.target === overlay) close(); });
@@ -2066,7 +2079,7 @@ if (typeof ResizeObserver !== "undefined") {
     const host = renderer?.domElement?.parentElement;
     if (host?.clientWidth && host?.clientHeight) resize();
   });
-  ["#characterEditorSidebar", "#characterRosterStage", "#characterEditorPreview"].forEach(selector => {
+  ["#characterEditorSidebar", "#characterRosterStage", "#characterEditorPreview", "#lockerRosterGrid", "#lockerCharacterPreview", "#lockerItemsGrid"].forEach(selector => {
     const element = overlay.querySelector(selector);
     if (element) characterEditorResizeObserver.observe(element);
   });
