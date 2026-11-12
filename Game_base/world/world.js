@@ -223,12 +223,18 @@ const chunkMaterials = [
 ];
 
 const extraMaterialIndex = new Map();
+const sharedExtraMaterialIndices = new Map();
 for (const [idText, materials] of Object.entries(extraBlockMaterials)) {
     const id = Number(idText);
     const indices = [];
     for (const material of materials) {
-        indices.push(chunkMaterials.length);
-        chunkMaterials.push(material);
+        let index = sharedExtraMaterialIndices.get(material);
+        if (index === undefined) {
+            index = chunkMaterials.length;
+            chunkMaterials.push(material);
+            sharedExtraMaterialIndices.set(material, index);
+        }
+        indices.push(index);
     }
     extraMaterialIndex.set(id, indices);
 }
