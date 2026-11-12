@@ -194,10 +194,21 @@ function readInventory() {
     catch { return Array.from({ length: 36 }, () => null); }
 }
 
+function isRealActiveSavedWorld(seed) {
+    const normalized = normalizeSeed(seed);
+    return normalized !== null
+        && activeWorldSeed === normalized
+        && activeWorld?.seed === normalized
+        && document.body?.classList?.contains("webminecraft-in-world") === true
+        && window.__webminecraftMultiplayerActive !== true;
+}
+
 async function saveWorldPreview(seed, force = false) {
     const normalized = normalizeSeed(seed);
     const renderer = window.__webminecraftRenderer;
-    if (normalized === null || (!force && !worldDirty) || !renderer?.domElement) return false;
+    // The canvas also renders a menu/startup scene. Only capture after the
+    // player has entered a real saved singleplayer world.
+    if (!isRealActiveSavedWorld(normalized) || (!force && !worldDirty) || !renderer?.domElement) return false;
 
     let bitmap = null;
     try {
@@ -577,7 +588,9 @@ export async function saveCurrentWorld(options = {}) {
 
     // Start capturing immediately, before any asynchronous block/storage work
     // or the return-home transition can hide the world view.
-    const previewPromise = !skipPreview && (options?.capturePreview === true || worldDirty)
+    const previewPromise = !skipPreview
+        && isRealActiveSavedWorld(activeWorld.seed)
+        && (options?.capturePreview === true || worldDirty)
         ? saveWorldPreview(activeWorld.seed, options?.capturePreview === true)
         : Promise.resolve(false);
 
@@ -663,7 +676,7 @@ async function initialize() {
 
 let lastExitSaveAt = 0;
 function saveWorldOnExit() {
-    if (window.__webminecraftFastQuit === true) return;
+    if (window.__webminecraftFastQuit === true || !isRealActiveSavedWorld(activeWorldSeed)) return;
     // visibilitychange, beforeunload and pagehide can all fire for one exit.
     const now = Date.now();
     if (now - lastExitSaveAt < 1200) return;
