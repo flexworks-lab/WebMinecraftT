@@ -222,10 +222,13 @@ function getMaterials(itemId) {
 
 function isWorldVisible() {
     const inWorld = document.body.classList.contains("webminecraft-in-world");
+    const firstPerson = !window.__webminecraftCameraPerspective
+        || window.__webminecraftCameraPerspective === "first";
     const main = document.getElementById("mainMenu");
     const seed = document.getElementById("seedMenu");
     const saved = document.getElementById("savedWorlds");
     return inWorld
+        && firstPerson
         && (!main || getComputedStyle(main).display === "none")
         && (!seed || getComputedStyle(seed).display === "none")
         && (!saved || getComputedStyle(saved).display === "none");
@@ -437,6 +440,10 @@ function init() {
         refreshSelectedItem();
         updateVisibility();
     });
+
+    // The hand and held item are a first-person-only viewmodel. Hide them
+    // immediately when F5 switches to either third-person camera mode.
+    window.addEventListener("webminecraft:perspective-changed", updateVisibility);
 
     window.addEventListener("mousedown", event => {
         if (!visible || document.body.classList.contains("mobile-mode")) return;
