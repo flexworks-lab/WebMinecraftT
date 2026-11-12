@@ -311,7 +311,7 @@ export function setupInteraction(scene, camera) {
             }
             return;
         }
-        if (itemId < 1 || itemId > 184 || itemId === 16 || itemId === 17) return;
+        if (itemId < 1 || itemId > 223 || itemId === 16 || itemId === 17 || (itemId >= 185 && itemId <= 190)) return;
         const target = getTargetBlock(scene, camera, BLOCK, ndcX, ndcY);
         if (!target) return;
         if (tryIgniteTNT(scene, camera, itemId, ndcX, ndcY)) {
