@@ -684,7 +684,7 @@ class P2PRoomSession {
         const y = Math.floor(Number(change?.y));
         const z = Math.floor(Number(change?.z));
         const blockType = Math.floor(Number(change?.blockType ?? change?.type));
-        if (![x, y, z, blockType].every(Number.isFinite) || y < -32 || y > 95 || blockType < 0 || blockType > 184) return null;
+        if (![x, y, z, blockType].every(Number.isFinite) || y < -32 || y > 95 || blockType < 0 || blockType > 223) return null;
         const normalized = { x, y, z, blockType };
         this.blockChanges.set(x + "," + y + "," + z, normalized);
         if (this.blockChanges.size > 12000) {
