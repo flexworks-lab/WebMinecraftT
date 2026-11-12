@@ -1052,8 +1052,14 @@ async function buildPreview(force = false) {
     rosterAvatars = [];
     previewAvatar = null;
     currentIdentity = key;
-    const mainTextures = readSavedTextures() || {};
+    // Re-read both stores whenever the roster is rebuilt. The active skin can
+    // exist only in roster slot 3 on older profiles or after a partial sync.
     rosterTextureStore = readRosterTextureStore();
+    const activeRecord = readSavedTextures();
+    const rosterMain = rosterTextureStore.slots[MAIN_PROFILE_SLOT];
+    const mainTextures = activeRecord && Object.keys(activeRecord).length
+      ? activeRecord
+      : (rosterMain && Object.keys(rosterMain).length ? rosterMain : {});
     for (let slot = 0; slot < 5; slot++) {
       const appearanceId = slot === MAIN_PROFILE_SLOT ? identity.appearanceId : identity.appearanceId + "-preset-" + (slot + 1);
       const avatarId = identity.id + "-roster-" + (slot + 1);
@@ -1213,7 +1219,9 @@ function resize() {
 }
 async function show() {
   overlay.classList.add("open");
-  await buildPreview();
+  // Do not trust an old in-memory preview when the editor is reopened.
+  // Rehydrate from the current account's browser cache before displaying it.
+  await buildPreview(true);
   if (!overlay.classList.contains("open")) return;
   activateRosterSlot(rosterOrder[2] ?? MAIN_PROFILE_SLOT);
   setEditorPage("roster");
