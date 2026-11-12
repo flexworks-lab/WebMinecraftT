@@ -145,26 +145,35 @@ function writeCachedCharacterTextures(uid, textures, savedAt = Date.now()) {
     } catch { return false; }
 }
 
+function normalizeDeletedCharacterIds(values) {
+    if (!Array.isArray(values)) return [];
+    return Array.from(new Set(values.filter(id => typeof id === "string" && id.length > 0 && id.length <= 128))).slice(-500);
+}
+
 function readCachedCharacterRoster(uid) {
     try {
         const record = JSON.parse(localStorage.getItem(accountStorageKey(CHARACTER_ROSTER_STORAGE_KEY, uid)) || "null");
-        if (!record || ![1, 2].includes(Number(record.version)) || !Array.isArray(record.slots)) return null;
-        const slots = normalizeCharacterRoster(record.slots);
-        return slots ? {
+        if (!record || ![1, 2, 3].includes(Number(record.version)) || !Array.isArray(record.slots)) return null;
+        const slots = normalizeCharacterRoster(record.slots) || Array.from({ length: Math.min(MAX_SAVED_CHARACTERS, Math.max(5, record.slots.length)) }, () => null);
+        const deletedIds = normalizeDeletedCharacterIds(record.deletedIds);
+        return slots.some(Boolean) || deletedIds.length ? {
             slots,
+            deletedIds,
             savedAt: Math.max(0, Number(record.savedAt) || 0)
         } : null;
     } catch { return null; }
 }
 
-function writeCachedCharacterRoster(uid, slots, savedAt = Date.now()) {
+function writeCachedCharacterRoster(uid, slots, savedAt = Date.now(), deletedIds = []) {
     const normalized = normalizeCharacterRoster(slots);
-    if (!uid || !normalized) return false;
+    const tombstones = normalizeDeletedCharacterIds(deletedIds);
+    if (!uid || (!normalized && !tombstones.length)) return false;
     try {
         localStorage.setItem(accountStorageKey(CHARACTER_ROSTER_STORAGE_KEY, uid), JSON.stringify({
-            version: 2,
+            version: 3,
             savedAt: Math.max(0, Number(savedAt) || Date.now()),
-            slots: normalized
+            slots: normalized || Array.from({ length: 5 }, () => null),
+            deletedIds: tombstones
         }));
         return true;
     } catch { return false; }
@@ -200,23 +209,33 @@ async function saveCharacterTexturesToProfile(textures, savedAt = Date.now()) {
     }
 }
 
-async function saveCharacterRosterToProfile(slots, savedAt = Date.now()) {
+async function saveCharacterRosterToProfile(slots, savedAt = Date.now(), deletedIds = []) {
     const uid = currentUser?.uid;
-    const normalized = normalizeCharacterRoster(slots);
-    if (!uid || currentUser?.isAnonymous === true || !normalized || !window.firebase?.firestore) return false;
+    const normalized = normalizeCharacterRoster(slots) || [];
+    if (!uid || currentUser?.isAnonymous === true || !window.firebase?.firestore) return false;
     const savedDate = new Date(Math.max(0, Number(savedAt) || Date.now()));
     try {
         const profileRef = window.firebase.firestore().collection("profiles").doc(uid);
         const profileSnap = await profileRef.get();
         if (!profileSnap.exists || currentUser?.uid !== uid) return false;
         const existing = profileSnap.data() || {};
-        const remoteSlots = normalizeCharacterRoster(existing.characterRoster?.slots);
-        const merged = mergeCharacterRosters(remoteSlots, normalized) || normalized;
-        writeCachedCharacterRoster(uid, merged, savedDate.getTime());
+        const cached = readCachedCharacterRoster(uid);
+        const tombstones = normalizeDeletedCharacterIds([
+            ...(Array.isArray(existing.deletedCharacterIds) ? existing.deletedCharacterIds : []),
+            ...(cached?.deletedIds || []),
+            ...(Array.isArray(deletedIds) ? deletedIds : [])
+        ]);
+        const deleted = new Set(tombstones);
+        const remoteSlots = normalizeCharacterRoster(existing.characterRoster?.slots) || [];
+        const merged = mergeCharacterRosters(remoteSlots, normalized) || [];
+        const filtered = merged.map(record => deleted.has(record?.__characterId) ? null : record);
+        const storedSlots = filtered.length ? filtered : Array.from({ length: 5 }, () => null);
+        writeCachedCharacterRoster(uid, storedSlots, savedDate.getTime(), tombstones);
         await profileRef.set({
-            characterRoster: { version: 2, slots: merged },
-            characterRosterVersion: 2,
-            characterRosterUpdatedAt: savedDate
+            characterRoster: { version: 3, slots: storedSlots },
+            characterRosterVersion: 3,
+            characterRosterUpdatedAt: savedDate,
+            deletedCharacterIds: tombstones
         }, { merge: true });
         return currentUser?.uid === uid;
     } catch (error) {
@@ -326,12 +345,20 @@ async function syncUserProfile(user, profileOverride = null) {
         const cachedRoster = readCachedCharacterRoster(user.uid);
         const cloudRosterSlots = normalizeCharacterRoster(cloudRosterData?.slots);
         const cloudRosterSavedAt = timestampToMs(existing.characterRosterUpdatedAt);
-        const mergedRoster = mergeCharacterRosters(cloudRosterSlots, cachedRoster?.slots);
-        let chosenRoster = mergedRoster ? {
-            slots: mergedRoster,
+        const deletedIds = normalizeDeletedCharacterIds([
+            ...(Array.isArray(existing.deletedCharacterIds) ? existing.deletedCharacterIds : []),
+            ...(cachedRoster?.deletedIds || [])
+        ]);
+        const deleted = new Set(deletedIds);
+        const mergedRoster = mergeCharacterRosters(cloudRosterSlots, cachedRoster?.slots) || [];
+        let mergedSlots = mergedRoster.map(record => deleted.has(record?.__characterId) ? null : record);
+        if (mergedSlots.length < 5) mergedSlots = [...mergedSlots, ...Array.from({ length: 5 - mergedSlots.length }, () => null)];
+        let chosenRoster = (mergedSlots.some(Boolean) || deletedIds.length) ? {
+            slots: mergedSlots,
+            deletedIds,
             savedAt: Math.max(cloudRosterSavedAt, cachedRoster?.savedAt || 0)
         } : null;
-        if (chosenRoster?.slots) writeCachedCharacterRoster(user.uid, chosenRoster.slots, chosenRoster.savedAt || Date.now());
+        if (chosenRoster) writeCachedCharacterRoster(user.uid, chosenRoster.slots, chosenRoster.savedAt || Date.now(), deletedIds);
 
         // Keep the active account skin as the main roster entry while retaining
         // every separately saved character from either device.
@@ -353,8 +380,12 @@ async function syncUserProfile(user, profileOverride = null) {
                 __savedAt: Math.max(0, Number(chosenCharacter.savedAt) || Date.now())
             };
             const normalizedSlots = normalizeCharacterRoster(synchronizedSlots);
-            chosenRoster = normalizedSlots ? { slots: normalizedSlots, savedAt: Math.max(chosenRoster?.savedAt || 0, chosenCharacter.savedAt || 0) } : null;
-            if (chosenRoster?.slots) writeCachedCharacterRoster(user.uid, chosenRoster.slots, chosenRoster.savedAt || Date.now());
+            chosenRoster = {
+                slots: normalizedSlots || synchronizedSlots,
+                deletedIds,
+                savedAt: Math.max(chosenRoster?.savedAt || 0, chosenCharacter.savedAt || 0)
+            };
+            writeCachedCharacterRoster(user.uid, chosenRoster.slots, chosenRoster.savedAt || Date.now(), deletedIds);
         }
 
         if (currentUser?.uid !== user.uid) return;
@@ -363,7 +394,8 @@ async function syncUserProfile(user, profileOverride = null) {
                 uid: user.uid,
                 textures: chosenCharacter?.textures || {},
                 roster: chosenRoster?.slots || null,
-                rosterSavedAt: chosenRoster?.savedAt || 0
+                rosterSavedAt: chosenRoster?.savedAt || 0,
+                deletedCharacterIds: deletedIds
             }
         }));
         const username = String(profileOverride?.username || existing.username || "").trim();
@@ -410,7 +442,7 @@ async function syncUserProfile(user, profileOverride = null) {
                 ? saveCharacterTexturesToProfile(syncedLocalCharacter.textures, syncedLocalCharacter.savedAt || Date.now())
                 : Promise.resolve(false),
             syncedLocalRoster
-                ? saveCharacterRosterToProfile(syncedLocalRoster.slots, syncedLocalRoster.savedAt || Date.now())
+                ? saveCharacterRosterToProfile(syncedLocalRoster.slots, syncedLocalRoster.savedAt || Date.now(), syncedLocalRoster.deletedIds || [])
                 : Promise.resolve(false)
         ]);
         if (isPlayerDataSyncCancelled() || currentUser?.uid !== user.uid) return;
