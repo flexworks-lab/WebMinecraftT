@@ -114,7 +114,7 @@ function saveAndQuit() {
         window.__webminecraftFlushSingleplayerBlockSnapshot?.();
 
         // IndexedDB/cloud work continues in the background; never hold up the menu.
-        Promise.resolve(saveCurrentWorld({ skipCloud: true })).catch(error => {
+        Promise.resolve(saveCurrentWorld({ skipCloud: true, capturePreview: true })).catch(error => {
             console.warn("Background world save did not finish:", error);
         });
 
