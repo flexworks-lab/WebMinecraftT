@@ -1,5 +1,5 @@
 import { getKeybinds, setKeybind, resetKeybinds, formatKeyCode, keybindLabels } from "../player/keybinds.js";
-import { IS_TOUCH_DEVICE } from "../core/performance.js";
+import { IS_TOUCH_DEVICE, IS_LOW_POWER_DEVICE } from "../core/performance.js";
 
 const STORAGE_KEY = "webminecraft-settings-v2";
 
@@ -10,7 +10,7 @@ const defaults = {
     lightingQuality: IS_TOUCH_DEVICE ? "balanced" : "high",
     brightness: 1,
     fov: 75,
-    renderDistance: IS_TOUCH_DEVICE ? 60 : 120,
+    renderDistance: IS_TOUCH_DEVICE ? 60 : (IS_LOW_POWER_DEVICE ? 90 : 180),
     fog: true,
     waterEffects: true,
     crosshair: true,
@@ -41,6 +41,12 @@ function readSettings() {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
         if (saved && typeof saved === "object") result = { ...defaults, ...saved };
     } catch {}
+    // The previous controller capped all distances at 24 blocks, so the
+    // old desktop default never took effect. Move that old default to the new
+    // working 9-chunk default once; preserve other saved choices.
+    if (!IS_TOUCH_DEVICE && !IS_LOW_POWER_DEVICE && Number(result.renderDistance) === 120) {
+        result.renderDistance = 180;
+    }
     // On the first touch-device migration, replace the old desktop default
     // with a lightweight distance. After that, preserve the user's own choice.
     if (IS_TOUCH_DEVICE) {
@@ -143,7 +149,7 @@ const panels = {
         </div>
         <div class="settingsGroup"><h3>View</h3>
         ${control("sFov", "Field of View", "Change how wide your view is.", "range", [60,110,1])}
-        ${control("sRenderDistance", "View Distance", "Choose how far you can see.", "select", [[60,"Short"],[90,"Normal"],[120,"Far"],[150,"Very Far"],[180,"Extreme"]])}
+        ${control("sRenderDistance", "View Distance", "Choose how far you can see.", "select", [[60,"Short"],[90,"Normal"],[120,"Far"],[150,"Very Far"],[180,"Extreme"],[210,"Huge"],[240,"Maximum"]])}
         ${control("sPixelated", "Classic Pixels", "Use a crisp, blocky look.", "checkbox")}
         </div>`,
     Controls: `
@@ -266,6 +272,13 @@ function build() {
     bind("sBrightness", "brightness", "range");
     bind("sFov", "fov", "range");
     bind("sRenderDistance", "renderDistance", "select");
+    const renderDistanceSelect = document.getElementById("sRenderDistance");
+    if (renderDistanceSelect && IS_LOW_POWER_DEVICE) {
+        const deviceLimit = IS_TOUCH_DEVICE ? 60 : 90;
+        for (const option of renderDistanceSelect.options) {
+            if (Number(option.value) > deviceLimit) option.disabled = true;
+        }
+    }
     bind("sFog", "fog", "checkbox");
     bind("sWaterEffects", "waterEffects", "checkbox");
     bind("sPixelated", "pixelated", "checkbox");
