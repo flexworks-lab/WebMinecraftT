@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { readCharacterTextureRecord } from "./appearanceIdentity.js";
 import { keys, touchInput } from "./controls.js";
+import { createVoxelSword, isSwordItem } from "./voxelSword.js";
 import {
     grassMaterial,
     dirtMaterial,
@@ -114,14 +115,6 @@ function loadHeldTexture(file) {
 }
 
 const flintSteelTexture = loadHeldTexture("Flint_and_Steel_JE4_BE2.png");
-const swordTextures = {
-    186: loadHeldTexture("tools/Wooden_Sword_JE2_BE2.png"),
-    187: loadHeldTexture("tools/Stone_Sword_JE2_BE2.png"),
-    188: loadHeldTexture("tools/Iron_Sword_JE2_BE2.png"),
-    189: loadHeldTexture("tools/Golden_Sword_JE3_BE2.png"),
-    190: loadHeldTexture("tools/Diamond_Sword_JE3_BE3.png"),
-    
-};
 
 function makeHandTexture(part) {
     const canvas = document.createElement("canvas");
@@ -255,9 +248,17 @@ function clearHeldMesh() {
         blockMesh = null;
     }
     if (itemMesh) {
-        itemMesh.geometry.dispose();
-        itemMesh.material?.dispose?.();
         heldRoot.remove(itemMesh);
+        if (itemMesh.userData?.disposeVoxelSword) {
+            itemMesh.userData.disposeVoxelSword();
+        } else {
+            itemMesh.traverse?.(child => {
+                if (!child?.isMesh) return;
+                child.geometry?.dispose?.();
+                if (Array.isArray(child.material)) child.material.forEach(material => material?.dispose?.());
+                else child.material?.dispose?.();
+            });
+        }
         itemMesh = null;
     }
 }
@@ -265,20 +266,14 @@ function clearHeldMesh() {
 function updateBlock() {
     clearHeldMesh();
 
-    if (swordTextures[selectedItemId]) {
-        const geometry = new THREE.PlaneGeometry(0.42, 1.05);
-        const material = new THREE.MeshBasicMaterial({
-            map: swordTextures[selectedItemId],
-            transparent: true,
-            alphaTest: 0.05,
-            depthWrite: false,
-            side: THREE.DoubleSide
-        });
-        itemMesh = new THREE.Mesh(geometry, material);
-        // Keep the sword grip aligned with the blocky hand and keep the blade
-        // close enough to read as being held rather than floating in front.
-        itemMesh.position.set(0.10, 0.02, -0.24);
-        itemMesh.rotation.set(0.02, 0.10, -0.10);
+    if (isSwordItem(selectedItemId)) {
+        itemMesh = createVoxelSword(selectedItemId);
+        // The sprite's hilt origin is built into the 3D mesh. Place that
+        // origin inside the visible palm so the sword grows out of the grip
+        // instead of hovering in front of the arm.
+        itemMesh.position.set(0.22, -0.56, 0.15);
+        itemMesh.rotation.set(0.04, 0.02, -0.06);
+        itemMesh.scale.setScalar(1.12);
         itemMesh.renderOrder = 4;
         heldRoot.add(itemMesh);
         return;
