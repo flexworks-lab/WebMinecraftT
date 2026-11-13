@@ -32,7 +32,7 @@ const LOCKER_ITEMS = [
   { id:"denim-dark", name:"Dark Denim", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#273d5c", accent:"#819cb9", pattern:"denim", tag:"LEGS" },
   { id:"track-neon", name:"Neon Track Pants", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#282f3b", accent:"#72d6b8", pattern:"track", tag:"LEGS" },
   { id:"onyx-gloves", name:"Onyx Gloves", category:"HANDS", slot:"hands", keys:["hand"], base:"#202631", accent:"#8297b3", pattern:"gloves", tag:"HANDS" },
-  { id:"ember-wraps", name:"Ember Wraps", category:"HANDS", slot:"hands", keys:["hand"], base:"#673b35", accent:"#d78b62", pattern:"wraps", tag:"HANDS" }
+  { id:"ember-wraps", name:"Ember Wraps", category:"HANDS", slot:"hands", keys:["hand"], base:"#673b35", accent:"#d78b62", pattern:"wraps", tag:"HANDS" },
   { id:"helmet-iron", name:"Iron Vanguard Helmet", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#59636e", accent:"#c6d0d8", pattern:"helmet", tag:"HEADWEAR" },
   { id:"helmet-emerald", name:"Emerald Sentinel Helm", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#1f725b", accent:"#5fe4ad", pattern:"helmet", tag:"HEADWEAR" },
   { id:"sand-bucket", name:"Sand Explorer Bucket", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#9b8664", accent:"#d8c4a0", pattern:"bucket", tag:"HEADWEAR" },
