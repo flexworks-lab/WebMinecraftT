@@ -33,6 +33,49 @@ const LOCKER_ITEMS = [
   { id:"track-neon", name:"Neon Track Pants", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#282f3b", accent:"#72d6b8", pattern:"track", tag:"LEGS" },
   { id:"onyx-gloves", name:"Onyx Gloves", category:"HANDS", slot:"hands", keys:["hand"], base:"#202631", accent:"#8297b3", pattern:"gloves", tag:"HANDS" },
   { id:"ember-wraps", name:"Ember Wraps", category:"HANDS", slot:"hands", keys:["hand"], base:"#673b35", accent:"#d78b62", pattern:"wraps", tag:"HANDS" }
+  { id:"helmet-iron", name:"Iron Vanguard Helmet", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#59636e", accent:"#c6d0d8", pattern:"helmet", tag:"HEADWEAR" },
+  { id:"helmet-emerald", name:"Emerald Sentinel Helm", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#1f725b", accent:"#5fe4ad", pattern:"helmet", tag:"HEADWEAR" },
+  { id:"sand-bucket", name:"Sand Explorer Bucket", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#9b8664", accent:"#d8c4a0", pattern:"bucket", tag:"HEADWEAR" },
+  { id:"wizard-amethyst", name:"Amethyst Wizard Hat", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#493574", accent:"#bc91ff", pattern:"wizard", tag:"HEADWEAR" },
+  { id:"top-hat-noir", name:"Midnight Top Hat", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#1b2027", accent:"#b8c5d4", pattern:"topHat", tag:"HEADWEAR" },
+  { id:"headphones-neon", name:"Neon Headphones", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#232a37", accent:"#59e7de", pattern:"headphones", tag:"HEADWEAR" },
+  { id:"ranger-hood", name:"Forest Ranger Hood", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#415b3e", accent:"#91ad71", pattern:"hood", tag:"HEADWEAR" },
+  { id:"crimson-bandana", name:"Crimson Bandana", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#812f37", accent:"#e6a5a6", pattern:"bandana", tag:"HEADWEAR" },
+  { id:"flower-crown", name:"Wildflower Crown", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#5d8f52", accent:"#ffb8c6", pattern:"flower", tag:"HEADWEAR" },
+  { id:"void-horns", name:"Void Horns", category:"HATS", slot:"headwear", keys:["headTop","headSide"], base:"#373044", accent:"#aa91de", pattern:"horns", tag:"HEADWEAR" },
+  { id:"aviator-goggles", name:"Pilot Goggles", category:"FACES", slot:"face", keys:["face"], base:"#9d7742", accent:"#92d8ec", pattern:"goggles", tag:"FACE" },
+  { id:"pixel-shades", name:"Pixel Shades", category:"FACES", slot:"face", keys:["face"], base:"#202936", accent:"#46b8cb", pattern:"shades", tag:"FACE" },
+  { id:"frost-mask", name:"Frostbite Mask", category:"FACES", slot:"face", keys:["face"], base:"#d4eaf2", accent:"#76bcd5", pattern:"frostMask", tag:"FACE" },
+  { id:"deep-sea-respirator", name:"Deep-Sea Respirator", category:"FACES", slot:"face", keys:["face"], base:"#405567", accent:"#a9c7d9", pattern:"respirator", tag:"FACE" },
+  { id:"scarlet-mark", name:"Scarlet War Mark", category:"FACES", slot:"face", keys:["face"], base:"#c58c67", accent:"#bd3640", pattern:"mark", tag:"FACE" },
+  { id:"starlight-paint", name:"Starlight Face Paint", category:"FACES", slot:"face", keys:["face"], base:"#c58c67", accent:"#dfd8ff", pattern:"stars", tag:"FACE" },
+  { id:"forest-ranger", name:"Forest Ranger Jacket", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#40583c", accent:"#a1b77a", pattern:"jacket", tag:"OUTFIT" },
+  { id:"crimson-varsity", name:"Crimson Varsity Jacket", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#71313a", accent:"#f0d5a1", pattern:"varsity", tag:"OUTFIT" },
+  { id:"deep-sea-suit", name:"Deep-Sea Diving Suit", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#294b66", accent:"#67c8dc", pattern:"suit", tag:"OUTFIT" },
+  { id:"obsidian-chest", name:"Obsidian Chestplate", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#30283d", accent:"#a58bd2", pattern:"armor", tag:"OUTFIT" },
+  { id:"desert-poncho", name:"Desert Poncho", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#9b744d", accent:"#e0bd79", pattern:"cloak", tag:"OUTFIT" },
+  { id:"creeper-hoodie", name:"Creeper Hoodie", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#315d42", accent:"#7fd36f", pattern:"hoodie", tag:"OUTFIT" },
+  { id:"arctic-parka", name:"Arctic Expedition Parka", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#738b9c", accent:"#d9edf4", pattern:"jacket", tag:"OUTFIT" },
+  { id:"royal-tunic", name:"Royal Tunic", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#4b377c", accent:"#e2c36e", pattern:"tunic", tag:"OUTFIT" },
+  { id:"mechanic-vest", name:"Mechanic Utility Vest", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#8a713d", accent:"#e5c36b", pattern:"vest", tag:"OUTFIT" },
+  { id:"neon-streetwear", name:"Neon Streetwear", category:"TOPS", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#252c3b", accent:"#60e0ce", pattern:"hoodie", tag:"OUTFIT" },
+  { id:"heavyweight-build", name:"Heavyweight Build", category:"MUSCLES", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#b87954", accent:"#714332", pattern:"muscles", tag:"BODY" },
+  { id:"runner-build", name:"Runner Build", category:"MUSCLES", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#d09a72", accent:"#875a43", pattern:"athletic", tag:"BODY" },
+  { id:"defined-build", name:"Defined Build", category:"MUSCLES", slot:"upper", keys:["chest","leftArm","rightArm"], base:"#ba805d", accent:"#744a37", pattern:"defined", tag:"BODY" },
+  { id:"snow-camo", name:"Snow-Camo Trousers", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#b7c5cb", accent:"#edf3ef", pattern:"snow", tag:"LEGS" },
+  { id:"redline-joggers", name:"Redline Joggers", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#242a34", accent:"#c64a50", pattern:"joggers", tag:"LEGS" },
+  { id:"ranger-cargo", name:"Ranger Cargo Pants", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#526344", accent:"#a9b982", pattern:"cargo", tag:"LEGS" },
+  { id:"royal-trousers", name:"Royal Trousers", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#49366f", accent:"#d7b96c", pattern:"trousers", tag:"LEGS" },
+  { id:"tactical-pants", name:"Tactical Pants", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#303b3d", accent:"#81958b", pattern:"tactical", tag:"LEGS" },
+  { id:"netherite-greaves", name:"Netherite Greaves", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#383743", accent:"#8a8292", pattern:"armor", tag:"LEGS" },
+  { id:"summer-shorts", name:"Summer Shorts", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#347aa1", accent:"#f1d37c", pattern:"shorts", tag:"LEGS" },
+  { id:"ice-track-pants", name:"Ice-Track Pants", category:"PANTS", slot:"legs", keys:["leftLeg","rightLeg"], base:"#344d67", accent:"#82d6e8", pattern:"track", tag:"LEGS" },
+  { id:"frost-gauntlets", name:"Frost Gauntlets", category:"HANDS", slot:"hands", keys:["hand"], base:"#637e91", accent:"#d1f3ff", pattern:"gauntlets", tag:"HANDS" },
+  { id:"fingerless-gloves", name:"Fingerless Gloves", category:"HANDS", slot:"hands", keys:["hand"], base:"#343b46", accent:"#bf8b5a", pattern:"fingerless", tag:"HANDS" },
+  { id:"copper-bracers", name:"Copper Bracers", category:"HANDS", slot:"hands", keys:["hand"], base:"#8e512f", accent:"#d99661", pattern:"bracers", tag:"HANDS" },
+  { id:"emerald-wraps", name:"Emerald Wraps", category:"HANDS", slot:"hands", keys:["hand"], base:"#236b51", accent:"#8ce0b0", pattern:"wraps", tag:"HANDS" },
+  { id:"void-gloves", name:"Void Gloves", category:"HANDS", slot:"hands", keys:["hand"], base:"#29263a", accent:"#9d89d5", pattern:"gloves", tag:"HANDS" },
+  { id:"racer-grips", name:"Racer Grips", category:"HANDS", slot:"hands", keys:["hand"], base:"#303c4a", accent:"#e5b34f", pattern:"fingerless", tag:"HANDS" },
 ];
 function extractTextureMapData(value) {
   const source = value?.textures && typeof value.textures === "object" ? value.textures : value;
@@ -1084,9 +1127,8 @@ function makeLockerHatMesh(item) {
     return mesh;
   };
   const pattern = item.pattern;
-  // Head cube is 0.62 units wide and its top is at y=0.31.
-  // All accessories sit just above that surface and remain children of the
-  // animated head pivot, so they rotate with the character.
+  // The head cube is 0.62 units wide and its top is y=0.31. Every piece
+  // is a separate voxel mesh parented to the animated head pivot.
   if (pattern === "cap") {
     box(.70, .18, .68, 0, .39, 0, base);
     box(.76, .07, .76, 0, .32, 0, accent);
@@ -1108,10 +1150,72 @@ function makeLockerHatMesh(item) {
     box(.12, .20, .12, .22, .72, .22, accent);
     box(.12, .12, .12, 0, .68, 0, bright);
     box(.18, .08, .035, 0, .50, -.315, bright);
+  } else if (pattern === "helmet") {
+    box(.70, .25, .70, 0, .43, 0, base);
+    box(.58, .12, .60, 0, .60, -.015, accent);
+    box(.73, .08, .74, 0, .34, 0, dark);
+    box(.58, .12, .045, 0, .36, .37, bright);
+    box(.13, .18, .10, -.30, .32, .22, accent);
+    box(.13, .18, .10, .30, .32, .22, accent);
+  } else if (pattern === "bucket") {
+    box(.70, .16, .70, 0, .39, 0, base);
+    box(.82, .07, .82, 0, .32, 0, accent);
+    box(.54, .10, .54, 0, .51, 0, base);
+    box(.58, .05, .58, 0, .45, 0, dark);
+    box(.16, .12, .07, 0, .47, .30, accent);
+  } else if (pattern === "wizard") {
+    box(.78, .07, .78, 0, .34, 0, accent);
+    box(.58, .12, .58, 0, .42, 0, base);
+    box(.43, .15, .43, 0, .55, 0, base);
+    box(.29, .15, .29, 0, .69, 0, base);
+    box(.16, .14, .16, 0, .83, 0, base);
+    box(.62, .055, .62, 0, .44, 0, bright);
+    box(.035, .16, .035, .12, .70, .18, bright);
+  } else if (pattern === "topHat") {
+    box(.82, .07, .82, 0, .34, 0, accent);
+    box(.55, .42, .55, 0, .57, 0, base);
+    box(.58, .08, .58, 0, .79, 0, base);
+    box(.57, .07, .58, 0, .49, .01, dark);
+    box(.57, .06, .04, 0, .51, .30, accent);
+  } else if (pattern === "headphones") {
+    box(.68, .07, .12, 0, .65, -.25, dark);
+    box(.10, .13, .50, -.32, .48, 0, base);
+    box(.10, .13, .50, .32, .48, 0, base);
+    box(.14, .16, .24, -.37, .48, .18, accent);
+    box(.14, .16, .24, .37, .48, .18, accent);
+    box(.06, .08, .12, -.37, .48, .32, bright);
+    box(.06, .08, .12, .37, .48, .32, bright);
+  } else if (pattern === "hood") {
+    box(.72, .28, .72, 0, .43, -.04, base);
+    box(.78, .10, .15, 0, .35, .34, accent);
+    box(.12, .22, .14, -.33, .34, .28, dark);
+    box(.12, .22, .14, .33, .34, .28, dark);
+    box(.42, .07, .12, 0, .29, .34, accent);
+  } else if (pattern === "bandana") {
+    box(.70, .10, .74, 0, .34, 0, base);
+    box(.72, .055, .76, 0, .42, 0, accent);
+    box(.12, .18, .10, -.30, .28, .31, base);
+    box(.12, .18, .10, .30, .28, .31, base);
+    box(.05, .09, .045, -.30, .17, .33, accent);
+  } else if (pattern === "flower") {
+    box(.68, .055, .68, 0, .35, 0, base);
+    const flowers = [[-.27,.42,-.19],[.27,.42,-.19],[-.27,.42,.19],[.27,.42,.19],[0,.45,-.31],[0,.45,.31]];
+    for (const [x,y,z] of flowers) {
+      box(.12,.12,.12,x,y,z,accent);
+      box(.07,.07,.07,x,y+.07,z,bright);
+    }
+    box(.66,.045,.66,0,.38,0,dark);
+  } else if (pattern === "horns") {
+    box(.68,.14,.68,0,.37,0,base);
+    box(.14,.18,.14,-.24,.50,.06,accent);
+    box(.12,.15,.12,-.27,.64,.06,base);
+    box(.14,.18,.14,.24,.50,.06,accent);
+    box(.12,.15,.12,.27,.64,.06,base);
+    box(.08,.08,.08,-.29,.74,.06,bright);
+    box(.08,.08,.08,.29,.74,.06,bright);
   }
   return hat;
 }
-
 function syncLockerAccessories(entry) {
   const head = entry?.parts?.head;
   if (!head) return;
@@ -1267,73 +1371,150 @@ function buildLockerTextureCanvas(item, key, avatar, sourceOverride = null) {
   }
   const base = item.base, accent = item.accent;
   const px = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
+  const pattern = item.pattern;
 
-  if (item.pattern === "cap" || item.pattern === "beanie" || item.pattern === "crown") {
+  if (item.category === "HATS") {
     if (key === "headTop") {
       px(1, 2, 14, 11, base);
-      px(3, 0, 10, 3, accent);
-      px(0, 10, 16, 3, accent);
-      if (item.pattern === "crown") {
-        px(1, 0, 3, 4, accent); px(6, 0, 4, 4, accent); px(12, 0, 3, 4, accent);
-        px(3, 5, 2, 2, "#fff0b0"); px(11, 5, 2, 2, "#fff0b0");
-      } else if (item.pattern === "beanie") {
-        px(2, 1, 12, 3, accent); px(6, 0, 4, 2, "#e7ddff");
+      if (pattern === "wizard") {
+        px(5, 0, 6, 3, accent); px(4, 3, 8, 3, base); px(2, 6, 12, 3, base);
+        px(0, 10, 16, 4, accent); px(7, 2, 2, 2, "#fff0b0");
+      } else if (pattern === "helmet") {
+        px(1, 1, 14, 12, base); px(3, 0, 10, 4, accent); px(0, 11, 16, 3, "#303b45");
+      } else if (pattern === "bucket") {
+        px(1, 1, 14, 11, base); px(0, 9, 16, 4, accent); px(4, 0, 8, 2, "#d8c4a0");
+      } else if (pattern === "topHat") {
+        px(4, 0, 8, 10, base); px(2, 9, 12, 4, accent); px(5, 2, 6, 2, "#414a56");
+      } else if (pattern === "headphones") {
+        px(1, 1, 14, 3, accent); px(0, 4, 3, 8, base); px(13, 4, 3, 8, base);
+        px(1, 11, 14, 3, "#202936");
+      } else if (pattern === "hood") {
+        px(0, 1, 16, 11, base); px(2, 0, 12, 3, accent); px(1, 11, 14, 4, "#202a20");
+      } else if (pattern === "bandana") {
+        px(0, 9, 16, 4, base); px(2, 7, 12, 3, accent); px(2, 13, 3, 2, base);
+      } else if (pattern === "flower") {
+        px(1, 10, 14, 3, base); px(2, 8, 3, 3, accent); px(7, 7, 3, 3, "#f7e2a0"); px(12, 8, 3, 3, accent);
+      } else if (pattern === "horns") {
+        px(0, 1, 16, 11, base); px(0, 0, 3, 5, accent); px(13, 0, 3, 5, accent);
+        px(1, 0, 2, 3, "#d4c5f4"); px(13, 0, 2, 3, "#d4c5f4");
       } else {
-        px(2, 12, 12, 2, "#17202d"); px(10, 8, 5, 2, accent);
+        px(3, 0, 10, 3, accent); px(0, 10, 16, 3, accent);
+        if (pattern === "crown") { px(1, 0, 3, 4, accent); px(6, 0, 4, 4, accent); px(12, 0, 3, 4, accent); }
+        else if (pattern === "beanie") { px(2, 1, 12, 3, accent); px(6, 0, 4, 2, "#e7ddff"); }
+        else { px(2, 12, 12, 2, "#17202d"); px(10, 8, 5, 2, accent); }
       }
     } else {
       px(0, 0, 16, 5, base);
       px(0, 4, 16, 2, accent);
-      if (item.pattern === "crown") { px(2, 0, 2, 3, accent); px(7, 0, 2, 3, accent); px(12, 0, 2, 3, accent); }
-      if (item.pattern === "beanie") { px(1, 0, 14, 2, accent); px(2, 6, 12, 1, accent); }
+      if (pattern === "helmet") { px(0, 6, 16, 5, "#303b45"); px(2, 8, 12, 2, accent); }
+      if (pattern === "bucket") { px(0, 6, 16, 5, accent); px(2, 11, 12, 2, base); }
+      if (pattern === "wizard") { px(2, 0, 12, 3, base); px(1, 5, 14, 2, accent); }
+      if (pattern === "topHat") { px(2, 0, 12, 12, base); px(2, 4, 12, 2, accent); }
+      if (pattern === "headphones") { px(0, 2, 3, 12, accent); px(13, 2, 3, 12, accent); }
+      if (pattern === "hood") { px(0, 0, 3, 14, base); px(13, 0, 3, 14, base); }
+      if (pattern === "bandana") { px(0, 3, 16, 5, accent); px(0, 8, 3, 5, base); }
+      if (pattern === "flower") { px(2, 6, 3, 3, accent); px(7, 5, 3, 3, "#f7e2a0"); px(12, 6, 3, 3, accent); }
+      if (pattern === "horns") { px(0, 0, 3, 5, accent); px(13, 0, 3, 5, accent); }
+      if (pattern === "crown") { px(2, 0, 2, 3, accent); px(7, 0, 2, 3, accent); px(12, 0, 2, 3, accent); }
+      if (pattern === "beanie") { px(1, 0, 14, 2, accent); px(2, 6, 12, 1, accent); }
     }
-  } else if (item.pattern === "visor" || item.pattern === "warpaint" || item.pattern === "mask") {
-    if (item.pattern === "visor") {
+  } else if (item.category === "FACES") {
+    if (pattern === "visor") {
       px(0, 5, 16, 5, base); px(1, 6, 14, 3, accent); px(2, 7, 4, 1, "#efffff"); px(10, 7, 4, 1, "#efffff");
-    } else if (item.pattern === "warpaint") {
-      px(2, 5, 3, 6, accent); px(11, 5, 3, 6, accent); px(6, 8, 4, 2, "#f2c49d");
+    } else if (pattern === "warpaint" || pattern === "mark") {
+      px(2, 5, 3, 6, accent); px(11, 5, 3, 6, accent);
+      if (pattern === "mark") { px(6, 3, 4, 2, accent); px(7, 5, 2, 6, accent); }
+      else px(6, 8, 4, 2, "#f2c49d");
+    } else if (pattern === "mask" || pattern === "frostMask") {
+      px(0, 8, 16, 7, base); px(1, 7, 14, 4, accent);
+      px(3, 8, 3, 2, "#80c4d7"); px(10, 8, 3, 2, "#80c4d7");
+      if (pattern === "frostMask") { px(0, 12, 16, 2, "#eafaff"); px(5, 8, 6, 2, "#c4eaf3"); }
+    } else if (pattern === "goggles" || pattern === "shades") {
+      px(1, 6, 6, 4, pattern === "goggles" ? "#b98742" : base);
+      px(9, 6, 6, 4, pattern === "goggles" ? "#b98742" : base);
+      px(2, 7, 4, 2, accent); px(10, 7, 4, 2, accent);
+      px(7, 7, 2, 1, "#272d35");
+      if (pattern === "goggles") { px(2, 6, 4, 1, "#f6e0a1"); px(10, 6, 4, 1, "#f6e0a1"); }
+      else { px(0, 7, 2, 1, base); px(14, 7, 2, 1, base); }
+    } else if (pattern === "respirator") {
+      px(3, 8, 10, 6, base); px(2, 9, 3, 4, accent); px(11, 9, 3, 4, accent);
+      px(6, 9, 4, 4, "#c1d0d9"); px(7, 10, 2, 2, "#384a5a");
+    } else if (pattern === "stars") {
+      px(3, 5, 2, 2, accent); px(11, 5, 2, 2, accent);
+      px(7, 3, 2, 2, "#fff2a5"); px(5, 11, 2, 2, accent); px(10, 11, 2, 2, accent);
     } else {
       px(0, 8, 16, 7, base); px(1, 7, 14, 4, accent); px(3, 8, 3, 2, "#80c4d7"); px(10, 8, 3, 2, "#80c4d7");
     }
-  } else if (item.pattern === "jacket" || item.pattern === "armor" || item.pattern === "hoodie") {
+  } else if (item.category === "TOPS") {
     px(0, 0, 16, 16, base);
-    px(0, 0, 3, 16, accent); px(13, 0, 3, 16, accent);
-    px(7, 0, 2, 16, "#172332");
-    px(6, 2, 4, 2, accent);
-    for (let y = 5; y < 15; y += 4) px(7, y, 2, 1, "#d5e3ef");
-    if (item.pattern === "armor") {
+    px(0, 0, 2, 16, accent); px(14, 0, 2, 16, accent);
+    if (pattern === "armor") {
       px(0, 1, 5, 4, "#a9b5c3"); px(11, 1, 5, 4, "#a9b5c3");
       px(4, 6, 8, 2, accent); px(5, 10, 6, 5, "#313b4b");
-    } else if (item.pattern === "hoodie") {
-      px(4, 0, 8, 3, "#4b5669"); px(5, 11, 6, 4, "#111925");
+      px(0, 0, 16, 2, "#d5dce5");
+    } else if (pattern === "suit" || pattern === "tunic") {
+      px(7, 0, 2, 16, "#172332");
+      px(6, 1, 4, 3, "#f2e7d4"); px(7, 4, 2, 3, pattern === "suit" ? "#c4474d" : accent);
+      px(3, 9, 3, 3, accent); px(10, 9, 3, 3, accent);
+      if (pattern === "tunic") { px(0, 13, 16, 2, "#d8ba66"); px(6, 13, 4, 2, "#d8ba66"); }
+    } else if (pattern === "cloak") {
+      px(1, 0, 14, 16, base); px(0, 0, 3, 16, accent); px(13, 0, 3, 16, accent);
+      px(4, 0, 8, 3, "#ead39e"); px(6, 5, 4, 4, accent); px(7, 6, 2, 2, base);
+    } else if (pattern === "vest") {
+      px(0, 0, 4, 16, "#333b3c"); px(12, 0, 4, 16, "#333b3c");
+      px(4, 1, 8, 8, base); px(4, 9, 3, 4, accent); px(9, 9, 3, 4, accent);
+      px(7, 0, 2, 16, "#252d31");
+    } else if (pattern === "varsity") {
+      px(0, 0, 3, 16, "#f0d5a1"); px(13, 0, 3, 16, "#f0d5a1");
+      px(7, 0, 2, 16, "#f0d5a1"); px(3, 2, 3, 3, accent); px(10, 2, 3, 3, accent);
+    } else {
+      px(7, 0, 2, 16, "#172332"); px(6, 2, 4, 2, accent);
+      for (let y = 5; y < 15; y += 4) px(7, y, 2, 1, "#d5e3ef");
+      if (pattern === "hoodie") { px(4, 0, 8, 3, "#4b5669"); px(5, 11, 6, 4, "#111925"); }
+      if (key !== "chest") { px(0, 0, 16, 3, accent); px(0, 13, 16, 3, "#182434"); }
     }
-    if (key !== "chest") { px(0, 0, 16, 3, accent); px(0, 13, 16, 3, "#182434"); px(6, 7, 4, 2, base); }
-  } else if (item.pattern === "muscles" || item.pattern === "athletic") {
+  } else if (item.category === "MUSCLES") {
     px(0, 0, 16, 16, base);
     if (key === "chest") {
       px(2, 2, 5, 5, accent); px(9, 2, 5, 5, accent);
       px(3, 3, 3, 3, base); px(10, 3, 3, 3, base);
       px(4, 8, 3, 3, accent); px(9, 8, 3, 3, accent);
       px(5, 9, 2, 2, base); px(9, 9, 2, 2, base);
-      px(7, 3, 2, 11, "#523b34");
-      px(3, 13, 10, 2, "#5d4037");
-      if (item.pattern === "athletic") { px(1, 1, 2, 14, "#e1b08b"); px(13, 1, 2, 14, "#e1b08b"); }
+      px(7, 3, 2, 11, "#523b34"); px(3, 13, 10, 2, "#5d4037");
+      if (pattern === "athletic") { px(1, 1, 2, 14, "#e1b08b"); px(13, 1, 2, 14, "#e1b08b"); }
+      if (pattern === "defined") { px(4, 3, 2, 3, "#e5b18a"); px(10, 3, 2, 3, "#e5b18a"); px(6, 7, 4, 2, "#714a38"); }
     } else {
-      px(0, 2, 3, 11, accent); px(13, 2, 3, 11, accent); px(2, 5, 2, 5, base); px(12, 5, 2, 5, base);
+      px(0, 2, 3, 11, accent); px(13, 2, 3, 11, accent);
+      px(2, 5, 2, 5, base); px(12, 5, 2, 5, base);
     }
-  } else if (item.pattern === "cargo" || item.pattern === "denim" || item.pattern === "track") {
+  } else if (item.category === "PANTS") {
     px(0, 0, 16, 16, base);
     px(1, 0, 2, 16, accent); px(13, 0, 2, 16, accent);
     px(6, 0, 1, 16, "#182431"); px(9, 0, 1, 16, "#182431");
-    if (item.pattern === "cargo") { px(3, 5, 3, 4, "#a4ad79"); px(10, 5, 3, 4, "#a4ad79"); px(3, 10, 3, 2, "#333f32"); px(10, 10, 3, 2, "#333f32"); }
-    if (item.pattern === "denim") { px(3, 2, 2, 12, "#526b8b"); px(11, 2, 2, 12, "#526b8b"); px(7, 1, 2, 2, accent); }
-    if (item.pattern === "track") { px(4, 0, 2, 16, accent); px(10, 0, 2, 16, accent); }
-  } else if (item.pattern === "gloves" || item.pattern === "wraps") {
+    if (pattern === "cargo") { px(3, 5, 3, 4, "#a4ad79"); px(10, 5, 3, 4, "#a4ad79"); px(3, 10, 3, 2, "#333f32"); px(10, 10, 3, 2, "#333f32"); }
+    if (pattern === "denim") { px(3, 2, 2, 12, "#526b8b"); px(11, 2, 2, 12, "#526b8b"); px(7, 1, 2, 2, accent); }
+    if (pattern === "track") { px(4, 0, 2, 16, accent); px(10, 0, 2, 16, accent); }
+    if (pattern === "snow") { for (let y=2;y<15;y+=4) { px(3,y,2,2,"#edf3ef"); px(10,y+1,2,2,"#d5e2e7"); } }
+    if (pattern === "joggers") { px(3, 1, 2, 14, accent); px(11, 1, 2, 14, accent); px(4, 13, 8, 2, "#151b23"); }
+    if (pattern === "trousers") { px(4, 0, 2, 16, accent); px(10, 0, 2, 16, accent); px(7, 1, 2, 3, "#e9d18a"); }
+    if (pattern === "tactical") { px(3, 3, 3, 4, "#66796f"); px(10, 3, 3, 4, "#66796f"); px(3, 9, 3, 3, "#222c30"); px(10, 9, 3, 3, "#222c30"); }
+    if (pattern === "armor") { px(2, 1, 4, 13, "#777785"); px(10, 1, 4, 13, "#777785"); px(3, 2, 2, 10, accent); px(11, 2, 2, 10, accent); }
+    if (pattern === "shorts") { px(1, 0, 14, 10, base); px(1, 10, 5, 6, "#d5bd80"); px(10, 10, 5, 6, "#d5bd80"); px(7, 0, 2, 8, accent); }
+  } else if (item.category === "HANDS") {
     px(0, 0, 16, 16, base);
-    px(1, 0, 14, 4, accent); px(2, 5, 12, 3, base);
-    px(2, 9, 12, 5, accent);
-    if (item.pattern === "gloves") { px(1, 13, 14, 3, "#111820"); px(4, 2, 2, 7, "#b5c7dc"); px(10, 2, 2, 7, "#b5c7dc"); }
-    else { px(0, 5, 16, 2, "#e9ad78"); px(0, 10, 16, 2, "#e9ad78"); }
+    px(1, 0, 14, 4, accent); px(2, 5, 12, 3, base); px(2, 9, 12, 5, accent);
+    if (pattern === "gloves" || pattern === "gauntlets") {
+      px(1, 13, 14, 3, "#111820"); px(4, 2, 2, 7, "#b5c7dc"); px(10, 2, 2, 7, "#b5c7dc");
+      if (pattern === "gauntlets") { px(0, 0, 16, 3, "#d6f1fa"); px(2, 8, 12, 5, "#4e7189"); px(4, 9, 8, 2, accent); }
+    } else if (pattern === "wraps") {
+      px(0, 5, 16, 2, "#e9ad78"); px(0, 10, 16, 2, "#e9ad78");
+      px(2, 2, 12, 2, accent);
+    } else if (pattern === "bracers") {
+      px(0, 3, 16, 4, "#bd7846"); px(1, 4, 14, 2, "#efbd72"); px(0, 11, 16, 3, "#75432c");
+    } else if (pattern === "fingerless") {
+      px(1, 0, 14, 3, "#202a34"); px(2, 7, 12, 4, accent); px(2, 12, 12, 4, "#d0a070");
+      px(4, 12, 2, 3, "#efc79d"); px(10, 12, 2, 3, "#efc79d");
+    }
   }
   return canvas;
 }
@@ -1518,50 +1699,45 @@ async function equipLockerItem(item) {
   const entry = previewAvatar;
   if (!entry || lockerSelectedSlot !== entry.slotIndex) return;
 
-  // Hats are real voxel meshes attached to the head pivot, not painted head maps.
-  if (item.category === "HATS") {
-    const currentHat = entry.lockerItems?.headwear || "";
-    if (currentHat === item.id) delete entry.lockerItems.headwear;
-    else entry.lockerItems = { ...(entry.lockerItems || {}), headwear: item.id };
-    syncLockerAccessories(entry);
-    const synced = await persistLockerLoadout(entry);
-    renderLockerItems();
-    overlay.querySelector("#lockerEquippedStatus").textContent = currentHat === item.id
-      ? (synced ? "HAT REMOVED · CHARACTER SAVED" : "HAT REMOVED · LOCAL SAVE")
-      : (synced ? item.name.toUpperCase() + " EQUIPPED · SAVED" : item.name.toUpperCase() + " EQUIPPED · LOCAL SAVE");
-    scheduleLivePreview();
-    return;
-  }
-
   const slot = item.slot;
   const currentId = entry.lockerItems?.[slot] || "";
   const previousItem = lockerItemById(currentId);
   const baseTextures = { ...(entry.lockerBaseTextures || {}) };
+
+  // Restore the original texture maps before replacing or removing an item.
   if (previousItem) {
     const restore = {};
     for (const key of previousItem.keys) {
       if (baseTextures[key]) restore[key] = baseTextures[key];
     }
     if (Object.keys(restore).length) await applyAvatarTextureData(entry.textures, restore);
+
     if (currentId === item.id) {
       delete entry.lockerItems[slot];
       for (const key of previousItem.keys) delete baseTextures[key];
       entry.lockerBaseTextures = baseTextures;
       entry.dirtyTextureKeys = new Set(previousItem.keys);
+      if (previousItem.category === "HATS") syncLockerAccessories(entry);
       const synced = await persistLockerLoadout(entry);
       renderLockerItems();
       overlay.querySelector("#lockerEquippedStatus").textContent =
         synced ? "ITEM REMOVED · CHARACTER SAVED" : "ITEM REMOVED · LOCAL SAVE";
       scheduleLivePreview();
+      scheduleOnlineSkinSync();
       return;
     }
   }
+
+  // Keep one pristine copy per texture surface. Cosmetic pixels are written
+  // into the avatar maps as well as the local 3D hat mesh, so multiplayer
+  // players and signed-in devices see the same complete outfit.
   for (const key of item.keys) {
     if (!baseTextures[key]) {
       const canvas = getTextureCanvas(entry.textures, key);
       if (canvas) baseTextures[key] = canvas.toDataURL("image/png");
     }
   }
+
   const maps = {};
   for (const key of item.keys) {
     const canvas = buildLockerTextureCanvas(item, key, entry);
@@ -1571,6 +1747,8 @@ async function equipLockerItem(item) {
   entry.lockerItems = { ...(entry.lockerItems || {}), [slot]: item.id };
   entry.lockerBaseTextures = baseTextures;
   entry.dirtyTextureKeys = new Set(item.keys);
+  if (item.category === "HATS") syncLockerAccessories(entry);
+
   const synced = await persistLockerLoadout(entry);
   renderLockerItems();
   overlay.querySelector("#lockerEquippedStatus").textContent =
@@ -1578,7 +1756,6 @@ async function equipLockerItem(item) {
   scheduleLivePreview();
   scheduleOnlineSkinSync();
 }
-
 function refreshTextureButtons() {
   for (const button of textureList.children) {
     const key = button.dataset.textureKey;
