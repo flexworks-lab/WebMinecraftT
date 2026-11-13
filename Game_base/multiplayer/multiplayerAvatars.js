@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { getRemotePlayers, isMultiplayerActive } from "./multiplayerClient.js";
 import * as blockMaterials from "../world/blocks.js";
 import { getCharacterAppearanceId, readCharacterTextureRecord } from "../player/appearanceIdentity.js";
+import { createVoxelSword, isSwordItem } from "../player/voxelSword.js";
 
 const avatars = new Map();
 let animationStarted = false;
@@ -73,16 +74,40 @@ function createHeldBlock() {
     return mesh;
 }
 
+function disposeHeldSword(entry) {
+    if (!entry.heldSword) return;
+    entry.parts?.rightHand?.remove(entry.heldSword);
+    entry.heldSword.userData?.disposeVoxelSword?.();
+    entry.heldSword = null;
+}
+
 function syncHeldBlock(entry, player) {
     const hand = entry.parts?.rightHand;
     if (!hand) return;
 
+    const itemId = Math.floor(Number(player?.heldItemId) || 0);
+    if (isSwordItem(itemId)) {
+        if (entry.heldBlock) entry.heldBlock.visible = false;
+        if (!entry.heldSword || entry.heldSword.userData.itemId !== itemId) {
+            disposeHeldSword(entry);
+            entry.heldSword = createVoxelSword(itemId);
+            // The grip pivot is placed inside the hand mesh. Its blade points
+            // up and forward and follows the animated arm on every movement.
+            entry.heldSword.position.set(0.01, 0.01, 0.21);
+            entry.heldSword.rotation.set(0.08, 0, -0.04);
+            entry.heldSword.scale.setScalar(0.96);
+            hand.add(entry.heldSword);
+        }
+        entry.heldSword.visible = true;
+        return;
+    }
+
+    disposeHeldSword(entry);
     if (!entry.heldBlock) {
         entry.heldBlock = createHeldBlock();
         hand.add(entry.heldBlock);
     }
 
-    const itemId = Math.floor(Number(player?.heldItemId) || 0);
     const source = heldSourceMaterial(itemId);
     if (!source) {
         entry.heldBlock.visible = false;
@@ -584,7 +609,8 @@ export function updateMultiplayerAvatars(scene) {
                 lastReceivedAction: "idle",
                 actionUntil: 0,
                 bodyYaw: 0,
-                heldBlock: null
+                heldBlock: null,
+                heldSword: null
             };
             entry.group.position.copy(entry.lastPosition);
             avatars.set(id, entry);
