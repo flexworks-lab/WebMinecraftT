@@ -486,6 +486,11 @@ export function createAvatar(id, name, savedTextures = null, appearanceId = id) 
 
 function disposeAvatar(group) {
     const materials = new Set();
+    const swords = [];
+    group.traverse(child => {
+        if (child.userData?.disposeVoxelSword) swords.push(child);
+    });
+    for (const sword of swords) sword.userData.disposeVoxelSword();
     group.traverse(child => {
         if (child.geometry) child.geometry.dispose();
         if (child.material) for (const material of (Array.isArray(child.material) ? child.material : [child.material])) materials.add(material);
@@ -673,6 +678,16 @@ let localAvatarEntry = null;
 let localAvatarScene = null;
 let localAvatarIdentity = "";
 
+function localHeldItemId() {
+    try {
+        const inventory = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
+        const slot = Math.max(0, Math.min(8, Math.floor(Number(window.__webminecraftSelectedSlot ?? 0))));
+        return Math.floor(Number(inventory?.[slot]?.itemId) || 0);
+    } catch {
+        return 0;
+    }
+}
+
 function localCharacterName() {
     let user = null;
     try { user = window.firebase?.auth?.()?.currentUser || null; } catch {}
@@ -779,6 +794,7 @@ export function updateLocalAvatar(scene, camera, perspective = "first") {
         sneaking: Boolean(window.__webminecraftPlayerSneaking),
         action: localAction
     }, now);
+    syncHeldBlock(localAvatarEntry, { heldItemId: localHeldItemId() });
     group.rotation.y = localAvatarEntry.bodyYaw;
 }
 
