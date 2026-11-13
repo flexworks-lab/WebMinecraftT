@@ -4,6 +4,7 @@ import { isWorldDeleted } from "./worlds.js";
 
 const WAIT_MS = 50;
 const LOCAL_SAVE_DELAY_MS = 350;
+const BLOCK_SAVE_DELAY_MS = 900;
 const CLOUD_SAVE_DELAY_MS = 1500;
 const LIVE_CLOUD_SAVE_MS = 5000;
 const BLOCK_SNAPSHOT_PREFIX = "webminecraft-singleplayer-world-blocks-";
@@ -444,8 +445,7 @@ async function saveCloudNow(world, switchId = worldSwitchId) {
     if (!world || isWorldDeleted(world.seed)) return false;
     if (switchId !== worldSwitchId || activeWorldSeed !== world.seed || activeWorld !== world) return false;
     try {
-        await saveCloudWorld(world);
-        return true;
+        return await saveCloudWorld(world);
     } catch (error) {
         console.warn("Cloud world save failed:", error);
         return false;
@@ -557,6 +557,11 @@ window.addEventListener("webminecraft:blockchange", event => {
         activeWorld.blocks = activeBlocks;
         activeWorld.updatedAt = new Date().toISOString();
     }
+
+    // Persist bursts of block edits to browser storage, then queue the cloud
+    // upload. Without this debounce pendingChanges never clears during play.
+    if (saveTimer !== null) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { void flushBlockSaves(); }, BLOCK_SAVE_DELAY_MS);
 });
 
 async function switchWorld(seed, options = {}) {
