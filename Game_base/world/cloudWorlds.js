@@ -367,31 +367,85 @@ export async function syncCloudWorlds() {
     syncRunning = true;
     try {
         const storage = window.webMinecraftWorldStorage;
-        if (!storage?.saveLocalWorld) return;
+        if (!storage?.saveLocalWorld || !storage?.getLocalWorld || !storage?.getAllLocalWorlds) return;
         const services = await getUserAndDb();
         if (!services) return;
 
         await retryCloudWorldDeletes();
-        const cloudWorlds = await listCloudWorlds();
-        for (const cloudWorld of cloudWorlds) {
-            const seed = normalizeSeed(cloudWorld.seed ?? cloudWorld.id);
-            if (seed === null || getDeletedSeeds().has(seed)) continue;
-            const local = await storage.getLocalWorld(seed).catch(() => null);
-            const cloudTime = new Date(cloudWorld.updatedAt || 0).getTime();
-            const localTime = new Date(local?.updatedAt || 0).getTime();
-            if (local && localTime > cloudTime) {
-                await saveCloudWorld(local).catch(() => {});
+
+        // Read the cloud index and tombstones together. A delete made on another
+        // device must remove the stale local copy instead of resurrecting it.
+        const root = `users/${services.user.uid}`;
+        const [worldSnap, deletedSnap] = await Promise.all([
+            services.db.ref(`${root}/worlds`).once("value"),
+            services.db.ref(`${root}/deletedWorlds`).once("value")
+        ]);
+        const rawCloudWorlds = worldSnap.val() || {};
+        const remoteDeleted = new Set(
+            Object.keys(deletedSnap.val() || {}).map(normalizeSeed).filter(seed => seed !== null)
+        );
+
+        for (const seed of remoteDeleted) {
+            rememberDeletedSeed(seed);
+            if (storage.deleteLocalWorld) {
+                try { await storage.deleteLocalWorld(seed); } catch {}
+            }
+        }
+
+        const cloudWorlds = Object.entries(rawCloudWorlds)
+            .map(([id, world]) => ({ id, ...(world || {}) }))
+            .filter(world => {
+                const seed = normalizeSeed(world.seed ?? world.id);
+                return seed !== null && !remoteDeleted.has(seed) && world.deleted !== true;
+            });
+        const cloudBySeed = new Map(
+            cloudWorlds.map(world => [normalizeSeed(world.seed ?? world.id), world])
+        );
+
+        const localWorlds = await storage.getAllLocalWorlds().catch(() => []);
+        const localBySeed = new Map(
+            localWorlds.map(world => [normalizeSeed(world.seed), world]).filter(([seed]) => seed !== null)
+        );
+        const handled = new Set();
+
+        // Upload local-only worlds and resolve conflicts by their last saved
+        // timestamp. Newer local data wins; otherwise the cloud copy is restored.
+        for (const local of localWorlds) {
+            const seed = normalizeSeed(local?.seed);
+            if (seed === null || getDeletedSeeds().has(seed) || remoteDeleted.has(seed)) continue;
+
+            const cloud = cloudBySeed.get(seed);
+            if (!cloud) {
+                await saveCloudWorld(local);
                 continue;
             }
+
+            handled.add(seed);
+            const cloudTime = Date.parse(cloud.updatedAt || "") || 0;
+            const localTime = Date.parse(local.updatedAt || "") || 0;
+            if (localTime > cloudTime) {
+                await saveCloudWorld(local);
+                continue;
+            }
+
             const loaded = await loadCloudWorld(seed, local);
             if (loaded) await storage.saveLocalWorld(loaded).catch(() => {});
         }
+
+        // Download worlds that exist only in the account, including worlds
+        // created on another browser or device.
+        for (const cloud of cloudWorlds) {
+            const seed = normalizeSeed(cloud.seed ?? cloud.id);
+            if (seed === null || handled.has(seed) || localBySeed.has(seed) || getDeletedSeeds().has(seed)) continue;
+            const loaded = await loadCloudWorld(seed);
+            if (loaded) await storage.saveLocalWorld(loaded).catch(() => {});
+        }
+
         window.dispatchEvent(new CustomEvent("webminecraft:cloudworldssynced"));
     } finally {
         syncRunning = false;
     }
 }
-
 function stopLiveWorldListener() {
     if (!worldListenerServices) return;
     try {
@@ -457,4 +511,7 @@ setInterval(() => {
     if (navigator.onLine !== false) retryCloudWorldDeletes().catch(() => {});
 }, 5000);
 
-window.addEventListener("online", () => retryCloudWorldDeletes().catch(() => {}));
+window.addEventListener("online", () => {
+    retryCloudWorldDeletes().catch(() => {});
+    syncCloudWorlds().catch(() => {});
+});
