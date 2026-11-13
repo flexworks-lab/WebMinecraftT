@@ -681,7 +681,8 @@ let localAvatarIdentity = "";
 function localHeldItemId() {
     try {
         const inventory = JSON.parse(localStorage.getItem("webminecraft_inventory") || "[]");
-        const slot = Math.max(0, Math.min(8, Math.floor(Number(window.__webminecraftSelectedSlot ?? 0))));
+        const selectedSlot = window.webMinecraftSelectedSlot ?? window.__webminecraftSelectedSlot ?? 0;
+        const slot = Math.max(0, Math.min(8, Math.floor(Number(selectedSlot) || 0)));
         return Math.floor(Number(inventory?.[slot]?.itemId) || 0);
     } catch {
         return 0;
@@ -772,7 +773,8 @@ export function updateLocalAvatar(scene, camera, perspective = "first") {
             lastReceivedAction: "idle",
             actionUntil: 0,
             bodyYaw: Number(camera.userData.__webminecraftPlayerYaw) || 0,
-            heldBlock: null
+            heldBlock: null,
+            heldSword: null
         };
         localAvatarEntry.group.traverse(object => { if (object.isSprite) object.visible = false; });
         localAvatarEntry.group.visible = true;
