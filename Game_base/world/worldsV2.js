@@ -572,11 +572,12 @@ async function refreshFromLiveCloud() {
     if (typeof listCloud !== "function") return;
     liveCloudRefreshRunning = true;
     try {
-        const cloudWorlds = await listCloud();
-        const localWorlds = await allRecords();
+        const [cloudWorlds, localWorlds] = await Promise.all([listCloud(), allRecords()]);
         const localBySeed = new Map(localWorlds.map(world => [world.seed, world]));
+        const cloudSeeds = new Set();
         const merged = cloudWorlds.map(cloud => {
             const seed = seedOf(cloud.seed ?? cloud.id);
+            if (seed !== null) cloudSeeds.add(seed);
             const local = localBySeed.get(seed);
             return normalize({
                 ...(local || {}),
@@ -584,10 +585,23 @@ async function refreshFromLiveCloud() {
                 name: cloud.name || local?.name,
                 createdAt: cloud.createdAt || local?.createdAt,
                 updatedAt: cloud.updatedAt || local?.updatedAt,
+                lastPlayedAt: local?.lastPlayedAt || cloud.updatedAt || local?.createdAt,
+                preview: cloud.preview || local?.preview,
                 mode: cloud.mode || local?.mode || "survival",
                 blocks: local?.blocks || {}
             });
         }).filter(Boolean);
+
+        // Keep browser-only worlds visible while they are being migrated to the
+        // account. A cloud refresh must never make local worlds disappear.
+        for (const local of localWorlds) {
+            if (!cloudSeeds.has(local.seed)) merged.push(local);
+        }
+        merged.sort((a, b) => {
+            const aTime = Date.parse(a.lastPlayedAt || a.updatedAt || a.createdAt || 0) || 0;
+            const bTime = Date.parse(b.lastPlayedAt || b.updatedAt || b.createdAt || 0) || 0;
+            return bTime - aTime;
+        });
         render(merged);
     } catch (error) {
         console.warn("Live saved-world refresh failed:", error);
@@ -611,17 +625,25 @@ async function openMenu() {
 }
 
 export async function getLocalWorld(seed) {
+    await initSavedWorldStorage();
     return getRecord(seed);
 }
 
 export async function saveLocalWorld(world) {
+    await initSavedWorldStorage();
     return putRecord(world);
 }
 
 export async function deleteLocalWorld(seed) {
+    await initSavedWorldStorage();
     await deleteRecord(seed);
     worldsCache = worldsCache.filter(w => seedOf(w.seed) !== seedOf(seed));
     writeIndex(worldsCache);
+}
+
+export async function listLocalWorlds() {
+    await initSavedWorldStorage();
+    return allRecords();
 }
 
 export function isWorldDeleted(seed) {
@@ -656,4 +678,18 @@ export function initSavedWorlds({ onOpenWorld } = {}) {
             else closeMenu();
         }
     });
+}
+
+
+// Shared adapter used by the single-player save system and account cloud sync.
+// It is installed at module load, not only after the Worlds screen is opened.
+if (typeof window !== "undefined") {
+    const storageAdapter = window.webMinecraftWorldStorage || {};
+    Object.assign(storageAdapter, {
+        getLocalWorld,
+        saveLocalWorld,
+        deleteLocalWorld,
+        getAllLocalWorlds: listLocalWorlds
+    });
+    window.webMinecraftWorldStorage = storageAdapter;
 }
